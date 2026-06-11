@@ -1,0 +1,26 @@
+{
+  "cli": {
+    "version": ">= 7.0.0"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal"
+    },
+    "preview": {
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_FUNCTIONS_REGION": "southamerica-east1"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_FUNCTIONS_REGION": "southamerica-east1"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}
