@@ -2,11 +2,15 @@ import {
   collection, query, where, orderBy, limit, getDocs,
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
+import { DEMO } from '../config/demo';
+import { buscarLocal } from '../demo/motorLocal';
 
 // Autocompletado contra Firestore. Firestore no soporta búsqueda
 // case-insensitive nativa, por eso cada documento guarda
 // `nombre_lower` y `marca_lower` (los genera el uploader).
+// En modo demo busca sobre la base de muestra local.
 export async function buscarPerfumes(texto, { incluirDiscontinuados = true } = {}) {
+  if (DEMO) return buscarLocal(texto, { incluirDiscontinuados });
   const q = texto.trim().toLowerCase();
   if (q.length < 3) return [];
 

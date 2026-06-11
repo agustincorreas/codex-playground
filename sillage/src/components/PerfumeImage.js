@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import FastImage from 'react-native-fast-image';
+import { Text, StyleSheet } from 'react-native';
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { buscarImagenWikimedia, inicialesMarca } from '../services/imagenes';
 import { colors, gradients, radius } from '../theme/tokens';
 
 // Cadena de fallback: imagen_url -> Wikimedia Commons -> placeholder con iniciales.
+// expo-image cachea en disco y funciona en Expo Go, web y builds nativos.
 export default function PerfumeImage({ perfume, size = 96 }) {
   const [uri, setUri] = useState(perfume.imagen_url || null);
   const [fallo, setFallo] = useState(!perfume.imagen_url);
@@ -26,10 +27,12 @@ export default function PerfumeImage({ perfume, size = 96 }) {
 
   if (uri && !fallo) {
     return (
-      <FastImage
+      <Image
         source={{ uri }}
         style={[styles.imagen, { width: size, height: size }]}
-        resizeMode={FastImage.resizeMode.contain}
+        contentFit="contain"
+        cachePolicy="disk"
+        transition={200}
         onError={() => {
           // La URL scrapeada expiró: probamos Wikimedia una sola vez.
           setUri(null);

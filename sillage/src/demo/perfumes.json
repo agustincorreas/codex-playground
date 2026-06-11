@@ -1,0 +1,1625 @@
+[
+  {
+    "id": "dior__sauvage",
+    "nombre": "Sauvage",
+    "marca": "Dior",
+    "anio": 2015,
+    "genero": "M",
+    "concentracion": "EDT",
+    "familia_principal": "Aromático",
+    "familias_secundarias": [
+      "Fougère"
+    ],
+    "notas_salida": [
+      "bergamota",
+      "pimienta"
+    ],
+    "notas_corazon": [
+      "pimienta de sichuan",
+      "lavanda",
+      "geranio",
+      "elemi"
+    ],
+    "notas_fondo": [
+      "ambroxan",
+      "cedro",
+      "ládano"
+    ],
+    "descriptores": [
+      "fresco",
+      "especiado",
+      "persistente",
+      "versatil",
+      "proyeccion"
+    ],
+    "rating": 8.4,
+    "votos": 21500,
+    "discontinuado": false,
+    "imagen_url": null,
+    "url_fragrantica": null,
+    "ocasiones": [
+      "diario",
+      "verano",
+      "deporte",
+      "invierno",
+      "noche"
+    ],
+    "intensidad": 1,
+    "longevidad_estimada": 3,
+    "sillage_estimado": 3,
+    "precio_rango": "premium",
+    "popularidad_score": 84.0,
+    "nombre_lower": "sauvage",
+    "marca_lower": "dior"
+  },
+  {
+    "id": "chanel__bleu-de-chanel-edp",
+    "nombre": "Bleu de Chanel EDP",
+    "marca": "Chanel",
+    "anio": 2014,
+    "genero": "M",
+    "concentracion": "EDP",
+    "familia_principal": "Amaderado",
+    "familias_secundarias": [
+      "Aromático"
+    ],
+    "notas_salida": [
+      "limón",
+      "menta",
+      "pomelo"
+    ],
+    "notas_corazon": [
+      "jengibre",
+      "nuez moscada",
+      "jazmín"
+    ],
+    "notas_fondo": [
+      "incienso",
+      "vetiver",
+      "cedro",
+      "sándalo"
+    ],
+    "descriptores": [
+      "elegante",
+      "fresco",
+      "versatil",
+      "limpio",
+      "persistente"
+    ],
+    "rating": 8.8,
+    "votos": 18200,
+    "discontinuado": false,
+    "imagen_url": null,
+    "url_fragrantica": null,
+    "ocasiones": [
+      "diario",
+      "formal",
+      "trabajo",
+      "verano",
+      "deporte"
+    ],
+    "intensidad": 2,
+    "longevidad_estimada": 4,
+    "sillage_estimado": 2,
+    "precio_rango": "premium",
+    "popularidad_score": 88.0,
+    "nombre_lower": "bleu de chanel edp",
+    "marca_lower": "chanel"
+  },
+  {
+    "id": "versace__eros",
+    "nombre": "Eros",
+    "marca": "Versace",
+    "anio": 2012,
+    "genero": "M",
+    "concentracion": "EDT",
+    "familia_principal": "Fougère",
+    "familias_secundarias": [
+      "Oriental"
+    ],
+    "notas_salida": [
+      "menta",
+      "manzana verde",
+      "limón"
+    ],
+    "notas_corazon": [
+      "haba tonka",
+      "ambroxan",
+      "geranio"
+    ],
+    "notas_fondo": [
+      "vainilla",
+      "vetiver",
+      "musgo de roble",
+      "cedro"
+    ],
+    "descriptores": [
+      "dulce",
+      "fresco",
+      "intenso",
+      "proyeccion",
+      "persistente"
+    ],
+    "rating": 8.2,
+    "votos": 16800,
+    "discontinuado": false,
+    "imagen_url": null,
+    "url_fragrantica": null,
+    "ocasiones": [
+      "diario",
+      "casual",
+      "verano",
+      "deporte",
+      "noche"
+    ],
+    "intensidad": 3,
+    "longevidad_estimada": 4,
+    "sillage_estimado": 3,
+    "precio_rango": "medio",
+    "popularidad_score": 82.0,
+    "nombre_lower": "eros",
+    "marca_lower": "versace"
+  },
+  {
+    "id": "paco-rabanne__1-million",
+    "nombre": "1 Million",
+    "marca": "Paco Rabanne",
+    "anio": 2008,
+    "genero": "M",
+    "concentracion": "EDT",
+    "familia_principal": "Oriental",
+    "familias_secundarias": [
+      "Especiado"
+    ],
+    "notas_salida": [
+      "pomelo",
+      "menta",
+      "mandarina roja"
+    ],
+    "notas_corazon": [
+      "canela",
+      "notas especiadas",
+      "rosa"
+    ],
+    "notas_fondo": [
+      "cuero",
+      "ámbar",
+      "pachulí"
+    ],
+    "descriptores": [
+      "dulce",
+      "calido",
+      "especiado",
+      "intenso",
+      "proyeccion"
+    ],
+    "rating": 7.9,
+    "votos": 19400,
+    "discontinuado": false,
+    "imagen_url": null,
+    "url_fragrantica": null,
+    "ocasiones": [
+      "invierno",
+      "noche",
+      "casual"
+    ],
+    "intensidad": 5,
+    "longevidad_estimada": 4,
+    "sillage_estimado": 5,
+    "precio_rango": "medio",
+    "popularidad_score": 79.0,
+    "nombre_lower": "1 million",
+    "marca_lower": "paco rabanne"
+  },
+  {
+    "id": "armani__acqua-di-gio-profumo",
+    "nombre": "Acqua di Giò Profumo",
+    "marca": "Giorgio Armani",
+    "anio": 2015,
+    "genero": "M",
+    "concentracion": "Parfum",
+    "familia_principal": "Acuático",
+    "familias_secundarias": [
+      "Aromático"
+    ],
+    "notas_salida": [
+      "notas marinas",
+      "bergamota"
+    ],
+    "notas_corazon": [
+      "salvia",
+      "geranio",
+      "romero"
+    ],
+    "notas_fondo": [
+      "incienso",
+      "pachulí"
+    ],
+    "descriptores": [
+      "fresco",
+      "elegante",
+      "limpio",
+      "persistente",
+      "versatil"
+    ],
+    "rating": 8.9,
+    "votos": 14600,
+    "discontinuado": true,
+    "imagen_url": null,
+    "url_fragrantica": null,
+    "ocasiones": [
+      "diario",
+      "verano",
+      "deporte",
+      "trabajo",
+      "formal"
+    ],
+    "intensidad": 1,
+    "longevidad_estimada": 3,
+    "sillage_estimado": 2,
+    "precio_rango": "premium",
+    "popularidad_score": 89.0,
+    "nombre_lower": "acqua di giò profumo",
+    "marca_lower": "giorgio armani"
+  },
+  {
+    "id": "ysl__la-nuit-de-lhomme",
+    "nombre": "La Nuit de L'Homme",
+    "marca": "Yves Saint Laurent",
+    "anio": 2009,
+    "genero": "M",
+    "concentracion": "EDT",
+    "familia_principal": "Oriental",
+    "familias_secundarias": [
+      "Especiado",
+      "Amaderado"
+    ],
+    "notas_salida": [
+      "cardamomo"
+    ],
+    "notas_corazon": [
+      "lavanda",
+      "cedro",
+      "bergamota"
+    ],
+    "notas_fondo": [
+      "vetiver",
+      "haba tonka"
+    ],
+    "descriptores": [
+      "sensual",
+      "calido",
+      "elegante",
+      "suave",
+      "especiado"
+    ],
+    "rating": 8.3,
+    "votos": 15800,
+    "discontinuado": false,
+    "imagen_url": null,
+    "url_fragrantica": null,
+    "ocasiones": [
+      "noche",
+      "trabajo",
+      "invierno",
+      "formal",
+      "romántico"
+    ],
+    "intensidad": 3,
+    "longevidad_estimada": 4,
+    "sillage_estimado": 3,
+    "precio_rango": "premium",
+    "popularidad_score": 83.0,
+    "nombre_lower": "la nuit de l'homme",
+    "marca_lower": "yves saint laurent"
+  },
+  {
+    "id": "jpg__le-male",
+    "nombre": "Le Male",
+    "marca": "Jean Paul Gaultier",
+    "anio": 1995,
+    "genero": "M",
+    "concentracion": "EDT",
+    "familia_principal": "Fougère",
+    "familias_secundarias": [
+      "Oriental"
+    ],
+    "notas_salida": [
+      "lavanda",
+      "menta",
+      "bergamota"
+    ],
+    "notas_corazon": [
+      "canela",
+      "comino",
+      "flor de azahar"
+    ],
+    "notas_fondo": [
+      "vainilla",
+      "haba tonka",
+      "sándalo"
+    ],
+    "descriptores": [
+      "dulce",
+      "calido",
+      "distintivo",
+      "persistente",
+      "clasico"
+    ],
+    "rating": 8.0,
+    "votos": 17300,
+    "discontinuado": false,
+    "imagen_url": null,
+    "url_fragrantica": null,
+    "ocasiones": [
+      "invierno",
+      "noche",
+      "casual",
+      "trabajo",
+      "diario"
+    ],
+    "intensidad": 3,
+    "longevidad_estimada": 4,
+    "sillage_estimado": 3,
+    "precio_rango": "medio",
+    "popularidad_score": 80.0,
+    "nombre_lower": "le male",
+    "marca_lower": "jean paul gaultier"
+  },
+  {
+    "id": "ch__212-vip-men",
+    "nombre": "212 VIP Men",
+    "marca": "Carolina Herrera",
+    "anio": 2011,
+    "genero": "M",
+    "concentracion": "EDT",
+    "familia_principal": "Oriental",
+    "familias_secundarias": [
+      "Amaderado"
+    ],
+    "notas_salida": [
+      "lima",
+      "menta",
+      "pimienta",
+      "maracuyá"
+    ],
+    "notas_corazon": [
+      "ginebra",
+      "vodka",
+      "jengibre"
+    ],
+    "notas_fondo": [
+      "vainilla",
+      "ámbar",
+      "cuero"
+    ],
+    "descriptores": [
+      "dulce",
+      "versatil",
+      "limpio",
+      "moderno"
+    ],
+    "rating": 7.7,
+    "votos": 12100,
+    "discontinuado": false,
+    "imagen_url": null,
+    "url_fragrantica": null,
+    "ocasiones": [
+      "invierno",
+      "noche",
+      "casual",
+      "trabajo",
+      "diario"
+    ],
+    "intensidad": 3,
+    "longevidad_estimada": 4,
+    "sillage_estimado": 3,
+    "precio_rango": "medio",
+    "popularidad_score": 77.0,
+    "nombre_lower": "212 vip men",
+    "marca_lower": "carolina herrera"
+  },
+  {
+    "id": "creed__aventus",
+    "nombre": "Aventus",
+    "marca": "Creed",
+    "anio": 2010,
+    "genero": "M",
+    "concentracion": "EDP",
+    "familia_principal": "Chypre",
+    "familias_secundarias": [
+      "Frutal"
+    ],
+    "notas_salida": [
+      "piña",
+      "bergamota",
+      "grosella negra",
+      "manzana"
+    ],
+    "notas_corazon": [
+      "abedul",
+      "pachulí",
+      "rosa",
+      "jazmín"
+    ],
+    "notas_fondo": [
+      "almizcle",
+      "musgo de roble",
+      "ámbar gris",
+      "vainilla"
+    ],
+    "descriptores": [
+      "elegante",
+      "distintivo",
+      "fresco",
+      "proyeccion",
+      "sofisticado"
+    ],
+    "rating": 8.6,
+    "votos": 22800,
+    "discontinuado": false,
+    "imagen_url": null,
+    "url_fragrantica": null,
+    "ocasiones": [
+      "verano",
+      "diario",
+      "deporte",
+      "formal",
+      "trabajo"
+    ],
+    "intensidad": 2,
+    "longevidad_estimada": 3,
+    "sillage_estimado": 3,
+    "precio_rango": "nicho",
+    "popularidad_score": 86.0,
+    "nombre_lower": "aventus",
+    "marca_lower": "creed"
+  },
+  {
+    "id": "pdm__layton",
+    "nombre": "Layton",
+    "marca": "Parfums de Marly",
+    "anio": 2016,
+    "genero": "U",
+    "concentracion": "EDP",
+    "familia_principal": "Oriental",
+    "familias_secundarias": [
+      "Floral",
+      "Amaderado"
+    ],
+    "notas_salida": [
+      "manzana",
+      "lavanda",
+      "bergamota",
+      "mandarina"
+    ],
+    "notas_corazon": [
+      "geranio",
+      "violeta",
+      "jazmín"
+    ],
+    "notas_fondo": [
+      "vainilla",
+      "cardamomo",
+      "sándalo",
+      "pimienta",
+      "guayaco"
+    ],
+    "descriptores": [
+      "dulce",
+      "elegante",
+      "persistente",
+      "proyeccion",
+      "calido"
+    ],
+    "rating": 8.7,
+    "votos": 13900,
+    "discontinuado": false,
+    "imagen_url": null,
+    "url_fragrantica": null,
+    "ocasiones": [
+      "invierno",
+      "noche",
+      "casual",
+      "formal",
+      "trabajo"
+    ],
+    "intensidad": 4,
+    "longevidad_estimada": 5,
+    "sillage_estimado": 5,
+    "precio_rango": "nicho",
+    "popularidad_score": 87.0,
+    "nombre_lower": "layton",
+    "marca_lower": "parfums de marly"
+  },
+  {
+    "id": "mfk__baccarat-rouge-540",
+    "nombre": "Baccarat Rouge 540",
+    "marca": "Maison Francis Kurkdjian",
+    "anio": 2015,
+    "genero": "U",
+    "concentracion": "EDP",
+    "familia_principal": "Oriental",
+    "familias_secundarias": [
+      "Floral",
+      "Amaderado"
+    ],
+    "notas_salida": [
+      "azafrán",
+      "jazmín"
+    ],
+    "notas_corazon": [
+      "ámbar gris",
+      "madera de amyris"
+    ],
+    "notas_fondo": [
+      "resina de abeto",
+      "cedro"
+    ],
+    "descriptores": [
+      "dulce",
+      "distintivo",
+      "proyeccion",
+      "persistente",
+      "sofisticado"
+    ],
+    "rating": 8.3,
+    "votos": 20100,
+    "discontinuado": false,
+    "imagen_url": null,
+    "url_fragrantica": null,
+    "ocasiones": [
+      "invierno",
+      "noche",
+      "casual",
+      "formal",
+      "trabajo"
+    ],
+    "intensidad": 4,
+    "longevidad_estimada": 5,
+    "sillage_estimado": 5,
+    "precio_rango": "nicho",
+    "popularidad_score": 83.0,
+    "nombre_lower": "baccarat rouge 540",
+    "marca_lower": "maison francis kurkdjian"
+  },
+  {
+    "id": "lattafa__khamrah",
+    "nombre": "Khamrah",
+    "marca": "Lattafa",
+    "anio": 2022,
+    "genero": "U",
+    "concentracion": "EDP",
+    "familia_principal": "Oriental",
+    "familias_secundarias": [
+      "Gourmand",
+      "Especiado"
+    ],
+    "notas_salida": [
+      "canela",
+      "nuez moscada",
+      "bergamota"
+    ],
+    "notas_corazon": [
+      "dátiles",
+      "praliné",
+      "nardo"
+    ],
+    "notas_fondo": [
+      "vainilla",
+      "haba tonka",
+      "benjuí",
+      "ámbar"
+    ],
+    "descriptores": [
+      "dulce",
+      "calido",
+      "especiado",
+      "persistente",
+      "proyeccion"
+    ],
+    "rating": 8.1,
+    "votos": 9800,
+    "discontinuado": false,
+    "imagen_url": null,
+    "url_fragrantica": null,
+    "ocasiones": [
+      "invierno",
+      "noche",
+      "casual"
+    ],
+    "intensidad": 4,
+    "longevidad_estimada": 5,
+    "sillage_estimado": 5,
+    "precio_rango": "accesible",
+    "popularidad_score": 80.8,
+    "nombre_lower": "khamrah",
+    "marca_lower": "lattafa"
+  },
+  {
+    "id": "afnan__9pm",
+    "nombre": "9PM",
+    "marca": "Afnan",
+    "anio": 2020,
+    "genero": "M",
+    "concentracion": "EDP",
+    "familia_principal": "Oriental",
+    "familias_secundarias": [
+      "Fougère"
+    ],
+    "notas_salida": [
+      "manzana",
+      "canela",
+      "lavanda",
+      "bergamota"
+    ],
+    "notas_corazon": [
+      "flor de azahar",
+      "lirio de los valles"
+    ],
+    "notas_fondo": [
+      "vainilla",
+      "haba tonka",
+      "ámbar",
+      "pachulí"
+    ],
+    "descriptores": [
+      "dulce",
+      "intenso",
+      "proyeccion",
+      "persistente",
+      "calido"
+    ],
+    "rating": 7.9,
+    "votos": 8700,
+    "discontinuado": false,
+    "imagen_url": null,
+    "url_fragrantica": null,
+    "ocasiones": [
+      "invierno",
+      "noche",
+      "casual"
+    ],
+    "intensidad": 5,
+    "longevidad_estimada": 5,
+    "sillage_estimado": 5,
+    "precio_rango": "medio",
+    "popularidad_score": 77.8,
+    "nombre_lower": "9pm",
+    "marca_lower": "afnan"
+  },
+  {
+    "id": "tom-ford__tobacco-vanille",
+    "nombre": "Tobacco Vanille",
+    "marca": "Tom Ford",
+    "anio": 2007,
+    "genero": "U",
+    "concentracion": "EDP",
+    "familia_principal": "Oriental",
+    "familias_secundarias": [
+      "Especiado",
+      "Gourmand"
+    ],
+    "notas_salida": [
+      "tabaco",
+      "notas especiadas"
+    ],
+    "notas_corazon": [
+      "vainilla",
+      "cacao",
+      "flor de tabaco"
+    ],
+    "notas_fondo": [
+      "frutas secas",
+      "notas amaderadas"
+    ],
+    "descriptores": [
+      "calido",
+      "dulce",
+      "intenso",
+      "persistente",
+      "sofisticado"
+    ],
+    "rating": 8.5,
+    "votos": 16200,
+    "discontinuado": false,
+    "imagen_url": null,
+    "url_fragrantica": null,
+    "ocasiones": [
+      "invierno",
+      "noche",
+      "casual",
+      "formal",
+      "trabajo"
+    ],
+    "intensidad": 5,
+    "longevidad_estimada": 5,
+    "sillage_estimado": 5,
+    "precio_rango": "premium",
+    "popularidad_score": 85.0,
+    "nombre_lower": "tobacco vanille",
+    "marca_lower": "tom ford"
+  },
+  {
+    "id": "tom-ford__oud-wood",
+    "nombre": "Oud Wood",
+    "marca": "Tom Ford",
+    "anio": 2007,
+    "genero": "U",
+    "concentracion": "EDP",
+    "familia_principal": "Amaderado",
+    "familias_secundarias": [
+      "Oriental"
+    ],
+    "notas_salida": [
+      "oud",
+      "palo de rosa",
+      "cardamomo"
+    ],
+    "notas_corazon": [
+      "sándalo",
+      "vetiver",
+      "pimienta de sichuan"
+    ],
+    "notas_fondo": [
+      "vainilla",
+      "ámbar",
+      "haba tonka"
+    ],
+    "descriptores": [
+      "elegante",
+      "suave",
+      "sofisticado",
+      "distintivo",
+      "amaderado"
+    ],
+    "rating": 8.4,
+    "votos": 13500,
+    "discontinuado": false,
+    "imagen_url": null,
+    "url_fragrantica": null,
+    "ocasiones": [
+      "formal",
+      "trabajo",
+      "diario",
+      "noche",
+      "invierno"
+    ],
+    "intensidad": 2,
+    "longevidad_estimada": 3,
+    "sillage_estimado": 2,
+    "precio_rango": "premium",
+    "popularidad_score": 84.0,
+    "nombre_lower": "oud wood",
+    "marca_lower": "tom ford"
+  },
+  {
+    "id": "dior__homme-intense",
+    "nombre": "Dior Homme Intense",
+    "marca": "Dior",
+    "anio": 2011,
+    "genero": "M",
+    "concentracion": "EDP",
+    "familia_principal": "Amaderado",
+    "familias_secundarias": [
+      "Floral"
+    ],
+    "notas_salida": [
+      "lavanda"
+    ],
+    "notas_corazon": [
+      "iris",
+      "perla de cacao",
+      "ámbar"
+    ],
+    "notas_fondo": [
+      "vetiver",
+      "cedro"
+    ],
+    "descriptores": [
+      "elegante",
+      "sensual",
+      "polvoroso",
+      "sofisticado",
+      "persistente"
+    ],
+    "rating": 8.6,
+    "votos": 14100,
+    "discontinuado": false,
+    "imagen_url": null,
+    "url_fragrantica": null,
+    "ocasiones": [
+      "formal",
+      "trabajo",
+      "noche",
+      "romántico",
+      "diario"
+    ],
+    "intensidad": 3,
+    "longevidad_estimada": 4,
+    "sillage_estimado": 3,
+    "precio_rango": "premium",
+    "popularidad_score": 86.0,
+    "nombre_lower": "dior homme intense",
+    "marca_lower": "dior"
+  },
+  {
+    "id": "azzaro__the-most-wanted",
+    "nombre": "The Most Wanted",
+    "marca": "Azzaro",
+    "anio": 2021,
+    "genero": "M",
+    "concentracion": "EDP",
+    "familia_principal": "Oriental",
+    "familias_secundarias": [
+      "Fougère"
+    ],
+    "notas_salida": [
+      "cardamomo"
+    ],
+    "notas_corazon": [
+      "haba tonka"
+    ],
+    "notas_fondo": [
+      "ámbar de madera"
+    ],
+    "descriptores": [
+      "dulce",
+      "calido",
+      "proyeccion",
+      "moderno",
+      "intenso"
+    ],
+    "rating": 7.8,
+    "votos": 7200,
+    "discontinuado": false,
+    "imagen_url": null,
+    "url_fragrantica": null,
+    "ocasiones": [
+      "invierno",
+      "noche",
+      "casual"
+    ],
+    "intensidad": 5,
+    "longevidad_estimada": 4,
+    "sillage_estimado": 5,
+    "precio_rango": "medio",
+    "popularidad_score": 75.2,
+    "nombre_lower": "the most wanted",
+    "marca_lower": "azzaro"
+  },
+  {
+    "id": "lancome__la-vie-est-belle",
+    "nombre": "La Vie Est Belle",
+    "marca": "Lancôme",
+    "anio": 2012,
+    "genero": "F",
+    "concentracion": "EDP",
+    "familia_principal": "Gourmand",
+    "familias_secundarias": [
+      "Floral"
+    ],
+    "notas_salida": [
+      "grosella negra",
+      "pera"
+    ],
+    "notas_corazon": [
+      "iris",
+      "jazmín",
+      "flor de azahar"
+    ],
+    "notas_fondo": [
+      "praliné",
+      "vainilla",
+      "pachulí",
+      "haba tonka"
+    ],
+    "descriptores": [
+      "dulce",
+      "elegante",
+      "persistente",
+      "proyeccion",
+      "calido"
+    ],
+    "rating": 8.1,
+    "votos": 19700,
+    "discontinuado": false,
+    "imagen_url": null,
+    "url_fragrantica": null,
+    "ocasiones": [
+      "invierno",
+      "noche",
+      "casual",
+      "formal",
+      "trabajo"
+    ],
+    "intensidad": 4,
+    "longevidad_estimada": 5,
+    "sillage_estimado": 5,
+    "precio_rango": "premium",
+    "popularidad_score": 81.0,
+    "nombre_lower": "la vie est belle",
+    "marca_lower": "lancôme"
+  },
+  {
+    "id": "ch__good-girl",
+    "nombre": "Good Girl",
+    "marca": "Carolina Herrera",
+    "anio": 2016,
+    "genero": "F",
+    "concentracion": "EDP",
+    "familia_principal": "Oriental",
+    "familias_secundarias": [
+      "Floral"
+    ],
+    "notas_salida": [
+      "almendra",
+      "café"
+    ],
+    "notas_corazon": [
+      "nardo",
+      "jazmín sambac"
+    ],
+    "notas_fondo": [
+      "haba tonka",
+      "cacao",
+      "vainilla",
+      "sándalo"
+    ],
+    "descriptores": [
+      "dulce",
+      "sensual",
+      "intenso",
+      "persistente",
+      "distintivo"
+    ],
+    "rating": 7.9,
+    "votos": 16400,
+    "discontinuado": false,
+    "imagen_url": null,
+    "url_fragrantica": null,
+    "ocasiones": [
+      "noche",
+      "invierno",
+      "casual",
+      "romántico"
+    ],
+    "intensidad": 5,
+    "longevidad_estimada": 5,
+    "sillage_estimado": 5,
+    "precio_rango": "medio",
+    "popularidad_score": 79.0,
+    "nombre_lower": "good girl",
+    "marca_lower": "carolina herrera"
+  },
+  {
+    "id": "ysl__black-opium",
+    "nombre": "Black Opium",
+    "marca": "Yves Saint Laurent",
+    "anio": 2014,
+    "genero": "F",
+    "concentracion": "EDP",
+    "familia_principal": "Gourmand",
+    "familias_secundarias": [
+      "Oriental"
+    ],
+    "notas_salida": [
+      "pera",
+      "pimienta rosa",
+      "flor de azahar"
+    ],
+    "notas_corazon": [
+      "café",
+      "jazmín"
+    ],
+    "notas_fondo": [
+      "vainilla",
+      "pachulí",
+      "cedro"
+    ],
+    "descriptores": [
+      "dulce",
+      "intenso",
+      "sensual",
+      "moderno",
+      "proyeccion"
+    ],
+    "rating": 8.0,
+    "votos": 18900,
+    "discontinuado": false,
+    "imagen_url": null,
+    "url_fragrantica": null,
+    "ocasiones": [
+      "noche",
+      "invierno",
+      "casual",
+      "romántico"
+    ],
+    "intensidad": 5,
+    "longevidad_estimada": 4,
+    "sillage_estimado": 5,
+    "precio_rango": "premium",
+    "popularidad_score": 80.0,
+    "nombre_lower": "black opium",
+    "marca_lower": "yves saint laurent"
+  },
+  {
+    "id": "ysl__libre",
+    "nombre": "Libre",
+    "marca": "Yves Saint Laurent",
+    "anio": 2019,
+    "genero": "F",
+    "concentracion": "EDP",
+    "familia_principal": "Fougère",
+    "familias_secundarias": [
+      "Floral",
+      "Oriental"
+    ],
+    "notas_salida": [
+      "mandarina",
+      "grosella negra",
+      "lavanda"
+    ],
+    "notas_corazon": [
+      "jazmín",
+      "flor de azahar",
+      "lavanda"
+    ],
+    "notas_fondo": [
+      "vainilla de madagascar",
+      "almizcle",
+      "cedro",
+      "ámbar gris"
+    ],
+    "descriptores": [
+      "elegante",
+      "moderno",
+      "persistente",
+      "distintivo",
+      "calido"
+    ],
+    "rating": 8.2,
+    "votos": 12800,
+    "discontinuado": false,
+    "imagen_url": null,
+    "url_fragrantica": null,
+    "ocasiones": [
+      "trabajo",
+      "invierno",
+      "noche",
+      "formal",
+      "diario"
+    ],
+    "intensidad": 3,
+    "longevidad_estimada": 4,
+    "sillage_estimado": 3,
+    "precio_rango": "premium",
+    "popularidad_score": 82.0,
+    "nombre_lower": "libre",
+    "marca_lower": "yves saint laurent"
+  },
+  {
+    "id": "chanel__coco-mademoiselle",
+    "nombre": "Coco Mademoiselle",
+    "marca": "Chanel",
+    "anio": 2001,
+    "genero": "F",
+    "concentracion": "EDP",
+    "familia_principal": "Chypre",
+    "familias_secundarias": [
+      "Floral"
+    ],
+    "notas_salida": [
+      "naranja",
+      "mandarina",
+      "bergamota"
+    ],
+    "notas_corazon": [
+      "rosa",
+      "jazmín",
+      "lichi"
+    ],
+    "notas_fondo": [
+      "pachulí",
+      "vetiver",
+      "vainilla",
+      "almizcle blanco"
+    ],
+    "descriptores": [
+      "elegante",
+      "sofisticado",
+      "limpio",
+      "versatil",
+      "clasico"
+    ],
+    "rating": 8.7,
+    "votos": 21000,
+    "discontinuado": false,
+    "imagen_url": null,
+    "url_fragrantica": null,
+    "ocasiones": [
+      "trabajo",
+      "formal",
+      "diario"
+    ],
+    "intensidad": 2,
+    "longevidad_estimada": 3,
+    "sillage_estimado": 2,
+    "precio_rango": "premium",
+    "popularidad_score": 87.0,
+    "nombre_lower": "coco mademoiselle",
+    "marca_lower": "chanel"
+  },
+  {
+    "id": "dior__jadore",
+    "nombre": "J'adore",
+    "marca": "Dior",
+    "anio": 1999,
+    "genero": "F",
+    "concentracion": "EDP",
+    "familia_principal": "Floral",
+    "familias_secundarias": [
+      "Frutal"
+    ],
+    "notas_salida": [
+      "pera",
+      "melón",
+      "magnolia",
+      "bergamota"
+    ],
+    "notas_corazon": [
+      "jazmín",
+      "lirio de los valles",
+      "tuberosa"
+    ],
+    "notas_fondo": [
+      "almizcle",
+      "vainilla",
+      "cedro",
+      "mora"
+    ],
+    "descriptores": [
+      "elegante",
+      "clasico",
+      "suave",
+      "sofisticado",
+      "limpio"
+    ],
+    "rating": 8.4,
+    "votos": 17600,
+    "discontinuado": false,
+    "imagen_url": null,
+    "url_fragrantica": null,
+    "ocasiones": [
+      "trabajo",
+      "diario",
+      "formal",
+      "romántico",
+      "casual"
+    ],
+    "intensidad": 2,
+    "longevidad_estimada": 3,
+    "sillage_estimado": 2,
+    "precio_rango": "premium",
+    "popularidad_score": 84.0,
+    "nombre_lower": "j'adore",
+    "marca_lower": "dior"
+  },
+  {
+    "id": "dolce-gabbana__light-blue",
+    "nombre": "Light Blue",
+    "marca": "Dolce & Gabbana",
+    "anio": 2001,
+    "genero": "F",
+    "concentracion": "EDT",
+    "familia_principal": "Cítrico",
+    "familias_secundarias": [
+      "Floral",
+      "Frutal"
+    ],
+    "notas_salida": [
+      "limón siciliano",
+      "manzana",
+      "cedro"
+    ],
+    "notas_corazon": [
+      "rosa blanca",
+      "bambú",
+      "jazmín"
+    ],
+    "notas_fondo": [
+      "cedro",
+      "almizcle",
+      "ámbar"
+    ],
+    "descriptores": [
+      "fresco",
+      "limpio",
+      "versatil",
+      "citrico",
+      "clasico"
+    ],
+    "rating": 7.8,
+    "votos": 16900,
+    "discontinuado": false,
+    "imagen_url": null,
+    "url_fragrantica": null,
+    "ocasiones": [
+      "diario",
+      "verano",
+      "deporte",
+      "trabajo"
+    ],
+    "intensidad": 1,
+    "longevidad_estimada": 2,
+    "sillage_estimado": 2,
+    "precio_rango": "premium",
+    "popularidad_score": 78.0,
+    "nombre_lower": "light blue",
+    "marca_lower": "dolce & gabbana"
+  },
+  {
+    "id": "mugler__alien",
+    "nombre": "Alien",
+    "marca": "Mugler",
+    "anio": 2005,
+    "genero": "F",
+    "concentracion": "EDP",
+    "familia_principal": "Oriental",
+    "familias_secundarias": [
+      "Floral",
+      "Amaderado"
+    ],
+    "notas_salida": [
+      "jazmín sambac"
+    ],
+    "notas_corazon": [
+      "madera de cachemira"
+    ],
+    "notas_fondo": [
+      "ámbar blanco"
+    ],
+    "descriptores": [
+      "intenso",
+      "distintivo",
+      "persistente",
+      "proyeccion",
+      "sensual"
+    ],
+    "rating": 7.9,
+    "votos": 14700,
+    "discontinuado": false,
+    "imagen_url": null,
+    "url_fragrantica": null,
+    "ocasiones": [
+      "noche",
+      "invierno",
+      "romántico"
+    ],
+    "intensidad": 5,
+    "longevidad_estimada": 5,
+    "sillage_estimado": 5,
+    "precio_rango": "premium",
+    "popularidad_score": 79.0,
+    "nombre_lower": "alien",
+    "marca_lower": "mugler"
+  },
+  {
+    "id": "dior__hypnotic-poison",
+    "nombre": "Hypnotic Poison",
+    "marca": "Dior",
+    "anio": 1998,
+    "genero": "F",
+    "concentracion": "EDT",
+    "familia_principal": "Oriental",
+    "familias_secundarias": [
+      "Gourmand"
+    ],
+    "notas_salida": [
+      "coco",
+      "ciruela",
+      "albaricoque"
+    ],
+    "notas_corazon": [
+      "almendra",
+      "jazmín",
+      "lirio de los valles"
+    ],
+    "notas_fondo": [
+      "vainilla",
+      "almizcle",
+      "sándalo"
+    ],
+    "descriptores": [
+      "dulce",
+      "sensual",
+      "calido",
+      "distintivo",
+      "intenso"
+    ],
+    "rating": 8.2,
+    "votos": 13200,
+    "discontinuado": false,
+    "imagen_url": null,
+    "url_fragrantica": null,
+    "ocasiones": [
+      "noche",
+      "invierno",
+      "casual",
+      "romántico"
+    ],
+    "intensidad": 5,
+    "longevidad_estimada": 4,
+    "sillage_estimado": 5,
+    "precio_rango": "premium",
+    "popularidad_score": 82.0,
+    "nombre_lower": "hypnotic poison",
+    "marca_lower": "dior"
+  },
+  {
+    "id": "paco-rabanne__invictus",
+    "nombre": "Invictus",
+    "marca": "Paco Rabanne",
+    "anio": 2013,
+    "genero": "M",
+    "concentracion": "EDT",
+    "familia_principal": "Acuático",
+    "familias_secundarias": [
+      "Aromático"
+    ],
+    "notas_salida": [
+      "pomelo",
+      "notas marinas",
+      "mandarina"
+    ],
+    "notas_corazon": [
+      "hoja de laurel",
+      "jazmín"
+    ],
+    "notas_fondo": [
+      "ámbar gris",
+      "musgo de guayaco",
+      "musgo de roble",
+      "pachulí"
+    ],
+    "descriptores": [
+      "fresco",
+      "dulce",
+      "deportivo",
+      "versatil",
+      "moderno"
+    ],
+    "rating": 7.6,
+    "votos": 15300,
+    "discontinuado": false,
+    "imagen_url": null,
+    "url_fragrantica": null,
+    "ocasiones": [
+      "verano",
+      "diario",
+      "deporte",
+      "noche",
+      "invierno"
+    ],
+    "intensidad": 1,
+    "longevidad_estimada": 2,
+    "sillage_estimado": 2,
+    "precio_rango": "medio",
+    "popularidad_score": 76.0,
+    "nombre_lower": "invictus",
+    "marca_lower": "paco rabanne"
+  },
+  {
+    "id": "versace__dylan-blue",
+    "nombre": "Dylan Blue",
+    "marca": "Versace",
+    "anio": 2016,
+    "genero": "M",
+    "concentracion": "EDT",
+    "familia_principal": "Fougère",
+    "familias_secundarias": [
+      "Acuático"
+    ],
+    "notas_salida": [
+      "notas acuáticas",
+      "pomelo",
+      "bergamota"
+    ],
+    "notas_corazon": [
+      "ambroxan",
+      "pimienta negra",
+      "pachulí",
+      "incienso"
+    ],
+    "notas_fondo": [
+      "almizcle",
+      "haba tonka",
+      "azafrán"
+    ],
+    "descriptores": [
+      "fresco",
+      "versatil",
+      "limpio",
+      "moderno",
+      "proyeccion"
+    ],
+    "rating": 7.9,
+    "votos": 11800,
+    "discontinuado": false,
+    "imagen_url": null,
+    "url_fragrantica": null,
+    "ocasiones": [
+      "diario",
+      "trabajo",
+      "verano",
+      "deporte",
+      "casual"
+    ],
+    "intensidad": 2,
+    "longevidad_estimada": 3,
+    "sillage_estimado": 3,
+    "precio_rango": "medio",
+    "popularidad_score": 79.0,
+    "nombre_lower": "dylan blue",
+    "marca_lower": "versace"
+  },
+  {
+    "id": "montblanc__legend",
+    "nombre": "Legend",
+    "marca": "Montblanc",
+    "anio": 2011,
+    "genero": "M",
+    "concentracion": "EDT",
+    "familia_principal": "Fougère",
+    "familias_secundarias": [
+      "Aromático"
+    ],
+    "notas_salida": [
+      "lavanda",
+      "piña",
+      "bergamota",
+      "verbena"
+    ],
+    "notas_corazon": [
+      "avellana",
+      "geranio",
+      "coumarin",
+      "manzana"
+    ],
+    "notas_fondo": [
+      "haba tonka",
+      "sándalo",
+      "ámbar"
+    ],
+    "descriptores": [
+      "fresco",
+      "limpio",
+      "versatil",
+      "suave",
+      "clasico"
+    ],
+    "rating": 7.7,
+    "votos": 10900,
+    "discontinuado": false,
+    "imagen_url": null,
+    "url_fragrantica": null,
+    "ocasiones": [
+      "diario",
+      "trabajo",
+      "verano",
+      "deporte",
+      "casual"
+    ],
+    "intensidad": 2,
+    "longevidad_estimada": 3,
+    "sillage_estimado": 2,
+    "precio_rango": "medio",
+    "popularidad_score": 77.0,
+    "nombre_lower": "legend",
+    "marca_lower": "montblanc"
+  },
+  {
+    "id": "armaf__club-de-nuit-intense",
+    "nombre": "Club de Nuit Intense Man",
+    "marca": "Armaf",
+    "anio": 2015,
+    "genero": "M",
+    "concentracion": "EDT",
+    "familia_principal": "Chypre",
+    "familias_secundarias": [
+      "Frutal"
+    ],
+    "notas_salida": [
+      "limón",
+      "piña",
+      "grosella negra",
+      "manzana",
+      "bergamota"
+    ],
+    "notas_corazon": [
+      "abedul",
+      "jazmín",
+      "rosa"
+    ],
+    "notas_fondo": [
+      "almizcle",
+      "ámbar gris",
+      "pachulí",
+      "vainilla"
+    ],
+    "descriptores": [
+      "fresco",
+      "intenso",
+      "proyeccion",
+      "persistente",
+      "distintivo"
+    ],
+    "rating": 7.8,
+    "votos": 14500,
+    "discontinuado": false,
+    "imagen_url": null,
+    "url_fragrantica": null,
+    "ocasiones": [
+      "verano",
+      "diario",
+      "deporte",
+      "formal",
+      "trabajo"
+    ],
+    "intensidad": 3,
+    "longevidad_estimada": 4,
+    "sillage_estimado": 3,
+    "precio_rango": "accesible",
+    "popularidad_score": 78.0,
+    "nombre_lower": "club de nuit intense man",
+    "marca_lower": "armaf"
+  },
+  {
+    "id": "natura__essencial-oud",
+    "nombre": "Essencial Oud",
+    "marca": "Natura",
+    "anio": 2017,
+    "genero": "U",
+    "concentracion": "Parfum",
+    "familia_principal": "Amaderado",
+    "familias_secundarias": [
+      "Oriental"
+    ],
+    "notas_salida": [
+      "notas especiadas",
+      "bergamota"
+    ],
+    "notas_corazon": [
+      "oud",
+      "madera"
+    ],
+    "notas_fondo": [
+      "ámbar",
+      "almizcle"
+    ],
+    "descriptores": [
+      "calido",
+      "amaderado",
+      "elegante",
+      "persistente"
+    ],
+    "rating": 7.5,
+    "votos": 3200,
+    "discontinuado": false,
+    "imagen_url": null,
+    "url_fragrantica": null,
+    "ocasiones": [
+      "invierno",
+      "noche",
+      "formal",
+      "trabajo"
+    ],
+    "intensidad": 3,
+    "longevidad_estimada": 4,
+    "sillage_estimado": 3,
+    "precio_rango": "accesible",
+    "popularidad_score": 65.7,
+    "nombre_lower": "essencial oud",
+    "marca_lower": "natura"
+  }
+]

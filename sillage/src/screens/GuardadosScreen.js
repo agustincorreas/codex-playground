@@ -7,6 +7,7 @@ import { useUserStore } from '../store/useUserStore';
 import AuthSheet from '../components/AuthSheet';
 import PerfumeImage from '../components/PerfumeImage';
 import PrimaryButton from '../components/PrimaryButton';
+import { DEMO } from '../config/demo';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 
 export default function GuardadosScreen() {
@@ -16,16 +17,16 @@ export default function GuardadosScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      if (user) listarGuardados(user.uid).then(setItems);
+      if (user || DEMO) listarGuardados(user?.uid || 'demo').then(setItems);
     }, [user])
   );
 
   const quitar = async (id) => {
-    await quitarGuardado(user.uid, id);
+    await quitarGuardado(user?.uid || 'demo', id);
     setItems((prev) => prev.filter((i) => i.id !== id));
   };
 
-  if (!user) {
+  if (!user && !DEMO) {
     return (
       <View style={styles.vacio}>
         <Text style={styles.tituloVacio}>Tus perfumes guardados</Text>

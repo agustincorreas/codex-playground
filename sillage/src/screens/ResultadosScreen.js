@@ -7,6 +7,7 @@ import { useResultsStore } from '../store/useResultsStore';
 import { useUserStore } from '../store/useUserStore';
 import { useWizardStore } from '../store/useWizardStore';
 import { guardarPerfume, quitarGuardado } from '../services/guardados';
+import { DEMO } from '../config/demo';
 import { colors, spacing, typography } from '../theme/tokens';
 
 export default function ResultadosScreen({ navigation }) {
@@ -20,15 +21,16 @@ export default function ResultadosScreen({ navigation }) {
     respuestas?.perfume_referencia?.nombre || respuestas?.perfume_referencia?.nombre_libre;
 
   const toggleGuardar = async (perfume) => {
-    if (!user) {
+    if (!user && !DEMO) {
       setAuthVisible(true); // guest: invitación a registrarse
       return;
     }
+    const uid = user?.uid || 'demo';
     if (guardados[perfume.id]) {
-      await quitarGuardado(user.uid, perfume.id);
+      await quitarGuardado(uid, perfume.id);
       setGuardados((g) => ({ ...g, [perfume.id]: false }));
     } else {
-      await guardarPerfume(user.uid, perfume);
+      await guardarPerfume(uid, perfume);
       setGuardados((g) => ({ ...g, [perfume.id]: true }));
     }
   };

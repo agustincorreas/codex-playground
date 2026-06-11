@@ -3,6 +3,7 @@ import { getFirestore } from 'firebase/firestore';
 import { initializeAuth, getReactNativePersistence } from 'firebase/auth';
 import { getFunctions } from 'firebase/functions';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { DEMO } from './demo';
 
 const firebaseConfig = {
   apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
@@ -13,12 +14,13 @@ const firebaseConfig = {
   appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
 };
 
-export const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app);
-export const auth = initializeAuth(app, {
-  persistence: getReactNativePersistence(AsyncStorage),
-});
-export const functions = getFunctions(
-  app,
-  process.env.EXPO_PUBLIC_FUNCTIONS_REGION || 'southamerica-east1'
-);
+// En modo demo (sin credenciales) no se inicializa Firebase: los
+// servicios usan la base local y AsyncStorage.
+export const app = DEMO ? null : initializeApp(firebaseConfig);
+export const db = DEMO ? null : getFirestore(app);
+export const auth = DEMO
+  ? null
+  : initializeAuth(app, { persistence: getReactNativePersistence(AsyncStorage) });
+export const functions = DEMO
+  ? null
+  : getFunctions(app, process.env.EXPO_PUBLIC_FUNCTIONS_REGION || 'southamerica-east1');

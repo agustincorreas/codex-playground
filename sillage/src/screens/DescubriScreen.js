@@ -4,6 +4,7 @@ import { MODOS } from '../wizard/config';
 import { useWizardStore } from '../store/useWizardStore';
 import { useUserStore } from '../store/useUserStore';
 import ProBadge from '../components/ProBadge';
+import { DEMO } from '../config/demo';
 import { colors, radius, spacing, typography, shadows } from '../theme/tokens';
 
 const ICONOS = { heart: '♥', refresh: '↻', calendar: '◷', gift: '✦' };
@@ -37,6 +38,13 @@ export default function DescubriScreen({ navigation }) {
 
   return (
     <ScrollView style={styles.pantalla} contentContainerStyle={styles.contenido}>
+      {DEMO && (
+        <View style={styles.bannerDemo}>
+          <Text style={styles.bannerDemoTexto}>
+            Modo demo · base de muestra de 31 perfumes, sin conexión a servidores
+          </Text>
+        </View>
+      )}
       <Text style={styles.titulo}>Descubrí tu próximo perfume</Text>
       <Text style={styles.subtitulo}>Elegí tu punto de partida</Text>
 
@@ -74,4 +82,13 @@ const styles = StyleSheet.create({
   icono: { fontSize: 28, color: colors.acento, width: 40, textAlign: 'center' },
   cardTitulo: typography.subtitulo,
   cardDesc: { ...typography.secundario, marginTop: 2 },
+  bannerDemo: {
+    backgroundColor: colors.acentoSecundario + '33',
+    borderWidth: 1,
+    borderColor: colors.acento + '55',
+    borderRadius: radius.md,
+    padding: spacing.sm,
+    marginBottom: spacing.lg,
+  },
+  bannerDemoTexto: { ...typography.secundario, color: colors.acento, textAlign: 'center' },
 });

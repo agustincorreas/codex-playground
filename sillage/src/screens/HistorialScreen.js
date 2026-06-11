@@ -7,6 +7,7 @@ import { useResultsStore } from '../store/useResultsStore';
 import AuthSheet from '../components/AuthSheet';
 import PrimaryButton from '../components/PrimaryButton';
 import { MODOS } from '../wizard/config';
+import { DEMO } from '../config/demo';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 
 export default function HistorialScreen({ navigation }) {
@@ -17,7 +18,7 @@ export default function HistorialScreen({ navigation }) {
 
   useFocusEffect(
     useCallback(() => {
-      if (user) listarHistorial(user.uid).then(setItems);
+      if (user || DEMO) listarHistorial(user?.uid || 'demo').then(setItems);
     }, [user])
   );
 
@@ -29,7 +30,7 @@ export default function HistorialScreen({ navigation }) {
     navigation.navigate('DescubriStack', { screen: 'Resultados' });
   };
 
-  if (!user) {
+  if (!user && !DEMO) {
     return (
       <View style={styles.vacio}>
         <Text style={styles.tituloVacio}>Tu historial te espera</Text>
@@ -61,7 +62,10 @@ export default function HistorialScreen({ navigation }) {
               {(item.resultados || []).map((r) => r.nombre).join(' · ')}
             </Text>
             <Text style={styles.fecha}>
-              {item.creado_at?.toDate?.().toLocaleDateString('es-AR') || ''}
+              {item.creado_at?.toDate?.().toLocaleDateString('es-AR') ||
+                (typeof item.creado_at === 'number'
+                  ? new Date(item.creado_at).toLocaleDateString('es-AR')
+                  : '')}
             </Text>
           </Pressable>
         );
