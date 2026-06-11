@@ -5,6 +5,7 @@ import PrimaryButton from '../components/PrimaryButton';
 import ProBadge from '../components/ProBadge';
 import { obtenerOfertas, comprar, restaurar } from '../config/revenuecat';
 import { useUserStore } from '../store/useUserStore';
+import { DEMO } from '../config/demo';
 import { colors, gradients, radius, spacing, typography } from '../theme/tokens';
 
 const BENEFICIOS = [
@@ -41,6 +42,13 @@ export default function PaywallScreen({ navigation }) {
   })();
 
   const suscribir = async (pkg) => {
+    if (DEMO) {
+      Alert.alert(
+        'Modo demo',
+        'Las compras reales se activan en la versión conectada. Podés previsualizar la experiencia PRO con el botón "Probar PRO (demo)".'
+      );
+      return;
+    }
     if (!pkg) return;
     setComprando(true);
     try {
@@ -116,6 +124,23 @@ export default function PaywallScreen({ navigation }) {
             </View>
           )}
         </View>
+
+        {DEMO && (
+          <View style={{ marginTop: spacing.md }}>
+            <PrimaryButton
+              label="Probar PRO (demo)"
+              variante="secundario"
+              onPress={() => {
+                setPro(true);
+                Alert.alert(
+                  'PRO activado en demo',
+                  'Vas a ver la experiencia premium con textos de muestra (sin IA real). Hacé una nueva búsqueda para verla.'
+                );
+                navigation.goBack();
+              }}
+            />
+          </View>
+        )}
 
         <Pressable onPress={onRestaurar}>
           <Text style={styles.restaurar}>Restaurar compra</Text>

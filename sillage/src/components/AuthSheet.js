@@ -1,11 +1,12 @@
 import React from 'react';
-import { Modal, View, Text, Pressable, StyleSheet, Platform } from 'react-native';
+import { Modal, View, Text, Pressable, StyleSheet, Platform, Alert } from 'react-native';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import {
   GoogleAuthProvider, OAuthProvider, signInWithCredential,
 } from 'firebase/auth';
 import * as Google from 'expo-auth-session/providers/google';
 import { auth } from '../config/firebase';
+import { DEMO } from '../config/demo';
 import { useUserStore } from '../store/useUserStore';
 import PrimaryButton from './PrimaryButton';
 import { colors, radius, spacing, typography } from '../theme/tokens';
@@ -21,7 +22,12 @@ export default function AuthSheet({ visible, onClose }) {
     webClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB,
   });
 
+  const avisoDemo = () => {
+    Alert.alert('Modo demo', 'Las cuentas se activan en la versión conectada a Firebase. En demo todo se guarda en este dispositivo.');
+  };
+
   const conGoogle = async () => {
+    if (DEMO) return avisoDemo();
     const res = await promptGoogle();
     if (res?.type !== 'success') return;
     const credential = GoogleAuthProvider.credential(res.params.id_token);
@@ -31,6 +37,7 @@ export default function AuthSheet({ visible, onClose }) {
   };
 
   const conApple = async () => {
+    if (DEMO) return avisoDemo();
     const apple = await AppleAuthentication.signInAsync({
       requestedScopes: [
         AppleAuthentication.AppleAuthenticationScope.FULL_NAME,

@@ -5,6 +5,8 @@ import { useWizardStore } from '../store/useWizardStore';
 import { useUserStore } from '../store/useUserStore';
 import { useResultsStore } from '../store/useResultsStore';
 import { pedirRecomendaciones, pedirEnriquecimiento } from '../services/api';
+import { guardarBusqueda } from '../services/historial';
+import { DEMO } from '../config/demo';
 import { colors, spacing, typography } from '../theme/tokens';
 
 const TEXTOS = [
@@ -34,18 +36,32 @@ export default function ProcesandoScreen({ navigation }) {
     montado.current = true;
     (async () => {
       try {
+        const input = payload();
         const data = await pedirRecomendaciones({
-          ...payload(),
+          ...input,
           deviceId,
           region,
         });
         if (!montado.current) return;
         setResultados(data.resultados, data.busquedaId);
         navigation.replace('Resultados');
+        // En demo el backend no existe: el historial se guarda localmente.
+        if (DEMO) {
+          guardarBusqueda('demo', data.busquedaId, {
+            input,
+            resultados: data.resultados,
+          }).catch(() => {});
+        }
         // El enriquecimiento premium corre en paralelo después de navegar:
         // las cards muestran la sección IA apenas llega.
         if (isPro && data.busquedaId) {
-          pedirEnriquecimiento(data.busquedaId)
+          const contextoDemo = {
+            resultados: data.resultados,
+            modo: input.modo,
+            nombreReferencia:
+              input.perfume_referencia?.nombre || input.perfume_referencia?.nombre_libre,
+          };
+          pedirEnriquecimiento(data.busquedaId, contextoDemo)
             .then((enriquecidos) => setEnriquecidos(enriquecidos))
             .catch(() => {});
         }

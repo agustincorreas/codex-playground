@@ -5,6 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { onAuthStateChanged } from 'firebase/auth';
 import RootNavigator from './src/navigation/RootNavigator';
 import { auth } from './src/config/firebase';
+import { DEMO } from './src/config/demo';
 import { initRevenueCat, esPro } from './src/config/revenuecat';
 import { useUserStore } from './src/store/useUserStore';
 
@@ -21,6 +22,9 @@ export default function App() {
       }
       setDeviceId(deviceId);
     })();
+
+    // Modo demo: sin Firebase, la app corre como guest con la base local.
+    if (DEMO) return undefined;
 
     // Sesión de Firebase + estado de suscripción en RevenueCat.
     const unsub = onAuthStateChanged(auth, async (user) => {
