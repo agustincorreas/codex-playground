@@ -1,0 +1,16 @@
+{
+  "name": "sillage-functions",
+  "description": "Cloud Functions: motor de matching, enriquecimiento premium y rate limiting",
+  "engines": { "node": "20" },
+  "main": "index.js",
+  "scripts": {
+    "serve": "firebase emulators:start --only functions",
+    "deploy": "firebase deploy --only functions"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.1.0",
+    "firebase-functions": "^4.9.0",
+    "openai": "^4.47.0"
+  },
+  "private": true
+}

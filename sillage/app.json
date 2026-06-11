@@ -1,0 +1,37 @@
+{
+  "expo": {
+    "name": "Sillage",
+    "slug": "sillage",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#0F0E0C",
+    "splash": {
+      "backgroundColor": "#0F0E0C",
+      "resizeMode": "contain"
+    },
+    "ios": {
+      "bundleIdentifier": "com.sillage.app",
+      "usesAppleSignIn": true,
+      "supportsTablet": false
+    },
+    "android": {
+      "package": "com.sillage.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#0F0E0C"
+      }
+    },
+    "plugins": [
+      "expo-apple-authentication",
+      [
+        "expo-build-properties",
+        {
+          "android": { "minSdkVersion": 24 }
+        }
+      ]
+    ],
+    "extra": {
+      "eas": { "projectId": "REEMPLAZAR_PROJECT_ID" }
+    }
+  }
+}
