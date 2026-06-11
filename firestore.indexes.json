@@ -1,0 +1,63 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "perfumes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "familia_principal", "order": "ASCENDING" },
+        { "fieldPath": "popularidad_score", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "perfumes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "discontinuado", "order": "ASCENDING" },
+        { "fieldPath": "familia_principal", "order": "ASCENDING" },
+        { "fieldPath": "rating", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "perfumes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "ocasiones", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "intensidad", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "perfumes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "genero", "order": "ASCENDING" },
+        { "fieldPath": "popularidad_score", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "perfumes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "genero", "order": "ASCENDING" },
+        { "fieldPath": "familia_principal", "order": "ASCENDING" },
+        { "fieldPath": "popularidad_score", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "perfumes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "precio_rango", "order": "ASCENDING" },
+        { "fieldPath": "popularidad_score", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "perfumes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "discontinuado", "order": "ASCENDING" },
+        { "fieldPath": "popularidad_score", "order": "DESCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}
