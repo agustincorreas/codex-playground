@@ -52,10 +52,11 @@ La app se carga en unos segundos y vas a ver el banner "Modo demo" arriba.
 
 ## Si algo falla
 
-- **"Versión de SDK incompatible" en Expo Go**: en la terminal, dentro de
-  la carpeta `sillage`, corré
-  `npm install expo@latest && npx expo install --fix` y de nuevo
-  `npx expo start`.
+- El proyecto está fijado a **Expo SDK 54**, la versión que soporta la app
+  Expo Go actual. Si más adelante Expo Go se actualiza a un SDK más nuevo y
+  aparece "Project is incompatible with this version of Expo Go", hay que
+  actualizar el proyecto al SDK nuevo (pedíselo a tu asistente o seguí
+  https://docs.expo.dev/workflow/upgrading-expo-sdk-walkthrough/).
 - **El QR no conecta**: probá `npx expo start --tunnel` (instala una
   dependencia y funciona aunque el Wi-Fi bloquee conexiones locales).
 - **Alternativa sin teléfono**: `npx expo start --web` abre la app en el
