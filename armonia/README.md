@@ -37,3 +37,9 @@ Keys → canal 1, Bass → canal 2, Arp → canal 3, Pad → canal 4, más pitch
 - `audio.js` — motor de sonido, FX, fuentes de modulación y reloj
 - `app.js` — interfaz, patch bay, looper, MIDI
 - `style.css` — estética pastel / minimal del panel
+
+## Versión de un solo archivo
+
+`armonia.html` contiene todo (HTML, CSS y JS) en un único archivo: descargalo y abrilo
+con doble clic en Chrome, Edge, Firefox o Safari. No necesita servidor ni internet
+(sólo las fuentes se cargan online; si no hay conexión usa las del sistema).
