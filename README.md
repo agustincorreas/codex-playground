@@ -10,6 +10,10 @@ Son útiles para jugar, mejorar código y experimentar.
 - `lector_excel.py`: lee un archivo de Excel y muestra su contenido (requiere `pandas`).
 - `generador_contraseñas.py`: genera contraseñas aleatorias seguras.
 
+## Proyecto: Prisma Synth — Sintetizador digital
+
+- [`prisma-synth/`](prisma-synth/README.md): sintetizador multi-motor para navegador (Web Audio / AudioWorklet) inspirado en Arturia Pigments: motores Analog, Wavetable, FM, Granular, Harmonic, Modal y Sample; dos filtros; modulación por arrastrar y soltar; vista Play con macros y visualizador; arpegiador y efectos (incluido un Corroder). Abrí `prisma-synth/dist/prisma-synth.html` para probarlo sin instalar nada.
+
 ## Proyecto: Sillage — Recomendador de perfumes
 
 - [`sillage/`](sillage/README.md): app React Native (Expo) con tier gratuito y membresía PRO.

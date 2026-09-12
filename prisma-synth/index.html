@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Prisma Synth</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%2319c3ff'/%3E%3Ccircle cx='20' cy='14' r='8' fill='%23ff8a3d'/%3E%3C/svg%3E">
+</head>
+<body>
+  <div id="app">
+    <header id="header"></header>
+    <main id="views">
+      <div id="assign-banner" class="assign-banner" hidden>
+        Modo asignación: girá cualquier perilla para fijar la cantidad de <b id="assign-banner-name"></b>. Doble click quita la modulación · Esc para salir.
+      </div>
+      <div id="view-synth" class="view" data-view="synth"></div>
+      <div id="view-fx" class="view" data-view="fx" hidden></div>
+      <div id="view-arp" class="view" data-view="arp" hidden></div>
+      <div id="view-play" class="view" data-view="play" hidden></div>
+    </main>
+    <footer id="footer"></footer>
+  </div>
+  <div id="mod-popover" class="popover" hidden></div>
+  <input type="file" id="import-file" accept="application/json,.json" hidden>
+  <input type="file" id="sample-file" accept="audio/*" hidden>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+{
+  "name": "prisma-synth",
+  "version": "1.0.0",
+  "description": "Sintetizador digital multi-motor para navegador (Web Audio / AudioWorklet)",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "npx http-server . -p 8080 -c-1 -o",
+    "test": "node test/dsp.test.mjs"
+  }
+}
