@@ -23,3 +23,18 @@ html = html.replace('<script type="module" src="js/main.js"></script>',
 mkdirSync(join(root, 'dist'), { recursive: true });
 writeFileSync(join(root, 'dist/prisma-synth.html'), html);
 console.log(`dist/prisma-synth.html: ${(html.length / 1024).toFixed(0)} KB`);
+
+// --artifact <dir>: variante para hosts que envuelven el HTML (sin doctype/html/head/body)
+// y sirven el worklet como archivo aparte junto a la página.
+const ai = process.argv.indexOf('--artifact');
+if (ai > 0) {
+  const dir = process.argv[ai + 1];
+  mkdirSync(dir, { recursive: true });
+  const bodyStart = html.indexOf('<body>') + '<body>'.length, bodyEnd = html.lastIndexOf('</body>');
+  let inner = html.slice(bodyStart, bodyEnd);
+  inner = inner.replace(/<script type="text\/plain" id="worklet-src">[\s\S]*?<\/script>\n\s*/, '');
+  const page = `<title>Prisma Synth</title>\n<style>\n${css}\n</style>\n${inner}`;
+  writeFileSync(join(dir, 'index.html'), page);
+  writeFileSync(join(dir, 'synth-processor.js'), worklet);
+  console.log(`${dir}/index.html + synth-processor.js`);
+}
