@@ -1,6 +1,6 @@
 // Prisma Synth — aplicación principal: estado, vistas, modulación por
 // arrastrar y soltar, presets, MIDI y visualización en tiempo real.
-import { PARAMS, PARAM_INDEX, pidx, denorm, norm, formatValue, COLORS, MOD_SOURCES, SRC_INDEX, FX_TYPES, FX_INDEX, FX_SLOTS, ENGINE_TYPES, ENGINE_NAMES, isGlobalParam, isSongParam, SCALES, KEY_NAMES, CHORD_TYPES, ARP_PATTERNS, DRUM_NAMES, DRUM_PATTERNS, LOOP_BARS, MOODS, VIBES } from './shared/params.js';
+import { PARAMS, PARAM_INDEX, pidx, denorm, norm, formatValue, COLORS, MOD_SOURCES, SRC_INDEX, FX_TYPES, FX_INDEX, FX_SLOTS, ENGINE_TYPES, ENGINE_NAMES, isGlobalParam, isSongParam, SCALES, KEY_NAMES, CHORD_TYPES, ARP_PATTERNS, DRUM_NAMES, DRUM_PATTERNS, LOOP_BARS, MOODS, VIBES, ARP_STYLES, DRUM_ARP } from './shared/params.js';
 import { SynthAudio, MidiManager, listAudioOutputs, canSelectOutput } from './audio/engine.js';
 import { Knob, EnumControl, Toggle, Slider, createControl } from './ui/knob.js';
 import { MasterVisualizer, Scope, drawEnvelope, drawLFO } from './ui/visualizer.js';
@@ -45,7 +45,7 @@ class App {
     this.liveSrc = new Float32Array(MOD_SOURCES.length);
     this.scopes = {}; this.envCanvases = []; this.lfoCanvases = [];
     this.view = 'jam';
-    this.song = Object.assign({ key: 0, mood: 'happy', scale: 'major', chord: 'triad', fat: false, vibe: 'own', octave: 3, scaleLock: true, midiChords: false }, JSON.parse(localStorage.getItem('prisma.song') || '{}'));
+    this.song = Object.assign({ key: 0, mood: 'happy', scale: 'major', chord: 'triad', fat: false, vibe: 'own', octave: 3, scaleLock: true, midiChords: false, arpStyle: 'own', shortTail: true }, JSON.parse(localStorage.getItem('prisma.song') || '{}'));
     this.song.scale = (MOODS.find(m => m.id === this.song.mood) || MOODS[0]).scale; this.song.chord = this.song.fat ? 'fat' : 'triad';
     this.activeChords = new Map(); // nota base → notas enviadas
     this.userPresets = JSON.parse(localStorage.getItem('prisma.userPresets') || '[]');
@@ -82,6 +82,7 @@ class App {
     if (id === 'a.type' || id === 'b.type') this.buildEngineBody(id[0]);
     if (/^fx\d\.type$/.test(id)) { this.applyFxDefaults(parseInt(id[2], 10)); this.buildFxSlot(parseInt(id[2], 10)); }
     if (id === 'arp.on') this.refreshArpBadge();
+    if (id === 'drum.pattern' && this.song && this.song.arpStyle === 'auto' && !this._loading) this.applyArpStyle();
     if (id === 'arp.pattern') this.refreshArpDesc();
   }
   setValue(id, value) { const d = PARAMS[pidx(id)]; this.setNorm(d.index, norm(d, value)); }
@@ -153,6 +154,9 @@ class App {
     this.showView('jam');
     document.addEventListener('pointerdown', (e) => { const pop = $('#mod-popover'); if (!pop.hidden && !pop.contains(e.target) && !e.target.closest('.knob')) pop.hidden = true; const dp = $('#devices-panel'); if (dp && !dp.hidden && !dp.contains(e.target) && !e.target.closest('#midi-ind')) dp.hidden = true; });
     window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && this.assignSource >= 0) this.setAssign(this.assignSource); });
+    const releaseEverything = () => { this.stopAll(); if (this.keyboard) for (const n of [...this.keyboard.held]) this.keyboard.release(n); this.audio.allOff(); };
+    window.addEventListener('blur', releaseEverything);
+    document.addEventListener('visibilitychange', () => { if (document.hidden) releaseEverything(); });
     this.loadPreset(1);
     this.songChanged();
     this.refreshArpDesc();
@@ -511,7 +515,7 @@ class App {
     panel.append(
       h('header', {}, h('h2', {}, 'Sonido'), h('span', { class: 'hint' }, 'Elegí uno y tocá las teclas')),
       h('div', { class: 'sound-head' }, h('button', { class: 'ib', onclick: () => this.loadPreset(this.presetIndex - 1) }, '‹'), this.soundEmoji, h('div', { class: 'sound-head-txt' }, this.soundTitle, this.soundDesc), h('button', { class: 'ib', onclick: () => this.loadPreset(this.presetIndex + 1) }, '›'),
-        h('div', { class: 'arp-mini' }, this.control('arp.on', { color, label: 'Arpegio' }), this.control('arp.hold', { color, label: 'Mantener' }))),
+        h('div', { class: 'arp-mini' }, h('div', { class: 'toggle-wrap' }, h('div', { class: 'k-label' }, 'Arpegio'), this.arpStyleSel = h('select', { id: 'arp-style', onchange: () => { this.song.arpStyle = this.arpStyleSel.value; this.applyArpStyle(); this.songChanged(); } }, ...ARP_STYLES.map(a => h('option', { value: a.id }, `${a.emoji} ${a.name}`)))), this.control('arp.hold', { color, label: 'Mantener' }))),
       tagRow,
       h('div', { class: 'sound-body' }, this.soundCards, cv),
     );
@@ -594,6 +598,29 @@ class App {
       this.loopBar, this.loopStatus, this.loopLayers,
     );
     return panel;
+  }
+  // Estilo de arpegio del modo Jugar: apagado, el del sonido, según el ritmo o uno fijo
+  applyArpStyle() {
+    let id = this.song.arpStyle || 'own';
+    if (this.arpStyleSel) this.arpStyleSel.value = id;
+    if (id === 'auto') { const pat = DRUM_PATTERNS[Math.round(this.value('drum.pattern'))]; id = DRUM_ARP[pat ? pat.name : ''] || 'soft'; }
+    if (id === 'off') { this.setValue('arp.on', 0); return; }
+    const p = this.allPresets()[this.presetIndex];
+    if (id === 'own') {
+      const pp = (p && p.params) || {};
+      for (const k of ['arp.on', 'arp.pattern', 'arp.rate', 'arp.octaves', 'arp.gate', 'arp.swing']) {
+        const d = PARAMS[pidx(k)]; let v = pp[k];
+        if (v === undefined) v = d.def; else if (typeof v === 'string') v = d.min + Math.max(0, d.opts.indexOf(v));
+        this.setValue(k, v);
+      }
+      return;
+    }
+    const st = ARP_STYLES.find(a => a.id === id); if (!st) return;
+    const pd = PARAMS[pidx('arp.pattern')], rd = PARAMS[pidx('arp.rate')];
+    this.setValue('arp.pattern', Math.max(0, pd.opts.indexOf(st.pattern)));
+    this.setValue('arp.rate', Math.max(0, rd.opts.indexOf(st.rate)));
+    this.setValue('arp.octaves', st.octaves); this.setValue('arp.gate', st.gate); this.setValue('arp.swing', st.swing);
+    this.setValue('arp.on', 1);
   }
   applyVibe(push) {
     const v = VIBES.find(x => x.id === this.song.vibe) || VIBES[0];
@@ -756,14 +783,14 @@ class App {
     const mw = h('input', { type: 'range', class: 'wheel mod', min: 0, max: 100, value: 0, orient: 'vertical' });
     mw.addEventListener('input', () => { this.liveSrc[SRC_INDEX.modwheel] = mw.value / 100; this.audio.modwheel(mw.value / 100); });
     this.modwheelEl = mw;
-    const sus = h('button', { class: 'tb', onclick: () => { sus.classList.toggle('on'); this.audio.sustain(sus.classList.contains('on')); } }, 'Sustain');
+    const sus = h('button', { class: 'tb pro-only', onclick: () => { sus.classList.toggle('on'); this.audio.sustain(sus.classList.contains('on')); } }, 'Sustain');
     const octLabel = h('span', { class: 'oct-label' }, 'C3');
     foot.append(
       h('div', { class: 'kb-side' },
         h('div', { class: 'wheels' }, h('div', { class: 'wheel-col' }, bend, h('span', {}, 'Bend')), h('div', { class: 'wheel-col' }, mw, h('span', {}, 'Mod'))),
         h('div', { class: 'oct' }, h('button', { class: 'ib', onclick: () => this.keyboard.setOctave(this.keyboard.base - 1) }, '−'), octLabel, h('button', { class: 'ib', onclick: () => this.keyboard.setOctave(this.keyboard.base + 1) }, '+')),
         sus,
-        h('button', { class: 'tb', title: 'Silenciar todas las voces', onclick: () => this.audio.panic() }, 'Panic'),
+        h('button', { class: 'tb', title: 'Corta todo el sonido', onclick: () => { this.stopAll(); this.audio.panic(); if (sus.classList.contains('on')) { sus.classList.remove('on'); this.audio.sustain(false); } } }, 'Silencio'),
       ),
       h('div', { class: 'kb-area' }, kb, pads),
       this.kbHelp = h('div', { class: 'kb-help' }, ''),
@@ -973,8 +1000,10 @@ class App {
     i = ((i % all.length) + all.length) % all.length;
     this.presetIndex = i;
     this.stopAll();
+    this._loading = true;
     this.presetToState(all[i]);
     if (this.song.vibe !== 'own') this.applyVibe(false);
+    if (this.song.shortTail) { const d = PARAMS[pidx('env1.release')]; const r = denorm(d, this.norm[d.index]); if (r > 0.9) this.norm[d.index] = norm(d, 0.9); }
     this.audio.allOff();
     this.audio.setAllParams(this.norm); this.audio.setMods(this.mods);
     this.presetSel.value = i;
@@ -984,7 +1013,8 @@ class App {
     if (this.soundTitle) { this.soundTitle.textContent = this.meta.name; this.soundDesc.textContent = this.meta.description; this.soundEmoji.textContent = all[i].emoji || '🎵'; }
     if (this.soundCards) this.soundCards.querySelectorAll('.sound-card').forEach(c => c.classList.toggle('active', parseInt(c.dataset.i, 10) === i));
     this.activeChords.clear();
-    if (this.padGrid) this.applyPolyRule();
+    if (this.padGrid) { this.applyPolyRule(); if (this.song.arpStyle && this.song.arpStyle !== 'own') this.applyArpStyle(); }
+    this._loading = false;
     this.refreshAll();
   }
   stateToPreset(name) {

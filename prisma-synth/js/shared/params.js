@@ -114,6 +114,26 @@ export const DRUM_PATTERNS = [
 ];
 export const LOOP_BARS = [1, 2, 4, 8];
 
+// Estilos de arpegio del modo Jugar (patrón + velocidad + octavas + largo + swing)
+export const ARP_STYLES = [
+  { id: 'off', name: 'Apagado', emoji: '⏹️' },
+  { id: 'own', name: 'Del sonido', emoji: '🎛️' },
+  { id: 'auto', name: 'Según el ritmo', emoji: '🥁' },
+  { id: 'soft', name: 'Suave', emoji: '🌙', pattern: 'Arriba', rate: '1/8', octaves: 1, gate: 0.9, swing: 0 },
+  { id: 'fast', name: 'Rápido', emoji: '🏃', pattern: 'Arriba', rate: '1/16', octaves: 2, gate: 0.5, swing: 0 },
+  { id: 'bounce', name: 'Rebote', emoji: '🏀', pattern: 'Rebote', rate: '1/16', octaves: 2, gate: 0.6, swing: 0 },
+  { id: 'stairs', name: 'Escalera', emoji: '🪜', pattern: 'Escalera', rate: '1/16', octaves: 2, gate: 0.6, swing: 0 },
+  { id: 'trance', name: 'Trance', emoji: '🔮', pattern: 'Trance', rate: '1/16', octaves: 1, gate: 0.45, swing: 0 },
+  { id: 'gallop', name: 'Galope', emoji: '🐎', pattern: 'Galope', rate: '1/16', octaves: 2, gate: 0.5, swing: 0 },
+  { id: 'pulse', name: 'Pulso', emoji: '💓', pattern: 'Pulso', rate: '1/8', octaves: 2, gate: 0.5, swing: 0 },
+  { id: 'cascade', name: 'Cascada', emoji: '🌊', pattern: 'Cascada', rate: '1/16', octaves: 3, gate: 0.5, swing: 0 },
+  { id: 'chords', name: 'Acordes a ritmo', emoji: '🎹', pattern: 'Acorde', rate: '1/8', octaves: 1, gate: 0.6, swing: 0 },
+  { id: 'swing', name: 'Swing', emoji: '🎷', pattern: 'Rebote', rate: '1/8', octaves: 2, gate: 0.55, swing: 0.3 },
+  { id: 'crazy', name: 'Loco', emoji: '🎲', pattern: 'Aleatorio', rate: '1/16', octaves: 3, gate: 0.4, swing: 0 },
+];
+// Estilo de arpegio sugerido para cada patrón de ritmo (modo "Según el ritmo")
+export const DRUM_ARP = { 'House': 'bounce', 'Techno': 'trance', 'Hip hop': 'swing', 'Trap': 'gallop', 'Reggaetón': 'pulse', 'Breakbeat': 'crazy', 'Latina': 'stairs', 'Disco': 'fast', 'Rock': 'chords', 'Minimal': 'pulse', 'Mitad de tiempo': 'soft', 'Afrobeat': 'stairs' };
+
 // Fuentes de modulación. bipolar: rango -1..1, si no 0..1.
 export const MOD_SOURCES = [
   { id: 'env1', name: 'Env 1 (Amp)', short: 'ENV1', color: COLORS.env, bipolar: false },
@@ -412,7 +432,7 @@ export function isGlobalParam(id) {
 }
 // Parámetros que pertenecen a la sesión (no cambian al cargar un sonido)
 export function isSongParam(id) {
-  return id.startsWith('drum') || id.startsWith('loop') || id === 'master.tempo' || id === 'master.volume';
+  return id.startsWith('drum') || id.startsWith('loop') || id === 'master.tempo' || id === 'master.volume' || id === 'arp.hold';
 }
 
 export function formatValue(def, v) {

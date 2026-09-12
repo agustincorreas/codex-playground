@@ -216,6 +216,7 @@ body.view-jam .wheels, body.view-jam .kb-side .oct { display: none; }
 .mood-foot { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
 .mood-foot .k-label { margin: 0; }
 #song-key { width: 80px; }
+#arp-style { max-width: 190px; }
 .locked { opacity: 0.45; pointer-events: none; position: relative; }
 .locked::after { content: "🔒"; position: absolute; top: 0; right: 0; font-size: 10px; }
 
@@ -2321,6 +2322,26 @@ const DRUM_PATTERNS = [
 ];
 const LOOP_BARS = [1, 2, 4, 8];
 
+// Estilos de arpegio del modo Jugar (patrón + velocidad + octavas + largo + swing)
+const ARP_STYLES = [
+  { id: 'off', name: 'Apagado', emoji: '⏹️' },
+  { id: 'own', name: 'Del sonido', emoji: '🎛️' },
+  { id: 'auto', name: 'Según el ritmo', emoji: '🥁' },
+  { id: 'soft', name: 'Suave', emoji: '🌙', pattern: 'Arriba', rate: '1/8', octaves: 1, gate: 0.9, swing: 0 },
+  { id: 'fast', name: 'Rápido', emoji: '🏃', pattern: 'Arriba', rate: '1/16', octaves: 2, gate: 0.5, swing: 0 },
+  { id: 'bounce', name: 'Rebote', emoji: '🏀', pattern: 'Rebote', rate: '1/16', octaves: 2, gate: 0.6, swing: 0 },
+  { id: 'stairs', name: 'Escalera', emoji: '🪜', pattern: 'Escalera', rate: '1/16', octaves: 2, gate: 0.6, swing: 0 },
+  { id: 'trance', name: 'Trance', emoji: '🔮', pattern: 'Trance', rate: '1/16', octaves: 1, gate: 0.45, swing: 0 },
+  { id: 'gallop', name: 'Galope', emoji: '🐎', pattern: 'Galope', rate: '1/16', octaves: 2, gate: 0.5, swing: 0 },
+  { id: 'pulse', name: 'Pulso', emoji: '💓', pattern: 'Pulso', rate: '1/8', octaves: 2, gate: 0.5, swing: 0 },
+  { id: 'cascade', name: 'Cascada', emoji: '🌊', pattern: 'Cascada', rate: '1/16', octaves: 3, gate: 0.5, swing: 0 },
+  { id: 'chords', name: 'Acordes a ritmo', emoji: '🎹', pattern: 'Acorde', rate: '1/8', octaves: 1, gate: 0.6, swing: 0 },
+  { id: 'swing', name: 'Swing', emoji: '🎷', pattern: 'Rebote', rate: '1/8', octaves: 2, gate: 0.55, swing: 0.3 },
+  { id: 'crazy', name: 'Loco', emoji: '🎲', pattern: 'Aleatorio', rate: '1/16', octaves: 3, gate: 0.4, swing: 0 },
+];
+// Estilo de arpegio sugerido para cada patrón de ritmo (modo "Según el ritmo")
+const DRUM_ARP = { 'House': 'bounce', 'Techno': 'trance', 'Hip hop': 'swing', 'Trap': 'gallop', 'Reggaetón': 'pulse', 'Breakbeat': 'crazy', 'Latina': 'stairs', 'Disco': 'fast', 'Rock': 'chords', 'Minimal': 'pulse', 'Mitad de tiempo': 'soft', 'Afrobeat': 'stairs' };
+
 // Fuentes de modulación. bipolar: rango -1..1, si no 0..1.
 const MOD_SOURCES = [
   { id: 'env1', name: 'Env 1 (Amp)', short: 'ENV1', color: COLORS.env, bipolar: false },
@@ -2619,7 +2640,7 @@ function isGlobalParam(id) {
 }
 // Parámetros que pertenecen a la sesión (no cambian al cargar un sonido)
 function isSongParam(id) {
-  return id.startsWith('drum') || id.startsWith('loop') || id === 'master.tempo' || id === 'master.volume';
+  return id.startsWith('drum') || id.startsWith('loop') || id === 'master.tempo' || id === 'master.volume' || id === 'arp.hold';
 }
 
 function formatValue(def, v) {
@@ -2954,7 +2975,7 @@ const PRESETS = [
     name: 'Coro fantasma', emoji: '👻', tag: 'Texturas', category: 'Texture', description: 'Voces granulares y formantes que cambian de vocal solas. Rebota lento entre las notas que dejes apretadas.',
     macroNames: ['Vocal', 'Susurro', 'Lento', 'Espacio'],
     params: {
-      'arp.pattern': 'Rebote', 'arp.rate': '1/8', 'arp.octaves': 1, 'arp.gate': 0.98, 'arp.on': 'On', 'arp.hold': 'On',
+      'arp.pattern': 'Rebote', 'arp.rate': '1/8', 'arp.octaves': 1, 'arp.gate': 0.98, 'arp.on': 'On',
       'a.type': 'Granular', 'a.gran.source': 'Choir', 'a.gran.size': 160, 'a.gran.density': 22, 'a.gran.pos': 0.25, 'a.gran.spray': 0.2, 'a.gran.shape': 0.85, 'a.gran.pitchRnd': 0.08, 'a.level': 0.8,
       'b.on': 'On', 'b.type': 'Wavetable', 'b.wt.table': 'Vox', 'b.wt.pos': 0.4, 'b.wt.unison': 2, 'b.wt.detune': 9, 'b.level': 0.4, 'b.filter': 'F2',
       'f1.cutoff': 8000, 'f2.type': 'Formant', 'f2.cutoff': 500, 'f2.res': 0.6,
@@ -3726,7 +3747,7 @@ class App {
     this.liveSrc = new Float32Array(MOD_SOURCES.length);
     this.scopes = {}; this.envCanvases = []; this.lfoCanvases = [];
     this.view = 'jam';
-    this.song = Object.assign({ key: 0, mood: 'happy', scale: 'major', chord: 'triad', fat: false, vibe: 'own', octave: 3, scaleLock: true, midiChords: false }, JSON.parse(localStorage.getItem('prisma.song') || '{}'));
+    this.song = Object.assign({ key: 0, mood: 'happy', scale: 'major', chord: 'triad', fat: false, vibe: 'own', octave: 3, scaleLock: true, midiChords: false, arpStyle: 'own', shortTail: true }, JSON.parse(localStorage.getItem('prisma.song') || '{}'));
     this.song.scale = (MOODS.find(m => m.id === this.song.mood) || MOODS[0]).scale; this.song.chord = this.song.fat ? 'fat' : 'triad';
     this.activeChords = new Map(); // nota base → notas enviadas
     this.userPresets = JSON.parse(localStorage.getItem('prisma.userPresets') || '[]');
@@ -3763,6 +3784,7 @@ class App {
     if (id === 'a.type' || id === 'b.type') this.buildEngineBody(id[0]);
     if (/^fx\d\.type$/.test(id)) { this.applyFxDefaults(parseInt(id[2], 10)); this.buildFxSlot(parseInt(id[2], 10)); }
     if (id === 'arp.on') this.refreshArpBadge();
+    if (id === 'drum.pattern' && this.song && this.song.arpStyle === 'auto' && !this._loading) this.applyArpStyle();
     if (id === 'arp.pattern') this.refreshArpDesc();
   }
   setValue(id, value) { const d = PARAMS[pidx(id)]; this.setNorm(d.index, norm(d, value)); }
@@ -3834,6 +3856,9 @@ class App {
     this.showView('jam');
     document.addEventListener('pointerdown', (e) => { const pop = $('#mod-popover'); if (!pop.hidden && !pop.contains(e.target) && !e.target.closest('.knob')) pop.hidden = true; const dp = $('#devices-panel'); if (dp && !dp.hidden && !dp.contains(e.target) && !e.target.closest('#midi-ind')) dp.hidden = true; });
     window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && this.assignSource >= 0) this.setAssign(this.assignSource); });
+    const releaseEverything = () => { this.stopAll(); if (this.keyboard) for (const n of [...this.keyboard.held]) this.keyboard.release(n); this.audio.allOff(); };
+    window.addEventListener('blur', releaseEverything);
+    document.addEventListener('visibilitychange', () => { if (document.hidden) releaseEverything(); });
     this.loadPreset(1);
     this.songChanged();
     this.refreshArpDesc();
@@ -4192,7 +4217,7 @@ class App {
     panel.append(
       h('header', {}, h('h2', {}, 'Sonido'), h('span', { class: 'hint' }, 'Elegí uno y tocá las teclas')),
       h('div', { class: 'sound-head' }, h('button', { class: 'ib', onclick: () => this.loadPreset(this.presetIndex - 1) }, '‹'), this.soundEmoji, h('div', { class: 'sound-head-txt' }, this.soundTitle, this.soundDesc), h('button', { class: 'ib', onclick: () => this.loadPreset(this.presetIndex + 1) }, '›'),
-        h('div', { class: 'arp-mini' }, this.control('arp.on', { color, label: 'Arpegio' }), this.control('arp.hold', { color, label: 'Mantener' }))),
+        h('div', { class: 'arp-mini' }, h('div', { class: 'toggle-wrap' }, h('div', { class: 'k-label' }, 'Arpegio'), this.arpStyleSel = h('select', { id: 'arp-style', onchange: () => { this.song.arpStyle = this.arpStyleSel.value; this.applyArpStyle(); this.songChanged(); } }, ...ARP_STYLES.map(a => h('option', { value: a.id }, `${a.emoji} ${a.name}`)))), this.control('arp.hold', { color, label: 'Mantener' }))),
       tagRow,
       h('div', { class: 'sound-body' }, this.soundCards, cv),
     );
@@ -4275,6 +4300,29 @@ class App {
       this.loopBar, this.loopStatus, this.loopLayers,
     );
     return panel;
+  }
+  // Estilo de arpegio del modo Jugar: apagado, el del sonido, según el ritmo o uno fijo
+  applyArpStyle() {
+    let id = this.song.arpStyle || 'own';
+    if (this.arpStyleSel) this.arpStyleSel.value = id;
+    if (id === 'auto') { const pat = DRUM_PATTERNS[Math.round(this.value('drum.pattern'))]; id = DRUM_ARP[pat ? pat.name : ''] || 'soft'; }
+    if (id === 'off') { this.setValue('arp.on', 0); return; }
+    const p = this.allPresets()[this.presetIndex];
+    if (id === 'own') {
+      const pp = (p && p.params) || {};
+      for (const k of ['arp.on', 'arp.pattern', 'arp.rate', 'arp.octaves', 'arp.gate', 'arp.swing']) {
+        const d = PARAMS[pidx(k)]; let v = pp[k];
+        if (v === undefined) v = d.def; else if (typeof v === 'string') v = d.min + Math.max(0, d.opts.indexOf(v));
+        this.setValue(k, v);
+      }
+      return;
+    }
+    const st = ARP_STYLES.find(a => a.id === id); if (!st) return;
+    const pd = PARAMS[pidx('arp.pattern')], rd = PARAMS[pidx('arp.rate')];
+    this.setValue('arp.pattern', Math.max(0, pd.opts.indexOf(st.pattern)));
+    this.setValue('arp.rate', Math.max(0, rd.opts.indexOf(st.rate)));
+    this.setValue('arp.octaves', st.octaves); this.setValue('arp.gate', st.gate); this.setValue('arp.swing', st.swing);
+    this.setValue('arp.on', 1);
   }
   applyVibe(push) {
     const v = VIBES.find(x => x.id === this.song.vibe) || VIBES[0];
@@ -4437,14 +4485,14 @@ class App {
     const mw = h('input', { type: 'range', class: 'wheel mod', min: 0, max: 100, value: 0, orient: 'vertical' });
     mw.addEventListener('input', () => { this.liveSrc[SRC_INDEX.modwheel] = mw.value / 100; this.audio.modwheel(mw.value / 100); });
     this.modwheelEl = mw;
-    const sus = h('button', { class: 'tb', onclick: () => { sus.classList.toggle('on'); this.audio.sustain(sus.classList.contains('on')); } }, 'Sustain');
+    const sus = h('button', { class: 'tb pro-only', onclick: () => { sus.classList.toggle('on'); this.audio.sustain(sus.classList.contains('on')); } }, 'Sustain');
     const octLabel = h('span', { class: 'oct-label' }, 'C3');
     foot.append(
       h('div', { class: 'kb-side' },
         h('div', { class: 'wheels' }, h('div', { class: 'wheel-col' }, bend, h('span', {}, 'Bend')), h('div', { class: 'wheel-col' }, mw, h('span', {}, 'Mod'))),
         h('div', { class: 'oct' }, h('button', { class: 'ib', onclick: () => this.keyboard.setOctave(this.keyboard.base - 1) }, '−'), octLabel, h('button', { class: 'ib', onclick: () => this.keyboard.setOctave(this.keyboard.base + 1) }, '+')),
         sus,
-        h('button', { class: 'tb', title: 'Silenciar todas las voces', onclick: () => this.audio.panic() }, 'Panic'),
+        h('button', { class: 'tb', title: 'Corta todo el sonido', onclick: () => { this.stopAll(); this.audio.panic(); if (sus.classList.contains('on')) { sus.classList.remove('on'); this.audio.sustain(false); } } }, 'Silencio'),
       ),
       h('div', { class: 'kb-area' }, kb, pads),
       this.kbHelp = h('div', { class: 'kb-help' }, ''),
@@ -4654,8 +4702,10 @@ class App {
     i = ((i % all.length) + all.length) % all.length;
     this.presetIndex = i;
     this.stopAll();
+    this._loading = true;
     this.presetToState(all[i]);
     if (this.song.vibe !== 'own') this.applyVibe(false);
+    if (this.song.shortTail) { const d = PARAMS[pidx('env1.release')]; const r = denorm(d, this.norm[d.index]); if (r > 0.9) this.norm[d.index] = norm(d, 0.9); }
     this.audio.allOff();
     this.audio.setAllParams(this.norm); this.audio.setMods(this.mods);
     this.presetSel.value = i;
@@ -4665,7 +4715,8 @@ class App {
     if (this.soundTitle) { this.soundTitle.textContent = this.meta.name; this.soundDesc.textContent = this.meta.description; this.soundEmoji.textContent = all[i].emoji || '🎵'; }
     if (this.soundCards) this.soundCards.querySelectorAll('.sound-card').forEach(c => c.classList.toggle('active', parseInt(c.dataset.i, 10) === i));
     this.activeChords.clear();
-    if (this.padGrid) this.applyPolyRule();
+    if (this.padGrid) { this.applyPolyRule(); if (this.song.arpStyle && this.song.arpStyle !== 'own') this.applyArpStyle(); }
+    this._loading = false;
     this.refreshAll();
   }
   stateToPreset(name) {

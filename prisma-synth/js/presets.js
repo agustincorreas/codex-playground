@@ -313,7 +313,7 @@ export const PRESETS = [
     name: 'Coro fantasma', emoji: '👻', tag: 'Texturas', category: 'Texture', description: 'Voces granulares y formantes que cambian de vocal solas. Rebota lento entre las notas que dejes apretadas.',
     macroNames: ['Vocal', 'Susurro', 'Lento', 'Espacio'],
     params: {
-      'arp.pattern': 'Rebote', 'arp.rate': '1/8', 'arp.octaves': 1, 'arp.gate': 0.98, 'arp.on': 'On', 'arp.hold': 'On',
+      'arp.pattern': 'Rebote', 'arp.rate': '1/8', 'arp.octaves': 1, 'arp.gate': 0.98, 'arp.on': 'On',
       'a.type': 'Granular', 'a.gran.source': 'Choir', 'a.gran.size': 160, 'a.gran.density': 22, 'a.gran.pos': 0.25, 'a.gran.spray': 0.2, 'a.gran.shape': 0.85, 'a.gran.pitchRnd': 0.08, 'a.level': 0.8,
       'b.on': 'On', 'b.type': 'Wavetable', 'b.wt.table': 'Vox', 'b.wt.pos': 0.4, 'b.wt.unison': 2, 'b.wt.detune': 9, 'b.level': 0.4, 'b.filter': 'F2',
       'f1.cutoff': 8000, 'f2.type': 'Formant', 'f2.cutoff': 500, 'f2.res': 0.6,
