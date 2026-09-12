@@ -34,7 +34,7 @@
   let powered = false;
 
   /* ------------------------------------------------------------ MIDI out */
-  const midi = { out: null, active: [new Set(), new Set(), new Set(), new Set()] };
+  const midi = { out: null, in: null, active: [new Set(), new Set(), new Set(), new Set()] };
   const CH = { keys: 0, bass: 1, arp: 2, pad: 3 };
   function midiTime(t) { return t == null ? undefined : performance.now() + Math.max(0, (t - engine.now()) * 1000); }
   function noteOn(ch, n, vel = 100, t) { if (!midi.out) return; midi.out.send([0x90 | ch, n & 127, vel], midiTime(t)); midi.active[ch].add(n); }
@@ -45,17 +45,66 @@
     const v = clamp(Math.round(8192 + (semis / 2) * 8191), 0, 16383);
     for (let ch = 0; ch < 4; ch++) midi.out.send([0xe0 | ch, v & 127, (v >> 7) & 127]);
   }
-  if (navigator.requestMIDIAccess) {
-    navigator.requestMIDIAccess().then((acc) => {
-      const sel = $('#midiOut');
+  /* ------------------------------------------------------------ MIDI in */
+  const midiHeld = new Map(); // nota MIDI → tecla del chord builder
+  let midiFlashT = null;
+  function midiStatus(cls, text) { const el = $('#midiStatus'); el.className = 'midi-status ' + cls; el.lastChild.textContent = text; }
+  function midiActivity() {
+    const el = $('#midiStatus'); el.classList.add('act'); clearTimeout(midiFlashT);
+    midiFlashT = setTimeout(() => el.classList.remove('act'), 120);
+  }
+  function onMidiMessage(e) {
+    const [st, d1, d2] = e.data; const type = st & 0xf0;
+    midiActivity();
+    if (type === 0x90 && d2 > 0) {
+      const i = d1 % 12; midiHeld.set(d1, i);
+      keyDown(i, d2 / 127);
+    } else if (type === 0x80 || (type === 0x90 && d2 === 0)) {
+      const i = midiHeld.get(d1); if (i == null) return;
+      midiHeld.delete(d1);
+      if (![...midiHeld.values()].includes(i)) keyUp(i);
+    } else if (type === 0xb0) {
+      if (d1 === 1) setKnob('ext', Math.round((d2 / 127) * 4));            // rueda de modulación → extensiones
+      else if (d1 === 64) syncToggle('hold', d2 >= 64);                     // pedal de sustain → hold
+      else if (d1 === 74) setKnob('fx.cutoff', d2 / 127);                  // CC74 → cutoff
+      else if (d1 === 7) setKnob('fx.master', d2 / 127);                   // CC7 → master
+      else if (d1 === 123 || d1 === 120) { midiHeld.clear(); held.clear(); releaseChord(); keyEls.forEach((b) => b.classList.remove('on')); }
+    } else if (type === 0xe0) {
+      const v = ((d2 << 7) | d1) - 8192; let semis = (v / 8192) * 2; if (S.chrom) semis = Math.round(semis);
+      thumb.style.left = `calc(${(semis / 4 + 0.5) * 100}% - 9px)`; engine.bend(semis);
+    }
+  }
+  function bindInput(input) {
+    if (midi.in) midi.in.onmidimessage = null;
+    midi.in = input || null;
+    if (input) input.onmidimessage = onMidiMessage;
+  }
+  function setupMidi() {
+    const inSel = $('#midiIn'), outSel = $('#midiOut');
+    if (!navigator.requestMIDIAccess) { midiStatus('err', 'sin Web MIDI · usá Chrome o Edge'); return; }
+    if (!window.isSecureContext) { midiStatus('err', 'MIDI necesita https o archivo local'); return; }
+    navigator.requestMIDIAccess({ sysex: false }).then((acc) => {
       const fill = () => {
-        sel.innerHTML = '<option value="">— sin salida —</option>';
-        for (const o of acc.outputs.values()) sel.insertAdjacentHTML('beforeend', `<option value="${o.id}">${o.name}</option>`);
+        const keepIn = inSel.value, keepOut = outSel.value;
+        inSel.innerHTML = '<option value="">— sin entrada —</option>';
+        for (const i of acc.inputs.values()) inSel.insertAdjacentHTML('beforeend', `<option value="${i.id}">${i.name}</option>`);
+        outSel.innerHTML = '<option value="">— sin salida —</option>';
+        for (const o of acc.outputs.values()) outSel.insertAdjacentHTML('beforeend', `<option value="${o.id}">${o.name}</option>`);
+        // entrada: conservar la elegida, o tomar la primera disponible automáticamente
+        if (keepIn && acc.inputs.get(keepIn)) inSel.value = keepIn;
+        else { const first = acc.inputs.values().next().value; inSel.value = first ? first.id : ''; }
+        bindInput(acc.inputs.get(inSel.value));
+        outSel.value = keepOut && acc.outputs.get(keepOut) ? keepOut : '';
+        midi.out = acc.outputs.get(outSel.value) || null;
+        const n = acc.inputs.size;
+        midiStatus(n ? 'ok' : '', n ? `${n} entrada${n > 1 ? 's' : ''} · ${acc.outputs.size} salida${acc.outputs.size === 1 ? '' : 's'}` : 'sin dispositivos · conectá un teclado');
       };
       fill(); acc.onstatechange = fill;
-      sel.addEventListener('change', () => { midi.out = acc.outputs.get(sel.value) || null; });
-    }).catch(() => {});
-  } else { $('.midi-out').style.opacity = .5; }
+      inSel.addEventListener('change', () => bindInput(acc.inputs.get(inSel.value)));
+      outSel.addEventListener('change', () => { midi.out = acc.outputs.get(outSel.value) || null; });
+    }).catch((err) => midiStatus('err', 'permiso MIDI denegado · revisá el candado del navegador'));
+  }
+  window.__armoniaMidi = (bytes) => onMidiMessage({ data: bytes });
 
   /* ------------------------------------------------------------ encendido */
   function ensureAudio() {
@@ -312,10 +361,10 @@
   function chordFor(keyIndex) {
     return Theory.buildChord({ key: S.key, mode: S.mode, keyIndex, func: S.func, ext: S.ext, sus: S.sus, inversion: S.inversion, voicing: S.voicing, octave: S.octave });
   }
-  function keyDown(i) {
+  function keyDown(i, vel = 0.85) {
     ensureAudio();
     held.add(i); currentKeyIndex = i; keyEls[i].classList.add('on');
-    triggerChord(chordFor(i));
+    triggerChord(chordFor(i), { vel });
   }
   function keyUp(i) {
     held.delete(i); keyEls[i].classList.remove('on');
@@ -327,7 +376,8 @@
     engine.releaseModule('keys', t); engine.releaseModule('pad', t);
     allOff(CH.keys, t); allOff(CH.pad, t);
     current = chord; chordActive = true;
-    for (const n of chord.notes) { engine.keysOn(n, 0.85, t); engine.padOn(n, t); noteOn(CH.keys, n, 100, t); noteOn(CH.pad, n, 80, t); }
+    const vel = opts.vel ?? 0.85;
+    for (const n of chord.notes) { engine.keysOn(n, vel, t); engine.padOn(n, t); noteOn(CH.keys, n, Math.round(vel * 127), t); noteOn(CH.pad, n, 80, t); }
     engine.triggerEnv(); engine.sampleRandom();
     if (S.bass.mode === 'trig') playBass(false, t, opts.fromLoop);
     setArpNotes(chord); arp.idx = 0; arp.dir = 1;
@@ -552,6 +602,11 @@
     else if (e.code === 'ArrowDown') { setKnob('octave', clamp(S.octave - 1, -2, 2)); }
   });
   document.addEventListener('keyup', (e) => { if (e.code in KEYMAP && downKeys.has(e.code)) { downKeys.delete(e.code); keyUp(KEYMAP[e.code]); } });
+  function syncToggle(path, v) {
+    const b = $(`[data-toggle="${path}"] button`); if (!b) { set(path, v); return; }
+    if (!!get(path) === !!v) return;
+    b.click();
+  }
   function setKnob(path, v) {
     // sincroniza el widget con un valor externo
     const el = $(`[data-knob="${path}"], [data-slider="${path}"]`); if (!el) { set(path, v); return; }
@@ -575,6 +630,6 @@
   $$('[data-toggle]').forEach(buildToggle);
   $$('[data-slider]').forEach(buildSlider);
   $$('[data-amt]').forEach((el) => buildAmt(el, el.dataset.amt));
-  renderChord(); renderLoopButtons();
+  renderChord(); renderLoopButtons(); setupMidi();
   window.addEventListener('blur', () => { for (const c of [...downKeys]) { downKeys.delete(c); keyUp(KEYMAP[c]); } });
 })();

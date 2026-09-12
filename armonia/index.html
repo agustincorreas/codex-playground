@@ -15,7 +15,11 @@
   <header class="brand">
     <div class="brand-name"><span class="logo"></span>ARMONÍA<small>generador de armonías semi-modular</small></div>
     <div class="brand-right">
-      <label class="midi-out"><span>MIDI OUT</span><select id="midiOut"><option value="">— sin salida —</option></select></label>
+      <div class="midi-bar">
+        <label class="midi-out"><span>MIDI IN</span><select id="midiIn"><option value="">— sin entrada —</option></select></label>
+        <label class="midi-out"><span>MIDI OUT</span><select id="midiOut"><option value="">— sin salida —</option></select></label>
+        <span class="midi-status" id="midiStatus"><i></i>midi</span>
+      </div>
       <button class="power" id="power" type="button"><i></i>ENCENDER</button>
     </div>
   </header>
@@ -195,7 +199,7 @@
 
   <footer class="foot">
     <span><kbd>A–J</kbd> grados · <kbd>W E T Y U</kbd> cromáticas · <kbd>Z</kbd>/<kbd>X</kbd> bajo · <kbd>1–5</kbd> extensiones · <kbd>↑↓</kbd> octava · <kbd>espacio</kbd> play</span>
-    <span>inspirado en Nopia · web audio · sin dependencias</span>
+    <span>teclado MIDI: cualquier nota = grado (C→I, C♯→♭II…) · rueda mod = extensiones · sustain = hold</span>
   </footer>
 </div>
 <!--ARTIFACT-END-->

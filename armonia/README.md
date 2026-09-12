@@ -28,8 +28,20 @@ Abrí `index.html` (o serví la carpeta con cualquier servidor estático) y pres
 
 ## MIDI
 
-Si el navegador soporta Web MIDI (Chrome/Edge), elegí una salida en **MIDI OUT**:
-Keys → canal 1, Bass → canal 2, Arp → canal 3, Pad → canal 4, más pitch-bend.
+Web MIDI funciona en **Chrome y Edge** (Firefox pide instalar un permiso; Safari no lo soporta).
+Al abrir la página el navegador pregunta si permitís el uso de MIDI: aceptá. El indicador de la
+cabecera muestra el estado (verde = dispositivos detectados, rojo = sin permiso o sin soporte) y
+parpadea en amarillo con cada mensaje recibido.
+
+**MIDI IN** (se elige solo el primer teclado conectado):
+- cualquier nota = tecla del chord builder según su clase de altura (C→I, C♯→♭II, D→ii… en
+  cualquier octava), con velocidad
+- rueda de modulación (CC1) → dial de extensiones · pedal de sustain (CC64) → hold
+- pitch-bend → tira de pitch · CC74 → cutoff · CC7 → master
+
+**MIDI OUT**: Keys → canal 1, Bass → canal 2, Arp → canal 3, Pad → canal 4, más pitch-bend.
+
+Para regenerar `armonia.html` después de editar los fuentes: `python3 build.py`.
 
 ## Archivos
 

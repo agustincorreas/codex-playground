@@ -34,6 +34,12 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .logo { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 2px; align-self: center;
   background: conic-gradient(var(--mint), var(--peach), var(--butter), var(--lilac), var(--sky), var(--rose), var(--mint)); }
 .brand-right { display: flex; align-items: center; gap: 14px; }
+.midi-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.midi-status { display: inline-flex; align-items: center; gap: 6px; font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.midi-status i { width: 7px; height: 7px; border-radius: 50%; background: #d6cfc2; transition: .2s; }
+.midi-status.ok i { background: #7be0b3; box-shadow: 0 0 8px #7be0b3; }
+.midi-status.err i { background: #f07a7a; }
+.midi-status.act i { background: #f6c34a; box-shadow: 0 0 8px #f6c34a; }
 .midi-out { display: flex; align-items: center; gap: 8px; font-size: 10px; letter-spacing: .14em; color: var(--muted); }
 .midi-out select { font: 12px var(--sans); border: 1px solid var(--line-2); background: var(--module); border-radius: 8px; padding: 5px 8px; color: var(--ink); max-width: 200px; }
 .power { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--line-2); background: var(--module); border-radius: 999px; padding: 7px 14px 7px 10px;
