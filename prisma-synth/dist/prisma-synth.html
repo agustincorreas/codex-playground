@@ -163,6 +163,18 @@ body.assign-mode .knob.assign-target .k-body { stroke: var(--assign-color); }
 .pop-amt { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
 input[type=range] { accent-color: var(--kc, var(--accent)); }
 
+/* ---------- dispositivos ---------- */
+.ind-btn { cursor: pointer; }
+.ind-btn.blink { background: #4fe38a; color: #041d2a; }
+.popover.devices { min-width: 340px; max-width: 420px; }
+.dev-section { padding: 6px 0; border-top: 1px solid var(--line); }
+.dev-label { display: flex; align-items: center; gap: 6px; font-size: 10px; font-weight: 800; letter-spacing: 0.12em; color: var(--muted); margin-bottom: 4px; }
+.dev-row { display: flex; gap: 6px; align-items: center; }
+.dev-row select { flex: 1; min-width: 0; background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 5px; padding: 5px 6px; }
+.dev-status { color: var(--muted); font-size: 11px; margin-top: 4px; }
+.midi-dot { width: 8px; height: 8px; border-radius: 50%; background: #2b3546; display: inline-block; }
+.midi-dot.on { background: #4fe38a; box-shadow: 0 0 8px #4fe38a; }
+
 /* ---------- pie / teclado ---------- */
 #footer { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; gap: 4px 10px; padding: 8px 12px 6px; background: #10151d; border-top: 1px solid var(--line); }
 .kb-side { display: flex; align-items: center; gap: 10px; grid-row: 1; }
@@ -2916,28 +2928,58 @@ class SynthAudio {
   }
 }
 
-// ---- Web MIDI
-async function initMidi(handlers) {
-  if (!navigator.requestMIDIAccess) return null;
-  try {
-    const access = await navigator.requestMIDIAccess();
-    const attach = () => {
-      for (const input of access.inputs.values()) {
-        input.onmidimessage = (e) => {
-          const [st, d1, d2] = e.data;
-          const cmd = st & 0xf0;
-          if (cmd === 0x90 && d2 > 0) handlers.noteOn(d1, d2 / 127);
-          else if (cmd === 0x80 || (cmd === 0x90 && d2 === 0)) handlers.noteOff(d1);
-          else if (cmd === 0xb0) handlers.cc(d1, d2 / 127);
-          else if (cmd === 0xe0) handlers.bend(((d2 << 7) | d1) / 8192 - 1);
-        };
-      }
-    };
-    attach();
-    access.onstatechange = attach;
-    return access;
-  } catch (e) { return null; }
+// ---- Web MIDI: gestor de entradas con selección de dispositivo
+class MidiManager {
+  constructor(handlers) {
+    this.handlers = handlers; this.access = null; this.selectedId = 'all'; this.onChange = null; this.onActivity = null;
+    this.error = null;
+  }
+  get supported() { return !!navigator.requestMIDIAccess; }
+  async connect() {
+    if (this.access) return true;
+    if (!this.supported) { this.error = 'Este navegador no soporta Web MIDI (usá Chrome, Edge u Opera).'; return false; }
+    try {
+      this.access = await navigator.requestMIDIAccess({ sysex: false });
+      this.access.onstatechange = () => { this.attach(); if (this.onChange) this.onChange(this.inputs()); };
+      this.attach();
+      if (this.onChange) this.onChange(this.inputs());
+      return true;
+    } catch (e) {
+      this.error = 'No se pudo acceder a MIDI: ' + String(e.message || e.name).replace(/\.$/, '') + '. Si estás dentro de un iframe (p. ej. un artifact), abrí la app en una pestaña propia.';
+      return false;
+    }
+  }
+  inputs() {
+    if (!this.access) return [];
+    return [...this.access.inputs.values()].map(i => ({ id: i.id, name: i.name || 'MIDI input', manufacturer: i.manufacturer || '', state: i.state }));
+  }
+  outputsAudio() { return []; }
+  select(id) { this.selectedId = id; this.attach(); }
+  attach() {
+    if (!this.access) return;
+    for (const input of this.access.inputs.values()) {
+      const active = this.selectedId === 'all' || input.id === this.selectedId;
+      input.onmidimessage = active ? (e) => this.message(e) : null;
+    }
+  }
+  message(e) {
+    const [st, d1, d2] = e.data;
+    const cmd = st & 0xf0, h = this.handlers;
+    if (this.onActivity) this.onActivity();
+    if (cmd === 0x90 && d2 > 0) h.noteOn(d1, d2 / 127);
+    else if (cmd === 0x80 || (cmd === 0x90 && d2 === 0)) h.noteOff(d1);
+    else if (cmd === 0xb0) h.cc(d1, d2 / 127);
+    else if (cmd === 0xe0) h.bend(((d2 << 7) | d1) / 8192 - 1);
+  }
 }
+
+// ---- Salida de audio: lista de dispositivos y cambio con setSinkId (Chrome/Edge)
+async function listAudioOutputs() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return [];
+  const devs = await navigator.mediaDevices.enumerateDevices();
+  return devs.filter(d => d.kind === 'audiooutput').map((d, i) => ({ id: d.deviceId, name: d.label || `Salida ${i + 1}` }));
+}
+function canSelectOutput(ctx) { return !!(ctx && typeof ctx.setSinkId === 'function'); }
 
 
 // ---- js/main.js
@@ -2987,6 +3029,20 @@ class App {
     this.started = false;
     this.octave = 3;
     this.midiOk = false;
+    this.midi = new MidiManager({
+      noteOn: (n, v) => { this.start(); this.audio.noteOn(n, v); this.keyboard && this.keyboard.light(n, true); },
+      noteOff: (n) => { this.audio.noteOff(n); this.keyboard && this.keyboard.light(n, false); },
+      bend: (v) => this.audio.bend(v),
+      cc: (cc, v) => {
+        if (cc === 1) { this.audio.modwheel(v); if (this.modwheelEl) this.modwheelEl.value = v * 100; }
+        else if (cc === 64) this.audio.sustain(v > 0.5);
+        else if (cc >= 20 && cc <= 23) this.setNorm(pidx(`macro${cc - 19}`), v);
+        else if (cc === 74) this.setNorm(pidx('f1.cutoff'), v);
+        else if (cc === 71) this.setNorm(pidx('f1.res'), v);
+      },
+    });
+    this.midi.onChange = () => this.refreshDevices();
+    this.midi.onActivity = () => this.midiBlink();
   }
 
   // ---- API usada por los controles
@@ -3068,8 +3124,9 @@ class App {
     this.buildArpView();
     this.buildPlayView();
     this.buildFooter();
+    this.buildDevicesPanel();
     this.showView('synth');
-    document.addEventListener('pointerdown', (e) => { const pop = $('#mod-popover'); if (!pop.hidden && !pop.contains(e.target) && !e.target.closest('.knob')) pop.hidden = true; });
+    document.addEventListener('pointerdown', (e) => { const pop = $('#mod-popover'); if (!pop.hidden && !pop.contains(e.target) && !e.target.closest('.knob')) pop.hidden = true; const dp = $('#devices-panel'); if (dp && !dp.hidden && !dp.contains(e.target) && !e.target.closest('#midi-ind')) dp.hidden = true; });
     window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && this.assignSource >= 0) this.setAssign(this.assignSource); });
     this.loadPreset(0);
     this.startLoop();
@@ -3113,7 +3170,7 @@ class App {
       ),
       h('nav', { class: 'tabs' }, ...['synth', 'fx', 'arp', 'play'].map(v => h('button', { class: 'tab', dataset: { view: v }, onclick: () => this.showView(v) }, v.toUpperCase()))),
       h('div', { class: 'status' },
-        h('span', { id: 'midi-ind', class: 'ind', title: 'MIDI' }, 'MIDI'),
+        h('button', { id: 'midi-ind', class: 'ind ind-btn', title: 'Dispositivos MIDI y salida de audio', onclick: () => this.toggleDevices() }, 'MIDI ▾'),
         h('span', { id: 'arp-ind', class: 'ind', title: 'Arpegiador' }, 'ARP'),
         h('span', { id: 'voice-ind', class: 'ind' }, '0 v'),
         h('div', { class: 'meter' }, h('div', { id: 'meter-fill' })),
@@ -3501,18 +3558,8 @@ class App {
       this.audio.onMeter = (m) => this.onMeter(m);
       this.viz = new MasterVisualizer(this.playCanvas, this.audio.analyser);
       btn.textContent = '● Audio ON'; btn.classList.add('on');
-      const midi = await initMidi({
-        noteOn: (n, v) => this.audio.noteOn(n, v), noteOff: (n) => this.audio.noteOff(n),
-        bend: (v) => this.audio.bend(v),
-        cc: (cc, v) => {
-          if (cc === 1) { this.audio.modwheel(v); this.modwheelEl.value = v * 100; }
-          else if (cc === 64) this.audio.sustain(v > 0.5);
-          else if (cc >= 20 && cc <= 23) this.setNorm(pidx(`macro${cc - 19}`), v);
-          else if (cc === 74) this.setNorm(pidx('f1.cutoff'), v);
-          else if (cc === 71) this.setNorm(pidx('f1.res'), v);
-        },
-      });
-      if (midi) { this.midiOk = true; $('#midi-ind').classList.add('on'); }
+      await this.connectMidi(true);
+      this.refreshDevices();
     } catch (e) {
       console.error(e); btn.textContent = 'Error de audio'; this.started = false;
       alert('No se pudo iniciar el audio: ' + e.message + '\n\nSi abriste el archivo directamente (file://), serví la carpeta con un servidor local (ver README).');
@@ -3548,6 +3595,101 @@ class App {
       }
     };
     requestAnimationFrame(tick);
+  }
+
+  // ---- dispositivos (MIDI in / audio out)
+  buildDevicesPanel() {
+    const panel = h('div', { id: 'devices-panel', class: 'popover devices', hidden: '' });
+    this.midiSel = h('select', { id: 'midi-in-select' });
+    this.midiSel.addEventListener('change', () => { this.midi.select(this.midiSel.value); localStorage.setItem('prisma.midiIn', this.midiSel.value); });
+    this.midiStatus = h('div', { class: 'dev-status' }, 'MIDI no conectado.');
+    this.midiConnectBtn = h('button', { class: 'tb', onclick: () => this.connectMidi(false) }, 'Conectar MIDI');
+    this.audioSel = h('select', { id: 'audio-out-select' });
+    this.audioSel.addEventListener('change', async () => {
+      try {
+        await this.audio.ctx.setSinkId(this.audioSel.value === 'default' ? '' : this.audioSel.value);
+        this.audioStatus.textContent = 'Salida cambiada.';
+      } catch (e) { this.audioStatus.textContent = 'No se pudo cambiar la salida: ' + e.message; }
+    });
+    this.audioStatus = h('div', { class: 'dev-status' }, '');
+    const refreshBtn = h('button', { class: 'tb', onclick: () => this.refreshDevices(true) }, 'Actualizar');
+    panel.append(
+      h('div', { class: 'pop-title' }, 'Dispositivos', h('button', { class: 'pop-close', onclick: () => { panel.hidden = true; } }, '×')),
+      h('div', { class: 'dev-section' },
+        h('div', { class: 'dev-label' }, 'Entrada MIDI', h('span', { id: 'midi-activity', class: 'midi-dot' })),
+        h('div', { class: 'dev-row' }, this.midiSel, this.midiConnectBtn),
+        this.midiStatus,
+        h('p', { class: 'hint' }, 'Notas, pitch bend, CC1 mod wheel, CC64 sustain, CC20–23 macros, CC74 cutoff, CC71 resonancia.'),
+      ),
+      h('div', { class: 'dev-section' },
+        h('div', { class: 'dev-label' }, 'Salida de audio'),
+        h('div', { class: 'dev-row' }, this.audioSel, refreshBtn),
+        this.audioStatus,
+      ),
+    );
+    document.body.append(panel);
+    this.devicesPanel = panel;
+    this.refreshDevices();
+  }
+  toggleDevices() {
+    const p = this.devicesPanel;
+    if (!p.hidden) { p.hidden = true; return; }
+    this.refreshDevices();
+    p.hidden = false;
+    const r = $('#midi-ind').getBoundingClientRect();
+    p.style.top = `${r.bottom + 6}px`;
+    p.style.left = `${Math.max(8, Math.min(window.innerWidth - p.offsetWidth - 8, r.left + r.width / 2 - p.offsetWidth / 2))}px`;
+    if (!this.midi.access) this.connectMidi(true);
+  }
+  async connectMidi(silent) {
+    const ok = await this.midi.connect();
+    this.midiOk = ok;
+    $('#midi-ind').classList.toggle('on', ok);
+    if (ok) {
+      const saved = localStorage.getItem('prisma.midiIn');
+      if (saved && this.midi.inputs().some(i => i.id === saved)) this.midi.select(saved);
+    } else if (!silent) alert(this.midi.error);
+    this.refreshDevices();
+  }
+  async refreshDevices(requestLabels) {
+    if (!this.midiSel) return;
+    const inputs = this.midi.inputs();
+    this.midiSel.innerHTML = '';
+    this.midiSel.append(h('option', { value: 'all' }, inputs.length ? 'Todos los dispositivos' : '(sin dispositivos MIDI)'));
+    for (const i of inputs) this.midiSel.append(h('option', { value: i.id }, `${i.name}${i.manufacturer ? ' · ' + i.manufacturer : ''}`));
+    this.midiSel.value = inputs.some(i => i.id === this.midi.selectedId) ? this.midi.selectedId : 'all';
+    this.midiSel.disabled = !this.midi.access;
+    this.midiConnectBtn.hidden = !!this.midi.access;
+    if (this.midi.access) this.midiStatus.textContent = inputs.length ? `${inputs.length} entrada(s) MIDI detectada(s). Conectá o desconectá dispositivos y la lista se actualiza sola.` : 'MIDI activo pero sin dispositivos. Conectá tu teclado por USB; aparecerá automáticamente.';
+    else this.midiStatus.textContent = this.midi.error || 'Pulsá "Conectar MIDI" y aceptá el permiso del navegador.';
+    // salida de audio
+    const ctx = this.audio.ctx;
+    this.audioSel.innerHTML = ''; this.audioStatus.textContent = '';
+    if (!canSelectOutput(ctx)) {
+      this.audioSel.append(h('option', { value: 'default' }, 'Salida predeterminada del sistema'));
+      this.audioSel.disabled = true;
+      this.audioStatus.textContent = ctx ? 'Este navegador no permite elegir la salida (usá la configuración del sistema).' : 'Pulsá Start para iniciar el audio.';
+      return;
+    }
+    this.audioSel.disabled = false;
+    let outs = [];
+    try {
+      if (requestLabels && navigator.mediaDevices.getUserMedia) {
+        // los nombres de dispositivos solo se muestran tras un permiso de medios
+        try { const st = await navigator.mediaDevices.getUserMedia({ audio: true }); st.getTracks().forEach(t => t.stop()); } catch (e) { /* sin permiso: se listan sin nombre */ }
+      }
+      outs = await listAudioOutputs();
+    } catch (e) { outs = []; }
+    this.audioSel.append(h('option', { value: 'default' }, 'Salida predeterminada del sistema'));
+    for (const o of outs) if (o.id && o.id !== 'default') this.audioSel.append(h('option', { value: o.id }, o.name));
+    const cur = ctx.sinkId || 'default';
+    this.audioSel.value = [...this.audioSel.options].some(o => o.value === cur) ? cur : 'default';
+    if (!this.audioStatus.textContent) this.audioStatus.textContent = outs.some(o => /^Salida \d+$/.test(o.name)) ? 'Pulsá "Actualizar" y aceptá el permiso para ver los nombres de las salidas.' : '';
+  }
+  midiBlink() {
+    const d = $('#midi-activity'); const ind = $('#midi-ind');
+    if (d) { d.classList.add('on'); clearTimeout(this._blinkT); this._blinkT = setTimeout(() => d.classList.remove('on'), 120); }
+    if (ind) { ind.classList.add('blink'); clearTimeout(this._blinkT2); this._blinkT2 = setTimeout(() => ind.classList.remove('blink'), 120); }
   }
 
   // ---- presets

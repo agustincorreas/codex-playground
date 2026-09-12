@@ -80,25 +80,55 @@ export class SynthAudio {
   }
 }
 
-// ---- Web MIDI
-export async function initMidi(handlers) {
-  if (!navigator.requestMIDIAccess) return null;
-  try {
-    const access = await navigator.requestMIDIAccess();
-    const attach = () => {
-      for (const input of access.inputs.values()) {
-        input.onmidimessage = (e) => {
-          const [st, d1, d2] = e.data;
-          const cmd = st & 0xf0;
-          if (cmd === 0x90 && d2 > 0) handlers.noteOn(d1, d2 / 127);
-          else if (cmd === 0x80 || (cmd === 0x90 && d2 === 0)) handlers.noteOff(d1);
-          else if (cmd === 0xb0) handlers.cc(d1, d2 / 127);
-          else if (cmd === 0xe0) handlers.bend(((d2 << 7) | d1) / 8192 - 1);
-        };
-      }
-    };
-    attach();
-    access.onstatechange = attach;
-    return access;
-  } catch (e) { return null; }
+// ---- Web MIDI: gestor de entradas con selección de dispositivo
+export class MidiManager {
+  constructor(handlers) {
+    this.handlers = handlers; this.access = null; this.selectedId = 'all'; this.onChange = null; this.onActivity = null;
+    this.error = null;
+  }
+  get supported() { return !!navigator.requestMIDIAccess; }
+  async connect() {
+    if (this.access) return true;
+    if (!this.supported) { this.error = 'Este navegador no soporta Web MIDI (usá Chrome, Edge u Opera).'; return false; }
+    try {
+      this.access = await navigator.requestMIDIAccess({ sysex: false });
+      this.access.onstatechange = () => { this.attach(); if (this.onChange) this.onChange(this.inputs()); };
+      this.attach();
+      if (this.onChange) this.onChange(this.inputs());
+      return true;
+    } catch (e) {
+      this.error = 'No se pudo acceder a MIDI: ' + String(e.message || e.name).replace(/\.$/, '') + '. Si estás dentro de un iframe (p. ej. un artifact), abrí la app en una pestaña propia.';
+      return false;
+    }
+  }
+  inputs() {
+    if (!this.access) return [];
+    return [...this.access.inputs.values()].map(i => ({ id: i.id, name: i.name || 'MIDI input', manufacturer: i.manufacturer || '', state: i.state }));
+  }
+  outputsAudio() { return []; }
+  select(id) { this.selectedId = id; this.attach(); }
+  attach() {
+    if (!this.access) return;
+    for (const input of this.access.inputs.values()) {
+      const active = this.selectedId === 'all' || input.id === this.selectedId;
+      input.onmidimessage = active ? (e) => this.message(e) : null;
+    }
+  }
+  message(e) {
+    const [st, d1, d2] = e.data;
+    const cmd = st & 0xf0, h = this.handlers;
+    if (this.onActivity) this.onActivity();
+    if (cmd === 0x90 && d2 > 0) h.noteOn(d1, d2 / 127);
+    else if (cmd === 0x80 || (cmd === 0x90 && d2 === 0)) h.noteOff(d1);
+    else if (cmd === 0xb0) h.cc(d1, d2 / 127);
+    else if (cmd === 0xe0) h.bend(((d2 << 7) | d1) / 8192 - 1);
+  }
 }
+
+// ---- Salida de audio: lista de dispositivos y cambio con setSinkId (Chrome/Edge)
+export async function listAudioOutputs() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return [];
+  const devs = await navigator.mediaDevices.enumerateDevices();
+  return devs.filter(d => d.kind === 'audiooutput').map((d, i) => ({ id: d.deviceId, name: d.label || `Salida ${i + 1}` }));
+}
+export function canSelectOutput(ctx) { return !!(ctx && typeof ctx.setSinkId === 'function'); }

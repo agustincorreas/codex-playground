@@ -156,6 +156,18 @@ body.assign-mode .knob.assign-target .k-body { stroke: var(--assign-color); }
 .pop-amt { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
 input[type=range] { accent-color: var(--kc, var(--accent)); }
 
+/* ---------- dispositivos ---------- */
+.ind-btn { cursor: pointer; }
+.ind-btn.blink { background: #4fe38a; color: #041d2a; }
+.popover.devices { min-width: 340px; max-width: 420px; }
+.dev-section { padding: 6px 0; border-top: 1px solid var(--line); }
+.dev-label { display: flex; align-items: center; gap: 6px; font-size: 10px; font-weight: 800; letter-spacing: 0.12em; color: var(--muted); margin-bottom: 4px; }
+.dev-row { display: flex; gap: 6px; align-items: center; }
+.dev-row select { flex: 1; min-width: 0; background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 5px; padding: 5px 6px; }
+.dev-status { color: var(--muted); font-size: 11px; margin-top: 4px; }
+.midi-dot { width: 8px; height: 8px; border-radius: 50%; background: #2b3546; display: inline-block; }
+.midi-dot.on { background: #4fe38a; box-shadow: 0 0 8px #4fe38a; }
+
 /* ---------- pie / teclado ---------- */
 #footer { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; gap: 4px 10px; padding: 8px 12px 6px; background: #10151d; border-top: 1px solid var(--line); }
 .kb-side { display: flex; align-items: center; gap: 10px; grid-row: 1; }

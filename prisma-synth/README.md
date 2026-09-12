@@ -54,8 +54,10 @@ Corroder, Distortion (soft/hard/fold/crush), Multi Filter con seguidor de envolv
 ### Presets
 14 presets de fábrica que cubren todos los motores. *Save* guarda en el navegador (localStorage); *Export/Import* usan JSON.
 
-### MIDI
-Note on/off, pitch bend, CC1 (mod wheel), CC64 (sustain), CC20‑23 (macros 1‑4), CC74 (cutoff F1), CC71 (resonancia F1).
+### MIDI y dispositivos
+El botón **MIDI ▾** de la cabecera abre el panel de dispositivos: elegí la entrada MIDI (todas o un teclado concreto; la lista se actualiza al conectar o desconectar) y la salida de audio (Chrome/Edge, vía `setSinkId`). Mensajes soportados: note on/off, pitch bend, CC1 (mod wheel), CC64 (sustain), CC20‑23 (macros 1‑4), CC74 (cutoff F1), CC71 (resonancia F1).
+
+Web MIDI requiere Chrome, Edge u Opera y una pestaña propia (dentro de un iframe el navegador suele bloquearlo).
 
 ## Estructura
 

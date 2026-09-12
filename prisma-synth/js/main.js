@@ -1,7 +1,7 @@
 // Prisma Synth — aplicación principal: estado, vistas, modulación por
 // arrastrar y soltar, presets, MIDI y visualización en tiempo real.
 import { PARAMS, PARAM_INDEX, pidx, denorm, norm, formatValue, COLORS, MOD_SOURCES, SRC_INDEX, FX_TYPES, FX_INDEX, FX_SLOTS, ENGINE_TYPES, ENGINE_NAMES, isGlobalParam } from './shared/params.js';
-import { SynthAudio, initMidi } from './audio/engine.js';
+import { SynthAudio, MidiManager, listAudioOutputs, canSelectOutput } from './audio/engine.js';
 import { Knob, EnumControl, Toggle, Slider, createControl } from './ui/knob.js';
 import { MasterVisualizer, Scope, drawEnvelope, drawLFO } from './ui/visualizer.js';
 import { Keyboard, noteName } from './ui/keyboard.js';
@@ -50,6 +50,20 @@ class App {
     this.started = false;
     this.octave = 3;
     this.midiOk = false;
+    this.midi = new MidiManager({
+      noteOn: (n, v) => { this.start(); this.audio.noteOn(n, v); this.keyboard && this.keyboard.light(n, true); },
+      noteOff: (n) => { this.audio.noteOff(n); this.keyboard && this.keyboard.light(n, false); },
+      bend: (v) => this.audio.bend(v),
+      cc: (cc, v) => {
+        if (cc === 1) { this.audio.modwheel(v); if (this.modwheelEl) this.modwheelEl.value = v * 100; }
+        else if (cc === 64) this.audio.sustain(v > 0.5);
+        else if (cc >= 20 && cc <= 23) this.setNorm(pidx(`macro${cc - 19}`), v);
+        else if (cc === 74) this.setNorm(pidx('f1.cutoff'), v);
+        else if (cc === 71) this.setNorm(pidx('f1.res'), v);
+      },
+    });
+    this.midi.onChange = () => this.refreshDevices();
+    this.midi.onActivity = () => this.midiBlink();
   }
 
   // ---- API usada por los controles
@@ -131,8 +145,9 @@ class App {
     this.buildArpView();
     this.buildPlayView();
     this.buildFooter();
+    this.buildDevicesPanel();
     this.showView('synth');
-    document.addEventListener('pointerdown', (e) => { const pop = $('#mod-popover'); if (!pop.hidden && !pop.contains(e.target) && !e.target.closest('.knob')) pop.hidden = true; });
+    document.addEventListener('pointerdown', (e) => { const pop = $('#mod-popover'); if (!pop.hidden && !pop.contains(e.target) && !e.target.closest('.knob')) pop.hidden = true; const dp = $('#devices-panel'); if (dp && !dp.hidden && !dp.contains(e.target) && !e.target.closest('#midi-ind')) dp.hidden = true; });
     window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && this.assignSource >= 0) this.setAssign(this.assignSource); });
     this.loadPreset(0);
     this.startLoop();
@@ -176,7 +191,7 @@ class App {
       ),
       h('nav', { class: 'tabs' }, ...['synth', 'fx', 'arp', 'play'].map(v => h('button', { class: 'tab', dataset: { view: v }, onclick: () => this.showView(v) }, v.toUpperCase()))),
       h('div', { class: 'status' },
-        h('span', { id: 'midi-ind', class: 'ind', title: 'MIDI' }, 'MIDI'),
+        h('button', { id: 'midi-ind', class: 'ind ind-btn', title: 'Dispositivos MIDI y salida de audio', onclick: () => this.toggleDevices() }, 'MIDI ▾'),
         h('span', { id: 'arp-ind', class: 'ind', title: 'Arpegiador' }, 'ARP'),
         h('span', { id: 'voice-ind', class: 'ind' }, '0 v'),
         h('div', { class: 'meter' }, h('div', { id: 'meter-fill' })),
@@ -564,18 +579,8 @@ class App {
       this.audio.onMeter = (m) => this.onMeter(m);
       this.viz = new MasterVisualizer(this.playCanvas, this.audio.analyser);
       btn.textContent = '● Audio ON'; btn.classList.add('on');
-      const midi = await initMidi({
-        noteOn: (n, v) => this.audio.noteOn(n, v), noteOff: (n) => this.audio.noteOff(n),
-        bend: (v) => this.audio.bend(v),
-        cc: (cc, v) => {
-          if (cc === 1) { this.audio.modwheel(v); this.modwheelEl.value = v * 100; }
-          else if (cc === 64) this.audio.sustain(v > 0.5);
-          else if (cc >= 20 && cc <= 23) this.setNorm(pidx(`macro${cc - 19}`), v);
-          else if (cc === 74) this.setNorm(pidx('f1.cutoff'), v);
-          else if (cc === 71) this.setNorm(pidx('f1.res'), v);
-        },
-      });
-      if (midi) { this.midiOk = true; $('#midi-ind').classList.add('on'); }
+      await this.connectMidi(true);
+      this.refreshDevices();
     } catch (e) {
       console.error(e); btn.textContent = 'Error de audio'; this.started = false;
       alert('No se pudo iniciar el audio: ' + e.message + '\n\nSi abriste el archivo directamente (file://), serví la carpeta con un servidor local (ver README).');
@@ -611,6 +616,101 @@ class App {
       }
     };
     requestAnimationFrame(tick);
+  }
+
+  // ---- dispositivos (MIDI in / audio out)
+  buildDevicesPanel() {
+    const panel = h('div', { id: 'devices-panel', class: 'popover devices', hidden: '' });
+    this.midiSel = h('select', { id: 'midi-in-select' });
+    this.midiSel.addEventListener('change', () => { this.midi.select(this.midiSel.value); localStorage.setItem('prisma.midiIn', this.midiSel.value); });
+    this.midiStatus = h('div', { class: 'dev-status' }, 'MIDI no conectado.');
+    this.midiConnectBtn = h('button', { class: 'tb', onclick: () => this.connectMidi(false) }, 'Conectar MIDI');
+    this.audioSel = h('select', { id: 'audio-out-select' });
+    this.audioSel.addEventListener('change', async () => {
+      try {
+        await this.audio.ctx.setSinkId(this.audioSel.value === 'default' ? '' : this.audioSel.value);
+        this.audioStatus.textContent = 'Salida cambiada.';
+      } catch (e) { this.audioStatus.textContent = 'No se pudo cambiar la salida: ' + e.message; }
+    });
+    this.audioStatus = h('div', { class: 'dev-status' }, '');
+    const refreshBtn = h('button', { class: 'tb', onclick: () => this.refreshDevices(true) }, 'Actualizar');
+    panel.append(
+      h('div', { class: 'pop-title' }, 'Dispositivos', h('button', { class: 'pop-close', onclick: () => { panel.hidden = true; } }, '×')),
+      h('div', { class: 'dev-section' },
+        h('div', { class: 'dev-label' }, 'Entrada MIDI', h('span', { id: 'midi-activity', class: 'midi-dot' })),
+        h('div', { class: 'dev-row' }, this.midiSel, this.midiConnectBtn),
+        this.midiStatus,
+        h('p', { class: 'hint' }, 'Notas, pitch bend, CC1 mod wheel, CC64 sustain, CC20–23 macros, CC74 cutoff, CC71 resonancia.'),
+      ),
+      h('div', { class: 'dev-section' },
+        h('div', { class: 'dev-label' }, 'Salida de audio'),
+        h('div', { class: 'dev-row' }, this.audioSel, refreshBtn),
+        this.audioStatus,
+      ),
+    );
+    document.body.append(panel);
+    this.devicesPanel = panel;
+    this.refreshDevices();
+  }
+  toggleDevices() {
+    const p = this.devicesPanel;
+    if (!p.hidden) { p.hidden = true; return; }
+    this.refreshDevices();
+    p.hidden = false;
+    const r = $('#midi-ind').getBoundingClientRect();
+    p.style.top = `${r.bottom + 6}px`;
+    p.style.left = `${Math.max(8, Math.min(window.innerWidth - p.offsetWidth - 8, r.left + r.width / 2 - p.offsetWidth / 2))}px`;
+    if (!this.midi.access) this.connectMidi(true);
+  }
+  async connectMidi(silent) {
+    const ok = await this.midi.connect();
+    this.midiOk = ok;
+    $('#midi-ind').classList.toggle('on', ok);
+    if (ok) {
+      const saved = localStorage.getItem('prisma.midiIn');
+      if (saved && this.midi.inputs().some(i => i.id === saved)) this.midi.select(saved);
+    } else if (!silent) alert(this.midi.error);
+    this.refreshDevices();
+  }
+  async refreshDevices(requestLabels) {
+    if (!this.midiSel) return;
+    const inputs = this.midi.inputs();
+    this.midiSel.innerHTML = '';
+    this.midiSel.append(h('option', { value: 'all' }, inputs.length ? 'Todos los dispositivos' : '(sin dispositivos MIDI)'));
+    for (const i of inputs) this.midiSel.append(h('option', { value: i.id }, `${i.name}${i.manufacturer ? ' · ' + i.manufacturer : ''}`));
+    this.midiSel.value = inputs.some(i => i.id === this.midi.selectedId) ? this.midi.selectedId : 'all';
+    this.midiSel.disabled = !this.midi.access;
+    this.midiConnectBtn.hidden = !!this.midi.access;
+    if (this.midi.access) this.midiStatus.textContent = inputs.length ? `${inputs.length} entrada(s) MIDI detectada(s). Conectá o desconectá dispositivos y la lista se actualiza sola.` : 'MIDI activo pero sin dispositivos. Conectá tu teclado por USB; aparecerá automáticamente.';
+    else this.midiStatus.textContent = this.midi.error || 'Pulsá "Conectar MIDI" y aceptá el permiso del navegador.';
+    // salida de audio
+    const ctx = this.audio.ctx;
+    this.audioSel.innerHTML = ''; this.audioStatus.textContent = '';
+    if (!canSelectOutput(ctx)) {
+      this.audioSel.append(h('option', { value: 'default' }, 'Salida predeterminada del sistema'));
+      this.audioSel.disabled = true;
+      this.audioStatus.textContent = ctx ? 'Este navegador no permite elegir la salida (usá la configuración del sistema).' : 'Pulsá Start para iniciar el audio.';
+      return;
+    }
+    this.audioSel.disabled = false;
+    let outs = [];
+    try {
+      if (requestLabels && navigator.mediaDevices.getUserMedia) {
+        // los nombres de dispositivos solo se muestran tras un permiso de medios
+        try { const st = await navigator.mediaDevices.getUserMedia({ audio: true }); st.getTracks().forEach(t => t.stop()); } catch (e) { /* sin permiso: se listan sin nombre */ }
+      }
+      outs = await listAudioOutputs();
+    } catch (e) { outs = []; }
+    this.audioSel.append(h('option', { value: 'default' }, 'Salida predeterminada del sistema'));
+    for (const o of outs) if (o.id && o.id !== 'default') this.audioSel.append(h('option', { value: o.id }, o.name));
+    const cur = ctx.sinkId || 'default';
+    this.audioSel.value = [...this.audioSel.options].some(o => o.value === cur) ? cur : 'default';
+    if (!this.audioStatus.textContent) this.audioStatus.textContent = outs.some(o => /^Salida \d+$/.test(o.name)) ? 'Pulsá "Actualizar" y aceptá el permiso para ver los nombres de las salidas.' : '';
+  }
+  midiBlink() {
+    const d = $('#midi-activity'); const ind = $('#midi-ind');
+    if (d) { d.classList.add('on'); clearTimeout(this._blinkT); this._blinkT = setTimeout(() => d.classList.remove('on'), 120); }
+    if (ind) { ind.classList.add('blink'); clearTimeout(this._blinkT2); this._blinkT2 = setTimeout(() => ind.classList.remove('blink'), 120); }
   }
 
   // ---- presets
