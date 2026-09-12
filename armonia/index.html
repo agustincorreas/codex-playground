@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Armonía</title>
+<meta name="description" content="Generador de armonías semi-modular: cada tecla es un acorde.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<!--ARTIFACT-START-->
+<div class="app">
+  <header class="brand">
+    <div class="brand-name"><span class="logo"></span>ARMONÍA<small>generador de armonías semi-modular</small></div>
+    <div class="brand-right">
+      <label class="midi-out"><span>MIDI OUT</span><select id="midiOut"><option value="">— sin salida —</option></select></label>
+      <button class="power" id="power" type="button"><i></i>ENCENDER</button>
+    </div>
+  </header>
+
+  <main class="panel" id="panel">
+    <svg class="cables" id="cables" aria-hidden="true"></svg>
+
+    <!-- ================= fila superior ================= -->
+    <section class="row row-top">
+      <div class="module display" data-tint="ink">
+        <div class="oled" id="oled">
+          <div class="oled-top"><span id="oKey">C mayor</span><span id="oFunc">diatónico</span><span id="oBpm">96 bpm</span></div>
+          <div class="oled-main">
+            <div class="oled-chord"><b id="oName">—</b><em id="oRoman"></em></div>
+            <div class="oled-fn" id="oFn">tocá una tecla del chord builder</div>
+          </div>
+          <div class="oled-bottom">
+            <div class="mini-piano" id="miniPiano"></div>
+            <canvas class="scope" id="scope" width="180" height="36"></canvas>
+          </div>
+          <div class="oled-notes" id="oNotes"></div>
+        </div>
+      </div>
+
+      <div class="module tonal" data-tint="mint">
+        <h3>Tonal selector</h3>
+        <div class="tonal-keys" id="tonalKeys"></div>
+        <div class="ctl-row">
+          <div class="ctl" data-switch="mode" data-options="mayor|major,menor|minor" data-label="Modo"></div>
+          <div class="ctl" data-seg="func" data-options="diat.|diatonic,dom.|dominant,dim.|dim" data-label="Función"></div>
+        </div>
+      </div>
+
+      <div class="module voicing" data-tint="peach">
+        <h3>Chord builder · voicing</h3>
+        <div class="ctl-row">
+          <div class="ctl" data-knob="ext" data-min="0" data-max="4" data-step="1" data-value="0" data-labels="tri,7,9,11,13" data-label="Extensiones" data-big="1"></div>
+          <div class="ctl" data-knob="inversion" data-min="0" data-max="3" data-step="1" data-value="0" data-labels="fund.,1ª,2ª,3ª" data-label="Inversión"></div>
+          <div class="ctl vslider" data-slider="octave" data-min="-2" data-max="2" data-step="1" data-value="0" data-label="Octava"></div>
+          <div class="stack">
+            <div class="ctl" data-seg="voicing" data-options="close|close,drop2|drop2,open|open,wide|wide" data-label="Voicing"></div>
+            <div class="ctl" data-seg="sus" data-options="off|0,sus2|2,sus4|4" data-label="Sus"></div>
+            <div class="ctl" data-toggle="hold" data-label="Hold"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="module touch" data-tint="lilac">
+        <h3>Strum · pitch</h3>
+        <div class="strum" id="strum"></div>
+        <div class="bend-row">
+          <div class="bend" id="bend"><div class="bend-thumb"></div></div>
+          <div class="ctl" data-toggle="chrom" data-label="Crom."></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= fila media ================= -->
+    <section class="row row-mid">
+      <div class="module builder" data-tint="butter">
+        <h3>Chord builder <span class="hint">cada tecla es un grado · teclado: A S D F G H J · W E T Y U</span></h3>
+        <div class="keyboard" id="keyboard"></div>
+      </div>
+
+      <div class="module transport" data-tint="sky">
+        <h3>Clock · looper</h3>
+        <div class="ctl-row">
+          <div class="ctl" data-knob="bpm" data-min="50" data-max="180" data-step="1" data-value="96" data-label="Tempo" data-unit=" bpm"></div>
+          <div class="stack">
+            <button class="tbtn" id="play" type="button"><span class="ico play"></span>Play</button>
+            <div class="ctl" data-toggle="metro" data-label="Metro"></div>
+          </div>
+        </div>
+        <div class="looper">
+          <div class="loop-bar"><div class="loop-pos" id="loopPos"></div></div>
+          <div class="ctl-row tight">
+            <div class="ctl" data-seg="loopBars" data-options="1|1,2|2,4|4,8|8" data-label="Compases"></div>
+          </div>
+          <div class="loop-btns">
+            <button class="tbtn rec" id="rec" type="button"><span class="led"></span>Rec</button>
+            <button class="tbtn" id="loopPlay" type="button"><span class="ico play"></span>Loop</button>
+            <button class="tbtn ghost" id="loopClear" type="button">Clear</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= fila inferior: módulos de sonido ================= -->
+    <section class="row row-bottom">
+      <div class="module snd" data-tint="mint">
+        <h3>Keys <span class="ctl inline" data-toggle="keys.on" data-led="1"></span></h3>
+        <div class="ctl" data-seg="keys.wave" data-options="saw|sawtooth,sqr|square,tri|triangle,sin|sine" data-label="Onda"></div>
+        <div class="ctl-row">
+          <div class="ctl" data-knob="keys.attack" data-value="0.01" data-label="Ataque"></div>
+          <div class="ctl" data-knob="keys.release" data-value="0.6" data-label="Release"></div>
+          <div class="ctl" data-knob="keys.tone" data-value="0.6" data-label="Tono"></div>
+          <div class="ctl" data-knob="keys.level" data-value="0.7" data-label="Nivel" data-jack="dst:trem"></div>
+        </div>
+      </div>
+
+      <div class="module snd" data-tint="peach">
+        <h3>Bass <span class="ctl inline" data-toggle="bass.on" data-led="1"></span></h3>
+        <div class="ctl" data-seg="bass.mode" data-options="man|manual,trig|trig,¼|q,⅛|e" data-label="Modo"></div>
+        <div class="ctl-row">
+          <div class="pads">
+            <button class="pad" id="bassRoot" type="button">ROOT</button>
+            <button class="pad" id="bassAlt" type="button">ALT</button>
+          </div>
+          <div class="ctl" data-knob="bass.decay" data-value="0.5" data-label="Decay"></div>
+          <div class="ctl" data-knob="bass.tone" data-value="0.5" data-label="Tono"></div>
+          <div class="ctl" data-knob="bass.level" data-value="0.8" data-label="Nivel"></div>
+        </div>
+      </div>
+
+      <div class="module snd" data-tint="butter">
+        <h3>Arp <span class="ctl inline" data-toggle="arp.on" data-led="1"></span></h3>
+        <div class="ctl" data-seg="arp.mode" data-options="up|up,down|down,u·d|updown,rnd|random" data-label="Modo"></div>
+        <div class="ctl" data-seg="arp.rate" data-options="¼|24,⅛|12,⅛T|8,1/16|6,16T|4,1/32|3" data-label="Rate"></div>
+        <div class="ctl-row">
+          <div class="ctl" data-seg="arp.oct" data-options="1|1,2|2,3|3" data-label="Oct"></div>
+          <div class="ctl" data-knob="arp.gate" data-value="0.5" data-label="Gate"></div>
+          <div class="ctl" data-knob="arp.tone" data-value="0.7" data-label="Tono"></div>
+          <div class="ctl" data-knob="arp.level" data-value="0.55" data-label="Nivel"></div>
+        </div>
+      </div>
+
+      <div class="module snd" data-tint="lilac">
+        <h3>Pad <span class="ctl inline" data-toggle="pad.on" data-led="1"></span></h3>
+        <div class="ctl-row">
+          <div class="ctl" data-knob="pad.swell" data-value="0.5" data-label="Swell"></div>
+          <div class="ctl" data-knob="pad.detune" data-value="0.4" data-label="Detune" data-jack="dst:padDet"></div>
+          <div class="ctl" data-knob="pad.tone" data-value="0.35" data-label="Tono"></div>
+          <div class="ctl" data-knob="pad.level" data-value="0.5" data-label="Nivel"></div>
+        </div>
+      </div>
+
+      <div class="module fx" data-tint="sky">
+        <h3>Master FX</h3>
+        <div class="fx-grid">
+          <div class="fx-group"><small>drive · filtro</small>
+            <div class="ctl-row">
+              <div class="ctl" data-knob="fx.drive" data-value="0.15" data-label="Drive"></div>
+              <div class="ctl" data-knob="fx.cutoff" data-value="0.8" data-label="Cutoff" data-jack="dst:cutoff"></div>
+              <div class="ctl" data-knob="fx.res" data-value="0.15" data-label="Res"></div>
+            </div>
+          </div>
+          <div class="fx-group"><small>delay</small>
+            <div class="ctl-row">
+              <div class="ctl" data-seg="fx.dlyDiv" data-options="⅛|0.5,⅛·|0.75,¼|1,¼·|1.5" data-label="Tiempo" data-jack="dst:dlyTime"></div>
+              <div class="ctl" data-knob="fx.dlyFb" data-value="0.35" data-label="Feedback"></div>
+              <div class="ctl" data-knob="fx.dlyMix" data-value="0.25" data-label="Mix" data-jack="dst:dlyMix"></div>
+            </div>
+          </div>
+          <div class="fx-group"><small>reverb · salida</small>
+            <div class="ctl-row">
+              <div class="ctl" data-knob="fx.revSize" data-value="0.6" data-label="Tamaño"></div>
+              <div class="ctl" data-knob="fx.revMix" data-value="0.3" data-label="Mix" data-jack="dst:revMix"></div>
+              <div class="ctl" data-knob="fx.master" data-value="0.8" data-label="Master" data-jack="dst:pan" data-jack-label="pan"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="module modsrc" data-tint="rose">
+        <h3>Mod <span class="hint">patch bay · clic en dos jacks</span></h3>
+        <div class="src-grid">
+          <div class="src"><div class="ctl" data-knob="mod.lfoRate" data-value="0.3" data-label="LFO"></div><div class="ctl" data-seg="mod.lfoShape" data-options="∿|sine,△|triangle,⊓|square,⩘|sawtooth" data-mini="1"></div><span class="jack" data-jack="src:lfo" title="LFO"></span></div>
+          <div class="src"><div class="ctl" data-knob="mod.envDecay" data-value="0.4" data-label="Env"></div><span class="jack" data-jack="src:env" title="Envolvente"></span></div>
+          <div class="src"><span class="src-name">Clock</span><span class="jack" data-jack="src:clock" title="Clock"></span></div>
+          <div class="src"><span class="src-name">Strum</span><span class="jack" data-jack="src:strum" title="Strum"></span></div>
+          <div class="src"><span class="src-name">Rand</span><span class="jack" data-jack="src:rand" title="Random S&H"></span></div>
+          <div class="src dst"><span class="src-name">Pitch</span><span class="jack" data-jack="dst:pitch" title="Vibrato"></span><div class="ctl" data-amt="pitch"></div></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <span><kbd>A–J</kbd> grados · <kbd>W E T Y U</kbd> cromáticas · <kbd>Z</kbd>/<kbd>X</kbd> bajo · <kbd>1–5</kbd> extensiones · <kbd>↑↓</kbd> octava · <kbd>espacio</kbd> play</span>
+    <span>inspirado en Nopia · web audio · sin dependencias</span>
+  </footer>
+</div>
+<!--ARTIFACT-END-->
+<script src="theory.js"></script>
+<script src="audio.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

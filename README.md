@@ -10,6 +10,12 @@ Son útiles para jugar, mejorar código y experimentar.
 - `lector_excel.py`: lee un archivo de Excel y muestra su contenido (requiere `pandas`).
 - `generador_contraseñas.py`: genera contraseñas aleatorias seguras.
 
+## Proyecto: Armonía — generador de armonías semi-modular
+
+- [`armonia/`](armonia/README.md): instrumento web inspirado en Nopia. Cada tecla es un grado de la
+  tonalidad; extensiones, voicings, strum, pitch-bend, módulos Keys/Bass/Arp/Pad, FX, patch bay y looper.
+  Sin dependencias: abrí `armonia/index.html`.
+
 ## Proyecto: Sillage — Recomendador de perfumes
 
 - [`sillage/`](sillage/README.md): app React Native (Expo) con tier gratuito y membresía PRO.
