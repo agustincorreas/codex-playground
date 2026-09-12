@@ -18,9 +18,20 @@ npx http-server . -p 8080 -c-1      # o: python3 -m http.server 8080
 
 Pulsá **⏻ Start** (los navegadores exigen un gesto del usuario para iniciar audio) y tocá con el teclado de la computadora (`A W S E D F T G Y H U J K O L P`, `Z`/`X` cambian de octava), con el teclado en pantalla o con un controlador MIDI (Web MIDI, Chrome/Edge).
 
-## Modo JAM (para no músicos)
+## Modo JUGAR (para no músicos)
 
-La pestaña **JAM** es la vista por defecto y no requiere saber música:
+La pestaña **Jugar** es la vista por defecto, con tema claro y muy pocos controles:
+
+- **Sonido**: tarjetas con emoji por categoría. Cada sonido trae su arpegio (botones *Arpegio* y *Mantener*).
+- **Ambiente**: efectos ya armados con un click (Seco, Sala, Eco, Espacial, Sucio, Lo‑fi, Radio, Robot, Bajo el agua) o los del propio sonido.
+- **Ánimo**: elige la escala por vos (Alegre, Triste, Épico, Misterioso, Relax, Blues, Oriental, Zen), más el tono, la octava y *Acordes gordos*.
+- **Teclas de la computadora**: fila de arriba `Q…I` melodía, fila del medio `A…K` acordes de la tonalidad (con su nombre), fila de abajo `Z…,` bajo. Cada pad muestra su tecla. Números `1`–`8` golpean la batería.
+- **Ritmo**: on/off, estilo, kit y un deslizador de tempo. **Looper**: Grabar / Play / Stop / Deshacer / Borrar.
+- *MIDI toca acordes* hace que cada tecla de un teclado MIDI (o del piano de las vistas Pro) toque un acorde completo.
+
+Las pestañas **Pro · Synth** y **Pro · FX** son el modo avanzado (diseño de sonido completo).
+
+Detalle del modo original (sigue disponible en las vistas Pro):
 
 - **Sonidos** por categoría (Pads, Bajos, Leads, Teclas, Plucks, Texturas, Percusivos) con 28 presets de fábrica. Cada sonido trae su propio arpegio.
 - **Pads en escala**: 24 pads (3 octavas) que solo contienen notas de la tonalidad y escala elegidas, así que no hay notas equivocadas. 13 escalas con su "estado de ánimo" (Mayor, Menor, Pentatónicas, Blues, Dórica, Lidia, Árabe, Japonesa…). Teclas: `Z X C V B N M ,` / `A S D F G H J K` / `Q W E R T Y U I`.

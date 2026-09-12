@@ -1,6 +1,6 @@
 // Prisma Synth — aplicación principal: estado, vistas, modulación por
 // arrastrar y soltar, presets, MIDI y visualización en tiempo real.
-import { PARAMS, PARAM_INDEX, pidx, denorm, norm, formatValue, COLORS, MOD_SOURCES, SRC_INDEX, FX_TYPES, FX_INDEX, FX_SLOTS, ENGINE_TYPES, ENGINE_NAMES, isGlobalParam, isSongParam, SCALES, KEY_NAMES, CHORD_TYPES, ARP_PATTERNS, DRUM_NAMES, DRUM_PATTERNS, LOOP_BARS } from './shared/params.js';
+import { PARAMS, PARAM_INDEX, pidx, denorm, norm, formatValue, COLORS, MOD_SOURCES, SRC_INDEX, FX_TYPES, FX_INDEX, FX_SLOTS, ENGINE_TYPES, ENGINE_NAMES, isGlobalParam, isSongParam, SCALES, KEY_NAMES, CHORD_TYPES, ARP_PATTERNS, DRUM_NAMES, DRUM_PATTERNS, LOOP_BARS, MOODS, VIBES } from './shared/params.js';
 import { SynthAudio, MidiManager, listAudioOutputs, canSelectOutput } from './audio/engine.js';
 import { Knob, EnumControl, Toggle, Slider, createControl } from './ui/knob.js';
 import { MasterVisualizer, Scope, drawEnvelope, drawLFO } from './ui/visualizer.js';
@@ -45,7 +45,8 @@ class App {
     this.liveSrc = new Float32Array(MOD_SOURCES.length);
     this.scopes = {}; this.envCanvases = []; this.lfoCanvases = [];
     this.view = 'jam';
-    this.song = Object.assign({ key: 0, scale: 'minor', chord: 'off', octave: 3, scaleLock: true, padMode: 'notes' }, JSON.parse(localStorage.getItem('prisma.song') || '{}'));
+    this.song = Object.assign({ key: 0, mood: 'happy', scale: 'major', chord: 'triad', fat: false, vibe: 'own', octave: 3, scaleLock: true, midiChords: false }, JSON.parse(localStorage.getItem('prisma.song') || '{}'));
+    this.song.scale = (MOODS.find(m => m.id === this.song.mood) || MOODS[0]).scale; this.song.chord = this.song.fat ? 'fat' : 'triad';
     this.activeChords = new Map(); // nota base → notas enviadas
     this.userPresets = JSON.parse(localStorage.getItem('prisma.userPresets') || '[]');
     this.presetIndex = 0;
@@ -189,12 +190,12 @@ class App {
         h('button', { class: 'ib', title: 'Preset anterior', onclick: () => this.loadPreset(this.presetIndex - 1) }, '‹'),
         presetSel,
         h('button', { class: 'ib', title: 'Preset siguiente', onclick: () => this.loadPreset(this.presetIndex + 1) }, '›'),
-        h('button', { class: 'tb', title: 'Guardar como preset de usuario', onclick: () => this.savePreset() }, 'Save'),
-        h('button', { class: 'tb', title: 'Exportar preset (JSON)', onclick: () => this.exportPreset() }, 'Export'),
-        h('button', { class: 'tb', title: 'Importar preset (JSON)', onclick: () => $('#import-file').click() }, 'Import'),
-        h('button', { class: 'tb', title: 'Cargar un archivo de audio para Granular / Sample', onclick: () => $('#sample-file').click() }, 'Load Sample'),
+        h('button', { class: 'tb pro-only', title: 'Guardar como preset de usuario', onclick: () => this.savePreset() }, 'Save'),
+        h('button', { class: 'tb pro-only', title: 'Exportar preset (JSON)', onclick: () => this.exportPreset() }, 'Export'),
+        h('button', { class: 'tb pro-only', title: 'Importar preset (JSON)', onclick: () => $('#import-file').click() }, 'Import'),
+        h('button', { class: 'tb pro-only', title: 'Cargar un archivo de audio para Granular / Sample', onclick: () => $('#sample-file').click() }, 'Load Sample'),
       ),
-      h('nav', { class: 'tabs' }, ...[['jam', 'JAM'], ['synth', 'SYNTH'], ['fx', 'FX']].map(([v, l]) => h('button', { class: 'tab', dataset: { view: v }, title: v === 'jam' ? 'Modo simple: tocar, ritmos y looper' : 'Modo avanzado', onclick: () => this.showView(v) }, l))),
+      h('nav', { class: 'tabs' }, ...[['jam', '🎮 Jugar'], ['synth', 'Pro · Synth'], ['fx', 'Pro · FX']].map(([v, l]) => h('button', { class: 'tab' + (v === 'jam' ? ' tab-play' : ''), dataset: { view: v }, title: v === 'jam' ? 'Modo simple para jugar' : 'Modo avanzado (diseño de sonido)', onclick: () => this.showView(v) }, l))),
       h('div', { class: 'status' },
         h('button', { id: 'midi-ind', class: 'ind ind-btn', title: 'Dispositivos MIDI y salida de audio', onclick: () => this.toggleDevices() }, 'MIDI ▾'),
         h('span', { id: 'arp-ind', class: 'ind', title: 'Arpegiador' }, 'ARP'),
@@ -212,9 +213,10 @@ class App {
     document.querySelectorAll('.view').forEach(el => { el.hidden = el.dataset.view !== v; });
     document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.view === v));
     const jam = v === 'jam';
+    document.body.classList.toggle('view-jam', jam);
     if (this.padGrid) { this.padGrid.enabled = jam; this.padGridEl.hidden = !jam; if (!jam) this.padGrid.releaseAll(); }
     if (this.keyboard) { this.keyboard.enabled = !jam; this.keyboardEl.hidden = jam; }
-    if (this.kbHelp) this.kbHelp.textContent = jam ? 'Pads: Z X C V B N M , (graves) · A S D F G H J K (medios) · Q W E R T Y U I (agudos) · 1–8 golpean la batería' : 'Teclas: A W S E D F T G Y H U J K O L P · Z/X octava · Shift = ajuste fino · Doble click = reset';
+    if (this.kbHelp) this.kbHelp.textContent = jam ? 'Fila de arriba (Q…I): melodía · Fila del medio (A…K): acordes · Fila de abajo (Z…,): bajo · Números 1–8: batería' : 'Teclas: A W S E D F T G Y H U J K O L P · Z/X octava · Shift = ajuste fino · Doble click = reset';
   }
 
   // ---- vista SYNTH
@@ -487,27 +489,31 @@ class App {
     });
   }
 
-  // ---- vista JAM (modo simple)
+  // ---- vista JUGAR (modo simple)
   buildJamView() {
     const root = $('#view-jam');
-    root.append(h('div', { class: 'jam-grid' }, this.buildSoundsPanel(), this.buildPlayPanel(), h('div', { class: 'jam-col' }, this.buildDrumsPanel(), this.buildLooperPanel())));
+    root.append(
+      h('div', { class: 'jam-row jam-row-1' }, this.buildSoundsPanel(), this.buildVibePanel()),
+      h('div', { class: 'jam-row jam-row-2' }, this.buildMoodPanel(), this.buildDrumsPanel(), this.buildLooperPanel()),
+    );
   }
   buildSoundsPanel() {
     const panel = h('section', { class: 'panel sounds', style: `--pc:${COLORS.a}` });
+    this.soundEmoji = h('span', { class: 'sound-emoji' }, '🎹');
     this.soundTitle = h('h1', { class: 'sound-title' }, 'Init');
     this.soundDesc = h('p', { class: 'sound-desc' }, '');
-    const tags = ['Todos', 'Pads', 'Bajos', 'Leads', 'Teclas', 'Plucks', 'Texturas', 'Percusivos', 'Míos'];
+    const tags = ['Todos', 'Pads', 'Bajos', 'Leads', 'Teclas', 'Plucks', 'Texturas', 'Míos'];
     this.soundTag = 'Todos';
     const tagRow = h('div', { class: 'tag-row' }, ...tags.map(t => h('button', { class: 'tagbtn' + (t === 'Todos' ? ' active' : ''), dataset: { tag: t }, onclick: () => { this.soundTag = t; tagRow.querySelectorAll('.tagbtn').forEach(b => b.classList.toggle('active', b.dataset.tag === t)); this.buildSoundCards(); } }, t)));
     this.soundCards = h('div', { class: 'sound-cards' });
     const cv = h('canvas', { class: 'jam-viz' }); this.playCanvas = cv;
-    const macros = h('div', { class: 'jam-macros' });
-    for (let k = 1; k <= 4; k++) macros.append(this.control(`macro${k}`, { color: COLORS.macro, size: 'md', label: this.meta.macroNames[k - 1] }));
+    const color = COLORS.arp;
     panel.append(
-      h('header', {}, h('h2', {}, 'SONIDO'), h('span', { class: 'hint' }, 'Elegí uno y tocá los pads de abajo')),
-      h('div', { class: 'sound-head' }, h('button', { class: 'ib', onclick: () => this.loadPreset(this.presetIndex - 1) }, '‹'), h('div', { class: 'sound-head-txt' }, this.soundTitle, this.soundDesc), h('button', { class: 'ib', onclick: () => this.loadPreset(this.presetIndex + 1) }, '›')),
-      tagRow, this.soundCards,
-      h('div', { class: 'jam-bottom' }, macros, cv),
+      h('header', {}, h('h2', {}, 'Sonido'), h('span', { class: 'hint' }, 'Elegí uno y tocá las teclas')),
+      h('div', { class: 'sound-head' }, h('button', { class: 'ib', onclick: () => this.loadPreset(this.presetIndex - 1) }, '‹'), this.soundEmoji, h('div', { class: 'sound-head-txt' }, this.soundTitle, this.soundDesc), h('button', { class: 'ib', onclick: () => this.loadPreset(this.presetIndex + 1) }, '›'),
+        h('div', { class: 'arp-mini' }, this.control('arp.on', { color, label: 'Arpegio' }), this.control('arp.hold', { color, label: 'Mantener' }))),
+      tagRow,
+      h('div', { class: 'sound-body' }, this.soundCards, cv),
     );
     this.buildSoundCards();
     return panel;
@@ -522,50 +528,31 @@ class App {
       if (this.soundTag !== 'Todos' && tag !== this.soundTag) return;
       const arpOn = p.params && (p.params['arp.on'] === 'On');
       const card = h('button', { class: 'sound-card' + (i === this.presetIndex ? ' active' : ''), dataset: { i }, onclick: () => this.loadPreset(i) },
-        h('span', { class: 'sc-name' }, p.name), h('span', { class: 'sc-tag' }, tag + (arpOn ? ' · arp' : '')));
+        h('span', { class: 'sc-emoji' }, p.emoji || '🎵'), h('span', { class: 'sc-name' }, p.name), h('span', { class: 'sc-tag' }, tag + (arpOn ? ' · arp' : '')));
       card.style.setProperty('--hue', String((Array.from(p.name).reduce((a, c) => a + c.charCodeAt(0), 0) * 37) % 360));
       box.append(card);
     });
   }
-  buildPlayPanel() {
-    const color = COLORS.arp;
-    const panel = h('section', { class: 'panel playpanel', style: `--pc:${color}` });
-    // tonalidad y escala
+  buildVibePanel() {
+    const panel = h('section', { class: 'panel vibes', style: `--pc:${COLORS.fx}` });
+    const grid = h('div', { class: 'vibe-grid' }, ...VIBES.map(v => h('button', { class: 'vibebtn' + (v.id === this.song.vibe ? ' active' : ''), dataset: { vibe: v.id }, title: v.desc, onclick: () => { this.song.vibe = v.id; grid.querySelectorAll('.vibebtn').forEach(b => b.classList.toggle('active', b.dataset.vibe === v.id)); this.applyVibe(true); this.songChanged(); } }, h('span', { class: 'vb-emoji' }, v.emoji), h('span', { class: 'vb-name' }, v.name))));
+    this.vibeGrid = grid;
+    panel.append(h('header', {}, h('h2', {}, 'Ambiente'), h('span', { class: 'hint' }, 'Efectos ya armados')), grid);
+    return panel;
+  }
+  buildMoodPanel() {
+    const panel = h('section', { class: 'panel moods', style: `--pc:${COLORS.arp}` });
+    const grid = h('div', { class: 'mood-grid' }, ...MOODS.map(m => h('button', { class: 'moodbtn' + (m.id === this.song.mood ? ' active' : ''), dataset: { mood: m.id }, style: `--hue:${m.hue}`, onclick: () => { this.song.mood = m.id; this.song.scale = m.scale; grid.querySelectorAll('.moodbtn').forEach(b => b.classList.toggle('active', b.dataset.mood === m.id)); this.songChanged(); this.previewChord(); } }, h('span', { class: 'mb-emoji' }, m.emoji), h('span', { class: 'mb-name' }, m.name))));
     const keySel = h('select', { id: 'song-key' }, ...KEY_NAMES.map((k, i) => h('option', { value: i }, k)));
     keySel.value = this.song.key;
-    keySel.addEventListener('change', () => { this.song.key = parseInt(keySel.value, 10); this.songChanged(); });
-    const scaleSel = h('select', { id: 'song-scale' }, ...SCALES.map(sc => h('option', { value: sc.id }, `${sc.name} · ${sc.mood}`)));
-    scaleSel.value = this.song.scale;
-    scaleSel.addEventListener('change', () => { this.song.scale = scaleSel.value; this.songChanged(); });
-    const chordRow = h('div', { class: 'chord-row' }, ...CHORD_TYPES.map(c => h('button', { class: 'chordbtn' + (c.id === this.song.chord ? ' active' : ''), dataset: { chord: c.id }, onclick: () => { this.song.chord = c.id; chordRow.querySelectorAll('.chordbtn').forEach(b => b.classList.toggle('active', b.dataset.chord === c.id)); this.songChanged(); this.previewChord(); } }, c.name)));
-    const modeRow = h('div', { class: 'seg' }, ...[['notes', 'Notas'], ['chords', 'Acordes']].map(([m, l]) => h('button', { class: 'segbtn' + (this.song.padMode === m ? ' active' : ''), dataset: { mode: m }, onclick: () => { this.song.padMode = m; modeRow.querySelectorAll('.segbtn').forEach(b => b.classList.toggle('active', b.dataset.mode === m)); this.songChanged(); } }, l)));
-    this.padModeHint = h('p', { class: 'hint' }, '');
-    const lock = h('button', { class: 'tb' + (this.song.scaleLock ? ' on' : ''), title: 'Corrige a la escala las notas del teclado MIDI y del piano', onclick: () => { this.song.scaleLock = !this.song.scaleLock; lock.classList.toggle('on', this.song.scaleLock); this.songChanged(); } }, 'Corregir MIDI a la escala');
+    keySel.addEventListener('change', () => { this.song.key = parseInt(keySel.value, 10); this.songChanged(); this.previewChord(); });
+    const fat = h('button', { class: 'tb' + (this.song.fat ? ' on' : ''), title: 'Acordes de 5 notas con sub-octava', onclick: () => { this.song.fat = !this.song.fat; this.song.chord = this.song.fat ? 'fat' : 'triad'; fat.classList.toggle('on', this.song.fat); this.songChanged(); this.previewChord(); } }, 'Acordes gordos');
+    const midi = h('button', { class: 'tb' + (this.song.midiChords ? ' on' : ''), title: 'Con esto activado, cada tecla del teclado MIDI o del piano toca un acorde completo', onclick: () => { this.song.midiChords = !this.song.midiChords; midi.classList.toggle('on', this.song.midiChords); this.songChanged(); } }, 'MIDI toca acordes');
     const octRow = h('div', { class: 'oct' }, h('button', { class: 'ib', onclick: () => { this.song.octave = Math.max(1, this.song.octave - 1); this.songChanged(); } }, '−'), h('span', { class: 'oct-label', id: 'jam-oct' }, `Oct ${this.song.octave}`), h('button', { class: 'ib', onclick: () => { this.song.octave = Math.min(6, this.song.octave + 1); this.songChanged(); } }, '+'));
-    // arpegiador
-    const patSel = this.register(new EnumControl(this, pidx('arp.pattern'), { color, label: '' }));
-    this.arpDesc = h('span', { class: 'hint arp-desc' }, '');
     panel.append(
-      h('header', {}, h('h2', {}, 'TOCAR'), h('span', { class: 'hint' }, 'Los pads siempre suenan bien: solo notas de la escala')),
-      h('div', { class: 'play-block' },
-        h('div', { class: 'k-label' }, 'Tonalidad y escala'),
-        h('div', { class: 'dev-row' }, keySel, scaleSel, octRow),
-      ),
-      h('div', { class: 'play-block' },
-        h('div', { class: 'row-inline' }, h('div', { class: 'k-label' }, 'Pads'), modeRow),
-        this.padModeHint,
-      ),
-      h('div', { class: 'play-block' },
-        h('div', { class: 'k-label' }, 'Chordifier · cómo suena cada pad'),
-        chordRow,
-      ),
-      h('div', { class: 'play-block arp-block' },
-        h('div', { class: 'row-inline' }, this.control('arp.on', { label: 'ARP', color, class: 'pw' }), h('span', { class: 'k-label' }, 'Arpegiador'), patSel.el, this.control('arp.hold', { color, label: 'Mantener' })),
-        this.arpDesc,
-        h('div', { class: 'knob-row' }, this.control('arp.rate', { label: 'Velocidad', color, toggle: false }), this.control('arp.octaves', { color, label: 'Oct.', size: 'sm' }), this.control('arp.gate', { color, label: 'Largo', size: 'sm' }), this.control('arp.swing', { color, label: 'Swing', size: 'sm' })),
-        h('p', { class: 'hint' }, 'Cada sonido trae su propio arpegio. "Mantener" sigue tocando después de soltar los pads.'),
-      ),
-      h('div', { class: 'play-block' }, lock),
+      h('header', {}, h('h2', {}, 'Ánimo'), h('span', { class: 'hint' }, 'Elige la escala por vos')),
+      grid,
+      h('div', { class: 'mood-foot' }, h('label', { class: 'k-label', for: 'song-key' }, 'Tono'), keySel, octRow, fat, midi),
     );
     return panel;
   }
@@ -575,10 +562,17 @@ class App {
     this.stepLights = h('div', { class: 'steps' }, ...Array.from({ length: 16 }, (_, i) => h('span', { class: 'step' + (i % 4 === 0 ? ' beat' : '') })));
     const pads = h('div', { class: 'drum-pads' }, ...DRUM_NAMES.map((n, i) => { const b = h('button', { class: 'drum-pad', title: `Tecla ${i + 1}` }, h('b', {}, String(i + 1)), n); b.addEventListener('pointerdown', (e) => { e.preventDefault(); this.hitDrum(i); }); return b; }));
     this.drumPadEls = [...pads.children];
+    // tempo como deslizador simple
+    const tempoIdx = pidx('master.tempo');
+    const tempo = h('input', { type: 'range', min: 60, max: 180, step: 1, class: 'tempo-slider', id: 'tempo-slider' });
+    const tempoLabel = h('span', { class: 'tempo-label' }, '');
+    tempo.addEventListener('input', () => this.setValue('master.tempo', parseInt(tempo.value, 10)));
+    const tempoCtl = { idx: tempoIdx, el: h('div', { class: 'tempo-row' }, h('span', { class: 'k-label' }, 'Tempo'), tempo, tempoLabel), update: () => { const v = Math.round(this.value('master.tempo')); tempo.value = v; tempoLabel.textContent = `${v} bpm`; }, live() {} };
+    this.register(tempoCtl); tempoCtl.update();
     panel.append(
-      h('header', {}, this.control('drum.on', { label: 'ON', color, class: 'pw' }), h('h2', {}, 'RITMO'), h('div', { class: 'spacer' }), this.control('drum.pattern', { label: '', color, class: 'type-select', toggle: false })),
+      h('header', {}, this.control('drum.on', { label: 'ON', color, class: 'pw' }), h('h2', {}, 'Ritmo'), h('div', { class: 'spacer' }), this.control('drum.pattern', { label: '', color, class: 'type-select', toggle: false }), this.control('drum.kit', { label: '', color, class: 'inline', toggle: false })),
       this.stepLights,
-      h('div', { class: 'knob-row wrap' }, this.control('drum.kit', { label: 'Kit', color, toggle: false }), this.control('master.tempo', { color, label: 'Tempo', size: 'md' }), this.control('drum.level', { color, label: 'Volumen', size: 'sm' }), this.control('drum.swing', { color, label: 'Swing', size: 'sm' }), this.control('drum.tone', { color, label: 'Tono', size: 'sm' }), this.control('drum.decay', { color, label: 'Cola', size: 'sm' })),
+      tempoCtl.el,
       pads,
     );
     return panel;
@@ -586,20 +580,30 @@ class App {
   buildLooperPanel() {
     const color = COLORS.env;
     const panel = h('section', { class: 'panel looper', style: `--pc:${color}` });
-    this.loopRec = h('button', { class: 'loop-btn rec', onclick: () => { this.start(); this.audio.loop('rec'); } }, '● GRABAR');
-    this.loopPlay = h('button', { class: 'loop-btn', onclick: () => this.audio.loop('play') }, '▶ PLAY');
-    this.loopStop = h('button', { class: 'loop-btn', onclick: () => this.audio.loop('stop') }, '■ STOP');
+    this.loopRec = h('button', { class: 'loop-btn rec', onclick: () => { this.start(); this.audio.loop('rec'); } }, '● Grabar');
+    this.loopPlay = h('button', { class: 'loop-btn', onclick: () => this.audio.loop('play') }, '▶ Play');
+    this.loopStop = h('button', { class: 'loop-btn', onclick: () => this.audio.loop('stop') }, '■ Stop');
     this.loopUndo = h('button', { class: 'tb', title: 'Quita la última capa', onclick: () => this.audio.loop('undo') }, 'Deshacer');
     this.loopClear = h('button', { class: 'tb', title: 'Borra todas las capas', onclick: () => { if (confirm('¿Borrar todas las capas del loop?')) this.audio.loop('clear'); } }, 'Borrar');
     this.loopBar = h('div', { class: 'loop-bar' }, h('div', { class: 'loop-fill' }));
-    this.loopStatus = h('div', { class: 'dev-status' }, 'Vacío. Elegí cuántos compases y pulsá GRABAR: se graba lo que toques durante ese tiempo y queda sonando en loop.');
+    this.loopStatus = h('div', { class: 'dev-status' }, '');
     this.loopLayers = h('div', { class: 'loop-layers' });
     panel.append(
-      h('header', {}, h('h2', {}, 'LOOPER'), h('div', { class: 'spacer' }), this.control('loop.bars', { label: 'Compases', color, toggle: false, class: 'inline' }), this.control('loop.level', { color, label: 'Vol', size: 'sm' })),
+      h('header', {}, h('h2', {}, 'Looper'), h('div', { class: 'spacer' }), this.control('loop.bars', { label: 'Compases', color, toggle: false, class: 'inline' })),
       h('div', { class: 'loop-controls' }, this.loopRec, this.loopPlay, this.loopStop, this.loopUndo, this.loopClear),
       this.loopBar, this.loopStatus, this.loopLayers,
     );
     return panel;
+  }
+  applyVibe(push) {
+    const v = VIBES.find(x => x.id === this.song.vibe) || VIBES[0];
+    if (v.fx) this.applyFxList(v.fx);
+    else { const p = this.allPresets()[this.presetIndex]; this.applyFxList((p && p.fx) || []); }
+    if (push) {
+      this.audio.setAllParams(this.norm);
+      for (let sl = 1; sl <= FX_SLOTS; sl++) this.buildFxSlot(sl);
+      this.refreshAll();
+    }
   }
   hitDrum(i) { this.start(); this.audio.drum(i, 1); const el = this.drumPadEls && this.drumPadEls[i]; if (el) { el.classList.add('hit'); setTimeout(() => el.classList.remove('hit'), 120); } }
   updateLooperUI(lp) {
@@ -633,15 +637,12 @@ class App {
     this.stopAll();
     if (this.padGrid) this.relabelPads();
     const o = $('#jam-oct'); if (o) o.textContent = `Oct ${this.song.octave}`;
-    if (this.padModeHint) this.padModeHint.textContent = this.song.padMode === 'chords'
-      ? 'Cada columna es un acorde de la tonalidad. Fila de abajo: nota grave (bajo). Medio: el acorde. Arriba: el acorde una octava más alto.'
-      : 'Cada pad es una nota de la escala. Nunca suena una nota fuera de tono.';
     this.applyPolyRule();
   }
   // Los acordes necesitan polifonía: si el sonido es mono/legato se pasa a Poly
   // y se vuelve al modo del preset cuando se elige "Nota sola".
   applyPolyRule() {
-    const needPoly = this.song.chord !== 'off' || this.song.padMode === 'chords';
+    const needPoly = true; // el modo Jugar siempre tiene acordes disponibles
     if (needPoly) { if (this.value('master.poly') !== 0) this.setValue('master.poly', 0); }
     else {
       const p = this.allPresets()[this.presetIndex];
@@ -666,28 +667,26 @@ class App {
     else if (t === 4) q = ''; else if (t === 3) { q = 'm'; roman = roman.toLowerCase(); }
     return { name: `${KEY_NAMES[(this.song.key + root) % 12]}${q ? ' ' + q : ''}`, roman, quality: q };
   }
+  // pads mixtos: fila de abajo = bajo, medio = acordes, arriba = melodía
   chordPadNotes(d) {
     const L = this.scaleDef.steps.length;
     const col = d % 8, row = Math.floor(d / 8);
     const c = col % L + (col >= L ? L : 0);
     const root = this.degreeToNote(c);
     if (row === 0) return [root - 12];
-    let notes = this.chordify(root, this.song.chord === 'off' ? 'triad' : this.song.chord);
-    if (row === 2) notes = notes.map(n => n + 12);
-    return notes;
+    if (row === 2) return [this.degreeToNote(col + L)];
+    return this.chordify(root, this.song.chord);
   }
   relabelPads() {
     const L = this.scaleDef.steps.length;
-    if (this.song.padMode === 'chords') {
-      this.padGrid.relabel((d) => {
-        const col = d % 8, row = Math.floor(d / 8), c = col % L;
-        const info = this.chordInfo(c);
-        const isOct = col >= L;
-        return { name: row === 0 ? `${info.name.split(' ')[0]} bajo` : info.name, degree: row === 0 ? 'bajo' : (row === 2 ? info.roman + ' ↑' : info.roman) + (isOct ? ' (8va)' : ''), isRoot: c === 0, hue: c * (300 / L) };
-      });
-    } else {
-      this.padGrid.relabel((d) => { const n = this.degreeToNote(d); return { name: noteName(n), degree: String((d % L) + 1), isRoot: d % L === 0, hue: (d % L) * (300 / L) }; });
-    }
+    this.padGrid.relabel((d) => {
+      const col = d % 8, row = Math.floor(d / 8), c = col % L;
+      const hue = c * (300 / L);
+      if (row === 2) { const n = this.degreeToNote(col + L); return { name: noteName(n), degree: 'melodía', isRoot: c === 0 && col < L, hue, kind: 'melody' }; }
+      const info = this.chordInfo(c);
+      if (row === 0) return { name: `${info.name.split(' ')[0]}`, degree: 'bajo', isRoot: c === 0 && col < L, hue, kind: 'bass' };
+      return { name: info.name, degree: info.roman + (col >= L ? ' (8va)' : ''), isRoot: c === 0 && col < L, hue, kind: 'chord' };
+    });
   }
   quantize(note) {
     const st = this.scaleDef.steps;
@@ -722,7 +721,7 @@ class App {
   performOn(note, vel, quantize) {
     const key = 'n' + note;
     if (quantize && this.song.scaleLock) note = this.quantize(note);
-    this.playSet(key, this.chordify(note), vel);
+    this.playSet(key, this.song.midiChords ? this.chordify(note) : [note], vel);
     if (this.keyboard) this.keyboard.light(note, true);
   }
   performOff(rawNote, quantize) {
@@ -730,10 +729,7 @@ class App {
     this.stopSet('n' + rawNote);
     if (this.keyboard) this.keyboard.light(note, false);
   }
-  padOn(d, vel) {
-    if (this.song.padMode === 'chords') this.playSet('p' + d, this.chordPadNotes(d), vel);
-    else this.playSet('p' + d, this.chordify(this.degreeToNote(d)), vel);
-  }
+  padOn(d, vel) { this.playSet('p' + d, this.chordPadNotes(d), vel); }
   padOff(d) { this.stopSet('p' + d); }
   previewChord() {
     const root = this.degreeToNote(0) + 12;
@@ -950,19 +946,27 @@ class App {
       this.norm[d.index] = norm(d, v);
     };
     for (const [id, v] of Object.entries(p.params || {})) if (!isSongParam(id)) setId(id, v);
-    (p.fx || []).forEach((f, i) => {
-      const slot = i + 1, ti = FX_INDEX[f.type.toLowerCase().replace(/\s+/g, '')] ?? FX_TYPES.findIndex(t => t.name === f.type);
+    this.applyFxList(p.fx || []);
+    this.mods = (p.mods || []).map(([s, d, a]) => ({ src: SRC_INDEX[s], dst: PARAM_INDEX[d], amt: a })).filter(m => m.src !== undefined && m.dst !== undefined);
+    this.meta = { name: p.name, category: p.category || 'User', description: p.description || '', macroNames: (p.macroNames || ['Macro 1', 'Macro 2', 'Macro 3', 'Macro 4']).slice() };
+  }
+  applyFxList(list) {
+    for (let sl = 1; sl <= FX_SLOTS; sl++) { this.norm[pidx(`fx${sl}.type`)] = 0; this.norm[pidx(`fx${sl}.on`)] = 1; this.norm[pidx(`fx${sl}.mix`)] = 1; }
+    (list || []).forEach((f, i) => {
+      const slot = i + 1;
+      if (slot > FX_SLOTS) return;
+      const ti = FX_TYPES.findIndex(t => t.name === f.type || t.id === f.type);
       if (ti < 0) return;
-      setId(`fx${slot}.type`, ti); setId(`fx${slot}.on`, f.on === false ? 0 : 1); setId(`fx${slot}.mix`, f.mix ?? 1);
       const t = FX_TYPES[ti];
+      this.norm[pidx(`fx${slot}.type`)] = norm(PARAMS[pidx(`fx${slot}.type`)], ti);
+      this.norm[pidx(`fx${slot}.on`)] = f.on === false ? 0 : 1;
+      this.norm[pidx(`fx${slot}.mix`)] = f.mix ?? 1;
       t.params.forEach((pd, k) => {
         let v = f.params && f.params[k] !== undefined ? f.params[k] : pd.def;
         if (typeof v === 'string') v = Math.max(0, pd.opts.indexOf(v));
         this.norm[pidx(`fx${slot}.p${k}`)] = pd.curve === 'enum' ? (pd.max > 0 ? v / pd.max : 0) : norm(pd, v);
       });
     });
-    this.mods = (p.mods || []).map(([s, d, a]) => ({ src: SRC_INDEX[s], dst: PARAM_INDEX[d], amt: a })).filter(m => m.src !== undefined && m.dst !== undefined);
-    this.meta = { name: p.name, category: p.category || 'User', description: p.description || '', macroNames: (p.macroNames || ['Macro 1', 'Macro 2', 'Macro 3', 'Macro 4']).slice() };
   }
   loadPreset(i) {
     const all = this.allPresets();
@@ -970,13 +974,14 @@ class App {
     this.presetIndex = i;
     this.stopAll();
     this.presetToState(all[i]);
+    if (this.song.vibe !== 'own') this.applyVibe(false);
     this.audio.allOff();
     this.audio.setAllParams(this.norm); this.audio.setMods(this.mods);
     this.presetSel.value = i;
     this.buildEngineBody('a'); this.buildEngineBody('b');
     for (let s = 1; s <= FX_SLOTS; s++) this.buildFxSlot(s);
     for (let k = 0; k < 4; k++) this.setMacroName(k, this.meta.macroNames[k]);
-    if (this.soundTitle) { this.soundTitle.textContent = this.meta.name; this.soundDesc.textContent = this.meta.description; }
+    if (this.soundTitle) { this.soundTitle.textContent = this.meta.name; this.soundDesc.textContent = this.meta.description; this.soundEmoji.textContent = all[i].emoji || '🎵'; }
     if (this.soundCards) this.soundCards.querySelectorAll('.sound-card').forEach(c => c.classList.toggle('active', parseInt(c.dataset.i, 10) === i));
     this.activeChords.clear();
     if (this.padGrid) this.applyPolyRule();

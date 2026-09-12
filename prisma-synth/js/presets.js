@@ -2,14 +2,14 @@
 // main.js los convierte a normalizados. fx: lista de hasta 4 slots.
 export const PRESETS = [
   {
-    name: 'Init', tag: 'Teclas', category: 'Template', description: 'Punto de partida: sierra analógica y filtro LP.',
+    name: 'Init', emoji: '🎹', tag: 'Teclas', category: 'Template', description: 'Punto de partida: sierra analógica y filtro LP.',
     macroNames: ['Cutoff', 'Space', 'Motion', 'Drive'],
     params: {
       'arp.pattern': 'Arriba', 'arp.rate': '1/16', 'arp.octaves': 2, 'arp.gate': 0.5, 'a.type': 'Analog', 'b.on': 'Off', 'f1.cutoff': 8000, 'f1.res': 0.15 },
     fx: [], mods: [['macro1', 'f1.cutoff', 0.5]],
   },
   {
-    name: 'Prisma Pad', tag: 'Pads', category: 'Pad', description: 'Wavetable vocal en A y sierra unison en B, lento y ancho. Macro 1 abre el filtro, Macro 3 mueve la tabla.',
+    name: 'Prisma Pad', emoji: '🌈', tag: 'Pads', category: 'Pad', description: 'Wavetable vocal en A y sierra unison en B, lento y ancho. Macro 1 abre el filtro, Macro 3 mueve la tabla.',
     macroNames: ['Open', 'Space', 'Motion', 'Shimmer'],
     params: {
       'arp.pattern': 'Acorde', 'arp.rate': '1/4', 'arp.octaves': 1, 'arp.gate': 0.9,
@@ -24,7 +24,7 @@ export const PRESETS = [
     mods: [['env2', 'f1.cutoff', 0.35], ['macro1', 'f1.cutoff', 0.5], ['lfo1', 'a.wt.pos', 0.25], ['macro3', 'a.wt.pos', 0.5], ['lfo2', 'b.fine', 0.04], ['macro2', 'fx2.mix', 0.5], ['macro4', 'fx2.p5', 0.8]],
   },
   {
-    name: 'Glass Keys', tag: 'Teclas', category: 'Keys', description: 'FM de 3 operadores con índice controlado por Env 3. Delay y reverb suaves.',
+    name: 'Glass Keys', emoji: '🔔', tag: 'Teclas', category: 'Keys', description: 'FM de 3 operadores con índice controlado por Env 3. Delay y reverb suaves.',
     macroNames: ['Brightness', 'Echo', 'Detune', 'Space'],
     params: {
       'arp.pattern': 'Escalera', 'arp.rate': '1/16', 'arp.octaves': 2, 'arp.gate': 0.6,
@@ -37,7 +37,7 @@ export const PRESETS = [
     mods: [['env3', 'a.fm.index2', 0.25], ['velocity', 'a.fm.index2', 0.15], ['macro1', 'a.fm.index2', 0.4], ['macro2', 'fx1.mix', 0.6], ['macro3', 'b.fine', 0.1], ['macro4', 'fx2.mix', 0.6]],
   },
   {
-    name: 'Granular Choir', tag: 'Texturas', category: 'Texture', description: 'Nubes de granos sobre un coro interno, formante en B. LFO barre la posición.',
+    name: 'Granular Choir', emoji: '👥', tag: 'Texturas', category: 'Texture', description: 'Nubes de granos sobre un coro interno, formante en B. LFO barre la posición.',
     macroNames: ['Position', 'Spray', 'Size', 'Space'],
     params: {
       'arp.pattern': 'Rebote', 'arp.rate': '1/8', 'arp.octaves': 1, 'arp.gate': 0.95,
@@ -51,7 +51,7 @@ export const PRESETS = [
     mods: [['lfo1', 'a.gran.pos', 0.3], ['macro1', 'a.gran.pos', 0.6], ['macro2', 'a.gran.spray', 0.7], ['macro3', 'a.gran.size', 0.5], ['macro4', 'fx2.mix', 0.4], ['lfo2', 'b.wt.pos', 0.3]],
   },
   {
-    name: 'Modal Bells', tag: 'Teclas', category: 'Keys', description: 'Resonadores modales (material campana) más parciales armónicos. Reverb con shimmer.',
+    name: 'Modal Bells', emoji: '🛎️', tag: 'Teclas', category: 'Keys', description: 'Resonadores modales (material campana) más parciales armónicos. Reverb con shimmer.',
     macroNames: ['Material', 'Decay', 'Shimmer', 'Brightness'],
     params: {
       'arp.pattern': 'Cascada', 'arp.rate': '1/8', 'arp.octaves': 2, 'arp.gate': 0.8,
@@ -63,7 +63,7 @@ export const PRESETS = [
     mods: [['macro1', 'a.modal.material', -0.5], ['macro2', 'a.modal.decay', 0.4], ['macro3', 'fx2.p5', 0.5], ['macro4', 'a.modal.bright', 0.3], ['velocity', 'a.modal.bright', 0.3]],
   },
   {
-    name: 'Acid Bass', tag: 'Bajos', category: 'Bass', description: 'Mono legato con glide, LP24 resonante barrido por Env 2 y distorsión.',
+    name: 'Acid Bass', emoji: '🧪', tag: 'Bajos', category: 'Bass', description: 'Mono legato con glide, LP24 resonante barrido por Env 2 y distorsión.',
     macroNames: ['Cutoff', 'Reso', 'Drive', 'Env Amt'],
     params: {
       'arp.pattern': 'Pulso', 'arp.rate': '1/16', 'arp.octaves': 2, 'arp.gate': 0.45,
@@ -77,7 +77,7 @@ export const PRESETS = [
     mods: [['env2', 'f1.cutoff', 0.45], ['macro1', 'f1.cutoff', 0.5], ['macro2', 'f1.res', 0.3], ['macro3', 'fx1.p0', 0.6], ['macro4', 'env2.sustain', 0.8], ['modwheel', 'f1.cutoff', 0.3]],
   },
   {
-    name: 'Corroded Lead', tag: 'Leads', category: 'Lead', description: 'Wavetable Digital con unison, atravesada por el Corroder (FM + grano) y delay sincronizado.',
+    name: 'Corroded Lead', emoji: '⚙️', tag: 'Leads', category: 'Lead', description: 'Wavetable Digital con unison, atravesada por el Corroder (FM + grano) y delay sincronizado.',
     macroNames: ['Corrode', 'Grain', 'Warp', 'Echo'],
     params: {
       'arp.pattern': 'Trance', 'arp.rate': '1/16', 'arp.octaves': 1, 'arp.gate': 0.5,
@@ -91,7 +91,7 @@ export const PRESETS = [
     mods: [['macro1', 'fx1.mix', 0.5], ['macro2', 'fx1.p2', 0.6], ['macro3', 'a.wt.warp', 0.6], ['macro4', 'fx2.mix', 0.5], ['modwheel', 'a.fine', 0.0], ['lfo1', 'a.fine', 0.03], ['modwheel', 'lfo1.rate', 0.0]],
   },
   {
-    name: 'Harmonic Organ', tag: 'Teclas', category: 'Keys', description: 'Síntesis aditiva con balance par/impar y peine espectral movido por LFO. Phaser y reverb.',
+    name: 'Harmonic Organ', emoji: '⛪', tag: 'Teclas', category: 'Keys', description: 'Síntesis aditiva con balance par/impar y peine espectral movido por LFO. Phaser y reverb.',
     macroNames: ['Partials', 'Odd/Even', 'Comb', 'Space'],
     params: {
       'arp.pattern': 'Galope', 'arp.rate': '1/16', 'arp.octaves': 1, 'arp.gate': 0.7,
@@ -104,7 +104,7 @@ export const PRESETS = [
     mods: [['lfo1', 'a.harm.comb', 0.2], ['macro1', 'a.harm.partials', 0.6], ['macro2', 'a.harm.oddEven', 0.5], ['macro3', 'a.harm.comb', 0.5], ['macro4', 'fx2.mix', 0.5]],
   },
   {
-    name: 'Arp Pluck', tag: 'Plucks', category: 'Sequence', description: 'Pulso analógico y tabla de armónicos con decaimiento corto; arpegiador arriba/abajo a 1/16 con delay ping‑pong.',
+    name: 'Arp Pluck', emoji: '✨', tag: 'Plucks', category: 'Sequence', description: 'Pulso analógico y tabla de armónicos con decaimiento corto; arpegiador arriba/abajo a 1/16 con delay ping‑pong.',
     macroNames: ['Cutoff', 'Decay', 'Echo', 'Width'],
     params: {
       'a.type': 'Analog', 'a.va.wave': 'Pulse', 'a.va.pw': 0.25, 'a.level': 0.7,
@@ -118,7 +118,7 @@ export const PRESETS = [
     mods: [['env2', 'f1.cutoff', 0.5], ['velocity', 'f1.cutoff', 0.2], ['macro1', 'f1.cutoff', 0.5], ['macro2', 'env1.decay', 0.4], ['macro3', 'fx1.mix', 0.5], ['macro4', 'b.wt.pos', 0.5]],
   },
   {
-    name: 'Texture Drone', tag: 'Texturas', category: 'Texture', description: 'Granular sobre textura de ruido y loop de sample con filtro formante. Todo se mueve con LFOs lentos.',
+    name: 'Texture Drone', emoji: '🌫️', tag: 'Texturas', category: 'Texture', description: 'Granular sobre textura de ruido y loop de sample con filtro formante. Todo se mueve con LFOs lentos.',
     macroNames: ['Vowel', 'Density', 'Scan', 'Space'],
     params: {
       'arp.pattern': 'Aleatorio', 'arp.rate': '1/2', 'arp.octaves': 2, 'arp.gate': 1,
@@ -132,7 +132,7 @@ export const PRESETS = [
     mods: [['lfo1', 'f1.cutoff', 0.3], ['macro1', 'f1.cutoff', 0.5], ['lfo2', 'a.gran.pos', 0.4], ['lfo3', 'f2.cutoff', 0.2], ['macro2', 'a.gran.density', 0.5], ['macro3', 'a.gran.scan', 0.4], ['macro4', 'fx3.mix', 0.4]],
   },
   {
-    name: 'Sub Bass', tag: 'Bajos', category: 'Bass', description: 'Seno + sub cuadrado, mono legato con glide corto. Limpio y profundo.',
+    name: 'Sub Bass', emoji: '🐋', tag: 'Bajos', category: 'Bass', description: 'Seno + sub cuadrado, mono legato con glide corto. Limpio y profundo.',
     macroNames: ['Sub', 'Tone', 'Glide', 'Comp'],
     params: {
       'arp.pattern': 'Pulso', 'arp.rate': '1/8', 'arp.octaves': 1, 'arp.gate': 0.6,
@@ -144,7 +144,7 @@ export const PRESETS = [
     mods: [['macro1', 'a.va.sub', 0.4], ['macro2', 'f1.cutoff', 0.5], ['macro3', 'master.glide', 0.3], ['macro4', 'fx1.p0', -0.3]],
   },
   {
-    name: 'Modal Percussion', tag: 'Percusivos', category: 'Percussion', description: 'Membrana modal excitada por ruido y arpegiador aleatorio. Macro 1 cambia el material.',
+    name: 'Modal Percussion', emoji: '🥁', tag: 'Percusivos', category: 'Percussion', description: 'Membrana modal excitada por ruido y arpegiador aleatorio. Macro 1 cambia el material.',
     macroNames: ['Material', 'Decay', 'Position', 'Space'],
     params: {
       'a.type': 'Modal', 'a.modal.material': 0.6, 'a.modal.modes': 16, 'a.modal.decay': 0.6, 'a.modal.damp': 0.7, 'a.modal.pos': 0.35, 'a.modal.exciter': 'Noise', 'a.modal.exLen': 6, 'a.modal.bright': 0.5, 'a.level': 0.9,
@@ -156,7 +156,7 @@ export const PRESETS = [
     mods: [['macro1', 'a.modal.material', 0.4], ['macro2', 'a.modal.decay', 0.4], ['macro3', 'a.modal.pos', 0.5], ['macro4', 'fx2.mix', 0.5], ['random', 'a.modal.pos', 0.3], ['velocity', 'a.modal.bright', 0.4]],
   },
   {
-    name: 'Analog Brass', tag: 'Leads', category: 'Lead', description: 'Dos sierras unison con envolvente de filtro rápida, chorus y EQ. Modwheel añade vibrato.',
+    name: 'Analog Brass', emoji: '🎺', tag: 'Leads', category: 'Lead', description: 'Dos sierras unison con envolvente de filtro rápida, chorus y EQ. Modwheel añade vibrato.',
     macroNames: ['Cutoff', 'Attack', 'Detune', 'Space'],
     params: {
       'arp.pattern': 'Octavas', 'arp.rate': '1/8', 'arp.octaves': 1, 'arp.gate': 0.7,
@@ -171,7 +171,7 @@ export const PRESETS = [
     mods: [['env2', 'f1.cutoff', 0.55], ['velocity', 'f1.cutoff', 0.25], ['modwheel', 'a.fine', 0.0], ['lfo1', 'a.fine', 0.0], ['macro1', 'f1.cutoff', 0.4], ['macro2', 'env1.attack', 0.5], ['macro3', 'a.va.detune', 0.5], ['macro4', 'fx3.mix', 0.5]],
   },
   {
-    name: 'FM Pluck', tag: 'Plucks', category: 'Pluck', description: 'FM en paralelo con feedback, Env 3 barre el índice. Delay sincronizado.',
+    name: 'FM Pluck', emoji: '💎', tag: 'Plucks', category: 'Pluck', description: 'FM en paralelo con feedback, Env 3 barre el índice. Delay sincronizado.',
     macroNames: ['Index', 'Feedback', 'Echo', 'Tone'],
     params: {
       'arp.pattern': 'Arriba', 'arp.rate': '1/16', 'arp.octaves': 3, 'arp.gate': 0.5,
@@ -185,7 +185,7 @@ export const PRESETS = [
   },
   // ---- Sonidos nuevos (nombres pensados para el modo Jam)
   {
-    name: 'Neón', tag: 'Leads', category: 'Lead', description: 'Lead digital brillante con FM y un arpegio trance que empuja solo. Macro 1 abre el brillo, Macro 2 el eco.',
+    name: 'Neón', emoji: '🌆', tag: 'Leads', category: 'Lead', description: 'Lead digital brillante con FM y un arpegio trance que empuja solo. Macro 1 abre el brillo, Macro 2 el eco.',
     macroNames: ['Brillo', 'Eco', 'Warp', 'Espacio'],
     params: {
       'arp.pattern': 'Trance', 'arp.rate': '1/16', 'arp.octaves': 1, 'arp.gate': 0.45, 'arp.on': 'On',
@@ -199,7 +199,7 @@ export const PRESETS = [
     mods: [['env2', 'f1.cutoff', 0.45], ['macro1', 'f1.cutoff', 0.5], ['macro2', 'fx2.mix', 0.6], ['macro3', 'a.wt.warp', 0.6], ['macro4', 'fx3.mix', 0.6], ['velocity', 'b.fm.index2', 0.2]],
   },
   {
-    name: 'Lluvia de cristal', tag: 'Plucks', category: 'Pluck', description: 'Gotas de FM y cuerdas modales que caen en cascada por tres octavas. Ideal con la escala Lidia.',
+    name: 'Lluvia de cristal', emoji: '🌧️', tag: 'Plucks', category: 'Pluck', description: 'Gotas de FM y cuerdas modales que caen en cascada por tres octavas. Ideal con la escala Lidia.',
     macroNames: ['Brillo', 'Cola', 'Lluvia', 'Espacio'],
     params: {
       'arp.pattern': 'Cascada', 'arp.rate': '1/16', 'arp.octaves': 3, 'arp.gate': 0.5, 'arp.on': 'On',
@@ -212,7 +212,7 @@ export const PRESETS = [
     mods: [['env3', 'a.fm.index2', 0.35], ['macro1', 'a.fm.index2', 0.4], ['macro2', 'env1.decay', 0.4], ['macro3', 'fx1.mix', 0.5], ['macro4', 'fx2.mix', 0.4], ['random', 'b.modal.pos', 0.3]],
   },
   {
-    name: 'Bajo gordo', tag: 'Bajos', category: 'Bass', description: 'Sierras en unison, sub y distorsión. Mono con glide; el arpegio Pulso lo convierte en un bajo bailable.',
+    name: 'Bajo gordo', emoji: '🐘', tag: 'Bajos', category: 'Bass', description: 'Sierras en unison, sub y distorsión. Mono con glide; el arpegio Pulso lo convierte en un bajo bailable.',
     macroNames: ['Abrir', 'Gordura', 'Ataque', 'Sub'],
     params: {
       'arp.pattern': 'Pulso', 'arp.rate': '1/8', 'arp.octaves': 2, 'arp.gate': 0.5, 'arp.on': 'Off',
@@ -227,7 +227,7 @@ export const PRESETS = [
     mods: [['env2', 'f1.cutoff', 0.5], ['macro1', 'f1.cutoff', 0.5], ['macro2', 'fx1.p0', 0.6], ['macro3', 'env2.decay', 0.4], ['macro4', 'a.va.sub', 0.3], ['velocity', 'f1.cutoff', 0.2]],
   },
   {
-    name: 'Ola sintética', tag: 'Pads', category: 'Pad', description: 'Pad que respira: la tabla de ondas se mueve sola y los armónicos se abren despacio. Acordes largos.',
+    name: 'Ola sintética', emoji: '🌊', tag: 'Pads', category: 'Pad', description: 'Pad que respira: la tabla de ondas se mueve sola y los armónicos se abren despacio. Acordes largos.',
     macroNames: ['Abrir', 'Movimiento', 'Cuerpo', 'Espacio'],
     params: {
       'arp.pattern': 'Acorde', 'arp.rate': '1/2', 'arp.octaves': 1, 'arp.gate': 1, 'arp.on': 'Off',
@@ -242,7 +242,7 @@ export const PRESETS = [
     mods: [['env2', 'f1.cutoff', 0.35], ['lfo1', 'a.wt.pos', 0.3], ['macro1', 'f1.cutoff', 0.5], ['macro2', 'lfo1.rate', 0.4], ['macro3', 'b.harm.partials', 0.5], ['macro4', 'fx2.mix', 0.4]],
   },
   {
-    name: 'Vidrio roto', tag: 'Texturas', category: 'Texture', description: 'Granos de campana esparcidos al azar, corroídos por FM. Suena a cristales cayendo en cámara lenta.',
+    name: 'Vidrio roto', emoji: '🪟', tag: 'Texturas', category: 'Texture', description: 'Granos de campana esparcidos al azar, corroídos por FM. Suena a cristales cayendo en cámara lenta.',
     macroNames: ['Esparcir', 'Corroer', 'Grano', 'Espacio'],
     params: {
       'arp.pattern': 'Aleatorio', 'arp.rate': '1/16', 'arp.octaves': 2, 'arp.gate': 0.9, 'arp.on': 'On',
@@ -255,7 +255,7 @@ export const PRESETS = [
     mods: [['macro1', 'a.gran.spray', 0.3], ['macro2', 'fx1.mix', 0.6], ['macro3', 'a.gran.size', -0.4], ['macro4', 'fx3.mix', 0.5], ['random', 'a.gran.pos', 0.5]],
   },
   {
-    name: 'Caja de música', tag: 'Teclas', category: 'Keys', description: 'Barritas metálicas y una campanita. El arpegio Escalera hace la melodía por vos.',
+    name: 'Caja de música', emoji: '🎠', tag: 'Teclas', category: 'Keys', description: 'Barritas metálicas y una campanita. El arpegio Escalera hace la melodía por vos.',
     macroNames: ['Material', 'Cola', 'Eco', 'Espacio'],
     params: {
       'arp.pattern': 'Escalera', 'arp.rate': '1/16', 'arp.octaves': 2, 'arp.gate': 0.7, 'arp.on': 'On',
@@ -267,7 +267,7 @@ export const PRESETS = [
     mods: [['macro1', 'a.modal.material', 0.4], ['macro2', 'a.modal.decay', 0.4], ['macro3', 'fx1.mix', 0.5], ['macro4', 'fx2.mix', 0.5], ['velocity', 'a.modal.bright', 0.3]],
   },
   {
-    name: 'Cielo abierto', tag: 'Pads', category: 'Pad', description: 'Coro granular y parciales estirados bajo una reverb infinita con shimmer. Para tocar una nota y quedarse escuchando.',
+    name: 'Cielo abierto', emoji: '☁️', tag: 'Pads', category: 'Pad', description: 'Coro granular y parciales estirados bajo una reverb infinita con shimmer. Para tocar una nota y quedarse escuchando.',
     macroNames: ['Luz', 'Shimmer', 'Estirar', 'Lento'],
     params: {
       'arp.pattern': 'Rebote', 'arp.rate': '1/4', 'arp.octaves': 1, 'arp.gate': 1, 'arp.on': 'Off',
@@ -281,7 +281,7 @@ export const PRESETS = [
     mods: [['lfo1', 'f1.cutoff', 0.15], ['macro1', 'f1.cutoff', 0.5], ['macro2', 'fx2.p5', 0.45], ['macro3', 'a.harm.stretch', 0.5], ['macro4', 'env1.attack', 0.4]],
   },
   {
-    name: 'Robot funk', tag: 'Leads', category: 'Lead', description: 'FM con feedback y pulso analógico, phaser y un arpegio galopante. Rítmico y descarado.',
+    name: 'Robot funk', emoji: '🕺', tag: 'Leads', category: 'Lead', description: 'FM con feedback y pulso analógico, phaser y un arpegio galopante. Rítmico y descarado.',
     macroNames: ['Mordida', 'Phaser', 'Ancho', 'Eco'],
     params: {
       'arp.pattern': 'Galope', 'arp.rate': '1/16', 'arp.octaves': 2, 'arp.gate': 0.5, 'arp.on': 'On',
@@ -295,7 +295,7 @@ export const PRESETS = [
     mods: [['env2', 'f1.cutoff', 0.5], ['env2', 'a.fm.index2', 0.2], ['macro1', 'a.fm.feedback', 0.5], ['macro2', 'fx1.mix', 0.5], ['macro3', 'b.va.pw', 0.4], ['macro4', 'fx2.mix', 0.5], ['velocity', 'f1.cutoff', 0.2]],
   },
   {
-    name: 'Latido', tag: 'Bajos', category: 'Bass', description: 'Sub redondo con un pulso PWM encima. El arpegio Pulso marca el latido; el compresor lo pega.',
+    name: 'Latido', emoji: '💓', tag: 'Bajos', category: 'Bass', description: 'Sub redondo con un pulso PWM encima. El arpegio Pulso marca el latido; el compresor lo pega.',
     macroNames: ['Tono', 'Pulso', 'Abrir', 'Aire'],
     params: {
       'arp.pattern': 'Pulso', 'arp.rate': '1/8', 'arp.octaves': 1, 'arp.gate': 0.35, 'arp.on': 'On',
@@ -310,7 +310,7 @@ export const PRESETS = [
     mods: [['env2', 'f1.cutoff', 0.35], ['lfo1', 'b.wt.pos', 0.3], ['macro1', 'f1.cutoff', 0.4], ['macro2', 'b.level', 0.5], ['macro3', 'env1.sustain', 0.4], ['macro4', 'fx2.p4', 0.4]],
   },
   {
-    name: 'Coro fantasma', tag: 'Texturas', category: 'Texture', description: 'Voces granulares y formantes que cambian de vocal solas. Rebota lento entre las notas que dejes apretadas.',
+    name: 'Coro fantasma', emoji: '👻', tag: 'Texturas', category: 'Texture', description: 'Voces granulares y formantes que cambian de vocal solas. Rebota lento entre las notas que dejes apretadas.',
     macroNames: ['Vocal', 'Susurro', 'Lento', 'Espacio'],
     params: {
       'arp.pattern': 'Rebote', 'arp.rate': '1/8', 'arp.octaves': 1, 'arp.gate': 0.98, 'arp.on': 'On', 'arp.hold': 'On',
@@ -324,7 +324,7 @@ export const PRESETS = [
     mods: [['lfo1', 'f2.cutoff', 0.35], ['macro1', 'f2.cutoff', 0.5], ['macro2', 'a.gran.spray', 0.6], ['macro3', 'lfo1.rate', -0.3], ['macro4', 'fx2.mix', 0.4]],
   },
   {
-    name: 'Videojuego', tag: 'Plucks', category: 'Pluck', description: 'Pulsos de consola de 8 bits con bitcrusher y arpegio de octavas. Cada tecla es un power-up.',
+    name: 'Videojuego', emoji: '👾', tag: 'Plucks', category: 'Pluck', description: 'Pulsos de consola de 8 bits con bitcrusher y arpegio de octavas. Cada tecla es un power-up.',
     macroNames: ['Bits', 'Ancho', 'Eco', 'Cola'],
     params: {
       'arp.pattern': 'Octavas', 'arp.rate': '1/16', 'arp.octaves': 1, 'arp.gate': 0.5, 'arp.on': 'On',
@@ -336,7 +336,7 @@ export const PRESETS = [
     mods: [['macro1', 'fx1.p0', 0.5], ['macro2', 'a.va.pw', 0.5], ['macro3', 'fx2.mix', 0.5], ['macro4', 'env1.decay', 0.5]],
   },
   {
-    name: 'Templo', tag: 'Teclas', category: 'Keys', description: 'Cuencos y campanas modales con parciales impares. Probalo con las escalas Árabe o Japonesa.',
+    name: 'Templo', emoji: '🏯', tag: 'Teclas', category: 'Keys', description: 'Cuencos y campanas modales con parciales impares. Probalo con las escalas Árabe o Japonesa.',
     macroNames: ['Material', 'Resonar', 'Bajar', 'Espacio'],
     params: {
       'arp.pattern': 'Abajo', 'arp.rate': '1/8', 'arp.octaves': 2, 'arp.gate': 0.9, 'arp.on': 'On',
@@ -348,7 +348,7 @@ export const PRESETS = [
     mods: [['macro1', 'a.modal.material', -0.6], ['macro2', 'a.modal.decay', 0.3], ['macro3', 'a.modal.bright', -0.4], ['macro4', 'fx2.mix', 0.4], ['velocity', 'a.modal.bright', 0.3]],
   },
   {
-    name: 'Tormenta', tag: 'Texturas', category: 'Texture', description: 'Ruido granular que barre la fuente, filtro peine y Corroder. Un paisaje que cambia solo mientras sostenés la nota.',
+    name: 'Tormenta', emoji: '🌩️', tag: 'Texturas', category: 'Texture', description: 'Ruido granular que barre la fuente, filtro peine y Corroder. Un paisaje que cambia solo mientras sostenés la nota.',
     macroNames: ['Viento', 'Filo', 'Corroer', 'Espacio'],
     params: {
       'arp.pattern': 'Acorde', 'arp.rate': '1/2', 'arp.octaves': 1, 'arp.gate': 1, 'arp.on': 'Off',
@@ -362,7 +362,7 @@ export const PRESETS = [
     mods: [['lfo1', 'f1.cutoff', 0.35], ['lfo2', 'f2.cutoff', 0.25], ['macro1', 'a.gran.spray', 0.5], ['macro2', 'f2.res', 0.3], ['macro3', 'fx1.mix', 0.6], ['macro4', 'fx3.mix', 0.4]],
   },
   {
-    name: 'Marimba solar', tag: 'Teclas', category: 'Keys', description: 'Barras de madera modales con un seno cálido. Arpegio Escalera y delay ping-pong: suena a tarde de verano.',
+    name: 'Marimba solar', emoji: '🌞', tag: 'Teclas', category: 'Keys', description: 'Barras de madera modales con un seno cálido. Arpegio Escalera y delay ping-pong: suena a tarde de verano.',
     macroNames: ['Madera', 'Cola', 'Eco', 'Espacio'],
     params: {
       'arp.pattern': 'Escalera', 'arp.rate': '1/16', 'arp.octaves': 2, 'arp.gate': 0.6, 'arp.on': 'On',

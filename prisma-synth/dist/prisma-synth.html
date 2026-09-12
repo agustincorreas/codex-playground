@@ -7,135 +7,139 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
   <style>
-/* Prisma Synth — hardware de estudio, minimalista */
+/* Prisma Synth — tema claro, lúdico; el modo Pro usa los mismos tokens */
 :root {
-  --bg: #09090b; --bg2: #0e0e11; --panel: #111114; --panel2: #16161a; --panel3: #1c1c21;
-  --line: #222227; --line2: #2c2c33; --text: #ebebe6; --muted: #7c7c86; --dim: #55555e;
-  --accent: #6dd3ff;
+  --bg: #f4f1ea; --bg2: #ebe7de; --panel: #ffffff; --panel2: #f6f4ee; --panel3: #ecebe4;
+  --line: #e3dfd5; --line2: #cfcabd; --text: #1c1b18; --muted: #6f6b62; --dim: #a09b90;
+  --accent: #0ea5e9; --screen: #16171c; --screen-line: #2a2c35;
   --font: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   --display: "Syne", "IBM Plex Sans", system-ui, sans-serif;
-  --r: 4px;
+  --r: 8px; --r-sm: 5px;
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; }
-body { background: var(--bg); color: var(--text); font: 12px/1.4 var(--font); user-select: none; -webkit-user-select: none; overflow: hidden; -webkit-font-smoothing: antialiased; }
+body { background: var(--bg); color: var(--text); font: 13px/1.4 var(--font); user-select: none; -webkit-user-select: none; overflow: hidden; -webkit-font-smoothing: antialiased; }
 #app { display: grid; grid-template-rows: auto 1fr auto; height: 100vh; }
-main#views { overflow: auto; padding: 12px 14px; background: var(--bg); }
-.view { display: flex; flex-direction: column; gap: 10px; }
+main#views { overflow: auto; padding: 14px 16px; background:
+  radial-gradient(700px 400px at 8% 0%, #ffd9a855 0%, transparent 60%),
+  radial-gradient(700px 400px at 95% 10%, #b6e3ff66 0%, transparent 60%),
+  radial-gradient(600px 400px at 60% 100%, #ffc7e066 0%, transparent 60%), var(--bg); }
+.view { display: flex; flex-direction: column; gap: 12px; }
 .view[hidden], [hidden] { display: none !important; }
 .row { display: flex; gap: 10px; align-items: stretch; }
 .row > * { min-width: 0; }
-.hint { color: var(--muted); font-size: 11px; margin: 4px 0 0; line-height: 1.45; }
+.hint { color: var(--muted); font-size: 12px; margin: 4px 0 0; line-height: 1.45; }
 .spacer { flex: 1; }
 button { font: inherit; color: inherit; cursor: pointer; }
 select, input { font: inherit; }
-button:focus-visible, select:focus-visible, input:focus-visible, .knob:focus-visible { outline: 1px solid var(--accent); outline-offset: 2px; }
+button:focus-visible, select:focus-visible, input:focus-visible, .knob:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 ::-webkit-scrollbar { width: 8px; height: 8px; } ::-webkit-scrollbar-thumb { background: var(--line2); border-radius: 4px; } ::-webkit-scrollbar-track { background: transparent; }
 
 /* ---------- cabecera ---------- */
-#header { display: flex; align-items: center; gap: 16px; padding: 10px 16px; background: var(--bg2); border-bottom: 1px solid var(--line); }
-.logo { display: flex; align-items: center; gap: 10px; font-family: var(--display); font-weight: 800; letter-spacing: 0.32em; font-size: 15px; }
-.logo-mark { width: 10px; height: 10px; border-radius: 1px; background: linear-gradient(135deg, #6dd3ff, #ff9f5a); }
+#header { display: flex; align-items: center; gap: 14px; padding: 10px 16px; background: var(--panel); border-bottom: 1px solid var(--line); }
+.logo { display: flex; align-items: center; gap: 10px; font-family: var(--display); font-weight: 800; letter-spacing: 0.3em; font-size: 15px; }
+.logo-mark { width: 14px; height: 14px; border-radius: 4px; background: conic-gradient(from 0deg, #0ea5e9, #8b5cf6, #db2777, #f97316, #facc15, #16a34a, #0ea5e9); }
 .preset-bar { display: flex; align-items: center; gap: 4px; }
-.preset-select { background: var(--panel2); color: var(--text); border: 1px solid var(--line2); border-radius: var(--r); padding: 6px 10px; min-width: 210px; font-weight: 600; font-family: var(--display); }
-.ib { background: transparent; border: 1px solid var(--line2); border-radius: var(--r); width: 28px; height: 28px; font-size: 15px; line-height: 1; color: var(--muted); }
-.ib.big { width: 40px; height: 40px; font-size: 22px; }
+.preset-select { background: var(--panel2); color: var(--text); border: 1px solid var(--line2); border-radius: var(--r-sm); padding: 6px 10px; min-width: 210px; font-weight: 600; }
+.ib { background: var(--panel); border: 1px solid var(--line2); border-radius: var(--r-sm); width: 30px; height: 30px; font-size: 16px; line-height: 1; color: var(--muted); }
 .ib:hover, .tb:hover { border-color: var(--text); color: var(--text); }
-.tb { background: transparent; border: 1px solid var(--line2); border-radius: var(--r); padding: 5px 9px; font-family: var(--mono); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
-.tb.on { background: var(--kc, var(--accent)); color: #0a0a0c; border-color: var(--kc, var(--accent)); }
-.tb:disabled { opacity: 0.35; cursor: default; }
-.tabs { display: flex; gap: 2px; margin-left: auto; border-bottom: 1px solid var(--line); }
-.tab { background: transparent; border: 0; border-bottom: 2px solid transparent; padding: 8px 14px; font-family: var(--mono); font-size: 11px; letter-spacing: 0.16em; color: var(--muted); margin-bottom: -1px; }
-.tab.active { color: var(--text); border-bottom-color: var(--text); }
+.tb { background: var(--panel); border: 1px solid var(--line2); border-radius: var(--r-sm); padding: 6px 10px; font-family: var(--mono); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.tb.on { background: var(--kc, var(--text)); color: #fff; border-color: var(--kc, var(--text)); }
+.tb:disabled { opacity: 0.4; cursor: default; }
+.tabs { display: flex; gap: 4px; margin-left: auto; background: var(--panel2); border-radius: 999px; padding: 3px; }
+.tab { background: transparent; border: 0; border-radius: 999px; padding: 7px 14px; font-weight: 700; font-size: 12px; color: var(--muted); }
+.tab.active { background: var(--text); color: #fff; }
+.tab.tab-play.active { background: #0d9488; }
 .status { display: flex; align-items: center; gap: 10px; }
-.ind { font-family: var(--mono); font-size: 9px; letter-spacing: 0.12em; padding: 4px 6px; border-radius: 2px; background: transparent; color: var(--dim); border: 1px solid var(--line); }
-.ind.on { color: #7de3a6; border-color: #7de3a6; }
+.ind { font-family: var(--mono); font-size: 9px; letter-spacing: 0.12em; padding: 4px 6px; border-radius: 4px; color: var(--dim); border: 1px solid var(--line); background: var(--panel); }
+.ind.on { color: #15803d; border-color: #16a34a; background: #dcfce7; }
 .ind-btn { cursor: pointer; }
-.ind-btn.blink { background: #7de3a6; color: #0a0a0c; }
-.meter { width: 70px; height: 4px; background: var(--line); border-radius: 2px; overflow: hidden; }
-#meter-fill { height: 100%; width: 0; background: var(--text); transition: width 60ms linear; }
-#meter-fill.hot { background: #ff7a7a; }
-.power { background: var(--text); color: #0a0a0c; border: 0; border-radius: var(--r); padding: 7px 12px; font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; }
-.power.on { background: transparent; color: #7de3a6; border: 1px solid #7de3a6; }
-.assign-banner { position: sticky; top: -12px; z-index: 5; margin: -12px -14px 0; background: var(--assign-color, #333); color: #0a0a0c; font-weight: 600; padding: 6px 14px; text-align: center; }
+.ind-btn.blink { background: #16a34a; color: #fff; }
+.meter { width: 70px; height: 5px; background: var(--line); border-radius: 3px; overflow: hidden; }
+#meter-fill { height: 100%; width: 0; background: #16a34a; transition: width 60ms linear; }
+#meter-fill.hot { background: #e11d48; }
+.power { background: #0d9488; color: #fff; border: 0; border-radius: 999px; padding: 8px 14px; font-weight: 800; font-size: 12px; box-shadow: 0 4px 14px #0d948855; }
+.power.on { background: var(--panel); color: #15803d; border: 1px solid #16a34a; box-shadow: none; }
+.assign-banner { position: sticky; top: -14px; z-index: 5; margin: -14px -16px 0; background: var(--assign-color, #333); color: #fff; font-weight: 600; padding: 6px 14px; text-align: center; }
+body.view-jam .pro-only { display: none; }
 
 /* ---------- paneles ---------- */
-.panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 10px 12px 12px; position: relative; }
-.panel header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; min-height: 26px; }
-.panel h2 { margin: 0; font-family: var(--mono); font-size: 10px; letter-spacing: 0.2em; font-weight: 500; color: var(--text); display: flex; align-items: center; gap: 8px; }
-.panel h2::before { content: ""; width: 6px; height: 6px; background: var(--pc, var(--accent)); border-radius: 1px; }
-.panel.file-hover { outline: 1px dashed var(--pc); }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px 14px; position: relative; box-shadow: 0 1px 2px #0000000a, 0 8px 24px #00000008; }
+.panel header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; min-height: 28px; }
+.panel h2 { margin: 0; font-family: var(--display); font-size: 14px; letter-spacing: 0.02em; font-weight: 800; color: var(--text); display: flex; align-items: center; gap: 8px; text-transform: none; }
+.panel h2::before { content: ""; width: 8px; height: 8px; background: var(--pc, var(--accent)); border-radius: 50%; }
+.panel.file-hover { outline: 2px dashed var(--pc); }
 .engines > .panel { flex: 1; }
 .engine-top { display: flex; gap: 12px; align-items: center; }
-.scope { width: 190px; height: 74px; background: var(--bg); border-radius: 2px; border: 1px solid var(--line); flex: none; }
-.engine-desc { color: var(--muted); margin: 6px 0 4px; font-size: 11px; }
+.scope { width: 190px; height: 74px; background: var(--screen); border-radius: var(--r-sm); border: 1px solid var(--screen-line); flex: none; }
+.engine-desc { color: var(--muted); margin: 6px 0 4px; font-size: 12px; }
 .knob-row { display: flex; gap: 6px; align-items: flex-end; flex-wrap: nowrap; }
 .knob-row.wrap { flex-wrap: wrap; }
 .filters > .panel.filter { flex: 1.2; } .filters > .panel.routing { flex: 0.9; } .filters > .panel.master { flex: 1.3; }
 .routing-diagram { display: flex; gap: 6px; align-items: center; justify-content: center; margin: 8px 0; flex-wrap: wrap; font-family: var(--mono); }
-.rt-box { border: 1px solid var(--pc, var(--line2)); color: var(--pc, var(--text)); border-radius: 2px; padding: 2px 7px; font-size: 10px; letter-spacing: 0.1em; }
+.rt-box { border: 1px solid var(--pc, var(--line2)); color: var(--pc, var(--text)); border-radius: 4px; padding: 2px 7px; font-size: 10px; letter-spacing: 0.1em; }
 .rt-arrow { color: var(--dim); }
 .modsrc > .envs { flex: 3; } .modsrc > .lfos { flex: 3.2; } .modsrc > .macros { flex: 2; } .modsrc > .keysrc { flex: 1; }
 .env-cols, .lfo-cols { display: flex; gap: 8px; }
-.env-col, .lfo-col { flex: 1; background: var(--bg2); border-radius: var(--r); padding: 8px; border: 1px solid var(--line); min-width: 0; }
+.env-col, .lfo-col { flex: 1; background: var(--panel2); border-radius: var(--r-sm); padding: 8px; border: 1px solid var(--line); min-width: 0; }
 .col-head { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
-.col-head .enum-ctl { margin-left: auto; } .col-head .enum-ctl select { max-width: 84px; padding: 2px 4px; }
+.col-head .enum-ctl { margin-left: auto; } .col-head .enum-ctl select { max-width: 84px; padding: 2px 18px 2px 6px; }
 .col-title { font-family: var(--mono); font-size: 9px; letter-spacing: 0.14em; color: var(--muted); }
-.env-canvas, .lfo-canvas { width: 100%; height: 44px; display: block; background: var(--bg); border-radius: 2px; border: 1px solid var(--line); }
+.env-canvas, .lfo-canvas { width: 100%; height: 44px; display: block; background: var(--screen); border-radius: 4px; border: 1px solid var(--screen-line); }
 .slider-row { display: flex; gap: 4px; align-items: flex-end; margin-top: 6px; }
 .macro-row { display: flex; gap: 4px; justify-content: space-around; flex-wrap: wrap; }
 .macro-col { display: flex; flex-direction: column; align-items: center; gap: 4px; }
-.macro-name { width: 66px; background: var(--bg2); border: 1px solid var(--line); border-radius: 2px; color: var(--text); text-align: center; font-family: var(--mono); font-size: 10px; padding: 2px; }
+.macro-name { width: 66px; background: var(--panel2); border: 1px solid var(--line); border-radius: 4px; color: var(--text); text-align: center; font-family: var(--mono); font-size: 10px; padding: 2px; }
 .chip-list { display: flex; flex-wrap: wrap; gap: 6px; }
 .matrix-panel .matrix-body { display: flex; flex-direction: column; gap: 4px; max-height: 180px; overflow: auto; }
-.mx-row { display: grid; grid-template-columns: 130px 18px 1fr 140px 44px 24px; align-items: center; gap: 6px; background: var(--bg2); padding: 3px 6px; border-radius: 2px; border-left: 2px solid var(--kc); }
-.mx-row select { background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 2px; padding: 3px; min-width: 0; font-size: 11px; }
+.mx-row { display: grid; grid-template-columns: 130px 18px 1fr 140px 44px 24px; align-items: center; gap: 6px; background: var(--panel2); padding: 3px 6px; border-radius: 4px; border-left: 3px solid var(--kc); }
+.mx-row select { background: var(--panel); color: var(--text); border: 1px solid var(--line2); border-radius: 4px; padding: 3px; min-width: 0; font-size: 11px; }
 .mx-arrow { color: var(--dim); text-align: center; }
 .mx-amt { font-family: var(--mono); text-align: right; color: var(--muted); font-size: 11px; }
 .matrix > .panel { flex: 1; }
 
 /* ---------- chips ---------- */
-.chip { display: inline-flex; align-items: center; gap: 4px; background: var(--kc); color: #0a0a0c; font-family: var(--mono); font-weight: 600; font-size: 9px; letter-spacing: 0.1em; padding: 3px 7px; border-radius: 2px; cursor: grab; position: relative; }
+.chip { display: inline-flex; align-items: center; gap: 4px; background: var(--kc); color: #fff; font-family: var(--mono); font-weight: 600; font-size: 9px; letter-spacing: 0.1em; padding: 3px 7px; border-radius: 4px; cursor: grab; position: relative; }
 .chip.chip-wide { padding: 5px 10px; } .chip.chip-sm { padding: 2px 6px; }
-.chip:hover { box-shadow: 0 0 0 1px var(--kc); }
+.chip:hover { box-shadow: 0 0 0 2px var(--kc); }
 .chip.active { box-shadow: 0 0 0 2px var(--text); }
 .chip.dragging { opacity: 0.5; }
-.chip[data-count]:not([data-count=""])::after { content: attr(data-count); position: absolute; top: -6px; right: -6px; background: var(--text); color: #0a0a0c; border-radius: 8px; font-size: 8px; padding: 0 4px; min-width: 14px; text-align: center; }
+.chip[data-count]:not([data-count=""])::after { content: attr(data-count); position: absolute; top: -6px; right: -6px; background: var(--text); color: #fff; border-radius: 8px; font-size: 8px; padding: 0 4px; min-width: 14px; text-align: center; }
 
 /* ---------- knobs ---------- */
-.knob { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 72px; cursor: ns-resize; touch-action: none; border-radius: var(--r); padding: 2px; }
+.knob { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 72px; cursor: ns-resize; touch-action: none; border-radius: var(--r-sm); padding: 2px; }
 .knob-sm { width: 54px; } .knob-lg { width: 106px; } .knob-xl { width: 150px; }
 .knob svg { display: block; overflow: visible; }
-.k-track { fill: none; stroke: var(--line2); stroke-width: 2; stroke-linecap: butt; }
-.k-val { fill: none; stroke: var(--kc); stroke-width: 2; stroke-linecap: butt; }
-.k-body { fill: #121215; stroke: #2b2b32; stroke-width: 1; }
-.knob:hover .k-body, .knob.dragging .k-body { fill: #17171b; stroke: #3a3a42; }
-.k-ptr { stroke: var(--text); stroke-width: 2; stroke-linecap: butt; }
-.k-mod { fill: none; stroke-width: 2; stroke-linecap: butt; opacity: 0.9; }
+.k-track { fill: none; stroke: var(--line2); stroke-width: 2.5; stroke-linecap: round; }
+.k-val { fill: none; stroke: var(--kc); stroke-width: 2.5; stroke-linecap: round; }
+.k-body { fill: #fbfaf7; stroke: #cfcabd; stroke-width: 1; }
+.knob:hover .k-body, .knob.dragging .k-body { fill: #fff; stroke: #8f8a7e; }
+.k-ptr { stroke: var(--text); stroke-width: 2.2; stroke-linecap: round; }
+.k-mod { fill: none; stroke-width: 2; stroke-linecap: round; opacity: 0.9; }
 .k-mod-active { stroke-width: 3; }
-.k-mod-ghost { opacity: 0.2; stroke-dasharray: 2 3; }
-.k-live { fill: var(--text); stroke: #000; stroke-width: 0.5; }
+.k-mod-ghost { opacity: 0.25; stroke-dasharray: 2 3; }
+.k-live { fill: var(--text); stroke: #fff; stroke-width: 0.8; }
 .k-label { font-family: var(--mono); font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; text-align: center; }
 .k-value { font-family: var(--mono); font-size: 10px; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .knob-xl .k-value { font-size: 14px; }
-.knob.drop-hover, .vslider.drop-hover { background: #ffffff10; outline: 1px dashed #fff8; }
+.knob.drop-hover, .vslider.drop-hover { background: #00000008; outline: 1px dashed var(--text); }
 body.assign-mode .knob { cursor: ew-resize; }
 body.assign-mode .knob.assign-target .k-body { stroke: var(--assign-color); }
 .enum-ctl { display: flex; flex-direction: column; align-items: center; gap: 3px; }
-.enum-ctl select, .type-select select, .play-block select, .dev-row select { background: var(--bg2); color: var(--text); border: 1px solid var(--line2); border-radius: 2px; padding: 4px 22px 4px 8px; font-size: 11px; font-weight: 500; max-width: 130px; appearance: none; -webkit-appearance: none; background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%); background-position: calc(100% - 12px) 55%, calc(100% - 8px) 55%; background-size: 4px 4px, 4px 4px; background-repeat: no-repeat; }
+.enum-ctl select, .type-select select, .play-block select, .dev-row select, .mood-foot select { background: var(--panel); color: var(--text); border: 1px solid var(--line2); border-radius: var(--r-sm); padding: 5px 24px 5px 9px; font-size: 12px; font-weight: 600; max-width: 150px; appearance: none; -webkit-appearance: none; background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%); background-position: calc(100% - 13px) 55%, calc(100% - 9px) 55%; background-size: 4px 4px, 4px 4px; background-repeat: no-repeat; }
 .enum-ctl.inline { flex-direction: row; gap: 4px; }
-.type-select select { border-color: var(--kc); color: var(--kc); font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; }
+.type-select select { border-color: var(--kc); color: var(--kc); }
 .toggle-wrap { display: flex; flex-direction: column; align-items: center; gap: 3px; }
-.toggle { background: transparent; border: 1px solid var(--line2); border-radius: 2px; padding: 4px 8px; font-family: var(--mono); font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); align-self: center; }
-.toggle.on { background: var(--kc); border-color: var(--kc); color: #0a0a0c; }
-.toggle.pw { border-radius: 50%; width: 24px; height: 24px; padding: 0; font-size: 7px; }
+.toggle { background: var(--panel); border: 1px solid var(--line2); border-radius: var(--r-sm); padding: 5px 9px; font-family: var(--mono); font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); align-self: center; }
+.toggle.on { background: var(--kc); border-color: var(--kc); color: #fff; }
+.toggle.pw { border-radius: 50%; width: 26px; height: 26px; padding: 0; font-size: 7px; }
 .vslider { display: flex; flex-direction: column; align-items: center; gap: 3px; width: 26px; cursor: ns-resize; touch-action: none; }
-.vs-track { width: 10px; height: 62px; background: var(--bg); border: 1px solid var(--line2); border-radius: 2px; position: relative; overflow: hidden; }
+.vs-track { width: 10px; height: 62px; background: var(--panel2); border: 1px solid var(--line2); border-radius: 4px; position: relative; overflow: hidden; }
 .vs-fill { position: absolute; bottom: 0; left: 0; right: 0; background: var(--kc); }
 .vslider .k-value { font-size: 9px; }
 
-/* ---------- FX ---------- */
+/* ---------- FX (pro) ---------- */
 .fx-chain { display: flex; gap: 6px; align-items: stretch; flex: 1; }
 .fx-slot { flex: 1; min-width: 0; }
 .fx-arrow { align-self: center; color: var(--dim); font-size: 16px; }
@@ -143,8 +147,8 @@ body.assign-mode .knob.assign-target .k-body { stroke: var(--assign-color); }
 .fx-info { flex: 1; } .fx-info p { margin: 0; color: var(--muted); max-width: 70ch; }
 
 /* ---------- popover ---------- */
-.popover { position: fixed; z-index: 50; background: var(--panel2); border: 1px solid var(--line2); border-radius: var(--r); padding: 10px 12px; box-shadow: 0 16px 40px #000c; min-width: 280px; }
-.pop-title { display: flex; justify-content: space-between; align-items: center; font-family: var(--mono); font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; margin-bottom: 8px; }
+.popover { position: fixed; z-index: 50; background: var(--panel); border: 1px solid var(--line2); border-radius: var(--r); padding: 12px 14px; box-shadow: 0 16px 40px #00000030; min-width: 280px; }
+.pop-title { display: flex; justify-content: space-between; align-items: center; font-family: var(--display); font-size: 13px; font-weight: 800; margin-bottom: 8px; }
 .pop-close, .pop-del { background: transparent; border: 0; color: var(--muted); font-size: 14px; }
 .pop-close:hover, .pop-del:hover { color: var(--text); }
 .pop-row { display: grid; grid-template-columns: 50px 1fr 44px 20px; align-items: center; gap: 6px; padding: 3px 0; }
@@ -155,132 +159,134 @@ input[type=range] { accent-color: var(--kc, var(--accent)); }
 .dev-label { display: flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
 .dev-row { display: flex; gap: 6px; align-items: center; }
 .dev-row select { flex: 1; min-width: 0; max-width: none; }
-.dev-status { color: var(--muted); font-size: 11px; margin-top: 5px; }
+.dev-status { color: var(--muted); font-size: 12px; margin-top: 5px; }
 .midi-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--line2); display: inline-block; }
-.midi-dot.on { background: #7de3a6; }
+.midi-dot.on { background: #16a34a; }
 
 /* ---------- pie / teclado ---------- */
-#footer { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; gap: 4px 12px; padding: 10px 14px 6px; background: var(--bg2); border-top: 1px solid var(--line); }
+#footer { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; gap: 4px 12px; padding: 10px 16px 8px; background: var(--panel); border-top: 1px solid var(--line); }
 .kb-side { display: flex; align-items: center; gap: 10px; grid-row: 1; }
 .wheels { display: flex; gap: 6px; }
 .wheel-col { display: flex; flex-direction: column; align-items: center; font-family: var(--mono); font-size: 8px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
 .wheel { writing-mode: vertical-lr; direction: rtl; height: 70px; width: 18px; accent-color: var(--text); }
-.wheel.mod { accent-color: #ff6fa8; }
+.wheel.mod { accent-color: #db2777; }
 .oct { display: flex; align-items: center; gap: 4px; }
-.oct-label { min-width: 30px; text-align: center; font-family: var(--mono); font-size: 11px; }
+.oct-label { min-width: 44px; text-align: center; font-family: var(--mono); font-size: 11px; }
 .kb-area { grid-row: 1; min-width: 0; }
 .keyboard { position: relative; height: 92px; }
-.key { position: absolute; top: 0; border-radius: 0 0 2px 2px; cursor: pointer; }
-.key.white { height: 100%; background: #e6e6e2; border: 1px solid #0a0a0c; z-index: 1; }
-.key.black { height: 60%; background: #1a1a1f; border: 1px solid #000; z-index: 2; }
+.key { position: absolute; top: 0; border-radius: 0 0 4px 4px; cursor: pointer; }
+.key.white { height: 100%; background: #fff; border: 1px solid #9c978b; z-index: 1; }
+.key.black { height: 60%; background: #2b2a27; border: 1px solid #111; z-index: 2; }
 .key.white.active { background: var(--accent); }
-.key.black.active { background: #ff9f5a; }
-.key span { position: absolute; bottom: 4px; left: 0; right: 0; text-align: center; font-family: var(--mono); font-size: 8px; color: #6b6b73; }
-.kb-help { grid-column: 1 / -1; color: var(--dim); font-family: var(--mono); font-size: 9px; letter-spacing: 0.04em; text-align: center; }
+.key.black.active { background: #f97316; }
+.key span { position: absolute; bottom: 4px; left: 0; right: 0; text-align: center; font-family: var(--mono); font-size: 8px; color: #8d887c; }
+.kb-help { grid-column: 1 / -1; color: var(--muted); font-family: var(--mono); font-size: 10px; letter-spacing: 0.02em; text-align: center; }
+body.view-jam .wheels, body.view-jam .kb-side .oct { display: none; }
 
-/* ---------- JAM ---------- */
-.jam-grid { display: grid; grid-template-columns: 1.25fr 1fr 1fr; gap: 10px; align-items: start; }
-.jam-col { display: flex; flex-direction: column; gap: 10px; }
-.sound-head { display: flex; align-items: center; gap: 10px; margin: 4px 0 10px; }
+/* ---------- JUGAR ---------- */
+.jam-row { display: grid; gap: 12px; align-items: start; }
+.jam-row-1 { grid-template-columns: 1.6fr 1fr; }
+.jam-row-2 { grid-template-columns: 1.1fr 1fr 1fr; }
+.jam-row > * { min-width: 0; }
+.sound-head { display: flex; align-items: center; gap: 10px; margin: 2px 0 10px; }
+.sound-emoji { font-size: 34px; line-height: 1; }
 .sound-head-txt { flex: 1; min-width: 0; }
 .sound-title { margin: 0; font-family: var(--display); font-size: 26px; font-weight: 800; letter-spacing: -0.01em; line-height: 1.05; text-wrap: balance; }
-.sound-desc { margin: 4px 0 0; color: var(--muted); font-size: 12px; max-width: 60ch; }
+.sound-desc { margin: 3px 0 0; color: var(--muted); font-size: 12px; max-width: 60ch; }
+.arp-mini { display: flex; gap: 6px; align-items: flex-end; }
 .tag-row { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
-.tagbtn { background: transparent; border: 1px solid var(--line2); color: var(--muted); border-radius: 2px; padding: 3px 8px; font-family: var(--mono); font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; }
-.tagbtn.active { background: var(--text); color: #0a0a0c; border-color: var(--text); }
-.sound-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 5px; max-height: 262px; overflow: auto; padding: 1px; }
-.sound-card { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; background: var(--bg2); border: 1px solid var(--line); border-left: 3px solid hsl(var(--hue) 70% 60%); border-radius: 2px; padding: 8px 9px; text-align: left; min-height: 52px; transition: background 0.1s, border-color 0.1s; }
-.sound-card:hover { background: var(--panel2); border-color: var(--line2); border-left-color: hsl(var(--hue) 70% 60%); }
-.sound-card.active { background: var(--panel3); border-color: var(--text); border-left-color: hsl(var(--hue) 70% 60%); }
-.sc-name { font-weight: 600; font-size: 12px; }
-.sc-tag { font-family: var(--mono); font-size: 8px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.12em; }
-.jam-bottom { display: flex; gap: 12px; align-items: center; margin-top: 10px; }
-.jam-macros { display: flex; gap: 4px; }
-.jam-viz { flex: 1; height: 150px; min-width: 0; border-radius: 2px; background: var(--bg); border: 1px solid var(--line); }
-.play-block { padding: 10px 0; border-top: 1px solid var(--line); }
-.play-block:first-of-type { border-top: 0; padding-top: 4px; }
-.play-block .k-label { text-align: left; margin-bottom: 6px; }
-#song-key { width: 76px; } #song-scale { flex: 1; max-width: none; }
-.seg { display: inline-flex; border: 1px solid var(--line2); border-radius: 2px; overflow: hidden; }
-.segbtn { background: transparent; border: 0; padding: 5px 12px; font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
-.segbtn.active { background: var(--text); color: #0a0a0c; }
-.chord-row { display: flex; flex-wrap: wrap; gap: 4px; }
-.chordbtn { background: transparent; border: 1px solid var(--line2); border-radius: 2px; padding: 6px 10px; font-family: var(--mono); font-size: 10px; letter-spacing: 0.06em; color: var(--muted); }
-.chordbtn.active { background: var(--pc); border-color: var(--pc); color: #0a0a0c; }
-.row-inline { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
-.row-inline .k-label { margin: 0; }
-.arp-block .enum-ctl select { min-width: 120px; color: var(--pc); border-color: var(--pc); }
-.arp-desc { display: block; margin: 0 0 6px; }
-.locked { opacity: 0.4; pointer-events: none; position: relative; }
-.locked::after { content: "LOCK"; position: absolute; top: 0; right: 0; font-family: var(--mono); font-size: 7px; letter-spacing: 0.1em; color: var(--text); }
+.tagbtn { background: var(--panel2); border: 1px solid var(--line); color: var(--muted); border-radius: 999px; padding: 4px 10px; font-size: 11px; font-weight: 600; }
+.tagbtn.active { background: var(--text); color: #fff; border-color: var(--text); }
+.sound-body { display: flex; gap: 10px; align-items: stretch; }
+.sound-cards { flex: 1; display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 6px; max-height: 206px; overflow: auto; padding: 2px; align-content: start; }
+.sound-card { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; background: hsl(var(--hue) 80% 96%); border: 1px solid hsl(var(--hue) 50% 82%); border-radius: var(--r); padding: 8px 9px; text-align: left; min-height: 68px; transition: transform 0.08s, box-shadow 0.12s; }
+.sound-card:hover { transform: translateY(-1px); box-shadow: 0 6px 14px hsl(var(--hue) 60% 60% / 0.25); }
+.sound-card.active { border: 2px solid hsl(var(--hue) 60% 45%); background: hsl(var(--hue) 85% 92%); box-shadow: 0 6px 16px hsl(var(--hue) 60% 60% / 0.35); }
+.sc-emoji { font-size: 20px; line-height: 1; }
+.sc-name { font-weight: 700; font-size: 12px; }
+.sc-tag { font-family: var(--mono); font-size: 8px; color: hsl(var(--hue) 40% 40%); text-transform: uppercase; letter-spacing: 0.12em; }
+.jam-viz { width: 200px; height: auto; min-height: 120px; border-radius: var(--r); background: var(--screen); border: 1px solid var(--screen-line); flex: none; }
+.vibe-grid, .mood-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; }
+.vibebtn, .moodbtn { display: flex; flex-direction: column; align-items: center; gap: 4px; background: var(--panel2); border: 1px solid var(--line); border-radius: var(--r); padding: 8px 6px; font-weight: 700; font-size: 12px; transition: transform 0.08s; }
+.vibebtn:hover, .moodbtn:hover { transform: translateY(-1px); border-color: var(--line2); }
+.vb-emoji, .mb-emoji { font-size: 24px; line-height: 1; }
+.vibebtn.active { background: #fee2e2; border: 2px solid var(--pc); }
+.moodbtn { background: hsl(var(--hue) 80% 95%); border-color: hsl(var(--hue) 50% 82%); }
+.moodbtn.active { background: hsl(var(--hue) 75% 60%); border: 2px solid hsl(var(--hue) 60% 40%); color: #fff; }
+.mood-foot { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.mood-foot .k-label { margin: 0; }
+#song-key { width: 80px; }
+.locked { opacity: 0.45; pointer-events: none; position: relative; }
+.locked::after { content: "🔒"; position: absolute; top: 0; right: 0; font-size: 10px; }
 
 /* ritmo */
 .steps { display: flex; gap: 3px; margin: 2px 0 10px; }
-.step { flex: 1; height: 6px; border-radius: 1px; background: var(--line); }
+.step { flex: 1; height: 8px; border-radius: 3px; background: var(--line); }
 .step.beat { background: var(--line2); }
 .step.on { background: var(--pc); }
-.drum-pads { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-top: 10px; }
-.drum-pad { display: flex; align-items: center; gap: 6px; background: var(--bg2); border: 1px solid var(--line); border-radius: 2px; padding: 8px; font-size: 11px; font-weight: 500; text-align: left; transition: background 0.06s; }
-.drum-pad b { display: inline-block; width: 16px; height: 16px; border-radius: 2px; border: 1px solid var(--line2); font-family: var(--mono); font-size: 8px; font-weight: 500; text-align: center; line-height: 15px; color: var(--muted); }
-.drum-pad.hit, .drum-pad:active { background: var(--pc); color: #0a0a0c; border-color: var(--pc); }
+.tempo-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.tempo-row .k-label { margin: 0; }
+.tempo-slider { flex: 1; accent-color: var(--pc); }
+.tempo-label { font-family: var(--mono); font-size: 11px; min-width: 56px; text-align: right; }
+.drum-pads { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; }
+.drum-pad { display: flex; align-items: center; gap: 6px; background: var(--panel2); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 9px 8px; font-size: 11px; font-weight: 600; text-align: left; transition: background 0.06s; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.drum-pad b { flex: none; display: inline-block; width: 16px; height: 16px; border-radius: 3px; background: var(--panel); border: 1px solid var(--line2); font-family: var(--mono); font-size: 8px; font-weight: 500; text-align: center; line-height: 15px; color: var(--muted); }
+.drum-pad.hit, .drum-pad:active { background: var(--pc); color: #fff; border-color: var(--pc); }
 
 /* looper */
 .loop-controls { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }
-.loop-btn { background: transparent; border: 1px solid var(--line2); border-radius: 2px; padding: 9px 14px; font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text); }
-.loop-btn:disabled { opacity: 0.35; cursor: default; }
-.loop-btn.rec { color: #ff7a7a; border-color: #ff7a7a66; }
-.loop-btn.rec.armed { background: #ff7a7a22; animation: pulse-rec 0.6s infinite alternate; }
-.loop-btn.rec.recording { background: #ff7a7a; color: #0a0a0c; animation: pulse-rec 0.5s infinite alternate; }
-.loop-btn.on { background: var(--pc); color: #0a0a0c; border-color: var(--pc); }
-@keyframes pulse-rec { to { box-shadow: 0 0 0 3px #ff7a7a33; } }
+.loop-btn { background: var(--panel2); border: 1px solid var(--line2); border-radius: 999px; padding: 9px 14px; font-weight: 800; font-size: 12px; color: var(--text); }
+.loop-btn:disabled { opacity: 0.4; cursor: default; }
+.loop-btn.rec { color: #e11d48; border-color: #e11d4866; background: #fff1f2; }
+.loop-btn.rec.armed { animation: pulse-rec 0.6s infinite alternate; }
+.loop-btn.rec.recording { background: #e11d48; color: #fff; animation: pulse-rec 0.5s infinite alternate; }
+.loop-btn.on { background: var(--pc); color: #fff; border-color: var(--pc); }
+@keyframes pulse-rec { to { box-shadow: 0 0 0 4px #e11d4833; } }
 @media (prefers-reduced-motion: reduce) { .loop-btn.rec.armed, .loop-btn.rec.recording { animation: none; } }
-.loop-bar { height: 6px; background: var(--bg); border: 1px solid var(--line); border-radius: 1px; overflow: hidden; }
+.loop-bar { height: 8px; background: var(--panel2); border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
 .loop-fill { height: 100%; width: 0; background: var(--pc); transition: width 60ms linear; }
-.loop-fill.rec { background: #ff7a7a; }
+.loop-fill.rec { background: #e11d48; }
 .loop-layers { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
-.loop-layer { display: flex; align-items: center; gap: 8px; background: var(--bg2); border: 1px solid var(--line); border-radius: 2px; padding: 4px 8px; font-family: var(--mono); font-size: 11px; }
+.loop-layer { display: flex; align-items: center; gap: 8px; background: var(--panel2); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 4px 8px; font-weight: 600; font-size: 12px; }
 .loop-layer span { flex: 1; }
 .loop-layer.muted span { color: var(--dim); text-decoration: line-through; }
 
-/* pads */
-.padgrid { display: grid; grid-template-columns: repeat(8, 1fr); grid-template-rows: repeat(3, 1fr); gap: 4px; height: 132px; }
-.pad { position: relative; border-radius: 2px; background: var(--panel2); border: 1px solid var(--line); border-bottom: 3px solid hsl(var(--hue) 65% 55%); cursor: pointer; display: flex; flex-direction: column; justify-content: flex-end; padding: 4px 7px; transition: background 0.05s, transform 0.05s; user-select: none; }
-.pad.root { border-color: var(--line2); background: var(--panel3); }
-.pad-name { font-weight: 600; font-size: 12px; }
-.pad-deg { font-family: var(--mono); font-size: 8px; letter-spacing: 0.08em; color: var(--muted); text-transform: uppercase; }
-.pad.active { background: hsl(var(--hue) 70% 62%); border-color: hsl(var(--hue) 70% 62%); color: #0a0a0c; transform: translateY(1px); }
-.pad.active .pad-deg { color: #0a0a0c99; }
+/* pads: fila de arriba melodía, medio acordes, abajo bajo */
+.padgrid { display: grid; grid-template-columns: repeat(8, 1fr); grid-template-rows: repeat(3, 1fr); gap: 5px; height: 168px; }
+.pad { position: relative; border-radius: var(--r-sm); background: hsl(var(--hue) 80% 94%); border: 1px solid hsl(var(--hue) 50% 78%); cursor: pointer; display: flex; flex-direction: column; justify-content: flex-end; padding: 4px 8px; transition: background 0.05s, transform 0.05s; user-select: none; }
+.pad[data-kind="chord"] { background: hsl(var(--hue) 75% 88%); }
+.pad[data-kind="bass"] { background: hsl(var(--hue) 40% 90%); }
+.pad.root { border-color: hsl(var(--hue) 60% 50%); border-width: 2px; }
+.pad-key { position: absolute; top: 4px; right: 6px; font-family: var(--mono); font-size: 9px; font-weight: 600; color: hsl(var(--hue) 40% 45%); background: #ffffffaa; border-radius: 3px; padding: 0 4px; }
+.pad-name { font-weight: 700; font-size: 12px; }
+.pad-deg { font-family: var(--mono); font-size: 8px; letter-spacing: 0.08em; color: hsl(var(--hue) 40% 40%); text-transform: uppercase; }
+.pad.active { background: hsl(var(--hue) 75% 55%); border-color: hsl(var(--hue) 70% 40%); color: #fff; transform: translateY(1px); }
+.pad.active .pad-deg, .pad.active .pad-key { color: #fff; background: transparent; }
 
 /* ---------- responsive ---------- */
 @media (max-width: 1250px) {
   .row.modsrc, .row.filters { flex-wrap: wrap; }
   .modsrc > .panel, .filters > .panel { flex: 1 1 45%; }
-  .jam-grid { grid-template-columns: 1fr 1fr; } .jam-grid > .sounds { grid-column: 1 / -1; }
+  .jam-row-1, .jam-row-2 { grid-template-columns: 1fr 1fr; }
 }
 @media (max-width: 900px) {
   .row { flex-wrap: wrap; } .row > .panel { flex: 1 1 100%; }
   .fx-chain { flex-wrap: wrap; } .fx-slot { flex: 1 1 45%; }
   #header { flex-wrap: wrap; } .tabs { margin-left: 0; }
   .env-cols, .lfo-cols { flex-wrap: wrap; }
-  .jam-grid { grid-template-columns: 1fr; } .padgrid { height: 150px; } .sound-cards { max-height: 200px; }
+  .jam-row-1, .jam-row-2 { grid-template-columns: 1fr; } .padgrid { height: 160px; } .sound-cards { max-height: 200px; }
+  .sound-body { flex-direction: column; } .jam-viz { width: 100%; min-height: 110px; }
 }
 @media (max-width: 700px) {
-  body { font-size: 11px; }
+  body { font-size: 12px; }
   main#views { padding: 8px; }
   .knob-row, .engine-top, .preset-bar, .kb-side, .slider-row { flex-wrap: wrap; }
   .scope { width: 100%; }
   #header { gap: 8px; padding: 8px; } .preset-select { min-width: 140px; }
   #footer { grid-template-columns: 1fr; } .keyboard { height: 80px; }
   .mx-row { grid-template-columns: 1fr 18px 1fr; grid-auto-rows: auto; }
-  .sound-title { font-size: 20px; } .jam-viz { height: 110px; }
+  .sound-title { font-size: 20px; }
 }
-/* contención de anchos en la grilla Jam */
-.jam-grid > * { min-width: 0; }
-.drum-pads { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-.drum-pad { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.drum-pad b { flex: none; }
-.drums .knob-row { flex-wrap: wrap; }
-.panel header .type-select select { max-width: 150px; }
 
 </style>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%2319c3ff'/%3E%3Ccircle cx='20' cy='14' r='8' fill='%23ff8a3d'/%3E%3C/svg%3E">
@@ -2204,17 +2210,43 @@ export { SynthCore, generateSources, WavetableBank, ADSR, SVF, LFO, DrumMachine,
 // al AudioWorklet vía processorOptions (por eso es puro dato / funciones puras).
 
 const COLORS = {
-  a: '#19c3ff',      // Motor A (cian)
-  b: '#ff8a3d',      // Motor B (naranja)
-  filter: '#b76bff', // Filtros (violeta)
-  env: '#4fe38a',    // Envolventes (verde)
-  lfo: '#ffd23f',    // LFOs (amarillo)
-  macro: '#ff4f9a',  // Macros (rosa)
-  fx: '#ff6b6b',     // Efectos (coral)
-  key: '#9aa5b1',    // Teclado / rendimiento (gris)
-  master: '#c9d1d9',
-  arp: '#63e6be',
+  a: '#0ea5e9',      // Motor A (celeste)
+  b: '#f97316',      // Motor B (naranja)
+  filter: '#8b5cf6', // Filtros (violeta)
+  env: '#16a34a',    // Envolventes (verde)
+  lfo: '#d97706',    // LFOs (ámbar)
+  macro: '#db2777',  // Macros (rosa)
+  fx: '#e11d48',     // Efectos (rojo)
+  key: '#64748b',    // Teclado / rendimiento (gris)
+  master: '#334155',
+  arp: '#0d9488',
 };
+
+// Ánimos del modo Jugar: cada uno elige una escala (y un color)
+const MOODS = [
+  { id: 'happy', name: 'Alegre', emoji: '😄', scale: 'major', hue: 45 },
+  { id: 'sad', name: 'Triste', emoji: '🌧️', scale: 'minor', hue: 215 },
+  { id: 'epic', name: 'Épico', emoji: '⚡', scale: 'lydian', hue: 275 },
+  { id: 'mystery', name: 'Misterioso', emoji: '🌘', scale: 'phrygian', hue: 320 },
+  { id: 'chill', name: 'Relax', emoji: '🌴', scale: 'pentaMaj', hue: 150 },
+  { id: 'blues', name: 'Blues', emoji: '🎷', scale: 'blues', hue: 190 },
+  { id: 'oriental', name: 'Oriental', emoji: '🐫', scale: 'hijaz', hue: 20 },
+  { id: 'zen', name: 'Zen', emoji: '🎋', scale: 'japan', hue: 95 },
+];
+
+// Ambientes: configuraciones de efectos ya armadas (4 slots)
+const VIBES = [
+  { id: 'own', name: 'Del sonido', emoji: '🎛️', desc: 'Los efectos que trae cada sonido', fx: null },
+  { id: 'dry', name: 'Seco', emoji: '🔇', desc: 'Sin efectos', fx: [] },
+  { id: 'room', name: 'Sala', emoji: '🛋️', desc: 'Un poco de aire', fx: [{ type: 'Reverb', mix: 0.28, params: [0.55, 0.5, 10, 0.9, 200, 0] }] },
+  { id: 'echo', name: 'Eco', emoji: '🏔️', desc: 'Repeticiones al ritmo', fx: [{ type: 'Delay', mix: 0.35, params: [375, 0.45, 5000, 0.8, '1/8D', 200] }, { type: 'Reverb', mix: 0.22, params: [0.6, 0.5, 10, 0.9, 200, 0] }] },
+  { id: 'space', name: 'Espacial', emoji: '🪐', desc: 'Enorme y brillante', fx: [{ type: 'Chorus', mix: 0.4, params: [0.3, 0.5, 14, 0.1, 0.9, '3'] }, { type: 'Delay', mix: 0.25, params: [500, 0.5, 4000, 1, '1/4D', 200] }, { type: 'Reverb', mix: 0.55, params: [0.95, 0.25, 40, 1, 150, 0.45] }] },
+  { id: 'dirty', name: 'Sucio', emoji: '🔥', desc: 'Con distorsión', fx: [{ type: 'Distortion', mix: 0.6, params: [0.45, 'Soft', 6000, 0.1, 60, 0.7] }, { type: 'Compressor', mix: 1, params: [-20, 4, 5, 100, 4, 0.5] }, { type: 'Reverb', mix: 0.18, params: [0.5, 0.5, 5, 0.8, 250, 0] }] },
+  { id: 'lofi', name: 'Lo-fi', emoji: '📼', desc: 'Casete viejo', fx: [{ type: 'Distortion', mix: 0.5, params: [0.25, 'Crush', 3500, 0, 80, 0.7] }, { type: 'EQ', mix: 1, params: [3, 120, -2, 1500, -8, 4000] }, { type: 'Reverb', mix: 0.25, params: [0.6, 0.7, 20, 0.7, 250, 0] }] },
+  { id: 'radio', name: 'Radio', emoji: '📻', desc: 'Suena por un parlante chico', fx: [{ type: 'EQ', mix: 1, params: [-15, 300, 8, 1800, -15, 4000] }, { type: 'Distortion', mix: 0.4, params: [0.3, 'Soft', 5000, 0, 200, 0.7] }] },
+  { id: 'robot', name: 'Robot', emoji: '🤖', desc: 'Metálico y corroído', fx: [{ type: 'Corroder', mix: 0.45, params: [220, 0.5, 0.4, 60, 7000, 0.25] }, { type: 'Delay', mix: 0.25, params: [250, 0.4, 5000, 1, '1/16', 200] }] },
+  { id: 'underwater', name: 'Bajo el agua', emoji: '🐠', desc: 'Apagado y flotante', fx: [{ type: 'Multi Filter', mix: 1, params: [700, 0.35, 'LP', 0, '24 dB', 0.4] }, { type: 'Phaser', mix: 0.4, params: [0.15, 0.7, 500, 0.4, '4', 0.8] }, { type: 'Reverb', mix: 0.45, params: [0.85, 0.5, 30, 1, 100, 0.1] }] },
+];
 
 const ENGINE_TYPES = ['va', 'wt', 'fm', 'gran', 'harm', 'modal', 'smp'];
 const ENGINE_NAMES = ['Analog', 'Wavetable', 'FM', 'Granular', 'Harmonic', 'Modal', 'Sample'];
@@ -2269,7 +2301,7 @@ const CHORD_TYPES = [
 ];
 
 // Caja de ritmos: 8 instrumentos sintetizados, 4 kits, patrones de 16 pasos
-const DRUM_NAMES = ['Bombo', 'Redoblante', 'Palmas', 'Hi-hat', 'Hi-hat abierto', 'Tom', 'Rim', 'Shaker'];
+const DRUM_NAMES = ['Bombo', 'Redoble', 'Palmas', 'Hi-hat', 'Hat abierto', 'Tom', 'Rim', 'Shaker'];
 const DRUM_KITS = ['Clásica 808', 'Acústica', 'Techno', 'Lo-fi'];
 const pat = (name, rows) => ({ name, rows });
 // filas: kick, snare, clap, chat, ohat, tom, rim, shaker. x=fuerte o=medio .=nada
@@ -2611,14 +2643,14 @@ function formatValue(def, v) {
 // main.js los convierte a normalizados. fx: lista de hasta 4 slots.
 const PRESETS = [
   {
-    name: 'Init', tag: 'Teclas', category: 'Template', description: 'Punto de partida: sierra analógica y filtro LP.',
+    name: 'Init', emoji: '🎹', tag: 'Teclas', category: 'Template', description: 'Punto de partida: sierra analógica y filtro LP.',
     macroNames: ['Cutoff', 'Space', 'Motion', 'Drive'],
     params: {
       'arp.pattern': 'Arriba', 'arp.rate': '1/16', 'arp.octaves': 2, 'arp.gate': 0.5, 'a.type': 'Analog', 'b.on': 'Off', 'f1.cutoff': 8000, 'f1.res': 0.15 },
     fx: [], mods: [['macro1', 'f1.cutoff', 0.5]],
   },
   {
-    name: 'Prisma Pad', tag: 'Pads', category: 'Pad', description: 'Wavetable vocal en A y sierra unison en B, lento y ancho. Macro 1 abre el filtro, Macro 3 mueve la tabla.',
+    name: 'Prisma Pad', emoji: '🌈', tag: 'Pads', category: 'Pad', description: 'Wavetable vocal en A y sierra unison en B, lento y ancho. Macro 1 abre el filtro, Macro 3 mueve la tabla.',
     macroNames: ['Open', 'Space', 'Motion', 'Shimmer'],
     params: {
       'arp.pattern': 'Acorde', 'arp.rate': '1/4', 'arp.octaves': 1, 'arp.gate': 0.9,
@@ -2633,7 +2665,7 @@ const PRESETS = [
     mods: [['env2', 'f1.cutoff', 0.35], ['macro1', 'f1.cutoff', 0.5], ['lfo1', 'a.wt.pos', 0.25], ['macro3', 'a.wt.pos', 0.5], ['lfo2', 'b.fine', 0.04], ['macro2', 'fx2.mix', 0.5], ['macro4', 'fx2.p5', 0.8]],
   },
   {
-    name: 'Glass Keys', tag: 'Teclas', category: 'Keys', description: 'FM de 3 operadores con índice controlado por Env 3. Delay y reverb suaves.',
+    name: 'Glass Keys', emoji: '🔔', tag: 'Teclas', category: 'Keys', description: 'FM de 3 operadores con índice controlado por Env 3. Delay y reverb suaves.',
     macroNames: ['Brightness', 'Echo', 'Detune', 'Space'],
     params: {
       'arp.pattern': 'Escalera', 'arp.rate': '1/16', 'arp.octaves': 2, 'arp.gate': 0.6,
@@ -2646,7 +2678,7 @@ const PRESETS = [
     mods: [['env3', 'a.fm.index2', 0.25], ['velocity', 'a.fm.index2', 0.15], ['macro1', 'a.fm.index2', 0.4], ['macro2', 'fx1.mix', 0.6], ['macro3', 'b.fine', 0.1], ['macro4', 'fx2.mix', 0.6]],
   },
   {
-    name: 'Granular Choir', tag: 'Texturas', category: 'Texture', description: 'Nubes de granos sobre un coro interno, formante en B. LFO barre la posición.',
+    name: 'Granular Choir', emoji: '👥', tag: 'Texturas', category: 'Texture', description: 'Nubes de granos sobre un coro interno, formante en B. LFO barre la posición.',
     macroNames: ['Position', 'Spray', 'Size', 'Space'],
     params: {
       'arp.pattern': 'Rebote', 'arp.rate': '1/8', 'arp.octaves': 1, 'arp.gate': 0.95,
@@ -2660,7 +2692,7 @@ const PRESETS = [
     mods: [['lfo1', 'a.gran.pos', 0.3], ['macro1', 'a.gran.pos', 0.6], ['macro2', 'a.gran.spray', 0.7], ['macro3', 'a.gran.size', 0.5], ['macro4', 'fx2.mix', 0.4], ['lfo2', 'b.wt.pos', 0.3]],
   },
   {
-    name: 'Modal Bells', tag: 'Teclas', category: 'Keys', description: 'Resonadores modales (material campana) más parciales armónicos. Reverb con shimmer.',
+    name: 'Modal Bells', emoji: '🛎️', tag: 'Teclas', category: 'Keys', description: 'Resonadores modales (material campana) más parciales armónicos. Reverb con shimmer.',
     macroNames: ['Material', 'Decay', 'Shimmer', 'Brightness'],
     params: {
       'arp.pattern': 'Cascada', 'arp.rate': '1/8', 'arp.octaves': 2, 'arp.gate': 0.8,
@@ -2672,7 +2704,7 @@ const PRESETS = [
     mods: [['macro1', 'a.modal.material', -0.5], ['macro2', 'a.modal.decay', 0.4], ['macro3', 'fx2.p5', 0.5], ['macro4', 'a.modal.bright', 0.3], ['velocity', 'a.modal.bright', 0.3]],
   },
   {
-    name: 'Acid Bass', tag: 'Bajos', category: 'Bass', description: 'Mono legato con glide, LP24 resonante barrido por Env 2 y distorsión.',
+    name: 'Acid Bass', emoji: '🧪', tag: 'Bajos', category: 'Bass', description: 'Mono legato con glide, LP24 resonante barrido por Env 2 y distorsión.',
     macroNames: ['Cutoff', 'Reso', 'Drive', 'Env Amt'],
     params: {
       'arp.pattern': 'Pulso', 'arp.rate': '1/16', 'arp.octaves': 2, 'arp.gate': 0.45,
@@ -2686,7 +2718,7 @@ const PRESETS = [
     mods: [['env2', 'f1.cutoff', 0.45], ['macro1', 'f1.cutoff', 0.5], ['macro2', 'f1.res', 0.3], ['macro3', 'fx1.p0', 0.6], ['macro4', 'env2.sustain', 0.8], ['modwheel', 'f1.cutoff', 0.3]],
   },
   {
-    name: 'Corroded Lead', tag: 'Leads', category: 'Lead', description: 'Wavetable Digital con unison, atravesada por el Corroder (FM + grano) y delay sincronizado.',
+    name: 'Corroded Lead', emoji: '⚙️', tag: 'Leads', category: 'Lead', description: 'Wavetable Digital con unison, atravesada por el Corroder (FM + grano) y delay sincronizado.',
     macroNames: ['Corrode', 'Grain', 'Warp', 'Echo'],
     params: {
       'arp.pattern': 'Trance', 'arp.rate': '1/16', 'arp.octaves': 1, 'arp.gate': 0.5,
@@ -2700,7 +2732,7 @@ const PRESETS = [
     mods: [['macro1', 'fx1.mix', 0.5], ['macro2', 'fx1.p2', 0.6], ['macro3', 'a.wt.warp', 0.6], ['macro4', 'fx2.mix', 0.5], ['modwheel', 'a.fine', 0.0], ['lfo1', 'a.fine', 0.03], ['modwheel', 'lfo1.rate', 0.0]],
   },
   {
-    name: 'Harmonic Organ', tag: 'Teclas', category: 'Keys', description: 'Síntesis aditiva con balance par/impar y peine espectral movido por LFO. Phaser y reverb.',
+    name: 'Harmonic Organ', emoji: '⛪', tag: 'Teclas', category: 'Keys', description: 'Síntesis aditiva con balance par/impar y peine espectral movido por LFO. Phaser y reverb.',
     macroNames: ['Partials', 'Odd/Even', 'Comb', 'Space'],
     params: {
       'arp.pattern': 'Galope', 'arp.rate': '1/16', 'arp.octaves': 1, 'arp.gate': 0.7,
@@ -2713,7 +2745,7 @@ const PRESETS = [
     mods: [['lfo1', 'a.harm.comb', 0.2], ['macro1', 'a.harm.partials', 0.6], ['macro2', 'a.harm.oddEven', 0.5], ['macro3', 'a.harm.comb', 0.5], ['macro4', 'fx2.mix', 0.5]],
   },
   {
-    name: 'Arp Pluck', tag: 'Plucks', category: 'Sequence', description: 'Pulso analógico y tabla de armónicos con decaimiento corto; arpegiador arriba/abajo a 1/16 con delay ping‑pong.',
+    name: 'Arp Pluck', emoji: '✨', tag: 'Plucks', category: 'Sequence', description: 'Pulso analógico y tabla de armónicos con decaimiento corto; arpegiador arriba/abajo a 1/16 con delay ping‑pong.',
     macroNames: ['Cutoff', 'Decay', 'Echo', 'Width'],
     params: {
       'a.type': 'Analog', 'a.va.wave': 'Pulse', 'a.va.pw': 0.25, 'a.level': 0.7,
@@ -2727,7 +2759,7 @@ const PRESETS = [
     mods: [['env2', 'f1.cutoff', 0.5], ['velocity', 'f1.cutoff', 0.2], ['macro1', 'f1.cutoff', 0.5], ['macro2', 'env1.decay', 0.4], ['macro3', 'fx1.mix', 0.5], ['macro4', 'b.wt.pos', 0.5]],
   },
   {
-    name: 'Texture Drone', tag: 'Texturas', category: 'Texture', description: 'Granular sobre textura de ruido y loop de sample con filtro formante. Todo se mueve con LFOs lentos.',
+    name: 'Texture Drone', emoji: '🌫️', tag: 'Texturas', category: 'Texture', description: 'Granular sobre textura de ruido y loop de sample con filtro formante. Todo se mueve con LFOs lentos.',
     macroNames: ['Vowel', 'Density', 'Scan', 'Space'],
     params: {
       'arp.pattern': 'Aleatorio', 'arp.rate': '1/2', 'arp.octaves': 2, 'arp.gate': 1,
@@ -2741,7 +2773,7 @@ const PRESETS = [
     mods: [['lfo1', 'f1.cutoff', 0.3], ['macro1', 'f1.cutoff', 0.5], ['lfo2', 'a.gran.pos', 0.4], ['lfo3', 'f2.cutoff', 0.2], ['macro2', 'a.gran.density', 0.5], ['macro3', 'a.gran.scan', 0.4], ['macro4', 'fx3.mix', 0.4]],
   },
   {
-    name: 'Sub Bass', tag: 'Bajos', category: 'Bass', description: 'Seno + sub cuadrado, mono legato con glide corto. Limpio y profundo.',
+    name: 'Sub Bass', emoji: '🐋', tag: 'Bajos', category: 'Bass', description: 'Seno + sub cuadrado, mono legato con glide corto. Limpio y profundo.',
     macroNames: ['Sub', 'Tone', 'Glide', 'Comp'],
     params: {
       'arp.pattern': 'Pulso', 'arp.rate': '1/8', 'arp.octaves': 1, 'arp.gate': 0.6,
@@ -2753,7 +2785,7 @@ const PRESETS = [
     mods: [['macro1', 'a.va.sub', 0.4], ['macro2', 'f1.cutoff', 0.5], ['macro3', 'master.glide', 0.3], ['macro4', 'fx1.p0', -0.3]],
   },
   {
-    name: 'Modal Percussion', tag: 'Percusivos', category: 'Percussion', description: 'Membrana modal excitada por ruido y arpegiador aleatorio. Macro 1 cambia el material.',
+    name: 'Modal Percussion', emoji: '🥁', tag: 'Percusivos', category: 'Percussion', description: 'Membrana modal excitada por ruido y arpegiador aleatorio. Macro 1 cambia el material.',
     macroNames: ['Material', 'Decay', 'Position', 'Space'],
     params: {
       'a.type': 'Modal', 'a.modal.material': 0.6, 'a.modal.modes': 16, 'a.modal.decay': 0.6, 'a.modal.damp': 0.7, 'a.modal.pos': 0.35, 'a.modal.exciter': 'Noise', 'a.modal.exLen': 6, 'a.modal.bright': 0.5, 'a.level': 0.9,
@@ -2765,7 +2797,7 @@ const PRESETS = [
     mods: [['macro1', 'a.modal.material', 0.4], ['macro2', 'a.modal.decay', 0.4], ['macro3', 'a.modal.pos', 0.5], ['macro4', 'fx2.mix', 0.5], ['random', 'a.modal.pos', 0.3], ['velocity', 'a.modal.bright', 0.4]],
   },
   {
-    name: 'Analog Brass', tag: 'Leads', category: 'Lead', description: 'Dos sierras unison con envolvente de filtro rápida, chorus y EQ. Modwheel añade vibrato.',
+    name: 'Analog Brass', emoji: '🎺', tag: 'Leads', category: 'Lead', description: 'Dos sierras unison con envolvente de filtro rápida, chorus y EQ. Modwheel añade vibrato.',
     macroNames: ['Cutoff', 'Attack', 'Detune', 'Space'],
     params: {
       'arp.pattern': 'Octavas', 'arp.rate': '1/8', 'arp.octaves': 1, 'arp.gate': 0.7,
@@ -2780,7 +2812,7 @@ const PRESETS = [
     mods: [['env2', 'f1.cutoff', 0.55], ['velocity', 'f1.cutoff', 0.25], ['modwheel', 'a.fine', 0.0], ['lfo1', 'a.fine', 0.0], ['macro1', 'f1.cutoff', 0.4], ['macro2', 'env1.attack', 0.5], ['macro3', 'a.va.detune', 0.5], ['macro4', 'fx3.mix', 0.5]],
   },
   {
-    name: 'FM Pluck', tag: 'Plucks', category: 'Pluck', description: 'FM en paralelo con feedback, Env 3 barre el índice. Delay sincronizado.',
+    name: 'FM Pluck', emoji: '💎', tag: 'Plucks', category: 'Pluck', description: 'FM en paralelo con feedback, Env 3 barre el índice. Delay sincronizado.',
     macroNames: ['Index', 'Feedback', 'Echo', 'Tone'],
     params: {
       'arp.pattern': 'Arriba', 'arp.rate': '1/16', 'arp.octaves': 3, 'arp.gate': 0.5,
@@ -2794,7 +2826,7 @@ const PRESETS = [
   },
   // ---- Sonidos nuevos (nombres pensados para el modo Jam)
   {
-    name: 'Neón', tag: 'Leads', category: 'Lead', description: 'Lead digital brillante con FM y un arpegio trance que empuja solo. Macro 1 abre el brillo, Macro 2 el eco.',
+    name: 'Neón', emoji: '🌆', tag: 'Leads', category: 'Lead', description: 'Lead digital brillante con FM y un arpegio trance que empuja solo. Macro 1 abre el brillo, Macro 2 el eco.',
     macroNames: ['Brillo', 'Eco', 'Warp', 'Espacio'],
     params: {
       'arp.pattern': 'Trance', 'arp.rate': '1/16', 'arp.octaves': 1, 'arp.gate': 0.45, 'arp.on': 'On',
@@ -2808,7 +2840,7 @@ const PRESETS = [
     mods: [['env2', 'f1.cutoff', 0.45], ['macro1', 'f1.cutoff', 0.5], ['macro2', 'fx2.mix', 0.6], ['macro3', 'a.wt.warp', 0.6], ['macro4', 'fx3.mix', 0.6], ['velocity', 'b.fm.index2', 0.2]],
   },
   {
-    name: 'Lluvia de cristal', tag: 'Plucks', category: 'Pluck', description: 'Gotas de FM y cuerdas modales que caen en cascada por tres octavas. Ideal con la escala Lidia.',
+    name: 'Lluvia de cristal', emoji: '🌧️', tag: 'Plucks', category: 'Pluck', description: 'Gotas de FM y cuerdas modales que caen en cascada por tres octavas. Ideal con la escala Lidia.',
     macroNames: ['Brillo', 'Cola', 'Lluvia', 'Espacio'],
     params: {
       'arp.pattern': 'Cascada', 'arp.rate': '1/16', 'arp.octaves': 3, 'arp.gate': 0.5, 'arp.on': 'On',
@@ -2821,7 +2853,7 @@ const PRESETS = [
     mods: [['env3', 'a.fm.index2', 0.35], ['macro1', 'a.fm.index2', 0.4], ['macro2', 'env1.decay', 0.4], ['macro3', 'fx1.mix', 0.5], ['macro4', 'fx2.mix', 0.4], ['random', 'b.modal.pos', 0.3]],
   },
   {
-    name: 'Bajo gordo', tag: 'Bajos', category: 'Bass', description: 'Sierras en unison, sub y distorsión. Mono con glide; el arpegio Pulso lo convierte en un bajo bailable.',
+    name: 'Bajo gordo', emoji: '🐘', tag: 'Bajos', category: 'Bass', description: 'Sierras en unison, sub y distorsión. Mono con glide; el arpegio Pulso lo convierte en un bajo bailable.',
     macroNames: ['Abrir', 'Gordura', 'Ataque', 'Sub'],
     params: {
       'arp.pattern': 'Pulso', 'arp.rate': '1/8', 'arp.octaves': 2, 'arp.gate': 0.5, 'arp.on': 'Off',
@@ -2836,7 +2868,7 @@ const PRESETS = [
     mods: [['env2', 'f1.cutoff', 0.5], ['macro1', 'f1.cutoff', 0.5], ['macro2', 'fx1.p0', 0.6], ['macro3', 'env2.decay', 0.4], ['macro4', 'a.va.sub', 0.3], ['velocity', 'f1.cutoff', 0.2]],
   },
   {
-    name: 'Ola sintética', tag: 'Pads', category: 'Pad', description: 'Pad que respira: la tabla de ondas se mueve sola y los armónicos se abren despacio. Acordes largos.',
+    name: 'Ola sintética', emoji: '🌊', tag: 'Pads', category: 'Pad', description: 'Pad que respira: la tabla de ondas se mueve sola y los armónicos se abren despacio. Acordes largos.',
     macroNames: ['Abrir', 'Movimiento', 'Cuerpo', 'Espacio'],
     params: {
       'arp.pattern': 'Acorde', 'arp.rate': '1/2', 'arp.octaves': 1, 'arp.gate': 1, 'arp.on': 'Off',
@@ -2851,7 +2883,7 @@ const PRESETS = [
     mods: [['env2', 'f1.cutoff', 0.35], ['lfo1', 'a.wt.pos', 0.3], ['macro1', 'f1.cutoff', 0.5], ['macro2', 'lfo1.rate', 0.4], ['macro3', 'b.harm.partials', 0.5], ['macro4', 'fx2.mix', 0.4]],
   },
   {
-    name: 'Vidrio roto', tag: 'Texturas', category: 'Texture', description: 'Granos de campana esparcidos al azar, corroídos por FM. Suena a cristales cayendo en cámara lenta.',
+    name: 'Vidrio roto', emoji: '🪟', tag: 'Texturas', category: 'Texture', description: 'Granos de campana esparcidos al azar, corroídos por FM. Suena a cristales cayendo en cámara lenta.',
     macroNames: ['Esparcir', 'Corroer', 'Grano', 'Espacio'],
     params: {
       'arp.pattern': 'Aleatorio', 'arp.rate': '1/16', 'arp.octaves': 2, 'arp.gate': 0.9, 'arp.on': 'On',
@@ -2864,7 +2896,7 @@ const PRESETS = [
     mods: [['macro1', 'a.gran.spray', 0.3], ['macro2', 'fx1.mix', 0.6], ['macro3', 'a.gran.size', -0.4], ['macro4', 'fx3.mix', 0.5], ['random', 'a.gran.pos', 0.5]],
   },
   {
-    name: 'Caja de música', tag: 'Teclas', category: 'Keys', description: 'Barritas metálicas y una campanita. El arpegio Escalera hace la melodía por vos.',
+    name: 'Caja de música', emoji: '🎠', tag: 'Teclas', category: 'Keys', description: 'Barritas metálicas y una campanita. El arpegio Escalera hace la melodía por vos.',
     macroNames: ['Material', 'Cola', 'Eco', 'Espacio'],
     params: {
       'arp.pattern': 'Escalera', 'arp.rate': '1/16', 'arp.octaves': 2, 'arp.gate': 0.7, 'arp.on': 'On',
@@ -2876,7 +2908,7 @@ const PRESETS = [
     mods: [['macro1', 'a.modal.material', 0.4], ['macro2', 'a.modal.decay', 0.4], ['macro3', 'fx1.mix', 0.5], ['macro4', 'fx2.mix', 0.5], ['velocity', 'a.modal.bright', 0.3]],
   },
   {
-    name: 'Cielo abierto', tag: 'Pads', category: 'Pad', description: 'Coro granular y parciales estirados bajo una reverb infinita con shimmer. Para tocar una nota y quedarse escuchando.',
+    name: 'Cielo abierto', emoji: '☁️', tag: 'Pads', category: 'Pad', description: 'Coro granular y parciales estirados bajo una reverb infinita con shimmer. Para tocar una nota y quedarse escuchando.',
     macroNames: ['Luz', 'Shimmer', 'Estirar', 'Lento'],
     params: {
       'arp.pattern': 'Rebote', 'arp.rate': '1/4', 'arp.octaves': 1, 'arp.gate': 1, 'arp.on': 'Off',
@@ -2890,7 +2922,7 @@ const PRESETS = [
     mods: [['lfo1', 'f1.cutoff', 0.15], ['macro1', 'f1.cutoff', 0.5], ['macro2', 'fx2.p5', 0.45], ['macro3', 'a.harm.stretch', 0.5], ['macro4', 'env1.attack', 0.4]],
   },
   {
-    name: 'Robot funk', tag: 'Leads', category: 'Lead', description: 'FM con feedback y pulso analógico, phaser y un arpegio galopante. Rítmico y descarado.',
+    name: 'Robot funk', emoji: '🕺', tag: 'Leads', category: 'Lead', description: 'FM con feedback y pulso analógico, phaser y un arpegio galopante. Rítmico y descarado.',
     macroNames: ['Mordida', 'Phaser', 'Ancho', 'Eco'],
     params: {
       'arp.pattern': 'Galope', 'arp.rate': '1/16', 'arp.octaves': 2, 'arp.gate': 0.5, 'arp.on': 'On',
@@ -2904,7 +2936,7 @@ const PRESETS = [
     mods: [['env2', 'f1.cutoff', 0.5], ['env2', 'a.fm.index2', 0.2], ['macro1', 'a.fm.feedback', 0.5], ['macro2', 'fx1.mix', 0.5], ['macro3', 'b.va.pw', 0.4], ['macro4', 'fx2.mix', 0.5], ['velocity', 'f1.cutoff', 0.2]],
   },
   {
-    name: 'Latido', tag: 'Bajos', category: 'Bass', description: 'Sub redondo con un pulso PWM encima. El arpegio Pulso marca el latido; el compresor lo pega.',
+    name: 'Latido', emoji: '💓', tag: 'Bajos', category: 'Bass', description: 'Sub redondo con un pulso PWM encima. El arpegio Pulso marca el latido; el compresor lo pega.',
     macroNames: ['Tono', 'Pulso', 'Abrir', 'Aire'],
     params: {
       'arp.pattern': 'Pulso', 'arp.rate': '1/8', 'arp.octaves': 1, 'arp.gate': 0.35, 'arp.on': 'On',
@@ -2919,7 +2951,7 @@ const PRESETS = [
     mods: [['env2', 'f1.cutoff', 0.35], ['lfo1', 'b.wt.pos', 0.3], ['macro1', 'f1.cutoff', 0.4], ['macro2', 'b.level', 0.5], ['macro3', 'env1.sustain', 0.4], ['macro4', 'fx2.p4', 0.4]],
   },
   {
-    name: 'Coro fantasma', tag: 'Texturas', category: 'Texture', description: 'Voces granulares y formantes que cambian de vocal solas. Rebota lento entre las notas que dejes apretadas.',
+    name: 'Coro fantasma', emoji: '👻', tag: 'Texturas', category: 'Texture', description: 'Voces granulares y formantes que cambian de vocal solas. Rebota lento entre las notas que dejes apretadas.',
     macroNames: ['Vocal', 'Susurro', 'Lento', 'Espacio'],
     params: {
       'arp.pattern': 'Rebote', 'arp.rate': '1/8', 'arp.octaves': 1, 'arp.gate': 0.98, 'arp.on': 'On', 'arp.hold': 'On',
@@ -2933,7 +2965,7 @@ const PRESETS = [
     mods: [['lfo1', 'f2.cutoff', 0.35], ['macro1', 'f2.cutoff', 0.5], ['macro2', 'a.gran.spray', 0.6], ['macro3', 'lfo1.rate', -0.3], ['macro4', 'fx2.mix', 0.4]],
   },
   {
-    name: 'Videojuego', tag: 'Plucks', category: 'Pluck', description: 'Pulsos de consola de 8 bits con bitcrusher y arpegio de octavas. Cada tecla es un power-up.',
+    name: 'Videojuego', emoji: '👾', tag: 'Plucks', category: 'Pluck', description: 'Pulsos de consola de 8 bits con bitcrusher y arpegio de octavas. Cada tecla es un power-up.',
     macroNames: ['Bits', 'Ancho', 'Eco', 'Cola'],
     params: {
       'arp.pattern': 'Octavas', 'arp.rate': '1/16', 'arp.octaves': 1, 'arp.gate': 0.5, 'arp.on': 'On',
@@ -2945,7 +2977,7 @@ const PRESETS = [
     mods: [['macro1', 'fx1.p0', 0.5], ['macro2', 'a.va.pw', 0.5], ['macro3', 'fx2.mix', 0.5], ['macro4', 'env1.decay', 0.5]],
   },
   {
-    name: 'Templo', tag: 'Teclas', category: 'Keys', description: 'Cuencos y campanas modales con parciales impares. Probalo con las escalas Árabe o Japonesa.',
+    name: 'Templo', emoji: '🏯', tag: 'Teclas', category: 'Keys', description: 'Cuencos y campanas modales con parciales impares. Probalo con las escalas Árabe o Japonesa.',
     macroNames: ['Material', 'Resonar', 'Bajar', 'Espacio'],
     params: {
       'arp.pattern': 'Abajo', 'arp.rate': '1/8', 'arp.octaves': 2, 'arp.gate': 0.9, 'arp.on': 'On',
@@ -2957,7 +2989,7 @@ const PRESETS = [
     mods: [['macro1', 'a.modal.material', -0.6], ['macro2', 'a.modal.decay', 0.3], ['macro3', 'a.modal.bright', -0.4], ['macro4', 'fx2.mix', 0.4], ['velocity', 'a.modal.bright', 0.3]],
   },
   {
-    name: 'Tormenta', tag: 'Texturas', category: 'Texture', description: 'Ruido granular que barre la fuente, filtro peine y Corroder. Un paisaje que cambia solo mientras sostenés la nota.',
+    name: 'Tormenta', emoji: '🌩️', tag: 'Texturas', category: 'Texture', description: 'Ruido granular que barre la fuente, filtro peine y Corroder. Un paisaje que cambia solo mientras sostenés la nota.',
     macroNames: ['Viento', 'Filo', 'Corroer', 'Espacio'],
     params: {
       'arp.pattern': 'Acorde', 'arp.rate': '1/2', 'arp.octaves': 1, 'arp.gate': 1, 'arp.on': 'Off',
@@ -2971,7 +3003,7 @@ const PRESETS = [
     mods: [['lfo1', 'f1.cutoff', 0.35], ['lfo2', 'f2.cutoff', 0.25], ['macro1', 'a.gran.spray', 0.5], ['macro2', 'f2.res', 0.3], ['macro3', 'fx1.mix', 0.6], ['macro4', 'fx3.mix', 0.4]],
   },
   {
-    name: 'Marimba solar', tag: 'Teclas', category: 'Keys', description: 'Barras de madera modales con un seno cálido. Arpegio Escalera y delay ping-pong: suena a tarde de verano.',
+    name: 'Marimba solar', emoji: '🌞', tag: 'Teclas', category: 'Keys', description: 'Barras de madera modales con un seno cálido. Arpegio Escalera y delay ping-pong: suena a tarde de verano.',
     macroNames: ['Madera', 'Cola', 'Eco', 'Espacio'],
     params: {
       'arp.pattern': 'Escalera', 'arp.rate': '1/16', 'arp.octaves': 2, 'arp.gate': 0.6, 'arp.on': 'On',
@@ -3085,7 +3117,9 @@ class PadGrid {
         const d = r * 8 + c;
         const pad = document.createElement('div');
         pad.className = 'pad'; pad.dataset.deg = d;
-        pad.innerHTML = `<span class="pad-name"></span><span class="pad-deg"></span>`;
+        const code = PAD_ROWS[2 - r][c];
+        const cap = code === 'Comma' ? ',' : code.replace('Key', '');
+        pad.innerHTML = `<span class="pad-key">${cap}</span><span class="pad-name"></span><span class="pad-deg"></span>`;
         this.el.appendChild(pad); this.pads[d] = pad;
       }
     }
@@ -3102,6 +3136,8 @@ class PadGrid {
       pad.querySelector('.pad-name').textContent = i.name;
       pad.querySelector('.pad-deg').textContent = i.degree;
       pad.classList.toggle('root', i.isRoot);
+      pad.dataset.row = Math.floor(d / 8);
+      if (i.kind) pad.dataset.kind = i.kind;
       pad.style.setProperty('--hue', i.hue);
     });
   }
@@ -3690,7 +3726,8 @@ class App {
     this.liveSrc = new Float32Array(MOD_SOURCES.length);
     this.scopes = {}; this.envCanvases = []; this.lfoCanvases = [];
     this.view = 'jam';
-    this.song = Object.assign({ key: 0, scale: 'minor', chord: 'off', octave: 3, scaleLock: true, padMode: 'notes' }, JSON.parse(localStorage.getItem('prisma.song') || '{}'));
+    this.song = Object.assign({ key: 0, mood: 'happy', scale: 'major', chord: 'triad', fat: false, vibe: 'own', octave: 3, scaleLock: true, midiChords: false }, JSON.parse(localStorage.getItem('prisma.song') || '{}'));
+    this.song.scale = (MOODS.find(m => m.id === this.song.mood) || MOODS[0]).scale; this.song.chord = this.song.fat ? 'fat' : 'triad';
     this.activeChords = new Map(); // nota base → notas enviadas
     this.userPresets = JSON.parse(localStorage.getItem('prisma.userPresets') || '[]');
     this.presetIndex = 0;
@@ -3834,12 +3871,12 @@ class App {
         h('button', { class: 'ib', title: 'Preset anterior', onclick: () => this.loadPreset(this.presetIndex - 1) }, '‹'),
         presetSel,
         h('button', { class: 'ib', title: 'Preset siguiente', onclick: () => this.loadPreset(this.presetIndex + 1) }, '›'),
-        h('button', { class: 'tb', title: 'Guardar como preset de usuario', onclick: () => this.savePreset() }, 'Save'),
-        h('button', { class: 'tb', title: 'Exportar preset (JSON)', onclick: () => this.exportPreset() }, 'Export'),
-        h('button', { class: 'tb', title: 'Importar preset (JSON)', onclick: () => $('#import-file').click() }, 'Import'),
-        h('button', { class: 'tb', title: 'Cargar un archivo de audio para Granular / Sample', onclick: () => $('#sample-file').click() }, 'Load Sample'),
+        h('button', { class: 'tb pro-only', title: 'Guardar como preset de usuario', onclick: () => this.savePreset() }, 'Save'),
+        h('button', { class: 'tb pro-only', title: 'Exportar preset (JSON)', onclick: () => this.exportPreset() }, 'Export'),
+        h('button', { class: 'tb pro-only', title: 'Importar preset (JSON)', onclick: () => $('#import-file').click() }, 'Import'),
+        h('button', { class: 'tb pro-only', title: 'Cargar un archivo de audio para Granular / Sample', onclick: () => $('#sample-file').click() }, 'Load Sample'),
       ),
-      h('nav', { class: 'tabs' }, ...[['jam', 'JAM'], ['synth', 'SYNTH'], ['fx', 'FX']].map(([v, l]) => h('button', { class: 'tab', dataset: { view: v }, title: v === 'jam' ? 'Modo simple: tocar, ritmos y looper' : 'Modo avanzado', onclick: () => this.showView(v) }, l))),
+      h('nav', { class: 'tabs' }, ...[['jam', '🎮 Jugar'], ['synth', 'Pro · Synth'], ['fx', 'Pro · FX']].map(([v, l]) => h('button', { class: 'tab' + (v === 'jam' ? ' tab-play' : ''), dataset: { view: v }, title: v === 'jam' ? 'Modo simple para jugar' : 'Modo avanzado (diseño de sonido)', onclick: () => this.showView(v) }, l))),
       h('div', { class: 'status' },
         h('button', { id: 'midi-ind', class: 'ind ind-btn', title: 'Dispositivos MIDI y salida de audio', onclick: () => this.toggleDevices() }, 'MIDI ▾'),
         h('span', { id: 'arp-ind', class: 'ind', title: 'Arpegiador' }, 'ARP'),
@@ -3857,9 +3894,10 @@ class App {
     document.querySelectorAll('.view').forEach(el => { el.hidden = el.dataset.view !== v; });
     document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.view === v));
     const jam = v === 'jam';
+    document.body.classList.toggle('view-jam', jam);
     if (this.padGrid) { this.padGrid.enabled = jam; this.padGridEl.hidden = !jam; if (!jam) this.padGrid.releaseAll(); }
     if (this.keyboard) { this.keyboard.enabled = !jam; this.keyboardEl.hidden = jam; }
-    if (this.kbHelp) this.kbHelp.textContent = jam ? 'Pads: Z X C V B N M , (graves) · A S D F G H J K (medios) · Q W E R T Y U I (agudos) · 1–8 golpean la batería' : 'Teclas: A W S E D F T G Y H U J K O L P · Z/X octava · Shift = ajuste fino · Doble click = reset';
+    if (this.kbHelp) this.kbHelp.textContent = jam ? 'Fila de arriba (Q…I): melodía · Fila del medio (A…K): acordes · Fila de abajo (Z…,): bajo · Números 1–8: batería' : 'Teclas: A W S E D F T G Y H U J K O L P · Z/X octava · Shift = ajuste fino · Doble click = reset';
   }
 
   // ---- vista SYNTH
@@ -4132,27 +4170,31 @@ class App {
     });
   }
 
-  // ---- vista JAM (modo simple)
+  // ---- vista JUGAR (modo simple)
   buildJamView() {
     const root = $('#view-jam');
-    root.append(h('div', { class: 'jam-grid' }, this.buildSoundsPanel(), this.buildPlayPanel(), h('div', { class: 'jam-col' }, this.buildDrumsPanel(), this.buildLooperPanel())));
+    root.append(
+      h('div', { class: 'jam-row jam-row-1' }, this.buildSoundsPanel(), this.buildVibePanel()),
+      h('div', { class: 'jam-row jam-row-2' }, this.buildMoodPanel(), this.buildDrumsPanel(), this.buildLooperPanel()),
+    );
   }
   buildSoundsPanel() {
     const panel = h('section', { class: 'panel sounds', style: `--pc:${COLORS.a}` });
+    this.soundEmoji = h('span', { class: 'sound-emoji' }, '🎹');
     this.soundTitle = h('h1', { class: 'sound-title' }, 'Init');
     this.soundDesc = h('p', { class: 'sound-desc' }, '');
-    const tags = ['Todos', 'Pads', 'Bajos', 'Leads', 'Teclas', 'Plucks', 'Texturas', 'Percusivos', 'Míos'];
+    const tags = ['Todos', 'Pads', 'Bajos', 'Leads', 'Teclas', 'Plucks', 'Texturas', 'Míos'];
     this.soundTag = 'Todos';
     const tagRow = h('div', { class: 'tag-row' }, ...tags.map(t => h('button', { class: 'tagbtn' + (t === 'Todos' ? ' active' : ''), dataset: { tag: t }, onclick: () => { this.soundTag = t; tagRow.querySelectorAll('.tagbtn').forEach(b => b.classList.toggle('active', b.dataset.tag === t)); this.buildSoundCards(); } }, t)));
     this.soundCards = h('div', { class: 'sound-cards' });
     const cv = h('canvas', { class: 'jam-viz' }); this.playCanvas = cv;
-    const macros = h('div', { class: 'jam-macros' });
-    for (let k = 1; k <= 4; k++) macros.append(this.control(`macro${k}`, { color: COLORS.macro, size: 'md', label: this.meta.macroNames[k - 1] }));
+    const color = COLORS.arp;
     panel.append(
-      h('header', {}, h('h2', {}, 'SONIDO'), h('span', { class: 'hint' }, 'Elegí uno y tocá los pads de abajo')),
-      h('div', { class: 'sound-head' }, h('button', { class: 'ib', onclick: () => this.loadPreset(this.presetIndex - 1) }, '‹'), h('div', { class: 'sound-head-txt' }, this.soundTitle, this.soundDesc), h('button', { class: 'ib', onclick: () => this.loadPreset(this.presetIndex + 1) }, '›')),
-      tagRow, this.soundCards,
-      h('div', { class: 'jam-bottom' }, macros, cv),
+      h('header', {}, h('h2', {}, 'Sonido'), h('span', { class: 'hint' }, 'Elegí uno y tocá las teclas')),
+      h('div', { class: 'sound-head' }, h('button', { class: 'ib', onclick: () => this.loadPreset(this.presetIndex - 1) }, '‹'), this.soundEmoji, h('div', { class: 'sound-head-txt' }, this.soundTitle, this.soundDesc), h('button', { class: 'ib', onclick: () => this.loadPreset(this.presetIndex + 1) }, '›'),
+        h('div', { class: 'arp-mini' }, this.control('arp.on', { color, label: 'Arpegio' }), this.control('arp.hold', { color, label: 'Mantener' }))),
+      tagRow,
+      h('div', { class: 'sound-body' }, this.soundCards, cv),
     );
     this.buildSoundCards();
     return panel;
@@ -4167,50 +4209,31 @@ class App {
       if (this.soundTag !== 'Todos' && tag !== this.soundTag) return;
       const arpOn = p.params && (p.params['arp.on'] === 'On');
       const card = h('button', { class: 'sound-card' + (i === this.presetIndex ? ' active' : ''), dataset: { i }, onclick: () => this.loadPreset(i) },
-        h('span', { class: 'sc-name' }, p.name), h('span', { class: 'sc-tag' }, tag + (arpOn ? ' · arp' : '')));
+        h('span', { class: 'sc-emoji' }, p.emoji || '🎵'), h('span', { class: 'sc-name' }, p.name), h('span', { class: 'sc-tag' }, tag + (arpOn ? ' · arp' : '')));
       card.style.setProperty('--hue', String((Array.from(p.name).reduce((a, c) => a + c.charCodeAt(0), 0) * 37) % 360));
       box.append(card);
     });
   }
-  buildPlayPanel() {
-    const color = COLORS.arp;
-    const panel = h('section', { class: 'panel playpanel', style: `--pc:${color}` });
-    // tonalidad y escala
+  buildVibePanel() {
+    const panel = h('section', { class: 'panel vibes', style: `--pc:${COLORS.fx}` });
+    const grid = h('div', { class: 'vibe-grid' }, ...VIBES.map(v => h('button', { class: 'vibebtn' + (v.id === this.song.vibe ? ' active' : ''), dataset: { vibe: v.id }, title: v.desc, onclick: () => { this.song.vibe = v.id; grid.querySelectorAll('.vibebtn').forEach(b => b.classList.toggle('active', b.dataset.vibe === v.id)); this.applyVibe(true); this.songChanged(); } }, h('span', { class: 'vb-emoji' }, v.emoji), h('span', { class: 'vb-name' }, v.name))));
+    this.vibeGrid = grid;
+    panel.append(h('header', {}, h('h2', {}, 'Ambiente'), h('span', { class: 'hint' }, 'Efectos ya armados')), grid);
+    return panel;
+  }
+  buildMoodPanel() {
+    const panel = h('section', { class: 'panel moods', style: `--pc:${COLORS.arp}` });
+    const grid = h('div', { class: 'mood-grid' }, ...MOODS.map(m => h('button', { class: 'moodbtn' + (m.id === this.song.mood ? ' active' : ''), dataset: { mood: m.id }, style: `--hue:${m.hue}`, onclick: () => { this.song.mood = m.id; this.song.scale = m.scale; grid.querySelectorAll('.moodbtn').forEach(b => b.classList.toggle('active', b.dataset.mood === m.id)); this.songChanged(); this.previewChord(); } }, h('span', { class: 'mb-emoji' }, m.emoji), h('span', { class: 'mb-name' }, m.name))));
     const keySel = h('select', { id: 'song-key' }, ...KEY_NAMES.map((k, i) => h('option', { value: i }, k)));
     keySel.value = this.song.key;
-    keySel.addEventListener('change', () => { this.song.key = parseInt(keySel.value, 10); this.songChanged(); });
-    const scaleSel = h('select', { id: 'song-scale' }, ...SCALES.map(sc => h('option', { value: sc.id }, `${sc.name} · ${sc.mood}`)));
-    scaleSel.value = this.song.scale;
-    scaleSel.addEventListener('change', () => { this.song.scale = scaleSel.value; this.songChanged(); });
-    const chordRow = h('div', { class: 'chord-row' }, ...CHORD_TYPES.map(c => h('button', { class: 'chordbtn' + (c.id === this.song.chord ? ' active' : ''), dataset: { chord: c.id }, onclick: () => { this.song.chord = c.id; chordRow.querySelectorAll('.chordbtn').forEach(b => b.classList.toggle('active', b.dataset.chord === c.id)); this.songChanged(); this.previewChord(); } }, c.name)));
-    const modeRow = h('div', { class: 'seg' }, ...[['notes', 'Notas'], ['chords', 'Acordes']].map(([m, l]) => h('button', { class: 'segbtn' + (this.song.padMode === m ? ' active' : ''), dataset: { mode: m }, onclick: () => { this.song.padMode = m; modeRow.querySelectorAll('.segbtn').forEach(b => b.classList.toggle('active', b.dataset.mode === m)); this.songChanged(); } }, l)));
-    this.padModeHint = h('p', { class: 'hint' }, '');
-    const lock = h('button', { class: 'tb' + (this.song.scaleLock ? ' on' : ''), title: 'Corrige a la escala las notas del teclado MIDI y del piano', onclick: () => { this.song.scaleLock = !this.song.scaleLock; lock.classList.toggle('on', this.song.scaleLock); this.songChanged(); } }, 'Corregir MIDI a la escala');
+    keySel.addEventListener('change', () => { this.song.key = parseInt(keySel.value, 10); this.songChanged(); this.previewChord(); });
+    const fat = h('button', { class: 'tb' + (this.song.fat ? ' on' : ''), title: 'Acordes de 5 notas con sub-octava', onclick: () => { this.song.fat = !this.song.fat; this.song.chord = this.song.fat ? 'fat' : 'triad'; fat.classList.toggle('on', this.song.fat); this.songChanged(); this.previewChord(); } }, 'Acordes gordos');
+    const midi = h('button', { class: 'tb' + (this.song.midiChords ? ' on' : ''), title: 'Con esto activado, cada tecla del teclado MIDI o del piano toca un acorde completo', onclick: () => { this.song.midiChords = !this.song.midiChords; midi.classList.toggle('on', this.song.midiChords); this.songChanged(); } }, 'MIDI toca acordes');
     const octRow = h('div', { class: 'oct' }, h('button', { class: 'ib', onclick: () => { this.song.octave = Math.max(1, this.song.octave - 1); this.songChanged(); } }, '−'), h('span', { class: 'oct-label', id: 'jam-oct' }, `Oct ${this.song.octave}`), h('button', { class: 'ib', onclick: () => { this.song.octave = Math.min(6, this.song.octave + 1); this.songChanged(); } }, '+'));
-    // arpegiador
-    const patSel = this.register(new EnumControl(this, pidx('arp.pattern'), { color, label: '' }));
-    this.arpDesc = h('span', { class: 'hint arp-desc' }, '');
     panel.append(
-      h('header', {}, h('h2', {}, 'TOCAR'), h('span', { class: 'hint' }, 'Los pads siempre suenan bien: solo notas de la escala')),
-      h('div', { class: 'play-block' },
-        h('div', { class: 'k-label' }, 'Tonalidad y escala'),
-        h('div', { class: 'dev-row' }, keySel, scaleSel, octRow),
-      ),
-      h('div', { class: 'play-block' },
-        h('div', { class: 'row-inline' }, h('div', { class: 'k-label' }, 'Pads'), modeRow),
-        this.padModeHint,
-      ),
-      h('div', { class: 'play-block' },
-        h('div', { class: 'k-label' }, 'Chordifier · cómo suena cada pad'),
-        chordRow,
-      ),
-      h('div', { class: 'play-block arp-block' },
-        h('div', { class: 'row-inline' }, this.control('arp.on', { label: 'ARP', color, class: 'pw' }), h('span', { class: 'k-label' }, 'Arpegiador'), patSel.el, this.control('arp.hold', { color, label: 'Mantener' })),
-        this.arpDesc,
-        h('div', { class: 'knob-row' }, this.control('arp.rate', { label: 'Velocidad', color, toggle: false }), this.control('arp.octaves', { color, label: 'Oct.', size: 'sm' }), this.control('arp.gate', { color, label: 'Largo', size: 'sm' }), this.control('arp.swing', { color, label: 'Swing', size: 'sm' })),
-        h('p', { class: 'hint' }, 'Cada sonido trae su propio arpegio. "Mantener" sigue tocando después de soltar los pads.'),
-      ),
-      h('div', { class: 'play-block' }, lock),
+      h('header', {}, h('h2', {}, 'Ánimo'), h('span', { class: 'hint' }, 'Elige la escala por vos')),
+      grid,
+      h('div', { class: 'mood-foot' }, h('label', { class: 'k-label', for: 'song-key' }, 'Tono'), keySel, octRow, fat, midi),
     );
     return panel;
   }
@@ -4220,10 +4243,17 @@ class App {
     this.stepLights = h('div', { class: 'steps' }, ...Array.from({ length: 16 }, (_, i) => h('span', { class: 'step' + (i % 4 === 0 ? ' beat' : '') })));
     const pads = h('div', { class: 'drum-pads' }, ...DRUM_NAMES.map((n, i) => { const b = h('button', { class: 'drum-pad', title: `Tecla ${i + 1}` }, h('b', {}, String(i + 1)), n); b.addEventListener('pointerdown', (e) => { e.preventDefault(); this.hitDrum(i); }); return b; }));
     this.drumPadEls = [...pads.children];
+    // tempo como deslizador simple
+    const tempoIdx = pidx('master.tempo');
+    const tempo = h('input', { type: 'range', min: 60, max: 180, step: 1, class: 'tempo-slider', id: 'tempo-slider' });
+    const tempoLabel = h('span', { class: 'tempo-label' }, '');
+    tempo.addEventListener('input', () => this.setValue('master.tempo', parseInt(tempo.value, 10)));
+    const tempoCtl = { idx: tempoIdx, el: h('div', { class: 'tempo-row' }, h('span', { class: 'k-label' }, 'Tempo'), tempo, tempoLabel), update: () => { const v = Math.round(this.value('master.tempo')); tempo.value = v; tempoLabel.textContent = `${v} bpm`; }, live() {} };
+    this.register(tempoCtl); tempoCtl.update();
     panel.append(
-      h('header', {}, this.control('drum.on', { label: 'ON', color, class: 'pw' }), h('h2', {}, 'RITMO'), h('div', { class: 'spacer' }), this.control('drum.pattern', { label: '', color, class: 'type-select', toggle: false })),
+      h('header', {}, this.control('drum.on', { label: 'ON', color, class: 'pw' }), h('h2', {}, 'Ritmo'), h('div', { class: 'spacer' }), this.control('drum.pattern', { label: '', color, class: 'type-select', toggle: false }), this.control('drum.kit', { label: '', color, class: 'inline', toggle: false })),
       this.stepLights,
-      h('div', { class: 'knob-row wrap' }, this.control('drum.kit', { label: 'Kit', color, toggle: false }), this.control('master.tempo', { color, label: 'Tempo', size: 'md' }), this.control('drum.level', { color, label: 'Volumen', size: 'sm' }), this.control('drum.swing', { color, label: 'Swing', size: 'sm' }), this.control('drum.tone', { color, label: 'Tono', size: 'sm' }), this.control('drum.decay', { color, label: 'Cola', size: 'sm' })),
+      tempoCtl.el,
       pads,
     );
     return panel;
@@ -4231,20 +4261,30 @@ class App {
   buildLooperPanel() {
     const color = COLORS.env;
     const panel = h('section', { class: 'panel looper', style: `--pc:${color}` });
-    this.loopRec = h('button', { class: 'loop-btn rec', onclick: () => { this.start(); this.audio.loop('rec'); } }, '● GRABAR');
-    this.loopPlay = h('button', { class: 'loop-btn', onclick: () => this.audio.loop('play') }, '▶ PLAY');
-    this.loopStop = h('button', { class: 'loop-btn', onclick: () => this.audio.loop('stop') }, '■ STOP');
+    this.loopRec = h('button', { class: 'loop-btn rec', onclick: () => { this.start(); this.audio.loop('rec'); } }, '● Grabar');
+    this.loopPlay = h('button', { class: 'loop-btn', onclick: () => this.audio.loop('play') }, '▶ Play');
+    this.loopStop = h('button', { class: 'loop-btn', onclick: () => this.audio.loop('stop') }, '■ Stop');
     this.loopUndo = h('button', { class: 'tb', title: 'Quita la última capa', onclick: () => this.audio.loop('undo') }, 'Deshacer');
     this.loopClear = h('button', { class: 'tb', title: 'Borra todas las capas', onclick: () => { if (confirm('¿Borrar todas las capas del loop?')) this.audio.loop('clear'); } }, 'Borrar');
     this.loopBar = h('div', { class: 'loop-bar' }, h('div', { class: 'loop-fill' }));
-    this.loopStatus = h('div', { class: 'dev-status' }, 'Vacío. Elegí cuántos compases y pulsá GRABAR: se graba lo que toques durante ese tiempo y queda sonando en loop.');
+    this.loopStatus = h('div', { class: 'dev-status' }, '');
     this.loopLayers = h('div', { class: 'loop-layers' });
     panel.append(
-      h('header', {}, h('h2', {}, 'LOOPER'), h('div', { class: 'spacer' }), this.control('loop.bars', { label: 'Compases', color, toggle: false, class: 'inline' }), this.control('loop.level', { color, label: 'Vol', size: 'sm' })),
+      h('header', {}, h('h2', {}, 'Looper'), h('div', { class: 'spacer' }), this.control('loop.bars', { label: 'Compases', color, toggle: false, class: 'inline' })),
       h('div', { class: 'loop-controls' }, this.loopRec, this.loopPlay, this.loopStop, this.loopUndo, this.loopClear),
       this.loopBar, this.loopStatus, this.loopLayers,
     );
     return panel;
+  }
+  applyVibe(push) {
+    const v = VIBES.find(x => x.id === this.song.vibe) || VIBES[0];
+    if (v.fx) this.applyFxList(v.fx);
+    else { const p = this.allPresets()[this.presetIndex]; this.applyFxList((p && p.fx) || []); }
+    if (push) {
+      this.audio.setAllParams(this.norm);
+      for (let sl = 1; sl <= FX_SLOTS; sl++) this.buildFxSlot(sl);
+      this.refreshAll();
+    }
   }
   hitDrum(i) { this.start(); this.audio.drum(i, 1); const el = this.drumPadEls && this.drumPadEls[i]; if (el) { el.classList.add('hit'); setTimeout(() => el.classList.remove('hit'), 120); } }
   updateLooperUI(lp) {
@@ -4278,15 +4318,12 @@ class App {
     this.stopAll();
     if (this.padGrid) this.relabelPads();
     const o = $('#jam-oct'); if (o) o.textContent = `Oct ${this.song.octave}`;
-    if (this.padModeHint) this.padModeHint.textContent = this.song.padMode === 'chords'
-      ? 'Cada columna es un acorde de la tonalidad. Fila de abajo: nota grave (bajo). Medio: el acorde. Arriba: el acorde una octava más alto.'
-      : 'Cada pad es una nota de la escala. Nunca suena una nota fuera de tono.';
     this.applyPolyRule();
   }
   // Los acordes necesitan polifonía: si el sonido es mono/legato se pasa a Poly
   // y se vuelve al modo del preset cuando se elige "Nota sola".
   applyPolyRule() {
-    const needPoly = this.song.chord !== 'off' || this.song.padMode === 'chords';
+    const needPoly = true; // el modo Jugar siempre tiene acordes disponibles
     if (needPoly) { if (this.value('master.poly') !== 0) this.setValue('master.poly', 0); }
     else {
       const p = this.allPresets()[this.presetIndex];
@@ -4311,28 +4348,26 @@ class App {
     else if (t === 4) q = ''; else if (t === 3) { q = 'm'; roman = roman.toLowerCase(); }
     return { name: `${KEY_NAMES[(this.song.key + root) % 12]}${q ? ' ' + q : ''}`, roman, quality: q };
   }
+  // pads mixtos: fila de abajo = bajo, medio = acordes, arriba = melodía
   chordPadNotes(d) {
     const L = this.scaleDef.steps.length;
     const col = d % 8, row = Math.floor(d / 8);
     const c = col % L + (col >= L ? L : 0);
     const root = this.degreeToNote(c);
     if (row === 0) return [root - 12];
-    let notes = this.chordify(root, this.song.chord === 'off' ? 'triad' : this.song.chord);
-    if (row === 2) notes = notes.map(n => n + 12);
-    return notes;
+    if (row === 2) return [this.degreeToNote(col + L)];
+    return this.chordify(root, this.song.chord);
   }
   relabelPads() {
     const L = this.scaleDef.steps.length;
-    if (this.song.padMode === 'chords') {
-      this.padGrid.relabel((d) => {
-        const col = d % 8, row = Math.floor(d / 8), c = col % L;
-        const info = this.chordInfo(c);
-        const isOct = col >= L;
-        return { name: row === 0 ? `${info.name.split(' ')[0]} bajo` : info.name, degree: row === 0 ? 'bajo' : (row === 2 ? info.roman + ' ↑' : info.roman) + (isOct ? ' (8va)' : ''), isRoot: c === 0, hue: c * (300 / L) };
-      });
-    } else {
-      this.padGrid.relabel((d) => { const n = this.degreeToNote(d); return { name: noteName(n), degree: String((d % L) + 1), isRoot: d % L === 0, hue: (d % L) * (300 / L) }; });
-    }
+    this.padGrid.relabel((d) => {
+      const col = d % 8, row = Math.floor(d / 8), c = col % L;
+      const hue = c * (300 / L);
+      if (row === 2) { const n = this.degreeToNote(col + L); return { name: noteName(n), degree: 'melodía', isRoot: c === 0 && col < L, hue, kind: 'melody' }; }
+      const info = this.chordInfo(c);
+      if (row === 0) return { name: `${info.name.split(' ')[0]}`, degree: 'bajo', isRoot: c === 0 && col < L, hue, kind: 'bass' };
+      return { name: info.name, degree: info.roman + (col >= L ? ' (8va)' : ''), isRoot: c === 0 && col < L, hue, kind: 'chord' };
+    });
   }
   quantize(note) {
     const st = this.scaleDef.steps;
@@ -4367,7 +4402,7 @@ class App {
   performOn(note, vel, quantize) {
     const key = 'n' + note;
     if (quantize && this.song.scaleLock) note = this.quantize(note);
-    this.playSet(key, this.chordify(note), vel);
+    this.playSet(key, this.song.midiChords ? this.chordify(note) : [note], vel);
     if (this.keyboard) this.keyboard.light(note, true);
   }
   performOff(rawNote, quantize) {
@@ -4375,10 +4410,7 @@ class App {
     this.stopSet('n' + rawNote);
     if (this.keyboard) this.keyboard.light(note, false);
   }
-  padOn(d, vel) {
-    if (this.song.padMode === 'chords') this.playSet('p' + d, this.chordPadNotes(d), vel);
-    else this.playSet('p' + d, this.chordify(this.degreeToNote(d)), vel);
-  }
+  padOn(d, vel) { this.playSet('p' + d, this.chordPadNotes(d), vel); }
   padOff(d) { this.stopSet('p' + d); }
   previewChord() {
     const root = this.degreeToNote(0) + 12;
@@ -4595,19 +4627,27 @@ class App {
       this.norm[d.index] = norm(d, v);
     };
     for (const [id, v] of Object.entries(p.params || {})) if (!isSongParam(id)) setId(id, v);
-    (p.fx || []).forEach((f, i) => {
-      const slot = i + 1, ti = FX_INDEX[f.type.toLowerCase().replace(/\s+/g, '')] ?? FX_TYPES.findIndex(t => t.name === f.type);
+    this.applyFxList(p.fx || []);
+    this.mods = (p.mods || []).map(([s, d, a]) => ({ src: SRC_INDEX[s], dst: PARAM_INDEX[d], amt: a })).filter(m => m.src !== undefined && m.dst !== undefined);
+    this.meta = { name: p.name, category: p.category || 'User', description: p.description || '', macroNames: (p.macroNames || ['Macro 1', 'Macro 2', 'Macro 3', 'Macro 4']).slice() };
+  }
+  applyFxList(list) {
+    for (let sl = 1; sl <= FX_SLOTS; sl++) { this.norm[pidx(`fx${sl}.type`)] = 0; this.norm[pidx(`fx${sl}.on`)] = 1; this.norm[pidx(`fx${sl}.mix`)] = 1; }
+    (list || []).forEach((f, i) => {
+      const slot = i + 1;
+      if (slot > FX_SLOTS) return;
+      const ti = FX_TYPES.findIndex(t => t.name === f.type || t.id === f.type);
       if (ti < 0) return;
-      setId(`fx${slot}.type`, ti); setId(`fx${slot}.on`, f.on === false ? 0 : 1); setId(`fx${slot}.mix`, f.mix ?? 1);
       const t = FX_TYPES[ti];
+      this.norm[pidx(`fx${slot}.type`)] = norm(PARAMS[pidx(`fx${slot}.type`)], ti);
+      this.norm[pidx(`fx${slot}.on`)] = f.on === false ? 0 : 1;
+      this.norm[pidx(`fx${slot}.mix`)] = f.mix ?? 1;
       t.params.forEach((pd, k) => {
         let v = f.params && f.params[k] !== undefined ? f.params[k] : pd.def;
         if (typeof v === 'string') v = Math.max(0, pd.opts.indexOf(v));
         this.norm[pidx(`fx${slot}.p${k}`)] = pd.curve === 'enum' ? (pd.max > 0 ? v / pd.max : 0) : norm(pd, v);
       });
     });
-    this.mods = (p.mods || []).map(([s, d, a]) => ({ src: SRC_INDEX[s], dst: PARAM_INDEX[d], amt: a })).filter(m => m.src !== undefined && m.dst !== undefined);
-    this.meta = { name: p.name, category: p.category || 'User', description: p.description || '', macroNames: (p.macroNames || ['Macro 1', 'Macro 2', 'Macro 3', 'Macro 4']).slice() };
   }
   loadPreset(i) {
     const all = this.allPresets();
@@ -4615,13 +4655,14 @@ class App {
     this.presetIndex = i;
     this.stopAll();
     this.presetToState(all[i]);
+    if (this.song.vibe !== 'own') this.applyVibe(false);
     this.audio.allOff();
     this.audio.setAllParams(this.norm); this.audio.setMods(this.mods);
     this.presetSel.value = i;
     this.buildEngineBody('a'); this.buildEngineBody('b');
     for (let s = 1; s <= FX_SLOTS; s++) this.buildFxSlot(s);
     for (let k = 0; k < 4; k++) this.setMacroName(k, this.meta.macroNames[k]);
-    if (this.soundTitle) { this.soundTitle.textContent = this.meta.name; this.soundDesc.textContent = this.meta.description; }
+    if (this.soundTitle) { this.soundTitle.textContent = this.meta.name; this.soundDesc.textContent = this.meta.description; this.soundEmoji.textContent = all[i].emoji || '🎵'; }
     if (this.soundCards) this.soundCards.querySelectorAll('.sound-card').forEach(c => c.classList.toggle('active', parseInt(c.dataset.i, 10) === i));
     this.activeChords.clear();
     if (this.padGrid) this.applyPolyRule();

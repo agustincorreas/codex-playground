@@ -3,17 +3,43 @@
 // al AudioWorklet vía processorOptions (por eso es puro dato / funciones puras).
 
 export const COLORS = {
-  a: '#19c3ff',      // Motor A (cian)
-  b: '#ff8a3d',      // Motor B (naranja)
-  filter: '#b76bff', // Filtros (violeta)
-  env: '#4fe38a',    // Envolventes (verde)
-  lfo: '#ffd23f',    // LFOs (amarillo)
-  macro: '#ff4f9a',  // Macros (rosa)
-  fx: '#ff6b6b',     // Efectos (coral)
-  key: '#9aa5b1',    // Teclado / rendimiento (gris)
-  master: '#c9d1d9',
-  arp: '#63e6be',
+  a: '#0ea5e9',      // Motor A (celeste)
+  b: '#f97316',      // Motor B (naranja)
+  filter: '#8b5cf6', // Filtros (violeta)
+  env: '#16a34a',    // Envolventes (verde)
+  lfo: '#d97706',    // LFOs (ámbar)
+  macro: '#db2777',  // Macros (rosa)
+  fx: '#e11d48',     // Efectos (rojo)
+  key: '#64748b',    // Teclado / rendimiento (gris)
+  master: '#334155',
+  arp: '#0d9488',
 };
+
+// Ánimos del modo Jugar: cada uno elige una escala (y un color)
+export const MOODS = [
+  { id: 'happy', name: 'Alegre', emoji: '😄', scale: 'major', hue: 45 },
+  { id: 'sad', name: 'Triste', emoji: '🌧️', scale: 'minor', hue: 215 },
+  { id: 'epic', name: 'Épico', emoji: '⚡', scale: 'lydian', hue: 275 },
+  { id: 'mystery', name: 'Misterioso', emoji: '🌘', scale: 'phrygian', hue: 320 },
+  { id: 'chill', name: 'Relax', emoji: '🌴', scale: 'pentaMaj', hue: 150 },
+  { id: 'blues', name: 'Blues', emoji: '🎷', scale: 'blues', hue: 190 },
+  { id: 'oriental', name: 'Oriental', emoji: '🐫', scale: 'hijaz', hue: 20 },
+  { id: 'zen', name: 'Zen', emoji: '🎋', scale: 'japan', hue: 95 },
+];
+
+// Ambientes: configuraciones de efectos ya armadas (4 slots)
+export const VIBES = [
+  { id: 'own', name: 'Del sonido', emoji: '🎛️', desc: 'Los efectos que trae cada sonido', fx: null },
+  { id: 'dry', name: 'Seco', emoji: '🔇', desc: 'Sin efectos', fx: [] },
+  { id: 'room', name: 'Sala', emoji: '🛋️', desc: 'Un poco de aire', fx: [{ type: 'Reverb', mix: 0.28, params: [0.55, 0.5, 10, 0.9, 200, 0] }] },
+  { id: 'echo', name: 'Eco', emoji: '🏔️', desc: 'Repeticiones al ritmo', fx: [{ type: 'Delay', mix: 0.35, params: [375, 0.45, 5000, 0.8, '1/8D', 200] }, { type: 'Reverb', mix: 0.22, params: [0.6, 0.5, 10, 0.9, 200, 0] }] },
+  { id: 'space', name: 'Espacial', emoji: '🪐', desc: 'Enorme y brillante', fx: [{ type: 'Chorus', mix: 0.4, params: [0.3, 0.5, 14, 0.1, 0.9, '3'] }, { type: 'Delay', mix: 0.25, params: [500, 0.5, 4000, 1, '1/4D', 200] }, { type: 'Reverb', mix: 0.55, params: [0.95, 0.25, 40, 1, 150, 0.45] }] },
+  { id: 'dirty', name: 'Sucio', emoji: '🔥', desc: 'Con distorsión', fx: [{ type: 'Distortion', mix: 0.6, params: [0.45, 'Soft', 6000, 0.1, 60, 0.7] }, { type: 'Compressor', mix: 1, params: [-20, 4, 5, 100, 4, 0.5] }, { type: 'Reverb', mix: 0.18, params: [0.5, 0.5, 5, 0.8, 250, 0] }] },
+  { id: 'lofi', name: 'Lo-fi', emoji: '📼', desc: 'Casete viejo', fx: [{ type: 'Distortion', mix: 0.5, params: [0.25, 'Crush', 3500, 0, 80, 0.7] }, { type: 'EQ', mix: 1, params: [3, 120, -2, 1500, -8, 4000] }, { type: 'Reverb', mix: 0.25, params: [0.6, 0.7, 20, 0.7, 250, 0] }] },
+  { id: 'radio', name: 'Radio', emoji: '📻', desc: 'Suena por un parlante chico', fx: [{ type: 'EQ', mix: 1, params: [-15, 300, 8, 1800, -15, 4000] }, { type: 'Distortion', mix: 0.4, params: [0.3, 'Soft', 5000, 0, 200, 0.7] }] },
+  { id: 'robot', name: 'Robot', emoji: '🤖', desc: 'Metálico y corroído', fx: [{ type: 'Corroder', mix: 0.45, params: [220, 0.5, 0.4, 60, 7000, 0.25] }, { type: 'Delay', mix: 0.25, params: [250, 0.4, 5000, 1, '1/16', 200] }] },
+  { id: 'underwater', name: 'Bajo el agua', emoji: '🐠', desc: 'Apagado y flotante', fx: [{ type: 'Multi Filter', mix: 1, params: [700, 0.35, 'LP', 0, '24 dB', 0.4] }, { type: 'Phaser', mix: 0.4, params: [0.15, 0.7, 500, 0.4, '4', 0.8] }, { type: 'Reverb', mix: 0.45, params: [0.85, 0.5, 30, 1, 100, 0.1] }] },
+];
 
 export const ENGINE_TYPES = ['va', 'wt', 'fm', 'gran', 'harm', 'modal', 'smp'];
 export const ENGINE_NAMES = ['Analog', 'Wavetable', 'FM', 'Granular', 'Harmonic', 'Modal', 'Sample'];
@@ -68,7 +94,7 @@ export const CHORD_TYPES = [
 ];
 
 // Caja de ritmos: 8 instrumentos sintetizados, 4 kits, patrones de 16 pasos
-export const DRUM_NAMES = ['Bombo', 'Redoblante', 'Palmas', 'Hi-hat', 'Hi-hat abierto', 'Tom', 'Rim', 'Shaker'];
+export const DRUM_NAMES = ['Bombo', 'Redoble', 'Palmas', 'Hi-hat', 'Hat abierto', 'Tom', 'Rim', 'Shaker'];
 export const DRUM_KITS = ['Clásica 808', 'Acústica', 'Techno', 'Lo-fi'];
 const pat = (name, rows) => ({ name, rows });
 // filas: kick, snare, clap, chat, ohat, tom, rim, shaker. x=fuerte o=medio .=nada

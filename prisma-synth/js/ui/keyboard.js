@@ -97,7 +97,9 @@ export class PadGrid {
         const d = r * 8 + c;
         const pad = document.createElement('div');
         pad.className = 'pad'; pad.dataset.deg = d;
-        pad.innerHTML = `<span class="pad-name"></span><span class="pad-deg"></span>`;
+        const code = PAD_ROWS[2 - r][c];
+        const cap = code === 'Comma' ? ',' : code.replace('Key', '');
+        pad.innerHTML = `<span class="pad-key">${cap}</span><span class="pad-name"></span><span class="pad-deg"></span>`;
         this.el.appendChild(pad); this.pads[d] = pad;
       }
     }
@@ -114,6 +116,8 @@ export class PadGrid {
       pad.querySelector('.pad-name').textContent = i.name;
       pad.querySelector('.pad-deg').textContent = i.degree;
       pad.classList.toggle('root', i.isRoot);
+      pad.dataset.row = Math.floor(d / 8);
+      if (i.kind) pad.dataset.kind = i.kind;
       pad.style.setProperty('--hue', i.hue);
     });
   }
