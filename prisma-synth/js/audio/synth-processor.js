@@ -1589,7 +1589,10 @@ class SynthCore {
   }
   setParam(i, n) {
     this.targetNorm[i] = n;
-    if (this.stepped[i]) { this.baseNorm[i] = n; this.gval[i] = this.denorm(this.defs[i], n); }
+    if (this.stepped[i]) {
+      this.baseNorm[i] = n; this.gval[i] = this.denorm(this.defs[i], n);
+      if (i === this.I.poly && this.gval[i] > 0) { for (let k = 1; k < this.voices.length; k++) if (this.voices[k].gate) this.voices[k].noteOff(); this.heldNotes = []; }
+    }
   }
   setAllParams(arr) { for (let i = 0; i < arr.length && i < this.defs.length; i++) { this.targetNorm[i] = arr[i]; this.baseNorm[i] = arr[i]; this.gval[i] = this.denorm(this.defs[i], arr[i]); } }
   setMods(slots) {
@@ -1666,18 +1669,17 @@ class SynthCore {
   }
   releaseVoice(note) {
     const mode = this.gval[this.I.poly] | 0;
-    if (mode === 0) {
-      for (const v of this.voices) if (v.active && v.gate && v.note === note) v.noteOff();
-    } else {
-      this.heldNotes = this.heldNotes.filter(h => h.note !== note);
-      const v = this.voices[0];
-      if (v.note !== note || !v.gate) return;
-      if (this.heldNotes.length) {
-        const h = this.heldNotes[this.heldNotes.length - 1];
-        v.noteOn(h.note, h.vel, mode === 2);
-        this.lastPitch = h.note;
-      } else v.noteOff();
-    }
+    // siempre liberar cualquier voz con esa nota (evita notas trabadas al cambiar poly↔mono)
+    for (let i = 1; i < this.voices.length; i++) { const v = this.voices[i]; if (v.active && v.gate && v.note === note) v.noteOff(); }
+    const v = this.voices[0];
+    if (mode === 0) { if (v.active && v.gate && v.note === note) v.noteOff(); this.heldNotes = []; return; }
+    this.heldNotes = this.heldNotes.filter(h => h.note !== note);
+    if (v.note !== note || !v.gate) return;
+    if (this.heldNotes.length) {
+      const h = this.heldNotes[this.heldNotes.length - 1];
+      v.noteOn(h.note, h.vel, mode === 2);
+      this.lastPitch = h.note;
+    } else v.noteOff();
   }
   alloc() {
     const max = clamp(this.gval[this.I.voices] | 0, 1, MAX_VOICES);

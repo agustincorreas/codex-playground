@@ -218,5 +218,17 @@ console.log('\nRendimiento: 8 voces, 2 motores (WT+Granular), 2 filtros, 4 FX');
   check('Tiempo real', ms < audioMs, `${ms.toFixed(0)} ms de CPU para ${audioMs.toFixed(0)} ms de audio (${(100 * ms / audioMs).toFixed(0)}% CPU)`);
 }
 
+console.log('\nNotas trabadas al cambiar de modo de voz:');
+{
+  const core = makeCore();
+  for (const n of [60, 64, 67, 72, 76]) core.noteOn(n, 1);
+  render(core, 10);
+  set(core, 'master.poly', 2); // legato mientras suenan 5 voces
+  render(core, 10);
+  for (const n of [60, 64, 67, 72, 76]) core.noteOff(n);
+  render(core, 600);
+  const stuck = core.voices.filter(v => v.gate).length;
+  check('Ninguna voz queda con gate al pasar a legato y soltar', stuck === 0, `gate=${stuck}`);
+}
 console.log(failures ? `\n${failures} fallo(s)` : '\nTodo OK');
 process.exit(failures ? 1 : 0);

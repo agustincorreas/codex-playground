@@ -18,6 +18,7 @@ if (worklet.includes('</script')) throw new Error('worklet contiene </script');
 const css = read('css/style.css');
 let html = read('index.html');
 html = html.replace('<link rel="stylesheet" href="css/style.css">', `<style>\n${css}\n</style>`);
+const fontLink = (html.match(/<link rel="stylesheet" href="https:\/\/fonts\.googleapis\.com[^>]*>/) || [''])[0];
 html = html.replace('<script type="module" src="js/main.js"></script>',
   `<script type="text/plain" id="worklet-src">\n${worklet}\n</script>\n  <script type="module">\n${bundle}\n</script>`);
 mkdirSync(join(root, 'dist'), { recursive: true });
@@ -33,7 +34,7 @@ if (ai > 0) {
   const bodyStart = html.indexOf('<body>') + '<body>'.length, bodyEnd = html.lastIndexOf('</body>');
   let inner = html.slice(bodyStart, bodyEnd);
   inner = inner.replace(/<script type="text\/plain" id="worklet-src">[\s\S]*?<\/script>\n\s*/, '');
-  const page = `<title>Prisma Synth</title>\n<style>\n${css}\n</style>\n${inner}`;
+  const page = `<title>Prisma Synth</title>\n${fontLink}\n<style>\n${css}\n</style>\n${inner}`;
   writeFileSync(join(dir, 'index.html'), page);
   writeFileSync(join(dir, 'synth-processor.js'), worklet);
   console.log(`${dir}/index.html + synth-processor.js`);

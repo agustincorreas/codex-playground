@@ -221,7 +221,7 @@ export function buildParams() {
   add('master.tempo', 'Tempo', 'master', 40, 240, 120, 'lin', { unit: 'bpm', nomod: true });
   add('master.glide', 'Glide', 'master', 0, 2, 0, 'lin', { unit: 's' });
   add('master.poly', 'Voice Mode', 'master', 0, 2, 0, 'enum', { ...en(['Poly', 'Mono', 'Legato']), nomod: true });
-  add('master.voices', 'Voices', 'master', 1, 16, 8, 'int', { nomod: true });
+  add('master.voices', 'Voices', 'master', 1, 16, 12, 'int', { nomod: true });
   add('master.bend', 'Bend Range', 'master', 0, 24, 2, 'int', { unit: 'st', nomod: true });
 
   // Motores A y B
