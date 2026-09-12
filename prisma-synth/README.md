@@ -27,7 +27,7 @@ La pestaña **Jugar** es la vista por defecto, con tema claro y muy pocos contro
 - **Ánimo**: elige la escala por vos (Alegre, Triste, Épico, Misterioso, Relax, Blues, Oriental, Zen), más el tono, la octava y *Acordes gordos*.
 - **Teclas de la computadora**: fila de arriba `Q…I` melodía, fila del medio `A…K` acordes de la tonalidad (con su nombre), fila de abajo `Z…,` bajo. Cada pad muestra su tecla. Números `1`–`8` golpean la batería.
 - **Ritmo**: on/off, estilo, kit y un deslizador de tempo. **Looper**: Grabar / Play / Stop / Deshacer / Borrar.
-- *MIDI toca acordes* hace que cada tecla de un teclado MIDI (o del piano de las vistas Pro) toque un acorde completo.
+- **Teclado MIDI** (o el piano de las vistas Pro): por defecto en *Zonas* (octavas graves = bajo, del Do3 al Si4 = acordes, agudos = melodía); también *Acordes* (cada tecla es un acorde) o *Notas*.
 
 Las pestañas **Pro · Synth** y **Pro · FX** son el modo avanzado (diseño de sonido completo).
 

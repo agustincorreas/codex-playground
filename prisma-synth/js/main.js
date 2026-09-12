@@ -45,7 +45,7 @@ class App {
     this.liveSrc = new Float32Array(MOD_SOURCES.length);
     this.scopes = {}; this.envCanvases = []; this.lfoCanvases = [];
     this.view = 'jam';
-    this.song = Object.assign({ key: 0, mood: 'happy', scale: 'major', chord: 'triad', fat: false, vibe: 'own', octave: 3, scaleLock: true, midiChords: false, arpStyle: 'own', shortTail: true }, JSON.parse(localStorage.getItem('prisma.song') || '{}'));
+    this.song = Object.assign({ key: 0, mood: 'happy', scale: 'major', chord: 'triad', fat: false, vibe: 'own', octave: 3, scaleLock: true, midiMode: 'zones', arpStyle: 'own', shortTail: true }, JSON.parse(localStorage.getItem('prisma.song') || '{}'));
     this.song.scale = (MOODS.find(m => m.id === this.song.mood) || MOODS[0]).scale; this.song.chord = this.song.fat ? 'fat' : 'triad';
     this.activeChords = new Map(); // nota base → notas enviadas
     this.userPresets = JSON.parse(localStorage.getItem('prisma.userPresets') || '[]');
@@ -154,6 +154,8 @@ class App {
     this.showView('jam');
     document.addEventListener('pointerdown', (e) => { const pop = $('#mod-popover'); if (!pop.hidden && !pop.contains(e.target) && !e.target.closest('.knob')) pop.hidden = true; const dp = $('#devices-panel'); if (dp && !dp.hidden && !dp.contains(e.target) && !e.target.closest('#midi-ind')) dp.hidden = true; });
     window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && this.assignSource >= 0) this.setAssign(this.assignSource); });
+    document.addEventListener('change', (e) => { if (e.target.tagName === 'SELECT') e.target.blur(); });
+    document.addEventListener('click', (e) => { const b = e.target.closest('button'); if (b && b !== document.activeElement) return; if (b) b.blur(); });
     const releaseEverything = () => { this.stopAll(); if (this.keyboard) for (const n of [...this.keyboard.held]) this.keyboard.release(n); this.audio.allOff(); };
     window.addEventListener('blur', releaseEverything);
     document.addEventListener('visibilitychange', () => { if (document.hidden) releaseEverything(); });
@@ -551,12 +553,14 @@ class App {
     keySel.value = this.song.key;
     keySel.addEventListener('change', () => { this.song.key = parseInt(keySel.value, 10); this.songChanged(); this.previewChord(); });
     const fat = h('button', { class: 'tb' + (this.song.fat ? ' on' : ''), title: 'Acordes de 5 notas con sub-octava', onclick: () => { this.song.fat = !this.song.fat; this.song.chord = this.song.fat ? 'fat' : 'triad'; fat.classList.toggle('on', this.song.fat); this.songChanged(); this.previewChord(); } }, 'Acordes gordos');
-    const midi = h('button', { class: 'tb' + (this.song.midiChords ? ' on' : ''), title: 'Con esto activado, cada tecla del teclado MIDI o del piano toca un acorde completo', onclick: () => { this.song.midiChords = !this.song.midiChords; midi.classList.toggle('on', this.song.midiChords); this.songChanged(); } }, 'MIDI toca acordes');
+    const midiSeg = h('div', { class: 'seg', title: 'Cómo responde un teclado MIDI (o el piano del modo Pro)' }, ...[['zones', 'Zonas'], ['chords', 'Acordes'], ['notes', 'Notas']].map(([m, l]) => h('button', { class: 'segbtn' + (this.song.midiMode === m ? ' active' : ''), dataset: { mode: m }, onclick: () => { this.song.midiMode = m; midiSeg.querySelectorAll('.segbtn').forEach(b => b.classList.toggle('active', b.dataset.mode === m)); this.songChanged(); } }, l)));
+    const midi = h('div', { class: 'midi-mode' }, h('span', { class: 'k-label' }, 'Teclado MIDI'), midiSeg, h('span', { class: 'hint' }, 'Zonas: graves = bajo · centro = acordes · agudos = melodía'));
     const octRow = h('div', { class: 'oct' }, h('button', { class: 'ib', onclick: () => { this.song.octave = Math.max(1, this.song.octave - 1); this.songChanged(); } }, '−'), h('span', { class: 'oct-label', id: 'jam-oct' }, `Oct ${this.song.octave}`), h('button', { class: 'ib', onclick: () => { this.song.octave = Math.min(6, this.song.octave + 1); this.songChanged(); } }, '+'));
     panel.append(
       h('header', {}, h('h2', {}, 'Ánimo'), h('span', { class: 'hint' }, 'Elige la escala por vos')),
       grid,
-      h('div', { class: 'mood-foot' }, h('label', { class: 'k-label', for: 'song-key' }, 'Tono'), keySel, octRow, fat, midi),
+      h('div', { class: 'mood-foot' }, h('label', { class: 'k-label', for: 'song-key' }, 'Tono'), keySel, octRow, fat),
+      midi,
     );
     return panel;
   }
@@ -748,7 +752,12 @@ class App {
   performOn(note, vel, quantize) {
     const key = 'n' + note;
     if (quantize && this.song.scaleLock) note = this.quantize(note);
-    this.playSet(key, this.song.midiChords ? this.chordify(note) : [note], vel);
+    const mode = this.song.midiMode || 'zones';
+    let notes;
+    if (mode === 'chords') notes = this.chordify(note);
+    else if (mode === 'zones') notes = note < 48 ? [note] : note < 72 ? this.chordify(note) : [note];
+    else notes = [note];
+    this.playSet(key, notes, vel);
     if (this.keyboard) this.keyboard.light(note, true);
   }
   performOff(rawNote, quantize) {
