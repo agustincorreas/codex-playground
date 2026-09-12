@@ -24,6 +24,69 @@ export const LFO_DIVS = ['4/1', '2/1', '1/1', '1/2', '1/4', '1/8', '1/16', '1/32
 export const LFO_DIV_BEATS = [16, 8, 4, 2, 1, 0.5, 0.25, 0.125, 2 / 3, 1 / 3];
 export const ARP_DIVS = ['1/2', '1/4', '1/8', '1/16', '1/32', '1/8T', '1/16T'];
 export const ARP_DIV_BEATS = [2, 1, 0.5, 0.25, 0.125, 1 / 3, 1 / 6];
+export const ARP_PATTERNS = [
+  { id: 'up', name: 'Arriba', desc: 'Sube nota por nota' },
+  { id: 'down', name: 'Abajo', desc: 'Baja nota por nota' },
+  { id: 'bounce', name: 'Rebote', desc: 'Sube y baja' },
+  { id: 'random', name: 'Aleatorio', desc: 'Orden al azar' },
+  { id: 'order', name: 'Como tocás', desc: 'En el orden que apretás' },
+  { id: 'stairs', name: 'Escalera', desc: 'Tres pasos adelante, dos atrás' },
+  { id: 'gallop', name: 'Galope', desc: 'Ritmo con silencios' },
+  { id: 'octaves', name: 'Octavas', desc: 'Cada nota con su octava' },
+  { id: 'pulse', name: 'Pulso', desc: 'Insiste en la nota grave' },
+  { id: 'trance', name: 'Trance', desc: 'Grave-grave-aguda' },
+  { id: 'chord', name: 'Acorde', desc: 'Todo junto, a ritmo' },
+  { id: 'cascade', name: 'Cascada', desc: 'Baja y cae de octava' },
+];
+
+// Escalas para el modo Jam (intervalos en semitonos desde la tónica)
+export const SCALES = [
+  { id: 'major', name: 'Mayor', mood: 'alegre, luminosa', steps: [0, 2, 4, 5, 7, 9, 11] },
+  { id: 'minor', name: 'Menor', mood: 'melancólica, seria', steps: [0, 2, 3, 5, 7, 8, 10] },
+  { id: 'pentaMaj', name: 'Pentatónica mayor', mood: 'nunca falla', steps: [0, 2, 4, 7, 9] },
+  { id: 'pentaMin', name: 'Pentatónica menor', mood: 'rock, blues', steps: [0, 3, 5, 7, 10] },
+  { id: 'blues', name: 'Blues', mood: 'sucia y sabrosa', steps: [0, 3, 5, 6, 7, 10] },
+  { id: 'dorian', name: 'Dórica', mood: 'jazz, funk', steps: [0, 2, 3, 5, 7, 9, 10] },
+  { id: 'lydian', name: 'Lidia', mood: 'mágica, flotante', steps: [0, 2, 4, 6, 7, 9, 11] },
+  { id: 'mixo', name: 'Mixolidia', mood: 'festiva', steps: [0, 2, 4, 5, 7, 9, 10] },
+  { id: 'phrygian', name: 'Frigia', mood: 'oscura, tensa', steps: [0, 1, 3, 5, 7, 8, 10] },
+  { id: 'harmMin', name: 'Menor armónica', mood: 'dramática', steps: [0, 2, 3, 5, 7, 8, 11] },
+  { id: 'hijaz', name: 'Árabe', mood: 'oriental', steps: [0, 1, 4, 5, 7, 8, 10] },
+  { id: 'japan', name: 'Japonesa', mood: 'zen', steps: [0, 1, 5, 7, 8] },
+  { id: 'chromatic', name: 'Todas las notas', mood: 'sin red', steps: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] },
+];
+export const KEY_NAMES = ['Do', 'Do#', 'Re', 'Re#', 'Mi', 'Fa', 'Fa#', 'Sol', 'Sol#', 'La', 'La#', 'Si'];
+// Chordifier: en grados de la escala (deg) o semitonos (semi) para escalas cromáticas
+export const CHORD_TYPES = [
+  { id: 'off', name: 'Nota sola', deg: [0], semi: [0] },
+  { id: 'octave', name: 'Doble octava', deg: null, semi: [0, 12] },
+  { id: 'power', name: 'Power', deg: null, semi: [0, 7, 12] },
+  { id: 'triad', name: 'Acorde', deg: [0, 2, 4], semi: [0, 4, 7] },
+  { id: 'seventh', name: 'Acorde 7', deg: [0, 2, 4, 6], semi: [0, 4, 7, 11] },
+  { id: 'wide', name: 'Abierto', deg: [0, 4, 9], semi: [0, 7, 16] },
+  { id: 'fat', name: 'Gordo', deg: [-7, 0, 2, 4, 7], semi: [-12, 0, 4, 7, 12] },
+];
+
+// Caja de ritmos: 8 instrumentos sintetizados, 4 kits, patrones de 16 pasos
+export const DRUM_NAMES = ['Bombo', 'Redoblante', 'Palmas', 'Hi-hat', 'Hi-hat abierto', 'Tom', 'Rim', 'Shaker'];
+export const DRUM_KITS = ['Clásica 808', 'Acústica', 'Techno', 'Lo-fi'];
+const pat = (name, rows) => ({ name, rows });
+// filas: kick, snare, clap, chat, ohat, tom, rim, shaker. x=fuerte o=medio .=nada
+export const DRUM_PATTERNS = [
+  pat('House', ['x...x...x...x...', '................', '....x.......x...', '..x...x...x...x.', '..x...x...x...x.', '................', '................', 'o.o.o.o.o.o.o.o.']),
+  pat('Techno', ['x...x...x...x...', '....o.......o...', '................', 'x.x.x.x.x.x.x.x.', '..x...x...x...x.', '................', '......x.......x.', '................']),
+  pat('Hip hop', ['x.....x..x......', '....x.......x...', '................', 'x.x.x.x.x.x.x.x.', '..............x.', '................', '................', '................']),
+  pat('Trap', ['x......x..x.....', '................', '....x.......x...', 'x.xxx.x.x.xxx.xx', '................', '................', '................', '................']),
+  pat('Reggaetón', ['x...x...x...x...', '...x..x....x..x.', '................', 'x.x.x.x.x.x.x.x.', '................', '................', '...x..x....x..x.', '................']),
+  pat('Breakbeat', ['x..x..x...x.x...', '....x..x.x..x...', '................', 'x.x.x.x.x.x.x.x.', '.......x........', '................', '................', '................']),
+  pat('Latina', ['x..x..x.x..x..x.', '................', '................', '................', '................', '......x.......x.', '..x..x..x..x..x.', 'x.x.x.x.x.x.x.x.']),
+  pat('Disco', ['x...x...x...x...', '....x.......x...', '....x.......x...', 'x.x.x.x.x.x.x.x.', '..x...x...x...x.', '................', '................', '................']),
+  pat('Rock', ['x.......x.x.....', '....x.......x...', '................', 'x.x.x.x.x.x.x.x.', '................', '..............x.', '................', '................']),
+  pat('Minimal', ['x...x...x...x...', '................', '................', '..x...x...x...x.', '................', '................', '......x.........', '................']),
+  pat('Mitad de tiempo', ['x.........x.....', '........x.......', '................', 'x.x.x.x.x.x.x.x.', '..............x.', '................', '................', '................']),
+  pat('Afrobeat', ['x..x....x..x....', '....x..x....x..x', '................', '................', '................', '................', '..x..x.x..x..x.x', 'x.xxx.xxx.xxx.xx']),
+];
+export const LOOP_BARS = [1, 2, 4, 8];
 
 // Fuentes de modulación. bipolar: rango -1..1, si no 0..1.
 export const MOD_SOURCES = [
@@ -266,11 +329,23 @@ export function buildParams() {
 
   // Arpegiador
   add('arp.on', 'Arp', 'arp', 0, 1, 0, 'enum', { ...en(['Off', 'On']), nomod: true });
-  add('arp.mode', 'Mode', 'arp', 0, 4, 0, 'enum', { ...en(['Up', 'Down', 'Up/Down', 'Random', 'Order']), nomod: true });
+  add('arp.pattern', 'Patrón', 'arp', 0, ARP_PATTERNS.length - 1, 0, 'enum', { ...en(ARP_PATTERNS.map(p => p.name)), nomod: true });
+  add('arp.hold', 'Hold', 'arp', 0, 1, 0, 'enum', { ...en(['Off', 'On']), nomod: true });
   add('arp.rate', 'Rate', 'arp', 0, ARP_DIVS.length - 1, 3, 'enum', { ...en(ARP_DIVS), nomod: true });
   add('arp.octaves', 'Octaves', 'arp', 1, 4, 1, 'int', { nomod: true });
   add('arp.gate', 'Gate', 'arp', 0.05, 1, 0.5);
   add('arp.swing', 'Swing', 'arp', 0, 0.75, 0);
+
+  // Caja de ritmos y looper (estado de la sesión, no del preset)
+  add('drum.on', 'Ritmo', 'drum', 0, 1, 0, 'enum', { ...en(['Off', 'On']), nomod: true });
+  add('drum.kit', 'Kit', 'drum', 0, DRUM_KITS.length - 1, 0, 'enum', { ...en(DRUM_KITS), nomod: true });
+  add('drum.pattern', 'Patrón', 'drum', 0, DRUM_PATTERNS.length - 1, 0, 'enum', { ...en(DRUM_PATTERNS.map(p => p.name)), nomod: true });
+  add('drum.level', 'Volumen', 'drum', 0, 1, 0.7);
+  add('drum.swing', 'Swing', 'drum', 0, 0.6, 0);
+  add('drum.tone', 'Tono', 'drum', 0, 1, 0.5);
+  add('drum.decay', 'Cola', 'drum', 0, 1, 0.5);
+  add('loop.bars', 'Compases', 'loop', 0, LOOP_BARS.length - 1, 1, 'enum', { ...en(LOOP_BARS.map(String)), nomod: true });
+  add('loop.level', 'Volumen loop', 'loop', 0, 1, 0.9);
 
   // Efectos: 4 slots
   for (let i = 1; i <= FX_SLOTS; i++) {
@@ -307,7 +382,11 @@ export function norm(def, v) {
   return n < 0 ? 0 : n > 1 ? 1 : n;
 }
 export function isGlobalParam(id) {
-  return id.startsWith('fx') || id.startsWith('master') || id.startsWith('arp');
+  return id.startsWith('fx') || id.startsWith('master') || id.startsWith('arp') || id.startsWith('drum') || id.startsWith('loop');
+}
+// Parámetros que pertenecen a la sesión (no cambian al cargar un sonido)
+export function isSongParam(id) {
+  return id.startsWith('drum') || id.startsWith('loop') || id === 'master.tempo' || id === 'master.volume';
 }
 
 export function formatValue(def, v) {

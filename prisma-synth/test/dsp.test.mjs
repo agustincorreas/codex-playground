@@ -1,14 +1,14 @@
 // Prueba de humo del DSP: renderiza cada motor, filtro y efecto fuera del
 // navegador y verifica que no haya NaN, silencio inesperado ni niveles absurdos.
 import { SynthCore, BLOCK } from '../js/audio/synth-processor.js';
-import { PARAMS, FX_TYPES, LFO_DIV_BEATS, ARP_DIV_BEATS, pidx, norm, SRC_INDEX } from '../js/shared/params.js';
+import { PARAMS, FX_TYPES, LFO_DIV_BEATS, ARP_DIV_BEATS, DRUM_PATTERNS, LOOP_BARS, ARP_PATTERNS, pidx, norm, SRC_INDEX } from '../js/shared/params.js';
 
 const SR = 48000;
 let failures = 0;
 const check = (name, cond, info = '') => { if (!cond) { failures++; console.log(`  ✗ ${name} ${info}`); } else console.log(`  ✓ ${name} ${info}`); };
 
 function makeCore() {
-  return new SynthCore(SR, PARAMS, FX_TYPES, LFO_DIV_BEATS, ARP_DIV_BEATS);
+  return new SynthCore(SR, PARAMS, FX_TYPES, LFO_DIV_BEATS, ARP_DIV_BEATS, { drumPatterns: DRUM_PATTERNS, loopBars: LOOP_BARS });
 }
 function set(core, id, value) {
   const d = PARAMS[pidx(id)];
@@ -133,10 +133,64 @@ console.log('\nModulación, polifonía, mono/legato, arp:');
   set(core, 'arp.on', 1); set(core, 'arp.rate', 4); set(core, 'arp.octaves', 2);
   core.noteOn(60, 1); core.noteOn(64, 1); core.noteOn(67, 1);
   const seen = new Set();
-  for (let b = 0; b < 400; b++) { render(core, 1); if (core.arp.cur >= 0) seen.add(core.arp.cur); }
+  for (let b = 0; b < 400; b++) { render(core, 1); for (const nn of core.arp.cur) seen.add(nn); }
   check('Arpegiador recorre notas y octavas', seen.size >= 5, `notas=${[...seen].sort((a, b) => a - b).join(',')}`);
   core.noteOff(60); core.noteOff(64); core.noteOff(67); render(core, 200);
-  check('Arp se detiene al soltar', core.arp.cur === -1 && core.voices.every(v => !v.gate));
+  check('Arp se detiene al soltar', core.arp.cur.length === 0 && core.voices.every(v => !v.gate));
+}
+console.log('\nPatrones de arpegio, latch, ritmos y looper:');
+for (let pi = 0; pi < ARP_PATTERNS.length; pi++) {
+  const core = makeCore();
+  set(core, 'arp.on', 1); set(core, 'arp.pattern', pi); set(core, 'arp.rate', 3); set(core, 'arp.octaves', 2);
+  core.noteOn(60, 1); core.noteOn(64, 1); core.noteOn(67, 1);
+  const seen = new Set(); let steps = 0, last = -1;
+  const r = render(core, 1);
+  for (let b = 0; b < 500; b++) { render(core, 1); if (core.arp.step !== last) { steps++; last = core.arp.step; } for (const nn of core.arp.cur) seen.add(nn); }
+  const r2 = render(core, 50);
+  check(`Patrón ${ARP_PATTERNS[pi].name}`, !r2.nan && steps > 8 && seen.size >= 2 && r2.rms > 0.005, `pasos=${steps} notas=${[...seen].sort((a, b) => a - b).join(',')}`);
+}
+{
+  const core = makeCore();
+  set(core, 'arp.on', 1); set(core, 'arp.hold', 1); set(core, 'arp.rate', 3);
+  core.noteOn(60, 1); core.noteOn(64, 1); core.noteOff(60); core.noteOff(64);
+  render(core, 300);
+  check('Latch mantiene el arpegio al soltar', core.arp.held.length === 2 && core.arp.cur.length > 0);
+  core.noteOn(72, 1); render(core, 10);
+  check('Nueva frase reemplaza la anterior', core.arp.held.length === 1 && core.arp.held[0].note === 72);
+}
+{
+  const core = makeCore();
+  set(core, 'drum.on', 1); set(core, 'drum.pattern', 4); set(core, 'a.on', 0);
+  const r = render(core, 800); // ~2 s a 120 bpm = 1 compás
+  check('Caja de ritmos suena (Reggaetón)', !r.nan && r.rms > 0.02 && r.peak < 1.01, `rms=${r.rms.toFixed(3)} peak=${r.peak.toFixed(3)}`);
+  for (let kit = 0; kit < 4; kit++) {
+    const c2 = makeCore(); set(c2, 'a.on', 0); set(c2, 'drum.kit', kit);
+    for (let inst = 0; inst < 8; inst++) c2.handleMessage({ type: 'drum', inst, vel: 1 });
+    const r2 = render(c2, 200);
+    check(`Kit ${kit} (8 golpes manuales)`, !r2.nan && r2.rms > 0.02 && r2.peak < 1.05, `rms=${r2.rms.toFixed(3)} peak=${r2.peak.toFixed(3)}`);
+  }
+}
+{
+  const core = makeCore();
+  set(core, 'loop.bars', 0); // 1 compás = 2 s a 120 bpm
+  core.handleMessage({ type: 'loop', cmd: 'rec' });
+  core.noteOn(60, 1);
+  render(core, 400); core.noteOff(60);
+  render(core, 400); // 800 bloques = 102400 muestras > 96000 → capa confirmada
+  const st = core.looper.status(core.clock);
+  check('Looper graba una capa de 1 compás', st.layers.length === 1 && st.state === 'playing', `estado=${st.state} capas=${st.layers.length} len=${core.looper.len}`);
+  set(core, 'a.on', 0);
+  const r = render(core, 400);
+  check('Looper reproduce la capa con el sinte apagado', r.rms > 0.01, `rms=${r.rms.toFixed(3)}`);
+  core.handleMessage({ type: 'loop', cmd: 'rec' }); set(core, 'a.on', 1); core.noteOn(67, 1);
+  render(core, 900); core.noteOff(67); render(core, 800);
+  check('Segunda capa alineada al inicio del loop', core.looper.layers.length === 2, `capas=${core.looper.layers.length}`);
+  core.handleMessage({ type: 'loop', cmd: 'mute', arg: 0 });
+  check('Mute de capa', core.looper.layers[0].mute === true);
+  core.handleMessage({ type: 'loop', cmd: 'undo' });
+  check('Undo quita la última capa', core.looper.layers.length === 1);
+  core.handleMessage({ type: 'loop', cmd: 'clear' });
+  check('Clear vacía el looper', core.looper.state === 'empty' && core.looper.len === 0);
 }
 {
   const core = makeCore();

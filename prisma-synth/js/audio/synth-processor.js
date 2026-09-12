@@ -1306,10 +1306,216 @@ class CompressorFX {
 }
 const FX_CLASSES = [null, CorroderFX, DistortionFX, FilterFX, ChorusFX, PhaserFX, DelayFX, ReverbFX, EQFX, CompressorFX];
 
+// ------------------------------------------------------------ caja de ritmos
+// 8 instrumentos sintetizados: kick, snare, clap, hat cerrado, hat abierto,
+// tom, rim, shaker. Cada kit ajusta afinación, decaimientos y brillo.
+const DRUM_KIT_DEFS = [
+  { // Clásica 808
+    kick: { f0: 160, f1: 46, pd: 0.05, ad: 0.55, click: 0.25, drive: 0.35 }, snare: { f: 185, td: 0.12, nd: 0.2, hp: 1800, tone: 0.6 },
+    clap: { d: 0.16, bp: 1100 }, chat: { d: 0.045, hp: 7500 }, ohat: { d: 0.35, hp: 7000 }, tom: { f0: 190, f1: 95, d: 0.4 }, rim: { f: 1700, d: 0.03 }, shaker: { d: 0.09, bp: 6500 },
+  },
+  { // Acústica
+    kick: { f0: 130, f1: 58, pd: 0.03, ad: 0.28, click: 0.6, drive: 0.15 }, snare: { f: 210, td: 0.16, nd: 0.26, hp: 1200, tone: 0.9 },
+    clap: { d: 0.2, bp: 1400 }, chat: { d: 0.07, hp: 6000 }, ohat: { d: 0.45, hp: 5500 }, tom: { f0: 240, f1: 120, d: 0.5 }, rim: { f: 2100, d: 0.05 }, shaker: { d: 0.12, bp: 5000 },
+  },
+  { // Techno
+    kick: { f0: 210, f1: 50, pd: 0.045, ad: 0.4, click: 0.4, drive: 0.9 }, snare: { f: 240, td: 0.08, nd: 0.14, hp: 2500, tone: 0.4 },
+    clap: { d: 0.12, bp: 1600 }, chat: { d: 0.03, hp: 9000 }, ohat: { d: 0.25, hp: 8500 }, tom: { f0: 160, f1: 70, d: 0.3 }, rim: { f: 2600, d: 0.02 }, shaker: { d: 0.06, bp: 8000 },
+  },
+  { // Lo-fi
+    kick: { f0: 95, f1: 42, pd: 0.09, ad: 0.45, click: 0.1, drive: 0.5 }, snare: { f: 165, td: 0.2, nd: 0.22, hp: 900, tone: 0.7 },
+    clap: { d: 0.25, bp: 800 }, chat: { d: 0.05, hp: 4000 }, ohat: { d: 0.3, hp: 3800 }, tom: { f0: 150, f1: 80, d: 0.45 }, rim: { f: 1300, d: 0.05 }, shaker: { d: 0.1, bp: 3500 },
+  },
+];
+const DRUM_PANS = [0, 0.05, -0.15, 0.25, 0.3, -0.3, 0.2, -0.25];
+
+class DrumVoice {
+  constructor(sr) { this.sr = sr; this.active = false; this.t = 0; this.ph = 0; this.ph2 = 0; this.vel = 1; this.svf = new SVF(sr); this.lp = 0; }
+  trigger(vel) { this.active = true; this.t = 0; this.ph = 0; this.ph2 = 0; this.vel = vel; this.svf.reset(); this.lp = 0; }
+}
+class DrumMachine {
+  constructor(sr) {
+    this.sr = sr;
+    this.voices = Array.from({ length: 8 }, () => new DrumVoice(sr));
+    this.tmp = new Float32Array(BLOCK);
+  }
+  hit(inst, vel) {
+    if (inst < 0 || inst > 7) return;
+    if (inst === 3) this.voices[4].active = false; // el hat cerrado apaga al abierto
+    this.voices[inst].trigger(vel);
+  }
+  // renderiza y suma en L/R; kit 0..3, tone/decay 0..1 globales, level 0..1
+  render(L, R, n, kit, tone, decay, level) {
+    const K = DRUM_KIT_DEFS[clamp(kit | 0, 0, 3)];
+    const dk = 0.5 + decay; // 0.5..1.5
+    const bright = Math.pow(2, (tone - 0.5) * 2); // 0.5..2
+    const sr = this.sr;
+    for (let inst = 0; inst < 8; inst++) {
+      const v = this.voices[inst];
+      if (!v.active) continue;
+      const tmp = this.tmp;
+      const pan = DRUM_PANS[inst];
+      const gl = Math.cos((pan + 1) * Math.PI / 4) * level * v.vel, gr = Math.sin((pan + 1) * Math.PI / 4) * level * v.vel;
+      let alive = true;
+      for (let i = 0; i < n; i++) {
+        const t = v.t / sr;
+        let s = 0;
+        switch (inst) {
+          case 0: { // kick
+            const k = K.kick;
+            const f = k.f1 + (k.f0 - k.f1) * Math.exp(-t / k.pd);
+            v.ph += f / sr;
+            const env = Math.exp(-t / (k.ad * dk));
+            s = sinC(v.ph) * env;
+            s = softclip(s * (1 + k.drive * 5)) / (1 + k.drive * 1.2);
+            if (t < 0.004) s += (rnd() * 2 - 1) * k.click * bright * Math.exp(-t / 0.0012);
+            if (env < 0.001) alive = false;
+            break;
+          }
+          case 1: { // snare
+            const k = K.snare;
+            v.ph += k.f / sr; v.ph2 += k.f * 1.6 / sr;
+            const toneS = (sinC(v.ph) + 0.6 * sinC(v.ph2)) * Math.exp(-t / (k.td * dk)) * 0.5 * k.tone;
+            if (i === 0 || v.t === 0) v.svf.setCoeffs(clamp(k.hp * bright, 300, 12000), 0.2);
+            const noise = v.svf.highpass(rnd() * 2 - 1) * Math.exp(-t / (k.nd * dk));
+            s = (toneS + noise * 0.9) * 0.9;
+            if (t > k.nd * dk * 6) alive = false;
+            break;
+          }
+          case 2: { // clap: 3 ráfagas + cola
+            const k = K.clap;
+            if (v.t === 0) v.svf.setCoeffs(clamp(k.bp * bright, 300, 8000), 0.55);
+            let env = 0;
+            for (let b = 0; b < 3; b++) { const tb = t - b * 0.011; if (tb >= 0) env = Math.max(env, Math.exp(-tb / 0.006)); }
+            if (t > 0.03) env = Math.max(env, Math.exp(-(t - 0.03) / (k.d * dk)) * 0.8);
+            s = v.svf.bandpass(rnd() * 2 - 1) * env * 2.2;
+            if (t > k.d * dk * 6) alive = false;
+            break;
+          }
+          case 3: case 4: { // hats
+            const k = inst === 3 ? K.chat : K.ohat;
+            if (v.t === 0) v.svf.setCoeffs(clamp(k.hp * bright, 1000, 16000), 0.15);
+            const env = Math.exp(-t / (k.d * dk));
+            // ruido "metálico": suma de cuadradas rápidas + ruido blanco
+            v.ph += 2837 / sr; v.ph2 += 4311 / sr;
+            const metal = ((v.ph % 1) < 0.5 ? 1 : -1) * ((v.ph2 % 1) < 0.5 ? 1 : -1) * 0.3;
+            s = v.svf.highpass((rnd() * 2 - 1) * 0.8 + metal) * env * 0.7;
+            if (env < 0.001) alive = false;
+            break;
+          }
+          case 5: { // tom
+            const k = K.tom;
+            const f = k.f1 + (k.f0 - k.f1) * Math.exp(-t / 0.08);
+            v.ph += f / sr;
+            const env = Math.exp(-t / (k.d * dk));
+            s = (sinC(v.ph) + 0.15 * (rnd() * 2 - 1) * Math.exp(-t / 0.01)) * env * 0.9;
+            if (env < 0.001) alive = false;
+            break;
+          }
+          case 6: { // rim
+            const k = K.rim;
+            v.ph += k.f / sr; v.ph2 += k.f * 0.62 / sr;
+            s = (sinC(v.ph) * 0.6 + sinC(v.ph2) * 0.4) * Math.exp(-t / (k.d * dk)) + (rnd() * 2 - 1) * Math.exp(-t / 0.003) * 0.5;
+            if (t > k.d * dk * 8) alive = false;
+            break;
+          }
+          default: { // shaker
+            const k = K.shaker;
+            if (v.t === 0) v.svf.setCoeffs(clamp(k.bp * bright, 800, 14000), 0.5);
+            const env = Math.min(1, t / 0.006) * Math.exp(-t / (k.d * dk));
+            s = v.svf.bandpass(rnd() * 2 - 1) * env * 1.6;
+            if (t > k.d * dk * 6) alive = false;
+          }
+        }
+        tmp[i] = s;
+        v.t++;
+        if (!alive) { v.active = false; for (let j = i + 1; j < n; j++) tmp[j] = 0; break; }
+      }
+      for (let i = 0; i < n; i++) { L[i] += tmp[i] * gl; R[i] += tmp[i] * gr; }
+    }
+  }
+}
+
+// ------------------------------------------------------------------ looper
+// Looper de audio por capas, sincronizado al tempo. Graba la salida del sinte
+// (post-FX) durante exactamente `bars` compases y suma las capas reproducidas.
+const MAX_LAYERS = 8;
+class Looper {
+  constructor(sr) {
+    this.sr = sr; this.len = 0; this.origin = 0; this.layers = []; this.playing = false;
+    this.armed = false; this.recording = false; this.recL = null; this.recR = null; this.recPos = 0; this.playArmed = false;
+    this.outL = new Float32Array(BLOCK); this.outR = new Float32Array(BLOCK);
+    this.lenSeconds = 0;
+  }
+  get state() {
+    if (this.recording) return 'recording';
+    if (this.armed) return 'armed';
+    if (!this.layers.length) return 'empty';
+    return this.playing ? 'playing' : 'stopped';
+  }
+  command(cmd, arg) {
+    switch (cmd) {
+      case 'rec':
+        if (this.recording) { this.commit(); break; }
+        if (this.layers.length >= MAX_LAYERS) break;
+        this.armed = !this.armed;
+        break;
+      case 'play': if (this.layers.length) { this.playArmed = !this.playing; if (this.playing) this.playing = false; } break;
+      case 'stop': this.playing = false; this.playArmed = false; this.armed = false; if (this.recording) this.recording = false; break;
+      case 'clear': this.layers = []; this.len = 0; this.playing = false; this.armed = false; this.recording = false; this.playArmed = false; break;
+      case 'undo': this.layers.pop(); if (!this.layers.length) { this.len = 0; this.playing = false; } break;
+      case 'mute': if (this.layers[arg]) this.layers[arg].mute = !this.layers[arg].mute; break;
+      case 'remove': if (this.layers[arg]) { this.layers.splice(arg, 1); if (!this.layers.length) { this.len = 0; this.playing = false; } } break;
+      case 'gain': if (this.layers[arg.layer]) this.layers[arg.layer].gain = arg.gain; break;
+    }
+  }
+  commit() {
+    this.recording = false;
+    if (this.recL) { this.layers.push({ L: this.recL, R: this.recR, gain: 1, mute: false }); this.recL = null; this.recR = null; }
+    this.playing = true;
+  }
+  // inL/inR: señal a grabar; suma la reproducción en outL/outR (n muestras)
+  process(inL, inR, outL, outR, n, clock, barLen, bars, drumsOn, level) {
+    const wantLen = Math.max(1, Math.round(barLen * bars));
+    for (let i = 0; i < n; i++) {
+      const t = clock + i;
+      // arranque de grabación
+      if (this.armed && !this.recording) {
+        const boundary = this.len ? ((t - this.origin) % this.len === 0) : (drumsOn ? (t % barLen === 0) : true);
+        if (boundary) {
+          if (!this.len) { this.len = wantLen; this.origin = t; this.playing = true; }
+          this.armed = false; this.recording = true; this.recPos = 0;
+          this.recL = new Float32Array(this.len); this.recR = new Float32Array(this.len);
+        }
+      }
+      if (this.playArmed && this.len) {
+        const boundary = drumsOn ? (t % barLen === 0) : true;
+        if (boundary) { this.playArmed = false; this.playing = true; this.origin = t; }
+      }
+      if (this.recording) {
+        this.recL[this.recPos] = inL[i]; this.recR[this.recPos] = inR[i];
+        this.recPos++;
+        if (this.recPos >= this.len) this.commit();
+      }
+      if (this.playing && this.len) {
+        let pos = (t - this.origin) % this.len; if (pos < 0) pos += this.len;
+        let l = 0, r = 0;
+        for (let k = 0; k < this.layers.length; k++) { const ly = this.layers[k]; if (ly.mute) continue; l += ly.L[pos] * ly.gain; r += ly.R[pos] * ly.gain; }
+        outL[i] += l * level; outR[i] += r * level;
+      }
+    }
+  }
+  status(clock) {
+    let pos = 0;
+    if (this.len) { pos = ((clock - this.origin) % this.len + this.len) % this.len / this.len; }
+    return { state: this.state, pos, layers: this.layers.map(l => ({ mute: l.mute, gain: l.gain })), recProgress: this.recording ? this.recPos / this.len : 0, bars: this.len ? Math.round(this.len / (this.lastBarLen || 1)) : 0 };
+  }
+}
+
 // ------------------------------------------------------------------- núcleo
 class SynthCore {
-  constructor(sr, defs, fxTypes, lfoDivBeats, arpDivBeats) {
-    this.sr = sr; this.defs = defs; this.fxTypes = fxTypes;
+  constructor(sr, defs, fxTypes, lfoDivBeats, arpDivBeats, extra = {}) {
+    this.sr = sr; this.defs = defs; this.fxTypes = fxTypes; this.extra = extra;
     this.lfoDivBeats = lfoDivBeats; this.arpDivBeats = arpDivBeats;
     this.nSrc = 15;
     this.index = Object.create(null);
@@ -1336,8 +1542,11 @@ class SynthCore {
       lfo: [1, 2, 3].map(k => this.idx(`lfo${k}.shape`)),
       lfoRetrig: [1, 2, 3].map(k => this.idx(`lfo${k}.retrig`)),
       macro: [1, 2, 3, 4].map(k => this.idx(`macro${k}`)),
-      arpOn: this.idx('arp.on'), arpMode: this.idx('arp.mode'), arpRate: this.idx('arp.rate'), arpOct: this.idx('arp.octaves'),
+      arpOn: this.idx('arp.on'), arpPattern: this.idx('arp.pattern'), arpHold: this.idx('arp.hold'), arpRate: this.idx('arp.rate'), arpOct: this.idx('arp.octaves'),
       arpGate: this.idx('arp.gate'), arpSwing: this.idx('arp.swing'),
+      drumOn: this.idx('drum.on'), drumKit: this.idx('drum.kit'), drumPattern: this.idx('drum.pattern'), drumLevel: this.idx('drum.level'),
+      drumSwing: this.idx('drum.swing'), drumTone: this.idx('drum.tone'), drumDecay: this.idx('drum.decay'),
+      loopBars: this.idx('loop.bars'), loopLevel: this.idx('loop.level'),
       fx: [1, 2, 3, 4].map(k => ({ type: this.idx(`fx${k}.type`), on: this.idx(`fx${k}.on`), mix: this.idx(`fx${k}.mix`), p: this.idx(`fx${k}.p0`) })),
     };
     this.wt = new WavetableBank();
@@ -1355,10 +1564,17 @@ class SynthCore {
     this.mixL = new Float32Array(BLOCK); this.mixR = new Float32Array(BLOCK);
     this.scopeLen = 1024;
     this.scopeA = new Float32Array(this.scopeLen); this.scopeB = new Float32Array(this.scopeLen); this.scopePos = 0;
-    this.arp = { held: [], step: 0, counter: 0, cur: -1, gateCounter: 0, dir: 1, wasOn: false };
+    this.arp = { held: [], physical: new Set(), step: 0, counter: 0, cur: [], gateCounter: 0, wasOn: false, lastRnd: 0 };
+    this.drums = new DrumMachine(sr); this.drumPatterns = []; this.lastDrumStep = -1; this.drumStep = 0;
+    this.looper = new Looper(sr);
+    this.clock = 0;
+    this.loopBars = [1, 2, 4, 8];
+    this.preL = new Float32Array(BLOCK); this.preR = new Float32Array(BLOCK);
     this.meterCounter = 0; this.peak = 0;
     this.port = null;
     this.sustain = false; this.sustained = [];
+    if (extra.drumPatterns) this.drumPatterns = extra.drumPatterns;
+    if (extra.loopBars) this.loopBars = extra.loopBars;
   }
   idx(id) { const i = this.index[id]; if (i === undefined) throw new Error('param ' + id); return i; }
   denorm(def, n) {
@@ -1411,14 +1627,19 @@ class SynthCore {
   // ---- notas
   noteOn(note, vel) {
     if (this.gval[this.I.arpOn] > 0.5) {
-      if (!this.arp.held.some(h => h.note === note)) this.arp.held.push({ note, vel });
+      const a = this.arp, hold = this.gval[this.I.arpHold] > 0.5;
+      if (hold && a.physical.size === 0) a.held = []; // nueva frase con latch
+      a.physical.add(note);
+      if (!a.held.some(h => h.note === note)) a.held.push({ note, vel });
       return;
     }
     this.triggerVoice(note, vel);
   }
   noteOff(note) {
     if (this.gval[this.I.arpOn] > 0.5) {
-      this.arp.held = this.arp.held.filter(h => h.note !== note);
+      const a = this.arp;
+      a.physical.delete(note);
+      if (this.gval[this.I.arpHold] < 0.5) a.held = a.held.filter(h => h.note !== note);
       return;
     }
     if (this.sustain) { if (!this.sustained.includes(note)) this.sustained.push(note); return; }
@@ -1472,42 +1693,78 @@ class SynthCore {
   }
   allNotesOff() {
     for (const v of this.voices) if (v.active) v.noteOff();
-    this.heldNotes = []; this.arp.held = []; this.sustained = [];
+    this.heldNotes = []; this.arp.held = []; this.arp.physical.clear(); this.sustained = [];
   }
-  panic() { for (const v of this.voices) v.kill(); this.heldNotes = []; this.arp.held = []; }
+  panic() { for (const v of this.voices) v.kill(); this.heldNotes = []; this.arp.held = []; this.arp.physical.clear(); }
 
-  // ---- arpegiador
+  // ---- arpegiador con patrones
   arpTick(n) {
     const a = this.arp, I = this.I, g = this.gval;
     const on = g[I.arpOn] > 0.5;
+    const releaseCur = () => { for (const nn of a.cur) this.releaseVoice(nn); a.cur = []; };
     if (!on) {
-      if (a.wasOn) { if (a.cur >= 0) this.releaseVoice(a.cur); a.cur = -1; a.held = []; a.wasOn = false; }
+      if (a.wasOn) { releaseCur(); a.held = []; a.physical.clear(); a.wasOn = false; }
       return;
     }
     a.wasOn = true;
-    if (a.cur >= 0) { a.gateCounter -= n; if (a.gateCounter <= 0) { this.releaseVoice(a.cur); a.cur = -1; } }
+    if (a.cur.length) { a.gateCounter -= n; if (a.gateCounter <= 0) releaseCur(); }
     if (a.held.length === 0) { a.step = 0; a.counter = 0; return; }
     a.counter -= n;
     if (a.counter > 0) return;
     const stepLen = this.arpDivBeats[g[I.arpRate] | 0] * 60 / this.tempo * this.sr;
     const swing = g[I.arpSwing];
     a.counter += stepLen * ((a.step % 2) ? 1 - swing : 1 + swing);
-    // secuencia
-    const mode = g[I.arpMode] | 0, oct = g[I.arpOct] | 0;
-    const base = mode === 4 ? a.held.slice() : a.held.slice().sort((x, y) => x.note - y.note);
+    const pattern = g[I.arpPattern] | 0, oct = g[I.arpOct] | 0;
+    const base = pattern === 4 ? a.held.slice() : a.held.slice().sort((x, y) => x.note - y.note);
     const seq = [];
     for (let o = 0; o < oct; o++) for (const h of base) seq.push({ note: h.note + 12 * o, vel: h.vel });
-    let idx;
-    const L = seq.length;
-    if (mode === 1) idx = (L - 1) - (a.step % L);
-    else if (mode === 2) { const cyc = Math.max(1, 2 * L - 2); const k = a.step % cyc; idx = k < L ? k : cyc - k; }
-    else if (mode === 3) idx = (rnd() * L) | 0;
-    else idx = a.step % L;
-    const h = seq[idx];
-    if (a.cur >= 0) this.releaseVoice(a.cur);
-    this.triggerVoice(h.note, h.vel);
-    a.cur = h.note; a.gateCounter = Math.max(1, g[I.arpGate] * stepLen);
+    const L = seq.length, st = a.step;
+    let idx = st % L, shift = 0, rest = false, gate = 1, all = false, accent = 1;
+    switch (pattern) {
+      case 1: idx = (L - 1) - (st % L); break;                                             // abajo
+      case 2: { const cyc = Math.max(1, 2 * L - 2); const k = st % cyc; idx = k < L ? k : cyc - k; break; } // rebote
+      case 3: { let r = (rnd() * L) | 0; if (L > 1 && r === a.lastRnd) r = (r + 1) % L; a.lastRnd = r; idx = r; break; }
+      case 5: idx = (Math.floor(st / 3) + st % 3) % L; break;                               // escalera
+      case 6: idx = Math.floor(st / 4 * 3 + (st % 4 > 1 ? st % 4 - 1 : 0)) % L; rest = st % 4 === 1; gate = st % 4 === 0 ? 1.2 : 0.7; break; // galope
+      case 7: idx = Math.floor(st / 2) % L; shift = st % 2 ? 12 : 0; break;                 // octavas
+      case 8: idx = st % 4 < 2 ? 0 : (Math.floor(st / 4) * 2 + st % 4 - 1) % L; accent = st % 4 === 0 ? 1 : 0.8; break; // pulso
+      case 9: { const pat = [0, 0, -1, 0, 0, -1, 0, -1]; const v = pat[st % 8]; idx = v === -1 ? L - 1 : 0; gate = 0.55; accent = v === -1 ? 1 : 0.75; break; } // trance
+      case 10: all = true; rest = st % 2 === 1; gate = 0.6; break;                          // acorde rítmico
+      case 11: idx = (L - 1) - (st % L); shift = Math.floor(st / L) % 2 ? -12 : 0; break;   // cascada
+    }
+    releaseCur();
+    if (!rest) {
+      const notes = all ? seq : [seq[idx]];
+      for (const h of notes) {
+        const nn = h.note + shift;
+        if (nn < 0 || nn > 127) continue;
+        this.triggerVoice(nn, Math.min(1, h.vel * accent));
+        a.cur.push(nn);
+      }
+      a.gateCounter = Math.max(1, g[I.arpGate] * stepLen * gate);
+    }
     a.step++;
+  }
+
+  // ---- caja de ritmos (secuenciador de 16 pasos sobre el reloj de transporte)
+  drumTick(n) {
+    const I = this.I, g = this.gp;
+    const on = g[I.drumOn] > 0.5;
+    const step16 = 0.25 * 60 / this.tempo * this.sr;
+    const swingDelay = g[I.drumSwing] * 0.5 * step16;
+    const pat = this.drumPatterns[g[I.drumPattern] | 0];
+    const k0 = Math.floor((this.clock - swingDelay) / step16) - 1, k1 = Math.floor((this.clock + n) / step16) + 1;
+    for (let k = Math.max(0, k0); k <= k1; k++) {
+      const t = k * step16 + (k % 2 ? swingDelay : 0);
+      if (t < this.clock || t >= this.clock + n) continue;
+      const step = k % 16;
+      this.drumStep = step;
+      if (!on || !pat) continue;
+      for (let inst = 0; inst < 8; inst++) {
+        const c = pat.rows[inst][step];
+        if (c === 'x') this.drums.hit(inst, 1); else if (c === 'o') this.drums.hit(inst, 0.55);
+      }
+    }
   }
 
   // ---- proceso de bloque
@@ -1560,6 +1817,15 @@ class SynthCore {
       for (let k = 0; k < 6; k++) this.fxVals[k] = k < desc.length ? this.denorm(desc[k], gp[fi.p + k]) : 0;
       slot.inst.process(L, R, n, this.fxVals, gp[fi.mix], this);
     }
+    // looper: graba el sinte post-FX y suma las capas
+    const barLen = 4 * 60 / this.tempo * this.sr;
+    this.looper.lastBarLen = barLen;
+    this.preL.set(L); this.preR.set(R);
+    this.looper.process(this.preL, this.preR, L, R, n, this.clock, Math.round(barLen), this.loopBars[gp[I.loopBars] | 0], gp[I.drumOn] > 0.5, gp[I.loopLevel]);
+    // caja de ritmos
+    this.drumTick(n);
+    this.drums.render(L, R, n, gp[I.drumKit], gp[I.drumTone], gp[I.drumDecay], gp[I.drumLevel] * gp[I.drumLevel]);
+    this.clock += n;
     // master
     const vol = gp[I.volume] * gp[I.volume] * 1.5;
     let peak = 0;
@@ -1578,7 +1844,8 @@ class SynthCore {
       let rp = (this.scopePos - 512 + this.scopeLen) % this.scopeLen;
       for (let i = 0; i < 512; i++) { sa[i] = this.scopeA[rp]; sb[i] = this.scopeB[rp]; rp = (rp + 1) % this.scopeLen; }
       this.port.postMessage({ type: 'meter', src: Float32Array.from(gs), scopeA: sa, scopeB: sb, voices: active, peak: this.peak,
-        arpNote: this.arp.cur, notes: this.voices.filter(v => v.active && v.gate).map(v => v.note) }, [sa.buffer, sb.buffer]);
+        arpNotes: this.arp.cur.slice(), notes: this.voices.filter(v => v.active && v.gate).map(v => v.note),
+        loop: this.looper.status(this.clock), drumStep: this.drumStep, drumOn: gp[I.drumOn] > 0.5 }, [sa.buffer, sb.buffer]);
     }
   }
 
@@ -1593,6 +1860,9 @@ class SynthCore {
       case 'sustain': this.setSustain(!!m.on); break;
       case 'sample': this.loaded = { buffer: m.data, root: m.root || 261.63 }; break;
       case 'allOff': this.allNotesOff(); break;
+      case 'loop': this.looper.command(m.cmd, m.arg); break;
+      case 'drum': this.drums.hit(m.inst, m.vel ?? 1); break;
+      case 'resetClock': this.clock = 0; this.drumStep = 0; break;
       case 'panic': this.panic(); break;
     }
   }
@@ -1603,7 +1873,7 @@ if (typeof AudioWorkletProcessor !== 'undefined') {
     constructor(options) {
       super();
       const o = options.processorOptions;
-      this.core = new SynthCore(sampleRate, o.defs, o.fxTypes, o.lfoDivBeats, o.arpDivBeats);
+      this.core = new SynthCore(sampleRate, o.defs, o.fxTypes, o.lfoDivBeats, o.arpDivBeats, { drumPatterns: o.drumPatterns, loopBars: o.loopBars });
       this.core.port = this.port;
       this.port.onmessage = (e) => this.core.handleMessage(e.data);
       this.port.postMessage({ type: 'ready' });
@@ -1618,4 +1888,4 @@ if (typeof AudioWorkletProcessor !== 'undefined') {
   registerProcessor('prisma-synth', PrismaProcessor);
 }
 
-export { SynthCore, generateSources, WavetableBank, ADSR, SVF, LFO, BLOCK };
+export { SynthCore, generateSources, WavetableBank, ADSR, SVF, LFO, DrumMachine, Looper, BLOCK };

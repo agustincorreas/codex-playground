@@ -1,6 +1,6 @@
 // Envoltorio del AudioContext: carga el worklet, envía parámetros/notas y
 // recibe medición (fuentes de modulación, osciloscopios) para la UI.
-import { PARAMS, FX_TYPES, LFO_DIV_BEATS, ARP_DIV_BEATS } from '../shared/params.js';
+import { PARAMS, FX_TYPES, LFO_DIV_BEATS, ARP_DIV_BEATS, DRUM_PATTERNS, LOOP_BARS } from '../shared/params.js';
 
 export class SynthAudio {
   constructor() {
@@ -30,7 +30,7 @@ export class SynthAudio {
       const fxTypes = FX_TYPES.map(f => ({ id: f.id, params: f.params.map(p => ({ min: p.min, max: p.max, curve: p.curve })) }));
       this.node = new AudioWorkletNode(ctx, 'prisma-synth', {
         numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [2],
-        processorOptions: { defs, fxTypes, lfoDivBeats: LFO_DIV_BEATS, arpDivBeats: ARP_DIV_BEATS },
+        processorOptions: { defs, fxTypes, lfoDivBeats: LFO_DIV_BEATS, arpDivBeats: ARP_DIV_BEATS, drumPatterns: DRUM_PATTERNS, loopBars: LOOP_BARS },
       });
       this.analyser = ctx.createAnalyser();
       this.analyser.fftSize = 2048; this.analyser.smoothingTimeConstant = 0.75;
@@ -63,6 +63,9 @@ export class SynthAudio {
   bend(v) { this.post({ type: 'bend', value: v }); }
   sustain(on) { this.post({ type: 'sustain', on }); }
   allOff() { this.post({ type: 'allOff' }); }
+  loop(cmd, arg) { this.post({ type: 'loop', cmd, arg }); }
+  drum(inst, vel = 1) { this.post({ type: 'drum', inst, vel }); }
+  resetClock() { this.post({ type: 'resetClock' }); }
   panic() { this.post({ type: 'panic' }); }
   async loadSample(arrayBuffer) {
     const buf = await this.ctx.decodeAudioData(arrayBuffer);

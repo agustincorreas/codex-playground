@@ -224,6 +224,78 @@ input[type=range] { accent-color: var(--kc, var(--accent)); }
   .knob-xl svg { width: 96px; height: 96px; }
 }
 
+/* ---------- JAM ---------- */
+.jam-grid { display: grid; grid-template-columns: 1.25fr 1fr 1fr; gap: 10px; align-items: start; }
+.jam-col { display: flex; flex-direction: column; gap: 10px; }
+.sound-head { display: flex; align-items: center; gap: 10px; margin: 4px 0 8px; }
+.sound-head-txt { flex: 1; min-width: 0; }
+.sound-title { margin: 0; font-size: 24px; font-weight: 800; letter-spacing: 0.01em; line-height: 1.1; }
+.sound-desc { margin: 3px 0 0; color: var(--muted); font-size: 12px; }
+.tag-row { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+.tagbtn { background: transparent; border: 1px solid var(--line); color: var(--muted); border-radius: 12px; padding: 3px 9px; font-size: 11px; font-weight: 600; }
+.tagbtn.active { background: var(--text); color: #0d1016; border-color: var(--text); }
+.sound-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 6px; max-height: 262px; overflow: auto; padding: 2px; }
+.sound-card { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; background: linear-gradient(160deg, hsl(var(--hue) 45% 22%), hsl(var(--hue) 40% 13%)); border: 1px solid hsl(var(--hue) 40% 30%); border-radius: 9px; padding: 8px 9px; text-align: left; min-height: 54px; transition: transform 0.1s, box-shadow 0.15s; }
+.sound-card:hover { transform: translateY(-1px); box-shadow: 0 6px 16px #0008; }
+.sound-card.active { outline: 2px solid #fff; box-shadow: 0 0 16px hsl(var(--hue) 90% 60% / 0.6); }
+.sc-name { font-weight: 800; font-size: 12px; }
+.sc-tag { font-size: 10px; color: hsl(var(--hue) 70% 78%); text-transform: uppercase; letter-spacing: 0.06em; }
+.jam-bottom { display: flex; gap: 10px; align-items: center; margin-top: 10px; }
+.jam-macros { display: flex; gap: 4px; }
+.jam-viz { flex: 1; height: 150px; min-width: 0; border-radius: 10px; background: radial-gradient(circle at 50% 50%, #131a26 0%, #0a0e14 70%); border: 1px solid var(--line); }
+.play-block { padding: 8px 0; border-top: 1px solid var(--line); }
+.play-block:first-of-type { border-top: 0; }
+.play-block .k-label { text-align: left; margin-bottom: 5px; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; }
+.play-block select { background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; font-weight: 600; min-width: 0; }
+#song-key { width: 72px; } #song-scale { flex: 1; }
+.chord-row { display: flex; flex-wrap: wrap; gap: 4px; }
+.chordbtn { background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; font-weight: 700; font-size: 11px; color: var(--muted); }
+.chordbtn.active { background: var(--pc); border-color: var(--pc); color: #08111a; box-shadow: 0 0 10px var(--pc); }
+.row-inline { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
+.arp-block .enum-ctl select { min-width: 120px; font-weight: 800; color: var(--pc); border-color: var(--pc); }
+.arp-desc { display: block; margin: 0 0 6px; font-style: italic; }
+.locked { opacity: 0.4; pointer-events: none; position: relative; }
+.locked::after { content: "🔒"; position: absolute; top: 0; right: 0; font-size: 11px; }
+
+/* ritmo */
+.steps { display: flex; gap: 3px; margin: 2px 0 8px; }
+.step { flex: 1; height: 8px; border-radius: 3px; background: #2b3546; }
+.step.beat { background: #3a465a; }
+.step.on { background: var(--pc); box-shadow: 0 0 8px var(--pc); }
+.drum-pads { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; margin-top: 8px; }
+.drum-pad { display: flex; align-items: center; gap: 6px; background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 8px; font-size: 11px; font-weight: 600; text-align: left; transition: background 0.08s; }
+.drum-pad b { display: inline-block; width: 16px; height: 16px; border-radius: 4px; background: var(--line); font-size: 9px; text-align: center; line-height: 16px; color: var(--muted); }
+.drum-pad.hit, .drum-pad:active { background: var(--pc); color: #08111a; }
+
+/* looper */
+.loop-controls { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }
+.loop-btn { background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 9px 14px; font-weight: 800; letter-spacing: 0.06em; font-size: 12px; }
+.loop-btn:disabled { opacity: 0.4; }
+.loop-btn.rec { color: #ff5e5e; border-color: #ff5e5e55; }
+.loop-btn.rec.armed { background: #ff5e5e33; animation: pulse-rec 0.6s infinite alternate; }
+.loop-btn.rec.recording { background: #ff5e5e; color: #fff; animation: pulse-rec 0.5s infinite alternate; }
+.loop-btn.on { background: var(--pc); color: #08111a; border-color: var(--pc); }
+@keyframes pulse-rec { to { box-shadow: 0 0 18px #ff5e5e; } }
+.loop-bar { height: 10px; background: #0a0e14; border: 1px solid var(--line); border-radius: 5px; overflow: hidden; }
+.loop-fill { height: 100%; width: 0; background: var(--pc); transition: width 60ms linear; }
+.loop-fill.rec { background: #ff5e5e; }
+.loop-layers { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+.loop-layer { display: flex; align-items: center; gap: 8px; background: #0f141b; border-radius: 6px; padding: 4px 8px; font-weight: 600; }
+.loop-layer span { flex: 1; }
+.loop-layer.muted span { color: var(--muted); text-decoration: line-through; }
+
+/* pads */
+.kb-area { grid-row: 1; min-width: 0; }
+.padgrid { display: grid; grid-template-columns: repeat(8, 1fr); grid-template-rows: repeat(3, 1fr); gap: 4px; height: 132px; }
+.pad { position: relative; border-radius: 8px; background: linear-gradient(180deg, hsl(var(--hue) 45% 26%), hsl(var(--hue) 45% 16%)); border: 1px solid hsl(var(--hue) 45% 34%); cursor: pointer; display: flex; flex-direction: column; justify-content: flex-end; padding: 4px 6px; transition: transform 0.05s; user-select: none; }
+.pad.root { border-color: #fff8; box-shadow: inset 0 0 0 1px #fff3; }
+.pad-name { font-weight: 800; font-size: 12px; }
+.pad-deg { font-size: 9px; color: hsl(var(--hue) 70% 80%); }
+.pad.active { background: hsl(var(--hue) 90% 60%); color: #08111a; transform: scale(0.97); box-shadow: 0 0 14px hsl(var(--hue) 90% 60%); }
+.pad.active .pad-deg { color: #08111a; }
+@media (max-width: 1250px) { .jam-grid { grid-template-columns: 1fr 1fr; } .jam-grid > .sounds { grid-column: 1 / -1; } }
+@media (max-width: 900px) { .jam-grid { grid-template-columns: 1fr; } .padgrid { height: 150px; } .sound-cards { max-height: 200px; } }
+
 </style>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%2319c3ff'/%3E%3Ccircle cx='20' cy='14' r='8' fill='%23ff8a3d'/%3E%3C/svg%3E">
 </head>
@@ -234,10 +306,9 @@ input[type=range] { accent-color: var(--kc, var(--accent)); }
       <div id="assign-banner" class="assign-banner" hidden>
         Modo asignación: girá cualquier perilla para fijar la cantidad de <b id="assign-banner-name"></b>. Doble click quita la modulación · Esc para salir.
       </div>
-      <div id="view-synth" class="view" data-view="synth"></div>
+      <div id="view-jam" class="view" data-view="jam"></div>
+      <div id="view-synth" class="view" data-view="synth" hidden></div>
       <div id="view-fx" class="view" data-view="fx" hidden></div>
-      <div id="view-arp" class="view" data-view="arp" hidden></div>
-      <div id="view-play" class="view" data-view="play" hidden></div>
     </main>
     <footer id="footer"></footer>
   </div>
@@ -1553,10 +1624,216 @@ class CompressorFX {
 }
 const FX_CLASSES = [null, CorroderFX, DistortionFX, FilterFX, ChorusFX, PhaserFX, DelayFX, ReverbFX, EQFX, CompressorFX];
 
+// ------------------------------------------------------------ caja de ritmos
+// 8 instrumentos sintetizados: kick, snare, clap, hat cerrado, hat abierto,
+// tom, rim, shaker. Cada kit ajusta afinación, decaimientos y brillo.
+const DRUM_KIT_DEFS = [
+  { // Clásica 808
+    kick: { f0: 160, f1: 46, pd: 0.05, ad: 0.55, click: 0.25, drive: 0.35 }, snare: { f: 185, td: 0.12, nd: 0.2, hp: 1800, tone: 0.6 },
+    clap: { d: 0.16, bp: 1100 }, chat: { d: 0.045, hp: 7500 }, ohat: { d: 0.35, hp: 7000 }, tom: { f0: 190, f1: 95, d: 0.4 }, rim: { f: 1700, d: 0.03 }, shaker: { d: 0.09, bp: 6500 },
+  },
+  { // Acústica
+    kick: { f0: 130, f1: 58, pd: 0.03, ad: 0.28, click: 0.6, drive: 0.15 }, snare: { f: 210, td: 0.16, nd: 0.26, hp: 1200, tone: 0.9 },
+    clap: { d: 0.2, bp: 1400 }, chat: { d: 0.07, hp: 6000 }, ohat: { d: 0.45, hp: 5500 }, tom: { f0: 240, f1: 120, d: 0.5 }, rim: { f: 2100, d: 0.05 }, shaker: { d: 0.12, bp: 5000 },
+  },
+  { // Techno
+    kick: { f0: 210, f1: 50, pd: 0.045, ad: 0.4, click: 0.4, drive: 0.9 }, snare: { f: 240, td: 0.08, nd: 0.14, hp: 2500, tone: 0.4 },
+    clap: { d: 0.12, bp: 1600 }, chat: { d: 0.03, hp: 9000 }, ohat: { d: 0.25, hp: 8500 }, tom: { f0: 160, f1: 70, d: 0.3 }, rim: { f: 2600, d: 0.02 }, shaker: { d: 0.06, bp: 8000 },
+  },
+  { // Lo-fi
+    kick: { f0: 95, f1: 42, pd: 0.09, ad: 0.45, click: 0.1, drive: 0.5 }, snare: { f: 165, td: 0.2, nd: 0.22, hp: 900, tone: 0.7 },
+    clap: { d: 0.25, bp: 800 }, chat: { d: 0.05, hp: 4000 }, ohat: { d: 0.3, hp: 3800 }, tom: { f0: 150, f1: 80, d: 0.45 }, rim: { f: 1300, d: 0.05 }, shaker: { d: 0.1, bp: 3500 },
+  },
+];
+const DRUM_PANS = [0, 0.05, -0.15, 0.25, 0.3, -0.3, 0.2, -0.25];
+
+class DrumVoice {
+  constructor(sr) { this.sr = sr; this.active = false; this.t = 0; this.ph = 0; this.ph2 = 0; this.vel = 1; this.svf = new SVF(sr); this.lp = 0; }
+  trigger(vel) { this.active = true; this.t = 0; this.ph = 0; this.ph2 = 0; this.vel = vel; this.svf.reset(); this.lp = 0; }
+}
+class DrumMachine {
+  constructor(sr) {
+    this.sr = sr;
+    this.voices = Array.from({ length: 8 }, () => new DrumVoice(sr));
+    this.tmp = new Float32Array(BLOCK);
+  }
+  hit(inst, vel) {
+    if (inst < 0 || inst > 7) return;
+    if (inst === 3) this.voices[4].active = false; // el hat cerrado apaga al abierto
+    this.voices[inst].trigger(vel);
+  }
+  // renderiza y suma en L/R; kit 0..3, tone/decay 0..1 globales, level 0..1
+  render(L, R, n, kit, tone, decay, level) {
+    const K = DRUM_KIT_DEFS[clamp(kit | 0, 0, 3)];
+    const dk = 0.5 + decay; // 0.5..1.5
+    const bright = Math.pow(2, (tone - 0.5) * 2); // 0.5..2
+    const sr = this.sr;
+    for (let inst = 0; inst < 8; inst++) {
+      const v = this.voices[inst];
+      if (!v.active) continue;
+      const tmp = this.tmp;
+      const pan = DRUM_PANS[inst];
+      const gl = Math.cos((pan + 1) * Math.PI / 4) * level * v.vel, gr = Math.sin((pan + 1) * Math.PI / 4) * level * v.vel;
+      let alive = true;
+      for (let i = 0; i < n; i++) {
+        const t = v.t / sr;
+        let s = 0;
+        switch (inst) {
+          case 0: { // kick
+            const k = K.kick;
+            const f = k.f1 + (k.f0 - k.f1) * Math.exp(-t / k.pd);
+            v.ph += f / sr;
+            const env = Math.exp(-t / (k.ad * dk));
+            s = sinC(v.ph) * env;
+            s = softclip(s * (1 + k.drive * 5)) / (1 + k.drive * 1.2);
+            if (t < 0.004) s += (rnd() * 2 - 1) * k.click * bright * Math.exp(-t / 0.0012);
+            if (env < 0.001) alive = false;
+            break;
+          }
+          case 1: { // snare
+            const k = K.snare;
+            v.ph += k.f / sr; v.ph2 += k.f * 1.6 / sr;
+            const toneS = (sinC(v.ph) + 0.6 * sinC(v.ph2)) * Math.exp(-t / (k.td * dk)) * 0.5 * k.tone;
+            if (i === 0 || v.t === 0) v.svf.setCoeffs(clamp(k.hp * bright, 300, 12000), 0.2);
+            const noise = v.svf.highpass(rnd() * 2 - 1) * Math.exp(-t / (k.nd * dk));
+            s = (toneS + noise * 0.9) * 0.9;
+            if (t > k.nd * dk * 6) alive = false;
+            break;
+          }
+          case 2: { // clap: 3 ráfagas + cola
+            const k = K.clap;
+            if (v.t === 0) v.svf.setCoeffs(clamp(k.bp * bright, 300, 8000), 0.55);
+            let env = 0;
+            for (let b = 0; b < 3; b++) { const tb = t - b * 0.011; if (tb >= 0) env = Math.max(env, Math.exp(-tb / 0.006)); }
+            if (t > 0.03) env = Math.max(env, Math.exp(-(t - 0.03) / (k.d * dk)) * 0.8);
+            s = v.svf.bandpass(rnd() * 2 - 1) * env * 2.2;
+            if (t > k.d * dk * 6) alive = false;
+            break;
+          }
+          case 3: case 4: { // hats
+            const k = inst === 3 ? K.chat : K.ohat;
+            if (v.t === 0) v.svf.setCoeffs(clamp(k.hp * bright, 1000, 16000), 0.15);
+            const env = Math.exp(-t / (k.d * dk));
+            // ruido "metálico": suma de cuadradas rápidas + ruido blanco
+            v.ph += 2837 / sr; v.ph2 += 4311 / sr;
+            const metal = ((v.ph % 1) < 0.5 ? 1 : -1) * ((v.ph2 % 1) < 0.5 ? 1 : -1) * 0.3;
+            s = v.svf.highpass((rnd() * 2 - 1) * 0.8 + metal) * env * 0.7;
+            if (env < 0.001) alive = false;
+            break;
+          }
+          case 5: { // tom
+            const k = K.tom;
+            const f = k.f1 + (k.f0 - k.f1) * Math.exp(-t / 0.08);
+            v.ph += f / sr;
+            const env = Math.exp(-t / (k.d * dk));
+            s = (sinC(v.ph) + 0.15 * (rnd() * 2 - 1) * Math.exp(-t / 0.01)) * env * 0.9;
+            if (env < 0.001) alive = false;
+            break;
+          }
+          case 6: { // rim
+            const k = K.rim;
+            v.ph += k.f / sr; v.ph2 += k.f * 0.62 / sr;
+            s = (sinC(v.ph) * 0.6 + sinC(v.ph2) * 0.4) * Math.exp(-t / (k.d * dk)) + (rnd() * 2 - 1) * Math.exp(-t / 0.003) * 0.5;
+            if (t > k.d * dk * 8) alive = false;
+            break;
+          }
+          default: { // shaker
+            const k = K.shaker;
+            if (v.t === 0) v.svf.setCoeffs(clamp(k.bp * bright, 800, 14000), 0.5);
+            const env = Math.min(1, t / 0.006) * Math.exp(-t / (k.d * dk));
+            s = v.svf.bandpass(rnd() * 2 - 1) * env * 1.6;
+            if (t > k.d * dk * 6) alive = false;
+          }
+        }
+        tmp[i] = s;
+        v.t++;
+        if (!alive) { v.active = false; for (let j = i + 1; j < n; j++) tmp[j] = 0; break; }
+      }
+      for (let i = 0; i < n; i++) { L[i] += tmp[i] * gl; R[i] += tmp[i] * gr; }
+    }
+  }
+}
+
+// ------------------------------------------------------------------ looper
+// Looper de audio por capas, sincronizado al tempo. Graba la salida del sinte
+// (post-FX) durante exactamente `bars` compases y suma las capas reproducidas.
+const MAX_LAYERS = 8;
+class Looper {
+  constructor(sr) {
+    this.sr = sr; this.len = 0; this.origin = 0; this.layers = []; this.playing = false;
+    this.armed = false; this.recording = false; this.recL = null; this.recR = null; this.recPos = 0; this.playArmed = false;
+    this.outL = new Float32Array(BLOCK); this.outR = new Float32Array(BLOCK);
+    this.lenSeconds = 0;
+  }
+  get state() {
+    if (this.recording) return 'recording';
+    if (this.armed) return 'armed';
+    if (!this.layers.length) return 'empty';
+    return this.playing ? 'playing' : 'stopped';
+  }
+  command(cmd, arg) {
+    switch (cmd) {
+      case 'rec':
+        if (this.recording) { this.commit(); break; }
+        if (this.layers.length >= MAX_LAYERS) break;
+        this.armed = !this.armed;
+        break;
+      case 'play': if (this.layers.length) { this.playArmed = !this.playing; if (this.playing) this.playing = false; } break;
+      case 'stop': this.playing = false; this.playArmed = false; this.armed = false; if (this.recording) this.recording = false; break;
+      case 'clear': this.layers = []; this.len = 0; this.playing = false; this.armed = false; this.recording = false; this.playArmed = false; break;
+      case 'undo': this.layers.pop(); if (!this.layers.length) { this.len = 0; this.playing = false; } break;
+      case 'mute': if (this.layers[arg]) this.layers[arg].mute = !this.layers[arg].mute; break;
+      case 'remove': if (this.layers[arg]) { this.layers.splice(arg, 1); if (!this.layers.length) { this.len = 0; this.playing = false; } } break;
+      case 'gain': if (this.layers[arg.layer]) this.layers[arg.layer].gain = arg.gain; break;
+    }
+  }
+  commit() {
+    this.recording = false;
+    if (this.recL) { this.layers.push({ L: this.recL, R: this.recR, gain: 1, mute: false }); this.recL = null; this.recR = null; }
+    this.playing = true;
+  }
+  // inL/inR: señal a grabar; suma la reproducción en outL/outR (n muestras)
+  process(inL, inR, outL, outR, n, clock, barLen, bars, drumsOn, level) {
+    const wantLen = Math.max(1, Math.round(barLen * bars));
+    for (let i = 0; i < n; i++) {
+      const t = clock + i;
+      // arranque de grabación
+      if (this.armed && !this.recording) {
+        const boundary = this.len ? ((t - this.origin) % this.len === 0) : (drumsOn ? (t % barLen === 0) : true);
+        if (boundary) {
+          if (!this.len) { this.len = wantLen; this.origin = t; this.playing = true; }
+          this.armed = false; this.recording = true; this.recPos = 0;
+          this.recL = new Float32Array(this.len); this.recR = new Float32Array(this.len);
+        }
+      }
+      if (this.playArmed && this.len) {
+        const boundary = drumsOn ? (t % barLen === 0) : true;
+        if (boundary) { this.playArmed = false; this.playing = true; this.origin = t; }
+      }
+      if (this.recording) {
+        this.recL[this.recPos] = inL[i]; this.recR[this.recPos] = inR[i];
+        this.recPos++;
+        if (this.recPos >= this.len) this.commit();
+      }
+      if (this.playing && this.len) {
+        let pos = (t - this.origin) % this.len; if (pos < 0) pos += this.len;
+        let l = 0, r = 0;
+        for (let k = 0; k < this.layers.length; k++) { const ly = this.layers[k]; if (ly.mute) continue; l += ly.L[pos] * ly.gain; r += ly.R[pos] * ly.gain; }
+        outL[i] += l * level; outR[i] += r * level;
+      }
+    }
+  }
+  status(clock) {
+    let pos = 0;
+    if (this.len) { pos = ((clock - this.origin) % this.len + this.len) % this.len / this.len; }
+    return { state: this.state, pos, layers: this.layers.map(l => ({ mute: l.mute, gain: l.gain })), recProgress: this.recording ? this.recPos / this.len : 0, bars: this.len ? Math.round(this.len / (this.lastBarLen || 1)) : 0 };
+  }
+}
+
 // ------------------------------------------------------------------- núcleo
 class SynthCore {
-  constructor(sr, defs, fxTypes, lfoDivBeats, arpDivBeats) {
-    this.sr = sr; this.defs = defs; this.fxTypes = fxTypes;
+  constructor(sr, defs, fxTypes, lfoDivBeats, arpDivBeats, extra = {}) {
+    this.sr = sr; this.defs = defs; this.fxTypes = fxTypes; this.extra = extra;
     this.lfoDivBeats = lfoDivBeats; this.arpDivBeats = arpDivBeats;
     this.nSrc = 15;
     this.index = Object.create(null);
@@ -1583,8 +1860,11 @@ class SynthCore {
       lfo: [1, 2, 3].map(k => this.idx(`lfo${k}.shape`)),
       lfoRetrig: [1, 2, 3].map(k => this.idx(`lfo${k}.retrig`)),
       macro: [1, 2, 3, 4].map(k => this.idx(`macro${k}`)),
-      arpOn: this.idx('arp.on'), arpMode: this.idx('arp.mode'), arpRate: this.idx('arp.rate'), arpOct: this.idx('arp.octaves'),
+      arpOn: this.idx('arp.on'), arpPattern: this.idx('arp.pattern'), arpHold: this.idx('arp.hold'), arpRate: this.idx('arp.rate'), arpOct: this.idx('arp.octaves'),
       arpGate: this.idx('arp.gate'), arpSwing: this.idx('arp.swing'),
+      drumOn: this.idx('drum.on'), drumKit: this.idx('drum.kit'), drumPattern: this.idx('drum.pattern'), drumLevel: this.idx('drum.level'),
+      drumSwing: this.idx('drum.swing'), drumTone: this.idx('drum.tone'), drumDecay: this.idx('drum.decay'),
+      loopBars: this.idx('loop.bars'), loopLevel: this.idx('loop.level'),
       fx: [1, 2, 3, 4].map(k => ({ type: this.idx(`fx${k}.type`), on: this.idx(`fx${k}.on`), mix: this.idx(`fx${k}.mix`), p: this.idx(`fx${k}.p0`) })),
     };
     this.wt = new WavetableBank();
@@ -1602,10 +1882,17 @@ class SynthCore {
     this.mixL = new Float32Array(BLOCK); this.mixR = new Float32Array(BLOCK);
     this.scopeLen = 1024;
     this.scopeA = new Float32Array(this.scopeLen); this.scopeB = new Float32Array(this.scopeLen); this.scopePos = 0;
-    this.arp = { held: [], step: 0, counter: 0, cur: -1, gateCounter: 0, dir: 1, wasOn: false };
+    this.arp = { held: [], physical: new Set(), step: 0, counter: 0, cur: [], gateCounter: 0, wasOn: false, lastRnd: 0 };
+    this.drums = new DrumMachine(sr); this.drumPatterns = []; this.lastDrumStep = -1; this.drumStep = 0;
+    this.looper = new Looper(sr);
+    this.clock = 0;
+    this.loopBars = [1, 2, 4, 8];
+    this.preL = new Float32Array(BLOCK); this.preR = new Float32Array(BLOCK);
     this.meterCounter = 0; this.peak = 0;
     this.port = null;
     this.sustain = false; this.sustained = [];
+    if (extra.drumPatterns) this.drumPatterns = extra.drumPatterns;
+    if (extra.loopBars) this.loopBars = extra.loopBars;
   }
   idx(id) { const i = this.index[id]; if (i === undefined) throw new Error('param ' + id); return i; }
   denorm(def, n) {
@@ -1658,14 +1945,19 @@ class SynthCore {
   // ---- notas
   noteOn(note, vel) {
     if (this.gval[this.I.arpOn] > 0.5) {
-      if (!this.arp.held.some(h => h.note === note)) this.arp.held.push({ note, vel });
+      const a = this.arp, hold = this.gval[this.I.arpHold] > 0.5;
+      if (hold && a.physical.size === 0) a.held = []; // nueva frase con latch
+      a.physical.add(note);
+      if (!a.held.some(h => h.note === note)) a.held.push({ note, vel });
       return;
     }
     this.triggerVoice(note, vel);
   }
   noteOff(note) {
     if (this.gval[this.I.arpOn] > 0.5) {
-      this.arp.held = this.arp.held.filter(h => h.note !== note);
+      const a = this.arp;
+      a.physical.delete(note);
+      if (this.gval[this.I.arpHold] < 0.5) a.held = a.held.filter(h => h.note !== note);
       return;
     }
     if (this.sustain) { if (!this.sustained.includes(note)) this.sustained.push(note); return; }
@@ -1719,42 +2011,78 @@ class SynthCore {
   }
   allNotesOff() {
     for (const v of this.voices) if (v.active) v.noteOff();
-    this.heldNotes = []; this.arp.held = []; this.sustained = [];
+    this.heldNotes = []; this.arp.held = []; this.arp.physical.clear(); this.sustained = [];
   }
-  panic() { for (const v of this.voices) v.kill(); this.heldNotes = []; this.arp.held = []; }
+  panic() { for (const v of this.voices) v.kill(); this.heldNotes = []; this.arp.held = []; this.arp.physical.clear(); }
 
-  // ---- arpegiador
+  // ---- arpegiador con patrones
   arpTick(n) {
     const a = this.arp, I = this.I, g = this.gval;
     const on = g[I.arpOn] > 0.5;
+    const releaseCur = () => { for (const nn of a.cur) this.releaseVoice(nn); a.cur = []; };
     if (!on) {
-      if (a.wasOn) { if (a.cur >= 0) this.releaseVoice(a.cur); a.cur = -1; a.held = []; a.wasOn = false; }
+      if (a.wasOn) { releaseCur(); a.held = []; a.physical.clear(); a.wasOn = false; }
       return;
     }
     a.wasOn = true;
-    if (a.cur >= 0) { a.gateCounter -= n; if (a.gateCounter <= 0) { this.releaseVoice(a.cur); a.cur = -1; } }
+    if (a.cur.length) { a.gateCounter -= n; if (a.gateCounter <= 0) releaseCur(); }
     if (a.held.length === 0) { a.step = 0; a.counter = 0; return; }
     a.counter -= n;
     if (a.counter > 0) return;
     const stepLen = this.arpDivBeats[g[I.arpRate] | 0] * 60 / this.tempo * this.sr;
     const swing = g[I.arpSwing];
     a.counter += stepLen * ((a.step % 2) ? 1 - swing : 1 + swing);
-    // secuencia
-    const mode = g[I.arpMode] | 0, oct = g[I.arpOct] | 0;
-    const base = mode === 4 ? a.held.slice() : a.held.slice().sort((x, y) => x.note - y.note);
+    const pattern = g[I.arpPattern] | 0, oct = g[I.arpOct] | 0;
+    const base = pattern === 4 ? a.held.slice() : a.held.slice().sort((x, y) => x.note - y.note);
     const seq = [];
     for (let o = 0; o < oct; o++) for (const h of base) seq.push({ note: h.note + 12 * o, vel: h.vel });
-    let idx;
-    const L = seq.length;
-    if (mode === 1) idx = (L - 1) - (a.step % L);
-    else if (mode === 2) { const cyc = Math.max(1, 2 * L - 2); const k = a.step % cyc; idx = k < L ? k : cyc - k; }
-    else if (mode === 3) idx = (rnd() * L) | 0;
-    else idx = a.step % L;
-    const h = seq[idx];
-    if (a.cur >= 0) this.releaseVoice(a.cur);
-    this.triggerVoice(h.note, h.vel);
-    a.cur = h.note; a.gateCounter = Math.max(1, g[I.arpGate] * stepLen);
+    const L = seq.length, st = a.step;
+    let idx = st % L, shift = 0, rest = false, gate = 1, all = false, accent = 1;
+    switch (pattern) {
+      case 1: idx = (L - 1) - (st % L); break;                                             // abajo
+      case 2: { const cyc = Math.max(1, 2 * L - 2); const k = st % cyc; idx = k < L ? k : cyc - k; break; } // rebote
+      case 3: { let r = (rnd() * L) | 0; if (L > 1 && r === a.lastRnd) r = (r + 1) % L; a.lastRnd = r; idx = r; break; }
+      case 5: idx = (Math.floor(st / 3) + st % 3) % L; break;                               // escalera
+      case 6: idx = Math.floor(st / 4 * 3 + (st % 4 > 1 ? st % 4 - 1 : 0)) % L; rest = st % 4 === 1; gate = st % 4 === 0 ? 1.2 : 0.7; break; // galope
+      case 7: idx = Math.floor(st / 2) % L; shift = st % 2 ? 12 : 0; break;                 // octavas
+      case 8: idx = st % 4 < 2 ? 0 : (Math.floor(st / 4) * 2 + st % 4 - 1) % L; accent = st % 4 === 0 ? 1 : 0.8; break; // pulso
+      case 9: { const pat = [0, 0, -1, 0, 0, -1, 0, -1]; const v = pat[st % 8]; idx = v === -1 ? L - 1 : 0; gate = 0.55; accent = v === -1 ? 1 : 0.75; break; } // trance
+      case 10: all = true; rest = st % 2 === 1; gate = 0.6; break;                          // acorde rítmico
+      case 11: idx = (L - 1) - (st % L); shift = Math.floor(st / L) % 2 ? -12 : 0; break;   // cascada
+    }
+    releaseCur();
+    if (!rest) {
+      const notes = all ? seq : [seq[idx]];
+      for (const h of notes) {
+        const nn = h.note + shift;
+        if (nn < 0 || nn > 127) continue;
+        this.triggerVoice(nn, Math.min(1, h.vel * accent));
+        a.cur.push(nn);
+      }
+      a.gateCounter = Math.max(1, g[I.arpGate] * stepLen * gate);
+    }
     a.step++;
+  }
+
+  // ---- caja de ritmos (secuenciador de 16 pasos sobre el reloj de transporte)
+  drumTick(n) {
+    const I = this.I, g = this.gp;
+    const on = g[I.drumOn] > 0.5;
+    const step16 = 0.25 * 60 / this.tempo * this.sr;
+    const swingDelay = g[I.drumSwing] * 0.5 * step16;
+    const pat = this.drumPatterns[g[I.drumPattern] | 0];
+    const k0 = Math.floor((this.clock - swingDelay) / step16) - 1, k1 = Math.floor((this.clock + n) / step16) + 1;
+    for (let k = Math.max(0, k0); k <= k1; k++) {
+      const t = k * step16 + (k % 2 ? swingDelay : 0);
+      if (t < this.clock || t >= this.clock + n) continue;
+      const step = k % 16;
+      this.drumStep = step;
+      if (!on || !pat) continue;
+      for (let inst = 0; inst < 8; inst++) {
+        const c = pat.rows[inst][step];
+        if (c === 'x') this.drums.hit(inst, 1); else if (c === 'o') this.drums.hit(inst, 0.55);
+      }
+    }
   }
 
   // ---- proceso de bloque
@@ -1807,6 +2135,15 @@ class SynthCore {
       for (let k = 0; k < 6; k++) this.fxVals[k] = k < desc.length ? this.denorm(desc[k], gp[fi.p + k]) : 0;
       slot.inst.process(L, R, n, this.fxVals, gp[fi.mix], this);
     }
+    // looper: graba el sinte post-FX y suma las capas
+    const barLen = 4 * 60 / this.tempo * this.sr;
+    this.looper.lastBarLen = barLen;
+    this.preL.set(L); this.preR.set(R);
+    this.looper.process(this.preL, this.preR, L, R, n, this.clock, Math.round(barLen), this.loopBars[gp[I.loopBars] | 0], gp[I.drumOn] > 0.5, gp[I.loopLevel]);
+    // caja de ritmos
+    this.drumTick(n);
+    this.drums.render(L, R, n, gp[I.drumKit], gp[I.drumTone], gp[I.drumDecay], gp[I.drumLevel] * gp[I.drumLevel]);
+    this.clock += n;
     // master
     const vol = gp[I.volume] * gp[I.volume] * 1.5;
     let peak = 0;
@@ -1825,7 +2162,8 @@ class SynthCore {
       let rp = (this.scopePos - 512 + this.scopeLen) % this.scopeLen;
       for (let i = 0; i < 512; i++) { sa[i] = this.scopeA[rp]; sb[i] = this.scopeB[rp]; rp = (rp + 1) % this.scopeLen; }
       this.port.postMessage({ type: 'meter', src: Float32Array.from(gs), scopeA: sa, scopeB: sb, voices: active, peak: this.peak,
-        arpNote: this.arp.cur, notes: this.voices.filter(v => v.active && v.gate).map(v => v.note) }, [sa.buffer, sb.buffer]);
+        arpNotes: this.arp.cur.slice(), notes: this.voices.filter(v => v.active && v.gate).map(v => v.note),
+        loop: this.looper.status(this.clock), drumStep: this.drumStep, drumOn: gp[I.drumOn] > 0.5 }, [sa.buffer, sb.buffer]);
     }
   }
 
@@ -1840,6 +2178,9 @@ class SynthCore {
       case 'sustain': this.setSustain(!!m.on); break;
       case 'sample': this.loaded = { buffer: m.data, root: m.root || 261.63 }; break;
       case 'allOff': this.allNotesOff(); break;
+      case 'loop': this.looper.command(m.cmd, m.arg); break;
+      case 'drum': this.drums.hit(m.inst, m.vel ?? 1); break;
+      case 'resetClock': this.clock = 0; this.drumStep = 0; break;
       case 'panic': this.panic(); break;
     }
   }
@@ -1850,7 +2191,7 @@ if (typeof AudioWorkletProcessor !== 'undefined') {
     constructor(options) {
       super();
       const o = options.processorOptions;
-      this.core = new SynthCore(sampleRate, o.defs, o.fxTypes, o.lfoDivBeats, o.arpDivBeats);
+      this.core = new SynthCore(sampleRate, o.defs, o.fxTypes, o.lfoDivBeats, o.arpDivBeats, { drumPatterns: o.drumPatterns, loopBars: o.loopBars });
       this.core.port = this.port;
       this.port.onmessage = (e) => this.core.handleMessage(e.data);
       this.port.postMessage({ type: 'ready' });
@@ -1865,7 +2206,7 @@ if (typeof AudioWorkletProcessor !== 'undefined') {
   registerProcessor('prisma-synth', PrismaProcessor);
 }
 
-export { SynthCore, generateSources, WavetableBank, ADSR, SVF, LFO, BLOCK };
+export { SynthCore, generateSources, WavetableBank, ADSR, SVF, LFO, DrumMachine, Looper, BLOCK };
 
 </script>
   <script type="module">
@@ -1896,6 +2237,69 @@ const LFO_DIVS = ['4/1', '2/1', '1/1', '1/2', '1/4', '1/8', '1/16', '1/32', '1/4
 const LFO_DIV_BEATS = [16, 8, 4, 2, 1, 0.5, 0.25, 0.125, 2 / 3, 1 / 3];
 const ARP_DIVS = ['1/2', '1/4', '1/8', '1/16', '1/32', '1/8T', '1/16T'];
 const ARP_DIV_BEATS = [2, 1, 0.5, 0.25, 0.125, 1 / 3, 1 / 6];
+const ARP_PATTERNS = [
+  { id: 'up', name: 'Arriba', desc: 'Sube nota por nota' },
+  { id: 'down', name: 'Abajo', desc: 'Baja nota por nota' },
+  { id: 'bounce', name: 'Rebote', desc: 'Sube y baja' },
+  { id: 'random', name: 'Aleatorio', desc: 'Orden al azar' },
+  { id: 'order', name: 'Como tocás', desc: 'En el orden que apretás' },
+  { id: 'stairs', name: 'Escalera', desc: 'Tres pasos adelante, dos atrás' },
+  { id: 'gallop', name: 'Galope', desc: 'Ritmo con silencios' },
+  { id: 'octaves', name: 'Octavas', desc: 'Cada nota con su octava' },
+  { id: 'pulse', name: 'Pulso', desc: 'Insiste en la nota grave' },
+  { id: 'trance', name: 'Trance', desc: 'Grave-grave-aguda' },
+  { id: 'chord', name: 'Acorde', desc: 'Todo junto, a ritmo' },
+  { id: 'cascade', name: 'Cascada', desc: 'Baja y cae de octava' },
+];
+
+// Escalas para el modo Jam (intervalos en semitonos desde la tónica)
+const SCALES = [
+  { id: 'major', name: 'Mayor', mood: 'alegre, luminosa', steps: [0, 2, 4, 5, 7, 9, 11] },
+  { id: 'minor', name: 'Menor', mood: 'melancólica, seria', steps: [0, 2, 3, 5, 7, 8, 10] },
+  { id: 'pentaMaj', name: 'Pentatónica mayor', mood: 'nunca falla', steps: [0, 2, 4, 7, 9] },
+  { id: 'pentaMin', name: 'Pentatónica menor', mood: 'rock, blues', steps: [0, 3, 5, 7, 10] },
+  { id: 'blues', name: 'Blues', mood: 'sucia y sabrosa', steps: [0, 3, 5, 6, 7, 10] },
+  { id: 'dorian', name: 'Dórica', mood: 'jazz, funk', steps: [0, 2, 3, 5, 7, 9, 10] },
+  { id: 'lydian', name: 'Lidia', mood: 'mágica, flotante', steps: [0, 2, 4, 6, 7, 9, 11] },
+  { id: 'mixo', name: 'Mixolidia', mood: 'festiva', steps: [0, 2, 4, 5, 7, 9, 10] },
+  { id: 'phrygian', name: 'Frigia', mood: 'oscura, tensa', steps: [0, 1, 3, 5, 7, 8, 10] },
+  { id: 'harmMin', name: 'Menor armónica', mood: 'dramática', steps: [0, 2, 3, 5, 7, 8, 11] },
+  { id: 'hijaz', name: 'Árabe', mood: 'oriental', steps: [0, 1, 4, 5, 7, 8, 10] },
+  { id: 'japan', name: 'Japonesa', mood: 'zen', steps: [0, 1, 5, 7, 8] },
+  { id: 'chromatic', name: 'Todas las notas', mood: 'sin red', steps: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] },
+];
+const KEY_NAMES = ['Do', 'Do#', 'Re', 'Re#', 'Mi', 'Fa', 'Fa#', 'Sol', 'Sol#', 'La', 'La#', 'Si'];
+// Chordifier: en grados de la escala (deg) o semitonos (semi) para escalas cromáticas
+const CHORD_TYPES = [
+  { id: 'off', name: 'Nota sola', deg: [0], semi: [0] },
+  { id: 'octave', name: 'Doble octava', deg: null, semi: [0, 12] },
+  { id: 'power', name: 'Power', deg: null, semi: [0, 7, 12] },
+  { id: 'triad', name: 'Acorde', deg: [0, 2, 4], semi: [0, 4, 7] },
+  { id: 'seventh', name: 'Acorde 7', deg: [0, 2, 4, 6], semi: [0, 4, 7, 11] },
+  { id: 'wide', name: 'Abierto', deg: [0, 4, 9], semi: [0, 7, 16] },
+  { id: 'fat', name: 'Gordo', deg: [-7, 0, 2, 4, 7], semi: [-12, 0, 4, 7, 12] },
+];
+
+// Caja de ritmos: 8 instrumentos sintetizados, 4 kits, patrones de 16 pasos
+const DRUM_NAMES = ['Bombo', 'Redoblante', 'Palmas', 'Hi-hat', 'Hi-hat abierto', 'Tom', 'Rim', 'Shaker'];
+const DRUM_KITS = ['Clásica 808', 'Acústica', 'Techno', 'Lo-fi'];
+const pat = (name, rows) => ({ name, rows });
+// filas: kick, snare, clap, chat, ohat, tom, rim, shaker. x=fuerte o=medio .=nada
+const DRUM_PATTERNS = [
+  pat('House', ['x...x...x...x...', '................', '....x.......x...', '..x...x...x...x.', '..x...x...x...x.', '................', '................', 'o.o.o.o.o.o.o.o.']),
+  pat('Techno', ['x...x...x...x...', '....o.......o...', '................', 'x.x.x.x.x.x.x.x.', '..x...x...x...x.', '................', '......x.......x.', '................']),
+  pat('Hip hop', ['x.....x..x......', '....x.......x...', '................', 'x.x.x.x.x.x.x.x.', '..............x.', '................', '................', '................']),
+  pat('Trap', ['x......x..x.....', '................', '....x.......x...', 'x.xxx.x.x.xxx.xx', '................', '................', '................', '................']),
+  pat('Reggaetón', ['x...x...x...x...', '...x..x....x..x.', '................', 'x.x.x.x.x.x.x.x.', '................', '................', '...x..x....x..x.', '................']),
+  pat('Breakbeat', ['x..x..x...x.x...', '....x..x.x..x...', '................', 'x.x.x.x.x.x.x.x.', '.......x........', '................', '................', '................']),
+  pat('Latina', ['x..x..x.x..x..x.', '................', '................', '................', '................', '......x.......x.', '..x..x..x..x..x.', 'x.x.x.x.x.x.x.x.']),
+  pat('Disco', ['x...x...x...x...', '....x.......x...', '....x.......x...', 'x.x.x.x.x.x.x.x.', '..x...x...x...x.', '................', '................', '................']),
+  pat('Rock', ['x.......x.x.....', '....x.......x...', '................', 'x.x.x.x.x.x.x.x.', '................', '..............x.', '................', '................']),
+  pat('Minimal', ['x...x...x...x...', '................', '................', '..x...x...x...x.', '................', '................', '......x.........', '................']),
+  pat('Mitad de tiempo', ['x.........x.....', '........x.......', '................', 'x.x.x.x.x.x.x.x.', '..............x.', '................', '................', '................']),
+  pat('Afrobeat', ['x..x....x..x....', '....x..x....x..x', '................', '................', '................', '................', '..x..x.x..x..x.x', 'x.xxx.xxx.xxx.xx']),
+];
+const LOOP_BARS = [1, 2, 4, 8];
 
 // Fuentes de modulación. bipolar: rango -1..1, si no 0..1.
 const MOD_SOURCES = [
@@ -2138,11 +2542,23 @@ function buildParams() {
 
   // Arpegiador
   add('arp.on', 'Arp', 'arp', 0, 1, 0, 'enum', { ...en(['Off', 'On']), nomod: true });
-  add('arp.mode', 'Mode', 'arp', 0, 4, 0, 'enum', { ...en(['Up', 'Down', 'Up/Down', 'Random', 'Order']), nomod: true });
+  add('arp.pattern', 'Patrón', 'arp', 0, ARP_PATTERNS.length - 1, 0, 'enum', { ...en(ARP_PATTERNS.map(p => p.name)), nomod: true });
+  add('arp.hold', 'Hold', 'arp', 0, 1, 0, 'enum', { ...en(['Off', 'On']), nomod: true });
   add('arp.rate', 'Rate', 'arp', 0, ARP_DIVS.length - 1, 3, 'enum', { ...en(ARP_DIVS), nomod: true });
   add('arp.octaves', 'Octaves', 'arp', 1, 4, 1, 'int', { nomod: true });
   add('arp.gate', 'Gate', 'arp', 0.05, 1, 0.5);
   add('arp.swing', 'Swing', 'arp', 0, 0.75, 0);
+
+  // Caja de ritmos y looper (estado de la sesión, no del preset)
+  add('drum.on', 'Ritmo', 'drum', 0, 1, 0, 'enum', { ...en(['Off', 'On']), nomod: true });
+  add('drum.kit', 'Kit', 'drum', 0, DRUM_KITS.length - 1, 0, 'enum', { ...en(DRUM_KITS), nomod: true });
+  add('drum.pattern', 'Patrón', 'drum', 0, DRUM_PATTERNS.length - 1, 0, 'enum', { ...en(DRUM_PATTERNS.map(p => p.name)), nomod: true });
+  add('drum.level', 'Volumen', 'drum', 0, 1, 0.7);
+  add('drum.swing', 'Swing', 'drum', 0, 0.6, 0);
+  add('drum.tone', 'Tono', 'drum', 0, 1, 0.5);
+  add('drum.decay', 'Cola', 'drum', 0, 1, 0.5);
+  add('loop.bars', 'Compases', 'loop', 0, LOOP_BARS.length - 1, 1, 'enum', { ...en(LOOP_BARS.map(String)), nomod: true });
+  add('loop.level', 'Volumen loop', 'loop', 0, 1, 0.9);
 
   // Efectos: 4 slots
   for (let i = 1; i <= FX_SLOTS; i++) {
@@ -2179,7 +2595,11 @@ function norm(def, v) {
   return n < 0 ? 0 : n > 1 ? 1 : n;
 }
 function isGlobalParam(id) {
-  return id.startsWith('fx') || id.startsWith('master') || id.startsWith('arp');
+  return id.startsWith('fx') || id.startsWith('master') || id.startsWith('arp') || id.startsWith('drum') || id.startsWith('loop');
+}
+// Parámetros que pertenecen a la sesión (no cambian al cargar un sonido)
+function isSongParam(id) {
+  return id.startsWith('drum') || id.startsWith('loop') || id === 'master.tempo' || id === 'master.volume';
 }
 
 function formatValue(def, v) {
@@ -2203,15 +2623,17 @@ function formatValue(def, v) {
 // main.js los convierte a normalizados. fx: lista de hasta 4 slots.
 const PRESETS = [
   {
-    name: 'Init', category: 'Template', description: 'Punto de partida: sierra analógica y filtro LP.',
+    name: 'Init', tag: 'Teclas', category: 'Template', description: 'Punto de partida: sierra analógica y filtro LP.',
     macroNames: ['Cutoff', 'Space', 'Motion', 'Drive'],
-    params: { 'a.type': 'Analog', 'b.on': 'Off', 'f1.cutoff': 8000, 'f1.res': 0.15 },
+    params: {
+      'arp.pattern': 'Arriba', 'arp.rate': '1/16', 'arp.octaves': 2, 'arp.gate': 0.5, 'a.type': 'Analog', 'b.on': 'Off', 'f1.cutoff': 8000, 'f1.res': 0.15 },
     fx: [], mods: [['macro1', 'f1.cutoff', 0.5]],
   },
   {
-    name: 'Prisma Pad', category: 'Pad', description: 'Wavetable vocal en A y sierra unison en B, lento y ancho. Macro 1 abre el filtro, Macro 3 mueve la tabla.',
+    name: 'Prisma Pad', tag: 'Pads', category: 'Pad', description: 'Wavetable vocal en A y sierra unison en B, lento y ancho. Macro 1 abre el filtro, Macro 3 mueve la tabla.',
     macroNames: ['Open', 'Space', 'Motion', 'Shimmer'],
     params: {
+      'arp.pattern': 'Acorde', 'arp.rate': '1/4', 'arp.octaves': 1, 'arp.gate': 0.9,
       'a.type': 'Wavetable', 'a.wt.table': 'Vox', 'a.wt.pos': 0.3, 'a.wt.unison': 3, 'a.wt.detune': 18, 'a.wt.spread': 0.8, 'a.level': 0.7,
       'b.on': 'On', 'b.type': 'Analog', 'b.va.wave': 'Saw', 'b.va.unison': 5, 'b.va.detune': 22, 'b.va.spread': 0.9, 'b.level': 0.45, 'b.octave': -1, 'b.filter': 'F1',
       'f1.type': 'LP24', 'f1.cutoff': 1200, 'f1.res': 0.25, 'f1.keytrack': 0.3,
@@ -2223,9 +2645,10 @@ const PRESETS = [
     mods: [['env2', 'f1.cutoff', 0.35], ['macro1', 'f1.cutoff', 0.5], ['lfo1', 'a.wt.pos', 0.25], ['macro3', 'a.wt.pos', 0.5], ['lfo2', 'b.fine', 0.04], ['macro2', 'fx2.mix', 0.5], ['macro4', 'fx2.p5', 0.8]],
   },
   {
-    name: 'Glass Keys', category: 'Keys', description: 'FM de 3 operadores con índice controlado por Env 3. Delay y reverb suaves.',
+    name: 'Glass Keys', tag: 'Teclas', category: 'Keys', description: 'FM de 3 operadores con índice controlado por Env 3. Delay y reverb suaves.',
     macroNames: ['Brightness', 'Echo', 'Detune', 'Space'],
     params: {
+      'arp.pattern': 'Escalera', 'arp.rate': '1/16', 'arp.octaves': 2, 'arp.gate': 0.6,
       'a.type': 'FM', 'a.fm.alg': '3›2›1', 'a.fm.ratio2': 3.5, 'a.fm.index2': 1.2, 'a.fm.ratio3': 1, 'a.fm.index3': 2, 'a.level': 0.75,
       'b.on': 'On', 'b.type': 'Analog', 'b.va.wave': 'Sine', 'b.level': 0.3, 'b.octave': 1, 'b.filter': 'F1',
       'f1.cutoff': 12000, 'env1.attack': 0.003, 'env1.decay': 1.5, 'env1.sustain': 0.25, 'env1.release': 1.2,
@@ -2235,9 +2658,10 @@ const PRESETS = [
     mods: [['env3', 'a.fm.index2', 0.25], ['velocity', 'a.fm.index2', 0.15], ['macro1', 'a.fm.index2', 0.4], ['macro2', 'fx1.mix', 0.6], ['macro3', 'b.fine', 0.1], ['macro4', 'fx2.mix', 0.6]],
   },
   {
-    name: 'Granular Choir', category: 'Texture', description: 'Nubes de granos sobre un coro interno, formante en B. LFO barre la posición.',
+    name: 'Granular Choir', tag: 'Texturas', category: 'Texture', description: 'Nubes de granos sobre un coro interno, formante en B. LFO barre la posición.',
     macroNames: ['Position', 'Spray', 'Size', 'Space'],
     params: {
+      'arp.pattern': 'Rebote', 'arp.rate': '1/8', 'arp.octaves': 1, 'arp.gate': 0.95,
       'a.type': 'Granular', 'a.gran.source': 'Choir', 'a.gran.size': 140, 'a.gran.density': 30, 'a.gran.pos': 0.3, 'a.gran.spray': 0.25, 'a.gran.shape': 0.8, 'a.gran.pitchRnd': 0.1, 'a.level': 0.8,
       'b.on': 'On', 'b.type': 'Wavetable', 'b.wt.table': 'Formant', 'b.wt.pos': 0.5, 'b.wt.unison': 2, 'b.level': 0.3, 'b.filter': 'F2',
       'f1.cutoff': 9000, 'f2.type': 'LP12', 'f2.cutoff': 2500,
@@ -2248,9 +2672,10 @@ const PRESETS = [
     mods: [['lfo1', 'a.gran.pos', 0.3], ['macro1', 'a.gran.pos', 0.6], ['macro2', 'a.gran.spray', 0.7], ['macro3', 'a.gran.size', 0.5], ['macro4', 'fx2.mix', 0.4], ['lfo2', 'b.wt.pos', 0.3]],
   },
   {
-    name: 'Modal Bells', category: 'Keys', description: 'Resonadores modales (material campana) más parciales armónicos. Reverb con shimmer.',
+    name: 'Modal Bells', tag: 'Teclas', category: 'Keys', description: 'Resonadores modales (material campana) más parciales armónicos. Reverb con shimmer.',
     macroNames: ['Material', 'Decay', 'Shimmer', 'Brightness'],
     params: {
+      'arp.pattern': 'Cascada', 'arp.rate': '1/8', 'arp.octaves': 2, 'arp.gate': 0.8,
       'a.type': 'Modal', 'a.modal.material': 0.9, 'a.modal.modes': 12, 'a.modal.decay': 3.5, 'a.modal.damp': 0.45, 'a.modal.pos': 0.22, 'a.modal.exciter': 'Click', 'a.modal.bright': 0.8, 'a.level': 0.7,
       'b.on': 'On', 'b.type': 'Harmonic', 'b.harm.partials': 6, 'b.harm.tilt': 1.6, 'b.harm.stretch': 0.3, 'b.level': 0.25, 'b.octave': 1, 'b.filter': 'F1',
       'f1.cutoff': 14000, 'env1.attack': 0.002, 'env1.decay': 2.5, 'env1.sustain': 0.4, 'env1.release': 2,
@@ -2259,9 +2684,10 @@ const PRESETS = [
     mods: [['macro1', 'a.modal.material', -0.5], ['macro2', 'a.modal.decay', 0.4], ['macro3', 'fx2.p5', 0.5], ['macro4', 'a.modal.bright', 0.3], ['velocity', 'a.modal.bright', 0.3]],
   },
   {
-    name: 'Acid Bass', category: 'Bass', description: 'Mono legato con glide, LP24 resonante barrido por Env 2 y distorsión.',
+    name: 'Acid Bass', tag: 'Bajos', category: 'Bass', description: 'Mono legato con glide, LP24 resonante barrido por Env 2 y distorsión.',
     macroNames: ['Cutoff', 'Reso', 'Drive', 'Env Amt'],
     params: {
+      'arp.pattern': 'Pulso', 'arp.rate': '1/16', 'arp.octaves': 2, 'arp.gate': 0.45,
       'a.type': 'Analog', 'a.va.wave': 'Saw', 'a.level': 0.9, 'b.on': 'Off',
       'master.poly': 'Legato', 'master.glide': 0.12,
       'f1.type': 'LP24', 'f1.cutoff': 300, 'f1.res': 0.75, 'f1.drive': 0.3,
@@ -2272,9 +2698,10 @@ const PRESETS = [
     mods: [['env2', 'f1.cutoff', 0.45], ['macro1', 'f1.cutoff', 0.5], ['macro2', 'f1.res', 0.3], ['macro3', 'fx1.p0', 0.6], ['macro4', 'env2.sustain', 0.8], ['modwheel', 'f1.cutoff', 0.3]],
   },
   {
-    name: 'Corroded Lead', category: 'Lead', description: 'Wavetable Digital con unison, atravesada por el Corroder (FM + grano) y delay sincronizado.',
+    name: 'Corroded Lead', tag: 'Leads', category: 'Lead', description: 'Wavetable Digital con unison, atravesada por el Corroder (FM + grano) y delay sincronizado.',
     macroNames: ['Corrode', 'Grain', 'Warp', 'Echo'],
     params: {
+      'arp.pattern': 'Trance', 'arp.rate': '1/16', 'arp.octaves': 1, 'arp.gate': 0.5,
       'a.type': 'Wavetable', 'a.wt.table': 'Digital', 'a.wt.pos': 0.4, 'a.wt.warp': 0.2, 'a.wt.warpMode': 'Bend', 'a.wt.unison': 3, 'a.wt.detune': 10, 'a.level': 0.8,
       'b.on': 'On', 'b.type': 'Analog', 'b.va.wave': 'Pulse', 'b.va.pw': 0.3, 'b.octave': -1, 'b.level': 0.35, 'b.filter': 'F1',
       'f1.type': 'LP12', 'f1.cutoff': 4000, 'f1.res': 0.3, 'master.poly': 'Mono', 'master.glide': 0.05,
@@ -2285,9 +2712,10 @@ const PRESETS = [
     mods: [['macro1', 'fx1.mix', 0.5], ['macro2', 'fx1.p2', 0.6], ['macro3', 'a.wt.warp', 0.6], ['macro4', 'fx2.mix', 0.5], ['modwheel', 'a.fine', 0.0], ['lfo1', 'a.fine', 0.03], ['modwheel', 'lfo1.rate', 0.0]],
   },
   {
-    name: 'Harmonic Organ', category: 'Keys', description: 'Síntesis aditiva con balance par/impar y peine espectral movido por LFO. Phaser y reverb.',
+    name: 'Harmonic Organ', tag: 'Teclas', category: 'Keys', description: 'Síntesis aditiva con balance par/impar y peine espectral movido por LFO. Phaser y reverb.',
     macroNames: ['Partials', 'Odd/Even', 'Comb', 'Space'],
     params: {
+      'arp.pattern': 'Galope', 'arp.rate': '1/16', 'arp.octaves': 1, 'arp.gate': 0.7,
       'a.type': 'Harmonic', 'a.harm.partials': 12, 'a.harm.tilt': 0.8, 'a.harm.oddEven': -0.3, 'a.harm.comb': 0.3, 'a.harm.detune': 0.15, 'a.level': 0.8,
       'b.on': 'On', 'b.type': 'Harmonic', 'b.harm.partials': 4, 'b.harm.tilt': 1.5, 'b.octave': -1, 'b.level': 0.5, 'b.filter': 'F1',
       'f1.cutoff': 10000, 'env1.attack': 0.01, 'env1.decay': 0.2, 'env1.sustain': 1, 'env1.release': 0.25,
@@ -2297,7 +2725,7 @@ const PRESETS = [
     mods: [['lfo1', 'a.harm.comb', 0.2], ['macro1', 'a.harm.partials', 0.6], ['macro2', 'a.harm.oddEven', 0.5], ['macro3', 'a.harm.comb', 0.5], ['macro4', 'fx2.mix', 0.5]],
   },
   {
-    name: 'Arp Pluck', category: 'Sequence', description: 'Pulso analógico y tabla de armónicos con decaimiento corto; arpegiador arriba/abajo a 1/16 con delay ping‑pong.',
+    name: 'Arp Pluck', tag: 'Plucks', category: 'Sequence', description: 'Pulso analógico y tabla de armónicos con decaimiento corto; arpegiador arriba/abajo a 1/16 con delay ping‑pong.',
     macroNames: ['Cutoff', 'Decay', 'Echo', 'Width'],
     params: {
       'a.type': 'Analog', 'a.va.wave': 'Pulse', 'a.va.pw': 0.25, 'a.level': 0.7,
@@ -2305,15 +2733,16 @@ const PRESETS = [
       'f1.type': 'LP24', 'f1.cutoff': 900, 'f1.res': 0.35, 'f1.keytrack': 0.5,
       'env1.attack': 0.001, 'env1.decay': 0.35, 'env1.sustain': 0, 'env1.release': 0.25,
       'env2.attack': 0.001, 'env2.decay': 0.2, 'env2.sustain': 0, 'env2.release': 0.2,
-      'arp.on': 'On', 'arp.mode': 'Up/Down', 'arp.rate': '1/16', 'arp.octaves': 2, 'arp.gate': 0.4, 'master.tempo': 124,
+      'arp.on': 'On', 'arp.pattern': 'Rebote', 'arp.rate': '1/16', 'arp.octaves': 2, 'arp.gate': 0.4,
     },
     fx: [{ type: 'Delay', mix: 0.35, params: [375, 0.5, 4000, 1, '1/8D', 200] }, { type: 'Reverb', mix: 0.25, params: [0.7, 0.4, 10, 1, 200, 0] }],
     mods: [['env2', 'f1.cutoff', 0.5], ['velocity', 'f1.cutoff', 0.2], ['macro1', 'f1.cutoff', 0.5], ['macro2', 'env1.decay', 0.4], ['macro3', 'fx1.mix', 0.5], ['macro4', 'b.wt.pos', 0.5]],
   },
   {
-    name: 'Texture Drone', category: 'Texture', description: 'Granular sobre textura de ruido y loop de sample con filtro formante. Todo se mueve con LFOs lentos.',
+    name: 'Texture Drone', tag: 'Texturas', category: 'Texture', description: 'Granular sobre textura de ruido y loop de sample con filtro formante. Todo se mueve con LFOs lentos.',
     macroNames: ['Vowel', 'Density', 'Scan', 'Space'],
     params: {
+      'arp.pattern': 'Aleatorio', 'arp.rate': '1/2', 'arp.octaves': 2, 'arp.gate': 1,
       'a.type': 'Granular', 'a.gran.source': 'Texture', 'a.gran.size': 250, 'a.gran.density': 12, 'a.gran.pos': 0.5, 'a.gran.spray': 0.6, 'a.gran.pitchRnd': 7, 'a.gran.scan': 0.3, 'a.level': 0.7,
       'b.on': 'On', 'b.type': 'Sample', 'b.smp.source': 'Bell', 'b.smp.loop': 'On', 'b.smp.loopLen': 0.2, 'b.smp.start': 0.1, 'b.octave': -1, 'b.level': 0.4, 'b.filter': 'F2',
       'f1.type': 'Formant', 'f1.cutoff': 600, 'f1.res': 0.6, 'f2.type': 'Comb', 'f2.cutoff': 400, 'f2.res': 0.6,
@@ -2324,9 +2753,10 @@ const PRESETS = [
     mods: [['lfo1', 'f1.cutoff', 0.3], ['macro1', 'f1.cutoff', 0.5], ['lfo2', 'a.gran.pos', 0.4], ['lfo3', 'f2.cutoff', 0.2], ['macro2', 'a.gran.density', 0.5], ['macro3', 'a.gran.scan', 0.4], ['macro4', 'fx3.mix', 0.4]],
   },
   {
-    name: 'Sub Bass', category: 'Bass', description: 'Seno + sub cuadrado, mono legato con glide corto. Limpio y profundo.',
+    name: 'Sub Bass', tag: 'Bajos', category: 'Bass', description: 'Seno + sub cuadrado, mono legato con glide corto. Limpio y profundo.',
     macroNames: ['Sub', 'Tone', 'Glide', 'Comp'],
     params: {
+      'arp.pattern': 'Pulso', 'arp.rate': '1/8', 'arp.octaves': 1, 'arp.gate': 0.6,
       'a.type': 'Analog', 'a.va.wave': 'Sine', 'a.va.sub': 0.6, 'a.va.subWave': 'Square', 'a.level': 0.9, 'b.on': 'Off',
       'master.poly': 'Legato', 'master.glide': 0.06, 'f1.type': 'LP24', 'f1.cutoff': 400, 'f1.res': 0.1,
       'env1.attack': 0.005, 'env1.decay': 0.3, 'env1.sustain': 0.9, 'env1.release': 0.15,
@@ -2335,21 +2765,22 @@ const PRESETS = [
     mods: [['macro1', 'a.va.sub', 0.4], ['macro2', 'f1.cutoff', 0.5], ['macro3', 'master.glide', 0.3], ['macro4', 'fx1.p0', -0.3]],
   },
   {
-    name: 'Modal Percussion', category: 'Percussion', description: 'Membrana modal excitada por ruido y arpegiador aleatorio. Macro 1 cambia el material.',
+    name: 'Modal Percussion', tag: 'Percusivos', category: 'Percussion', description: 'Membrana modal excitada por ruido y arpegiador aleatorio. Macro 1 cambia el material.',
     macroNames: ['Material', 'Decay', 'Position', 'Space'],
     params: {
       'a.type': 'Modal', 'a.modal.material': 0.6, 'a.modal.modes': 16, 'a.modal.decay': 0.6, 'a.modal.damp': 0.7, 'a.modal.pos': 0.35, 'a.modal.exciter': 'Noise', 'a.modal.exLen': 6, 'a.modal.bright': 0.5, 'a.level': 0.9,
       'b.on': 'Off', 'f1.cutoff': 16000,
       'env1.attack': 0.001, 'env1.decay': 1, 'env1.sustain': 1, 'env1.release': 0.8,
-      'arp.on': 'On', 'arp.mode': 'Random', 'arp.rate': '1/16', 'arp.octaves': 3, 'arp.gate': 0.2, 'arp.swing': 0.15, 'master.tempo': 110,
+      'arp.on': 'On', 'arp.pattern': 'Aleatorio', 'arp.rate': '1/16', 'arp.octaves': 3, 'arp.gate': 0.2, 'arp.swing': 0.15,
     },
     fx: [{ type: 'Delay', mix: 0.25, params: [250, 0.4, 5000, 1, '1/16', 200] }, { type: 'Reverb', mix: 0.35, params: [0.75, 0.4, 5, 1, 200, 0] }],
     mods: [['macro1', 'a.modal.material', 0.4], ['macro2', 'a.modal.decay', 0.4], ['macro3', 'a.modal.pos', 0.5], ['macro4', 'fx2.mix', 0.5], ['random', 'a.modal.pos', 0.3], ['velocity', 'a.modal.bright', 0.4]],
   },
   {
-    name: 'Analog Brass', category: 'Lead', description: 'Dos sierras unison con envolvente de filtro rápida, chorus y EQ. Modwheel añade vibrato.',
+    name: 'Analog Brass', tag: 'Leads', category: 'Lead', description: 'Dos sierras unison con envolvente de filtro rápida, chorus y EQ. Modwheel añade vibrato.',
     macroNames: ['Cutoff', 'Attack', 'Detune', 'Space'],
     params: {
+      'arp.pattern': 'Octavas', 'arp.rate': '1/8', 'arp.octaves': 1, 'arp.gate': 0.7,
       'a.type': 'Analog', 'a.va.wave': 'Saw', 'a.va.unison': 3, 'a.va.detune': 12, 'a.level': 0.75,
       'b.on': 'On', 'b.type': 'Analog', 'b.va.wave': 'Saw', 'b.va.unison': 3, 'b.va.detune': 18, 'b.semi': -12, 'b.level': 0.5, 'b.filter': 'F1',
       'f1.type': 'LP24', 'f1.cutoff': 700, 'f1.res': 0.2, 'f1.keytrack': 0.4,
@@ -2361,9 +2792,10 @@ const PRESETS = [
     mods: [['env2', 'f1.cutoff', 0.55], ['velocity', 'f1.cutoff', 0.25], ['modwheel', 'a.fine', 0.0], ['lfo1', 'a.fine', 0.0], ['macro1', 'f1.cutoff', 0.4], ['macro2', 'env1.attack', 0.5], ['macro3', 'a.va.detune', 0.5], ['macro4', 'fx3.mix', 0.5]],
   },
   {
-    name: 'FM Pluck', category: 'Pluck', description: 'FM en paralelo con feedback, Env 3 barre el índice. Delay sincronizado.',
+    name: 'FM Pluck', tag: 'Plucks', category: 'Pluck', description: 'FM en paralelo con feedback, Env 3 barre el índice. Delay sincronizado.',
     macroNames: ['Index', 'Feedback', 'Echo', 'Tone'],
     params: {
+      'arp.pattern': 'Arriba', 'arp.rate': '1/16', 'arp.octaves': 3, 'arp.gate': 0.5,
       'a.type': 'FM', 'a.fm.alg': '2+3›1', 'a.fm.ratio2': 2, 'a.fm.index2': 0.8, 'a.fm.ratio3': 7, 'a.fm.index3': 0.5, 'a.fm.feedback': 0.2, 'a.level': 0.8,
       'b.on': 'On', 'b.type': 'Analog', 'b.va.wave': 'Triangle', 'b.level': 0.3, 'b.octave': -1, 'b.filter': 'F1',
       'f1.cutoff': 9000, 'env1.attack': 0.001, 'env1.decay': 0.5, 'env1.sustain': 0.1, 'env1.release': 0.4,
@@ -2371,6 +2803,196 @@ const PRESETS = [
     },
     fx: [{ type: 'Delay', mix: 0.3, params: [375, 0.45, 4000, 0.9, '1/8D', 150] }, { type: 'Reverb', mix: 0.25, params: [0.6, 0.5, 10, 1, 200, 0] }],
     mods: [['env3', 'a.fm.index2', 0.3], ['env3', 'a.fm.index3', 0.2], ['velocity', 'a.fm.index2', 0.2], ['macro1', 'a.fm.index2', 0.4], ['macro2', 'a.fm.feedback', 0.5], ['macro3', 'fx1.mix', 0.5], ['macro4', 'f1.cutoff', -0.5]],
+  },
+  // ---- Sonidos nuevos (nombres pensados para el modo Jam)
+  {
+    name: 'Neón', tag: 'Leads', category: 'Lead', description: 'Lead digital brillante con FM y un arpegio trance que empuja solo. Macro 1 abre el brillo, Macro 2 el eco.',
+    macroNames: ['Brillo', 'Eco', 'Warp', 'Espacio'],
+    params: {
+      'arp.pattern': 'Trance', 'arp.rate': '1/16', 'arp.octaves': 1, 'arp.gate': 0.45, 'arp.on': 'On',
+      'a.type': 'Wavetable', 'a.wt.table': 'Digital', 'a.wt.pos': 0.55, 'a.wt.unison': 3, 'a.wt.detune': 14, 'a.wt.spread': 0.7, 'a.level': 0.75,
+      'b.on': 'On', 'b.type': 'FM', 'b.fm.alg': '3›2›1', 'b.fm.ratio2': 2, 'b.fm.index2': 1.5, 'b.fm.ratio3': 4, 'b.fm.index3': 1, 'b.level': 0.35, 'b.octave': 1, 'b.filter': 'F1',
+      'f1.type': 'LP24', 'f1.cutoff': 2500, 'f1.res': 0.3, 'f1.keytrack': 0.4,
+      'env1.attack': 0.003, 'env1.decay': 0.3, 'env1.sustain': 0.6, 'env1.release': 0.25,
+      'env2.attack': 0.002, 'env2.decay': 0.25, 'env2.sustain': 0.2, 'env2.release': 0.2,
+    },
+    fx: [{ type: 'Chorus', mix: 0.3, params: [0.8, 0.4, 8, 0.1, 0.6, '2'] }, { type: 'Delay', mix: 0.35, params: [375, 0.5, 6000, 0.9, '1/8D', 200] }, { type: 'Reverb', mix: 0.25, params: [0.6, 0.5, 10, 1, 250, 0] }],
+    mods: [['env2', 'f1.cutoff', 0.45], ['macro1', 'f1.cutoff', 0.5], ['macro2', 'fx2.mix', 0.6], ['macro3', 'a.wt.warp', 0.6], ['macro4', 'fx3.mix', 0.6], ['velocity', 'b.fm.index2', 0.2]],
+  },
+  {
+    name: 'Lluvia de cristal', tag: 'Plucks', category: 'Pluck', description: 'Gotas de FM y cuerdas modales que caen en cascada por tres octavas. Ideal con la escala Lidia.',
+    macroNames: ['Brillo', 'Cola', 'Lluvia', 'Espacio'],
+    params: {
+      'arp.pattern': 'Cascada', 'arp.rate': '1/16', 'arp.octaves': 3, 'arp.gate': 0.5, 'arp.on': 'On',
+      'a.type': 'FM', 'a.fm.alg': '2+3›1', 'a.fm.ratio2': 3.5, 'a.fm.index2': 1.6, 'a.fm.ratio3': 7, 'a.fm.index3': 0.6, 'a.level': 0.7,
+      'b.on': 'On', 'b.type': 'Modal', 'b.modal.material': 0.05, 'b.modal.modes': 10, 'b.modal.decay': 1.2, 'b.modal.damp': 0.7, 'b.modal.pos': 0.18, 'b.modal.exciter': 'Click', 'b.modal.bright': 0.9, 'b.level': 0.5, 'b.octave': 1, 'b.filter': 'F1',
+      'f1.cutoff': 12000, 'env1.attack': 0.001, 'env1.decay': 0.6, 'env1.sustain': 0, 'env1.release': 0.5,
+      'env3.attack': 0.001, 'env3.decay': 0.2, 'env3.sustain': 0, 'env3.release': 0.2,
+    },
+    fx: [{ type: 'Delay', mix: 0.35, params: [250, 0.45, 5000, 1, '1/16', 300] }, { type: 'Reverb', mix: 0.5, params: [0.9, 0.3, 20, 1, 200, 0.3] }],
+    mods: [['env3', 'a.fm.index2', 0.35], ['macro1', 'a.fm.index2', 0.4], ['macro2', 'env1.decay', 0.4], ['macro3', 'fx1.mix', 0.5], ['macro4', 'fx2.mix', 0.4], ['random', 'b.modal.pos', 0.3]],
+  },
+  {
+    name: 'Bajo gordo', tag: 'Bajos', category: 'Bass', description: 'Sierras en unison, sub y distorsión. Mono con glide; el arpegio Pulso lo convierte en un bajo bailable.',
+    macroNames: ['Abrir', 'Gordura', 'Ataque', 'Sub'],
+    params: {
+      'arp.pattern': 'Pulso', 'arp.rate': '1/8', 'arp.octaves': 2, 'arp.gate': 0.5, 'arp.on': 'Off',
+      'a.type': 'Analog', 'a.va.wave': 'Saw', 'a.va.unison': 5, 'a.va.detune': 18, 'a.va.spread': 0.5, 'a.va.sub': 0.7, 'a.va.subWave': 'Sine', 'a.level': 0.8,
+      'b.on': 'On', 'b.type': 'Analog', 'b.va.wave': 'Pulse', 'b.va.pw': 0.3, 'b.octave': -1, 'b.level': 0.45, 'b.filter': 'F1',
+      'master.poly': 'Legato', 'master.glide': 0.05,
+      'f1.type': 'LP24', 'f1.cutoff': 500, 'f1.res': 0.35, 'f1.drive': 0.4,
+      'env1.attack': 0.003, 'env1.decay': 0.3, 'env1.sustain': 0.85, 'env1.release': 0.12,
+      'env2.attack': 0.002, 'env2.decay': 0.22, 'env2.sustain': 0.15, 'env2.release': 0.15,
+    },
+    fx: [{ type: 'Distortion', mix: 0.5, params: [0.3, 'Soft', 5000, 0.05, 30, 0.75] }, { type: 'Compressor', mix: 1, params: [-18, 4, 5, 100, 4, 0.5] }],
+    mods: [['env2', 'f1.cutoff', 0.5], ['macro1', 'f1.cutoff', 0.5], ['macro2', 'fx1.p0', 0.6], ['macro3', 'env2.decay', 0.4], ['macro4', 'a.va.sub', 0.3], ['velocity', 'f1.cutoff', 0.2]],
+  },
+  {
+    name: 'Ola sintética', tag: 'Pads', category: 'Pad', description: 'Pad que respira: la tabla de ondas se mueve sola y los armónicos se abren despacio. Acordes largos.',
+    macroNames: ['Abrir', 'Movimiento', 'Cuerpo', 'Espacio'],
+    params: {
+      'arp.pattern': 'Acorde', 'arp.rate': '1/2', 'arp.octaves': 1, 'arp.gate': 1, 'arp.on': 'Off',
+      'a.type': 'Wavetable', 'a.wt.table': 'Basic', 'a.wt.pos': 0.4, 'a.wt.unison': 4, 'a.wt.detune': 16, 'a.wt.spread': 0.9, 'a.level': 0.65,
+      'b.on': 'On', 'b.type': 'Harmonic', 'b.harm.partials': 10, 'b.harm.tilt': 1.3, 'b.harm.detune': 0.25, 'b.level': 0.4, 'b.filter': 'F1',
+      'f1.type': 'LP12', 'f1.cutoff': 1500, 'f1.res': 0.15,
+      'env1.attack': 1.2, 'env1.decay': 1, 'env1.sustain': 0.9, 'env1.release': 2.5,
+      'env2.attack': 2.5, 'env2.decay': 2, 'env2.sustain': 0.7, 'env2.release': 2,
+      'lfo1.rate': 0.08, 'lfo1.shape': 'Triangle', 'lfo1.retrig': 'Free',
+    },
+    fx: [{ type: 'Chorus', mix: 0.45, params: [0.3, 0.6, 16, 0.15, 0.9, '3'] }, { type: 'Reverb', mix: 0.5, params: [0.9, 0.35, 40, 1, 150, 0.2] }],
+    mods: [['env2', 'f1.cutoff', 0.35], ['lfo1', 'a.wt.pos', 0.3], ['macro1', 'f1.cutoff', 0.5], ['macro2', 'lfo1.rate', 0.4], ['macro3', 'b.harm.partials', 0.5], ['macro4', 'fx2.mix', 0.4]],
+  },
+  {
+    name: 'Vidrio roto', tag: 'Texturas', category: 'Texture', description: 'Granos de campana esparcidos al azar, corroídos por FM. Suena a cristales cayendo en cámara lenta.',
+    macroNames: ['Esparcir', 'Corroer', 'Grano', 'Espacio'],
+    params: {
+      'arp.pattern': 'Aleatorio', 'arp.rate': '1/16', 'arp.octaves': 2, 'arp.gate': 0.9, 'arp.on': 'On',
+      'a.type': 'Granular', 'a.gran.source': 'Bell', 'a.gran.size': 60, 'a.gran.density': 40, 'a.gran.pos': 0.1, 'a.gran.spray': 0.7, 'a.gran.pitchRnd': 5, 'a.gran.shape': 0.4, 'a.level': 0.8,
+      'b.on': 'On', 'b.type': 'FM', 'b.fm.alg': '1+2+3', 'b.fm.ratio2': 5.04, 'b.fm.index2': 3, 'b.fm.ratio3': 8.1, 'b.fm.index3': 2, 'b.level': 0.25, 'b.filter': 'F2',
+      'f1.cutoff': 14000, 'f2.type': 'HP12', 'f2.cutoff': 800,
+      'env1.attack': 0.01, 'env1.decay': 0.8, 'env1.sustain': 0.6, 'env1.release': 1.5,
+    },
+    fx: [{ type: 'Corroder', mix: 0.35, params: [320, 0.4, 0.5, 40, 8000, 0.3] }, { type: 'Delay', mix: 0.3, params: [375, 0.5, 4000, 1, '1/8', 300] }, { type: 'Reverb', mix: 0.45, params: [0.85, 0.3, 30, 1, 300, 0.4] }],
+    mods: [['macro1', 'a.gran.spray', 0.3], ['macro2', 'fx1.mix', 0.6], ['macro3', 'a.gran.size', -0.4], ['macro4', 'fx3.mix', 0.5], ['random', 'a.gran.pos', 0.5]],
+  },
+  {
+    name: 'Caja de música', tag: 'Teclas', category: 'Keys', description: 'Barritas metálicas y una campanita. El arpegio Escalera hace la melodía por vos.',
+    macroNames: ['Material', 'Cola', 'Eco', 'Espacio'],
+    params: {
+      'arp.pattern': 'Escalera', 'arp.rate': '1/16', 'arp.octaves': 2, 'arp.gate': 0.7, 'arp.on': 'On',
+      'a.type': 'Modal', 'a.modal.material': 0.4, 'a.modal.modes': 8, 'a.modal.decay': 1.5, 'a.modal.damp': 0.6, 'a.modal.pos': 0.28, 'a.modal.exciter': 'Click', 'a.modal.bright': 0.85, 'a.level': 0.8, 'a.octave': 1,
+      'b.on': 'On', 'b.type': 'Sample', 'b.smp.source': 'Bell', 'b.smp.loop': 'Off', 'b.level': 0.35, 'b.octave': 1, 'b.filter': 'F1',
+      'f1.cutoff': 16000, 'env1.attack': 0.001, 'env1.decay': 1.5, 'env1.sustain': 0.3, 'env1.release': 1,
+    },
+    fx: [{ type: 'Delay', mix: 0.3, params: [375, 0.35, 5000, 0.8, '1/8D', 300] }, { type: 'Reverb', mix: 0.4, params: [0.75, 0.4, 15, 1, 250, 0.1] }],
+    mods: [['macro1', 'a.modal.material', 0.4], ['macro2', 'a.modal.decay', 0.4], ['macro3', 'fx1.mix', 0.5], ['macro4', 'fx2.mix', 0.5], ['velocity', 'a.modal.bright', 0.3]],
+  },
+  {
+    name: 'Cielo abierto', tag: 'Pads', category: 'Pad', description: 'Coro granular y parciales estirados bajo una reverb infinita con shimmer. Para tocar una nota y quedarse escuchando.',
+    macroNames: ['Luz', 'Shimmer', 'Estirar', 'Lento'],
+    params: {
+      'arp.pattern': 'Rebote', 'arp.rate': '1/4', 'arp.octaves': 1, 'arp.gate': 1, 'arp.on': 'Off',
+      'a.type': 'Harmonic', 'a.harm.partials': 14, 'a.harm.tilt': 1.4, 'a.harm.stretch': 0.15, 'a.harm.detune': 0.4, 'a.level': 0.6,
+      'b.on': 'On', 'b.type': 'Granular', 'b.gran.source': 'Choir', 'b.gran.size': 220, 'b.gran.density': 18, 'b.gran.pos': 0.4, 'b.gran.spray': 0.3, 'b.gran.shape': 0.9, 'b.level': 0.6, 'b.filter': 'F1',
+      'f1.type': 'LP12', 'f1.cutoff': 3000, 'f1.res': 0.1,
+      'env1.attack': 2, 'env1.decay': 1, 'env1.sustain': 1, 'env1.release': 5,
+      'lfo1.rate': 0.05, 'lfo1.shape': 'Sine', 'lfo1.retrig': 'Free',
+    },
+    fx: [{ type: 'Chorus', mix: 0.35, params: [0.2, 0.5, 20, 0.1, 1, '3'] }, { type: 'Reverb', mix: 0.65, params: [0.98, 0.2, 80, 1, 150, 0.55] }],
+    mods: [['lfo1', 'f1.cutoff', 0.15], ['macro1', 'f1.cutoff', 0.5], ['macro2', 'fx2.p5', 0.45], ['macro3', 'a.harm.stretch', 0.5], ['macro4', 'env1.attack', 0.4]],
+  },
+  {
+    name: 'Robot funk', tag: 'Leads', category: 'Lead', description: 'FM con feedback y pulso analógico, phaser y un arpegio galopante. Rítmico y descarado.',
+    macroNames: ['Mordida', 'Phaser', 'Ancho', 'Eco'],
+    params: {
+      'arp.pattern': 'Galope', 'arp.rate': '1/16', 'arp.octaves': 2, 'arp.gate': 0.5, 'arp.on': 'On',
+      'a.type': 'FM', 'a.fm.alg': '3›2, 1+2', 'a.fm.ratio2': 1, 'a.fm.index2': 2.2, 'a.fm.ratio3': 2, 'a.fm.index3': 1.5, 'a.fm.feedback': 0.45, 'a.fm.shape': 0.25, 'a.level': 0.7,
+      'b.on': 'On', 'b.type': 'Analog', 'b.va.wave': 'Pulse', 'b.va.pw': 0.2, 'b.level': 0.4, 'b.octave': -1, 'b.filter': 'F1',
+      'f1.type': 'LP24', 'f1.cutoff': 1800, 'f1.res': 0.4, 'f1.drive': 0.2,
+      'env1.attack': 0.002, 'env1.decay': 0.25, 'env1.sustain': 0.5, 'env1.release': 0.15,
+      'env2.attack': 0.002, 'env2.decay': 0.18, 'env2.sustain': 0.1, 'env2.release': 0.1,
+    },
+    fx: [{ type: 'Phaser', mix: 0.5, params: [0.5, 0.7, 700, 0.5, '6', 0.6] }, { type: 'Delay', mix: 0.25, params: [375, 0.4, 4000, 0.9, '1/8', 250] }],
+    mods: [['env2', 'f1.cutoff', 0.5], ['env2', 'a.fm.index2', 0.2], ['macro1', 'a.fm.feedback', 0.5], ['macro2', 'fx1.mix', 0.5], ['macro3', 'b.va.pw', 0.4], ['macro4', 'fx2.mix', 0.5], ['velocity', 'f1.cutoff', 0.2]],
+  },
+  {
+    name: 'Latido', tag: 'Bajos', category: 'Bass', description: 'Sub redondo con un pulso PWM encima. El arpegio Pulso marca el latido; el compresor lo pega.',
+    macroNames: ['Tono', 'Pulso', 'Abrir', 'Aire'],
+    params: {
+      'arp.pattern': 'Pulso', 'arp.rate': '1/8', 'arp.octaves': 1, 'arp.gate': 0.35, 'arp.on': 'On',
+      'a.type': 'Analog', 'a.va.wave': 'Sine', 'a.va.sub': 0.8, 'a.va.subWave': 'Square', 'a.level': 0.9,
+      'b.on': 'On', 'b.type': 'Wavetable', 'b.wt.table': 'PWM', 'b.wt.pos': 0.3, 'b.level': 0.3, 'b.filter': 'F1',
+      'master.poly': 'Mono', 'f1.type': 'LP24', 'f1.cutoff': 350, 'f1.res': 0.2,
+      'env1.attack': 0.002, 'env1.decay': 0.25, 'env1.sustain': 0.6, 'env1.release': 0.1,
+      'env2.attack': 0.001, 'env2.decay': 0.15, 'env2.sustain': 0, 'env2.release': 0.1,
+      'lfo1.rate': 4, 'lfo1.shape': 'Triangle', 'lfo1.sync': 'Sync', 'lfo1.div': '1/8',
+    },
+    fx: [{ type: 'Compressor', mix: 1, params: [-22, 5, 3, 90, 5, 0.4] }, { type: 'EQ', mix: 1, params: [3, 90, 0, 1200, -2, 6000] }],
+    mods: [['env2', 'f1.cutoff', 0.35], ['lfo1', 'b.wt.pos', 0.3], ['macro1', 'f1.cutoff', 0.4], ['macro2', 'b.level', 0.5], ['macro3', 'env1.sustain', 0.4], ['macro4', 'fx2.p4', 0.4]],
+  },
+  {
+    name: 'Coro fantasma', tag: 'Texturas', category: 'Texture', description: 'Voces granulares y formantes que cambian de vocal solas. Rebota lento entre las notas que dejes apretadas.',
+    macroNames: ['Vocal', 'Susurro', 'Lento', 'Espacio'],
+    params: {
+      'arp.pattern': 'Rebote', 'arp.rate': '1/8', 'arp.octaves': 1, 'arp.gate': 0.98, 'arp.on': 'On', 'arp.hold': 'On',
+      'a.type': 'Granular', 'a.gran.source': 'Choir', 'a.gran.size': 160, 'a.gran.density': 22, 'a.gran.pos': 0.25, 'a.gran.spray': 0.2, 'a.gran.shape': 0.85, 'a.gran.pitchRnd': 0.08, 'a.level': 0.8,
+      'b.on': 'On', 'b.type': 'Wavetable', 'b.wt.table': 'Vox', 'b.wt.pos': 0.4, 'b.wt.unison': 2, 'b.wt.detune': 9, 'b.level': 0.4, 'b.filter': 'F2',
+      'f1.cutoff': 8000, 'f2.type': 'Formant', 'f2.cutoff': 500, 'f2.res': 0.6,
+      'env1.attack': 0.3, 'env1.decay': 0.5, 'env1.sustain': 1, 'env1.release': 1.5,
+      'lfo1.rate': 0.15, 'lfo1.shape': 'Sine', 'lfo1.retrig': 'Free',
+    },
+    fx: [{ type: 'Chorus', mix: 0.35, params: [0.25, 0.5, 18, 0.1, 1, '2'] }, { type: 'Reverb', mix: 0.55, params: [0.9, 0.35, 40, 1, 200, 0.2] }],
+    mods: [['lfo1', 'f2.cutoff', 0.35], ['macro1', 'f2.cutoff', 0.5], ['macro2', 'a.gran.spray', 0.6], ['macro3', 'lfo1.rate', -0.3], ['macro4', 'fx2.mix', 0.4]],
+  },
+  {
+    name: 'Videojuego', tag: 'Plucks', category: 'Pluck', description: 'Pulsos de consola de 8 bits con bitcrusher y arpegio de octavas. Cada tecla es un power-up.',
+    macroNames: ['Bits', 'Ancho', 'Eco', 'Cola'],
+    params: {
+      'arp.pattern': 'Octavas', 'arp.rate': '1/16', 'arp.octaves': 1, 'arp.gate': 0.5, 'arp.on': 'On',
+      'a.type': 'Analog', 'a.va.wave': 'Pulse', 'a.va.pw': 0.25, 'a.level': 0.7,
+      'b.on': 'On', 'b.type': 'Analog', 'b.va.wave': 'Pulse', 'b.va.pw': 0.5, 'b.octave': 1, 'b.level': 0.35, 'b.filter': 'F1',
+      'f1.cutoff': 9000, 'env1.attack': 0.001, 'env1.decay': 0.22, 'env1.sustain': 0.1, 'env1.release': 0.12,
+    },
+    fx: [{ type: 'Distortion', mix: 0.6, params: [0.45, 'Crush', 7000, 0, 60, 0.7] }, { type: 'Delay', mix: 0.25, params: [250, 0.3, 4000, 1, '1/16', 300] }],
+    mods: [['macro1', 'fx1.p0', 0.5], ['macro2', 'a.va.pw', 0.5], ['macro3', 'fx2.mix', 0.5], ['macro4', 'env1.decay', 0.5]],
+  },
+  {
+    name: 'Templo', tag: 'Teclas', category: 'Keys', description: 'Cuencos y campanas modales con parciales impares. Probalo con las escalas Árabe o Japonesa.',
+    macroNames: ['Material', 'Resonar', 'Bajar', 'Espacio'],
+    params: {
+      'arp.pattern': 'Abajo', 'arp.rate': '1/8', 'arp.octaves': 2, 'arp.gate': 0.9, 'arp.on': 'On',
+      'a.type': 'Modal', 'a.modal.material': 0.95, 'a.modal.modes': 14, 'a.modal.decay': 5, 'a.modal.damp': 0.35, 'a.modal.pos': 0.2, 'a.modal.exciter': 'Click', 'a.modal.bright': 0.7, 'a.level': 0.7,
+      'b.on': 'On', 'b.type': 'Harmonic', 'b.harm.partials': 8, 'b.harm.tilt': 1.8, 'b.harm.oddEven': -0.7, 'b.harm.stretch': 0.4, 'b.level': 0.35, 'b.filter': 'F1',
+      'f1.cutoff': 12000, 'env1.attack': 0.002, 'env1.decay': 3, 'env1.sustain': 0.5, 'env1.release': 3,
+    },
+    fx: [{ type: 'Delay', mix: 0.2, params: [500, 0.3, 3000, 0.9, '1/4', 200] }, { type: 'Reverb', mix: 0.55, params: [0.95, 0.3, 30, 1, 150, 0.35] }],
+    mods: [['macro1', 'a.modal.material', -0.6], ['macro2', 'a.modal.decay', 0.3], ['macro3', 'a.modal.bright', -0.4], ['macro4', 'fx2.mix', 0.4], ['velocity', 'a.modal.bright', 0.3]],
+  },
+  {
+    name: 'Tormenta', tag: 'Texturas', category: 'Texture', description: 'Ruido granular que barre la fuente, filtro peine y Corroder. Un paisaje que cambia solo mientras sostenés la nota.',
+    macroNames: ['Viento', 'Filo', 'Corroer', 'Espacio'],
+    params: {
+      'arp.pattern': 'Acorde', 'arp.rate': '1/2', 'arp.octaves': 1, 'arp.gate': 1, 'arp.on': 'Off',
+      'a.type': 'Granular', 'a.gran.source': 'Texture', 'a.gran.size': 300, 'a.gran.density': 10, 'a.gran.pos': 0.3, 'a.gran.spray': 0.5, 'a.gran.pitchRnd': 3, 'a.gran.scan': 0.6, 'a.level': 0.75,
+      'b.on': 'On', 'b.type': 'Sample', 'b.smp.source': 'Texture', 'b.smp.loop': 'On', 'b.smp.loopLen': 0.4, 'b.smp.start': 0.2, 'b.level': 0.4, 'b.octave': -1, 'b.filter': 'F2',
+      'f1.type': 'LP12', 'f1.cutoff': 4000, 'f2.type': 'Comb', 'f2.cutoff': 220, 'f2.res': 0.7,
+      'env1.attack': 1.5, 'env1.decay': 1, 'env1.sustain': 1, 'env1.release': 3,
+      'lfo1.rate': 0.07, 'lfo1.shape': 'Drift', 'lfo1.retrig': 'Free', 'lfo2.rate': 0.2, 'lfo2.shape': 'Sine', 'lfo2.retrig': 'Free',
+    },
+    fx: [{ type: 'Corroder', mix: 0.3, params: [140, 0.6, 0.6, 25, 5000, 0.4] }, { type: 'Delay', mix: 0.3, params: [700, 0.55, 2500, 1, 'Free', 100] }, { type: 'Reverb', mix: 0.5, params: [0.93, 0.3, 50, 1, 120, 0.2] }],
+    mods: [['lfo1', 'f1.cutoff', 0.35], ['lfo2', 'f2.cutoff', 0.25], ['macro1', 'a.gran.spray', 0.5], ['macro2', 'f2.res', 0.3], ['macro3', 'fx1.mix', 0.6], ['macro4', 'fx3.mix', 0.4]],
+  },
+  {
+    name: 'Marimba solar', tag: 'Teclas', category: 'Keys', description: 'Barras de madera modales con un seno cálido. Arpegio Escalera y delay ping-pong: suena a tarde de verano.',
+    macroNames: ['Madera', 'Cola', 'Eco', 'Espacio'],
+    params: {
+      'arp.pattern': 'Escalera', 'arp.rate': '1/16', 'arp.octaves': 2, 'arp.gate': 0.6, 'arp.on': 'On',
+      'a.type': 'Modal', 'a.modal.material': 0.33, 'a.modal.modes': 6, 'a.modal.decay': 0.5, 'a.modal.damp': 0.85, 'a.modal.pos': 0.4, 'a.modal.exciter': 'Click', 'a.modal.bright': 0.5, 'a.level': 0.85,
+      'b.on': 'On', 'b.type': 'Analog', 'b.va.wave': 'Sine', 'b.level': 0.4, 'b.filter': 'F1',
+      'f1.cutoff': 10000, 'env1.attack': 0.001, 'env1.decay': 0.5, 'env1.sustain': 0.2, 'env1.release': 0.4,
+    },
+    fx: [{ type: 'Delay', mix: 0.3, params: [375, 0.4, 4000, 1, '1/8D', 250] }, { type: 'Reverb', mix: 0.35, params: [0.7, 0.45, 10, 1, 250, 0] }],
+    mods: [['macro1', 'a.modal.material', 0.3], ['macro2', 'a.modal.decay', 0.5], ['macro3', 'fx1.mix', 0.5], ['macro4', 'fx2.mix', 0.5], ['velocity', 'a.modal.bright', 0.4]],
   },
 ];
 
@@ -2385,7 +3007,7 @@ class Keyboard {
   constructor(el, { onNoteOn, onNoteOff, octaves = 3, baseOctave = 3 }) {
     this.el = el; this.onNoteOn = onNoteOn; this.onNoteOff = onNoteOff;
     this.octaves = octaves; this.base = baseOctave;
-    this.down = new Set(); this.pointerNotes = new Map(); this.held = new Set();
+    this.down = new Set(); this.pointerNotes = new Map(); this.held = new Set(); this.enabled = true;
     this.build();
     window.addEventListener('keydown', (e) => this.keydown(e));
     window.addEventListener('keyup', (e) => this.keyup(e));
@@ -2438,7 +3060,7 @@ class Keyboard {
   release(n) { if (!this.held.has(n)) return; this.held.delete(n); this.onNoteOff(n); this.light(n, false); }
   light(n, on) { const k = this.keys.get(n); if (k) k.classList.toggle('active', on); }
   keydown(e) {
-    if (e.repeat || e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA' || e.metaKey || e.ctrlKey) return;
+    if (!this.enabled || e.repeat || e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA' || e.metaKey || e.ctrlKey) return;
     if (e.code === 'KeyZ') { this.setOctave(this.base - 1); return; }
     if (e.code === 'KeyX') { this.setOctave(this.base + 1); return; }
     const off = KEYMAP[e.code];
@@ -2449,10 +3071,63 @@ class Keyboard {
   }
   keyup(e) {
     const off = KEYMAP[e.code];
-    if (off === undefined) return;
+    if (off === undefined || !this.down.has(e.code)) return;
     this.down.delete(e.code);
     this.release((this.base + 1) * 12 + off);
   }
+}
+
+// Grilla de pads en escala: 3 filas × 8 grados. Nunca suena una nota fuera de
+// la escala. Teclas de computadora: Z-, (grave) / A-K (media) / Q-I (aguda).
+const PAD_ROWS = [['KeyQ', 'KeyW', 'KeyE', 'KeyR', 'KeyT', 'KeyY', 'KeyU', 'KeyI'], ['KeyA', 'KeyS', 'KeyD', 'KeyF', 'KeyG', 'KeyH', 'KeyJ', 'KeyK'], ['KeyZ', 'KeyX', 'KeyC', 'KeyV', 'KeyB', 'KeyN', 'KeyM', 'Comma']];
+class PadGrid {
+  constructor(el, { onPadOn, onPadOff, onDrum }) {
+    this.el = el; this.onPadOn = onPadOn; this.onPadOff = onPadOff; this.onDrum = onDrum;
+    this.enabled = true; this.held = new Set(); this.pointerPads = new Map(); this.labels = () => '';
+    this.keyMap = new Map();
+    PAD_ROWS.forEach((row, r) => row.forEach((code, c) => this.keyMap.set(code, (2 - r) * 8 + c)));
+    this.build();
+    window.addEventListener('keydown', (e) => this.keydown(e));
+    window.addEventListener('keyup', (e) => this.keyup(e));
+  }
+  build() {
+    this.el.innerHTML = ''; this.pads = [];
+    for (let r = 2; r >= 0; r--) {
+      for (let c = 0; c < 8; c++) {
+        const d = r * 8 + c;
+        const pad = document.createElement('div');
+        pad.className = 'pad'; pad.dataset.deg = d;
+        pad.innerHTML = `<span class="pad-name"></span><span class="pad-deg"></span>`;
+        this.el.appendChild(pad); this.pads[d] = pad;
+      }
+    }
+    const padAt = (e) => { const t = document.elementFromPoint(e.clientX, e.clientY); const p = t && t.closest('.pad'); return p ? parseInt(p.dataset.deg, 10) : null; };
+    this.el.addEventListener('pointerdown', (e) => { const d = padAt(e); if (d === null) return; e.preventDefault(); this.el.setPointerCapture(e.pointerId); this.pointerPads.set(e.pointerId, d); this.press(d, 0.9); });
+    this.el.addEventListener('pointermove', (e) => { if (!this.pointerPads.has(e.pointerId)) return; const d = padAt(e); const prev = this.pointerPads.get(e.pointerId); if (d !== null && d !== prev) { this.release(prev); this.pointerPads.set(e.pointerId, d); this.press(d, 0.9); } });
+    const up = (e) => { if (!this.pointerPads.has(e.pointerId)) return; this.release(this.pointerPads.get(e.pointerId)); this.pointerPads.delete(e.pointerId); };
+    this.el.addEventListener('pointerup', up); this.el.addEventListener('pointercancel', up);
+  }
+  // info(d) → { name, degree, isRoot }
+  relabel(info) {
+    this.pads.forEach((pad, d) => {
+      const i = info(d);
+      pad.querySelector('.pad-name').textContent = i.name;
+      pad.querySelector('.pad-deg').textContent = i.degree;
+      pad.classList.toggle('root', i.isRoot);
+      pad.style.setProperty('--hue', i.hue);
+    });
+  }
+  press(d, vel) { if (this.held.has(d)) return; this.held.add(d); this.pads[d].classList.add('active'); this.onPadOn(d, vel); }
+  release(d) { if (!this.held.has(d)) return; this.held.delete(d); this.pads[d].classList.remove('active'); this.onPadOff(d); }
+  releaseAll() { for (const d of [...this.held]) this.release(d); }
+  keydown(e) {
+    if (!this.enabled || e.repeat || e.metaKey || e.ctrlKey) return;
+    const tag = e.target.tagName; if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA' || e.target.isContentEditable) return;
+    if (e.code.startsWith('Digit')) { const n = parseInt(e.code.slice(5), 10); if (n >= 1 && n <= 8 && this.onDrum) { e.preventDefault(); this.onDrum(n - 1); } return; }
+    const d = this.keyMap.get(e.code); if (d === undefined) return;
+    e.preventDefault(); this.press(d, 0.85);
+  }
+  keyup(e) { const d = this.keyMap.get(e.code); if (d !== undefined) this.release(d); }
 }
 
 
@@ -2878,7 +3553,7 @@ class SynthAudio {
       const fxTypes = FX_TYPES.map(f => ({ id: f.id, params: f.params.map(p => ({ min: p.min, max: p.max, curve: p.curve })) }));
       this.node = new AudioWorkletNode(ctx, 'prisma-synth', {
         numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [2],
-        processorOptions: { defs, fxTypes, lfoDivBeats: LFO_DIV_BEATS, arpDivBeats: ARP_DIV_BEATS },
+        processorOptions: { defs, fxTypes, lfoDivBeats: LFO_DIV_BEATS, arpDivBeats: ARP_DIV_BEATS, drumPatterns: DRUM_PATTERNS, loopBars: LOOP_BARS },
       });
       this.analyser = ctx.createAnalyser();
       this.analyser.fftSize = 2048; this.analyser.smoothingTimeConstant = 0.75;
@@ -2911,6 +3586,9 @@ class SynthAudio {
   bend(v) { this.post({ type: 'bend', value: v }); }
   sustain(on) { this.post({ type: 'sustain', on }); }
   allOff() { this.post({ type: 'allOff' }); }
+  loop(cmd, arg) { this.post({ type: 'loop', cmd, arg }); }
+  drum(inst, vel = 1) { this.post({ type: 'drum', inst, vel }); }
+  resetClock() { this.post({ type: 'resetClock' }); }
   panic() { this.post({ type: 'panic' }); }
   async loadSample(arrayBuffer) {
     const buf = await this.ctx.decodeAudioData(arrayBuffer);
@@ -3023,15 +3701,17 @@ class App {
     this.audio = new SynthAudio();
     this.liveSrc = new Float32Array(MOD_SOURCES.length);
     this.scopes = {}; this.envCanvases = []; this.lfoCanvases = [];
-    this.view = 'synth';
+    this.view = 'jam';
+    this.song = Object.assign({ key: 0, scale: 'minor', chord: 'off', octave: 3, scaleLock: true }, JSON.parse(localStorage.getItem('prisma.song') || '{}'));
+    this.activeChords = new Map(); // nota base → notas enviadas
     this.userPresets = JSON.parse(localStorage.getItem('prisma.userPresets') || '[]');
     this.presetIndex = 0;
     this.started = false;
     this.octave = 3;
     this.midiOk = false;
     this.midi = new MidiManager({
-      noteOn: (n, v) => { this.start(); this.audio.noteOn(n, v); this.keyboard && this.keyboard.light(n, true); },
-      noteOff: (n) => { this.audio.noteOff(n); this.keyboard && this.keyboard.light(n, false); },
+      noteOn: (n, v) => this.performOn(n, v, true),
+      noteOff: (n) => this.performOff(n, true),
       bend: (v) => this.audio.bend(v),
       cc: (cc, v) => {
         if (cc === 1) { this.audio.modwheel(v); if (this.modwheelEl) this.modwheelEl.value = v * 100; }
@@ -3058,11 +3738,13 @@ class App {
     if (id === 'a.type' || id === 'b.type') this.buildEngineBody(id[0]);
     if (/^fx\d\.type$/.test(id)) { this.applyFxDefaults(parseInt(id[2], 10)); this.buildFxSlot(parseInt(id[2], 10)); }
     if (id === 'arp.on') this.refreshArpBadge();
+    if (id === 'arp.pattern') this.refreshArpDesc();
   }
   setValue(id, value) { const d = PARAMS[pidx(id)]; this.setNorm(d.index, norm(d, value)); }
   value(id) { const d = PARAMS[pidx(id)]; return denorm(d, this.norm[d.index]); }
   refresh(idx) { const cs = this.controls.get(idx); if (cs) for (const c of cs) c.update(); }
   refreshAll() { for (const cs of this.controls.values()) for (const c of cs) c.update(); this.buildMatrix(); this.refreshChips(); this.refreshArpBadge(); }
+  refreshArpDesc() { if (this.arpDesc) { const p = ARP_PATTERNS[Math.round(this.value('arp.pattern'))]; this.arpDesc.textContent = p ? p.desc : ''; } }
   register(ctl) { if (!this.controls.has(ctl.idx)) this.controls.set(ctl.idx, []); this.controls.get(ctl.idx).push(ctl); return ctl; }
   unregisterIn(root) {
     for (const [idx, list] of this.controls) {
@@ -3121,14 +3803,14 @@ class App {
     this.buildHeader();
     this.buildSynthView();
     this.buildFxView();
-    this.buildArpView();
-    this.buildPlayView();
+    this.buildJamView();
     this.buildFooter();
     this.buildDevicesPanel();
-    this.showView('synth');
+    this.showView('jam');
     document.addEventListener('pointerdown', (e) => { const pop = $('#mod-popover'); if (!pop.hidden && !pop.contains(e.target) && !e.target.closest('.knob')) pop.hidden = true; const dp = $('#devices-panel'); if (dp && !dp.hidden && !dp.contains(e.target) && !e.target.closest('#midi-ind')) dp.hidden = true; });
     window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && this.assignSource >= 0) this.setAssign(this.assignSource); });
-    this.loadPreset(0);
+    this.loadPreset(1);
+    this.refreshArpDesc();
     this.startLoop();
   }
   control(id, opts = {}) {
@@ -3168,7 +3850,7 @@ class App {
         h('button', { class: 'tb', title: 'Importar preset (JSON)', onclick: () => $('#import-file').click() }, 'Import'),
         h('button', { class: 'tb', title: 'Cargar un archivo de audio para Granular / Sample', onclick: () => $('#sample-file').click() }, 'Load Sample'),
       ),
-      h('nav', { class: 'tabs' }, ...['synth', 'fx', 'arp', 'play'].map(v => h('button', { class: 'tab', dataset: { view: v }, onclick: () => this.showView(v) }, v.toUpperCase()))),
+      h('nav', { class: 'tabs' }, ...[['jam', 'JAM'], ['synth', 'SYNTH'], ['fx', 'FX']].map(([v, l]) => h('button', { class: 'tab', dataset: { view: v }, title: v === 'jam' ? 'Modo simple: tocar, ritmos y looper' : 'Modo avanzado', onclick: () => this.showView(v) }, l))),
       h('div', { class: 'status' },
         h('button', { id: 'midi-ind', class: 'ind ind-btn', title: 'Dispositivos MIDI y salida de audio', onclick: () => this.toggleDevices() }, 'MIDI ▾'),
         h('span', { id: 'arp-ind', class: 'ind', title: 'Arpegiador' }, 'ARP'),
@@ -3185,6 +3867,10 @@ class App {
     this.view = v;
     document.querySelectorAll('.view').forEach(el => { el.hidden = el.dataset.view !== v; });
     document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.view === v));
+    const jam = v === 'jam';
+    if (this.padGrid) { this.padGrid.enabled = jam; this.padGridEl.hidden = !jam; if (!jam) this.padGrid.releaseAll(); }
+    if (this.keyboard) { this.keyboard.enabled = !jam; this.keyboardEl.hidden = jam; }
+    if (this.kbHelp) this.kbHelp.textContent = jam ? 'Pads: Z X C V B N M , (graves) · A S D F G H J K (medios) · Q W E R T Y U I (agudos) · 1–8 golpean la batería' : 'Teclas: A W S E D F T G Y H U J K O L P · Z/X octava · Shift = ajuste fino · Doble click = reset';
   }
 
   // ---- vista SYNTH
@@ -3457,58 +4143,186 @@ class App {
     });
   }
 
-  // ---- vista ARP
-  buildArpView() {
-    const root = $('#view-arp');
+  // ---- vista JAM (modo simple)
+  buildJamView() {
+    const root = $('#view-jam');
+    root.append(h('div', { class: 'jam-grid' }, this.buildSoundsPanel(), this.buildPlayPanel(), h('div', { class: 'jam-col' }, this.buildDrumsPanel(), this.buildLooperPanel())));
+  }
+  buildSoundsPanel() {
+    const panel = h('section', { class: 'panel sounds', style: `--pc:${COLORS.a}` });
+    this.soundTitle = h('h1', { class: 'sound-title' }, 'Init');
+    this.soundDesc = h('p', { class: 'sound-desc' }, '');
+    const tags = ['Todos', 'Pads', 'Bajos', 'Leads', 'Teclas', 'Plucks', 'Texturas', 'Percusivos', 'Míos'];
+    this.soundTag = 'Todos';
+    const tagRow = h('div', { class: 'tag-row' }, ...tags.map(t => h('button', { class: 'tagbtn' + (t === 'Todos' ? ' active' : ''), dataset: { tag: t }, onclick: () => { this.soundTag = t; tagRow.querySelectorAll('.tagbtn').forEach(b => b.classList.toggle('active', b.dataset.tag === t)); this.buildSoundCards(); } }, t)));
+    this.soundCards = h('div', { class: 'sound-cards' });
+    const cv = h('canvas', { class: 'jam-viz' }); this.playCanvas = cv;
+    const macros = h('div', { class: 'jam-macros' });
+    for (let k = 1; k <= 4; k++) macros.append(this.control(`macro${k}`, { color: COLORS.macro, size: 'md', label: this.meta.macroNames[k - 1] }));
+    panel.append(
+      h('header', {}, h('h2', {}, 'SONIDO'), h('span', { class: 'hint' }, 'Elegí uno y tocá los pads de abajo')),
+      h('div', { class: 'sound-head' }, h('button', { class: 'ib', onclick: () => this.loadPreset(this.presetIndex - 1) }, '‹'), h('div', { class: 'sound-head-txt' }, this.soundTitle, this.soundDesc), h('button', { class: 'ib', onclick: () => this.loadPreset(this.presetIndex + 1) }, '›')),
+      tagRow, this.soundCards,
+      h('div', { class: 'jam-bottom' }, macros, cv),
+    );
+    this.buildSoundCards();
+    return panel;
+  }
+  buildSoundCards() {
+    const box = this.soundCards; if (!box) return;
+    box.innerHTML = '';
+    const all = this.allPresets();
+    all.forEach((p, i) => {
+      const isUser = i >= PRESETS.length;
+      const tag = isUser ? 'Míos' : (p.tag || 'Teclas');
+      if (this.soundTag !== 'Todos' && tag !== this.soundTag) return;
+      const arpOn = p.params && (p.params['arp.on'] === 'On');
+      const card = h('button', { class: 'sound-card' + (i === this.presetIndex ? ' active' : ''), dataset: { i }, onclick: () => this.loadPreset(i) },
+        h('span', { class: 'sc-name' }, p.name), h('span', { class: 'sc-tag' }, tag + (arpOn ? ' · arp' : '')));
+      card.style.setProperty('--hue', String((Array.from(p.name).reduce((a, c) => a + c.charCodeAt(0), 0) * 37) % 360));
+      box.append(card);
+    });
+  }
+  buildPlayPanel() {
     const color = COLORS.arp;
-    root.append(h('div', { class: 'row' },
-      h('section', { class: 'panel arp', style: `--pc:${color}` },
-        h('header', {}, this.control('arp.on', { label: 'ON', color, class: 'pw' }), h('h2', {}, 'ARPEGGIATOR')),
-        h('div', { class: 'knob-row' },
-          this.control('arp.mode', { color, toggle: false }), this.control('arp.rate', { color, toggle: false }),
-          this.control('arp.octaves', { color }), this.control('arp.gate', { color }), this.control('arp.swing', { color }), this.control('master.tempo', { color }),
-        ),
-        h('p', { class: 'hint' }, 'Con el arpegiador activo, las notas que mantengas presionadas (teclado, MIDI o pantalla) se recorren según el modo. Gate y Swing son modulables.'),
+    const panel = h('section', { class: 'panel playpanel', style: `--pc:${color}` });
+    // tonalidad y escala
+    const keySel = h('select', { id: 'song-key' }, ...KEY_NAMES.map((k, i) => h('option', { value: i }, k)));
+    keySel.value = this.song.key;
+    keySel.addEventListener('change', () => { this.song.key = parseInt(keySel.value, 10); this.songChanged(); });
+    const scaleSel = h('select', { id: 'song-scale' }, ...SCALES.map(sc => h('option', { value: sc.id }, `${sc.name} · ${sc.mood}`)));
+    scaleSel.value = this.song.scale;
+    scaleSel.addEventListener('change', () => { this.song.scale = scaleSel.value; this.songChanged(); });
+    const chordRow = h('div', { class: 'chord-row' }, ...CHORD_TYPES.map(c => h('button', { class: 'chordbtn' + (c.id === this.song.chord ? ' active' : ''), dataset: { chord: c.id }, onclick: () => { this.song.chord = c.id; chordRow.querySelectorAll('.chordbtn').forEach(b => b.classList.toggle('active', b.dataset.chord === c.id)); this.songChanged(); } }, c.name)));
+    const lock = h('button', { class: 'tb' + (this.song.scaleLock ? ' on' : ''), title: 'Corrige a la escala las notas del teclado MIDI y del piano', onclick: () => { this.song.scaleLock = !this.song.scaleLock; lock.classList.toggle('on', this.song.scaleLock); this.songChanged(); } }, 'Corregir MIDI a la escala');
+    const octRow = h('div', { class: 'oct' }, h('button', { class: 'ib', onclick: () => { this.song.octave = Math.max(1, this.song.octave - 1); this.songChanged(); } }, '−'), h('span', { class: 'oct-label', id: 'jam-oct' }, `Oct ${this.song.octave}`), h('button', { class: 'ib', onclick: () => { this.song.octave = Math.min(6, this.song.octave + 1); this.songChanged(); } }, '+'));
+    // arpegiador
+    const patSel = this.register(new EnumControl(this, pidx('arp.pattern'), { color, label: '' }));
+    this.arpDesc = h('span', { class: 'hint arp-desc' }, '');
+    panel.append(
+      h('header', {}, h('h2', {}, 'TOCAR'), h('span', { class: 'hint' }, 'Los pads siempre suenan bien: solo notas de la escala')),
+      h('div', { class: 'play-block' },
+        h('div', { class: 'k-label' }, 'Tonalidad y escala'),
+        h('div', { class: 'dev-row' }, keySel, scaleSel, octRow),
       ),
-    ));
+      h('div', { class: 'play-block' },
+        h('div', { class: 'k-label' }, 'Chordifier · cada pad suena como…'),
+        chordRow,
+      ),
+      h('div', { class: 'play-block arp-block' },
+        h('div', { class: 'row-inline' }, this.control('arp.on', { label: 'ARP', color, class: 'pw' }), h('span', { class: 'k-label' }, 'Arpegiador'), patSel.el, this.control('arp.hold', { color, label: 'Mantener' })),
+        this.arpDesc,
+        h('div', { class: 'knob-row' }, this.control('arp.rate', { label: 'Velocidad', color, toggle: false }), this.control('arp.octaves', { color, label: 'Oct.', size: 'sm' }), this.control('arp.gate', { color, label: 'Largo', size: 'sm' }), this.control('arp.swing', { color, label: 'Swing', size: 'sm' })),
+        h('p', { class: 'hint' }, 'Cada sonido trae su propio arpegio. "Mantener" sigue tocando después de soltar los pads.'),
+      ),
+      h('div', { class: 'play-block' }, lock),
+    );
+    return panel;
+  }
+  buildDrumsPanel() {
+    const color = COLORS.fx;
+    const panel = h('section', { class: 'panel drums', style: `--pc:${color}` });
+    this.stepLights = h('div', { class: 'steps' }, ...Array.from({ length: 16 }, (_, i) => h('span', { class: 'step' + (i % 4 === 0 ? ' beat' : '') })));
+    const pads = h('div', { class: 'drum-pads' }, ...DRUM_NAMES.map((n, i) => { const b = h('button', { class: 'drum-pad', title: `Tecla ${i + 1}` }, h('b', {}, String(i + 1)), n); b.addEventListener('pointerdown', (e) => { e.preventDefault(); this.hitDrum(i); }); return b; }));
+    this.drumPadEls = [...pads.children];
+    panel.append(
+      h('header', {}, this.control('drum.on', { label: 'ON', color, class: 'pw' }), h('h2', {}, 'RITMO'), h('div', { class: 'spacer' }), this.control('drum.pattern', { label: '', color, class: 'type-select', toggle: false })),
+      this.stepLights,
+      h('div', { class: 'knob-row wrap' }, this.control('drum.kit', { label: 'Kit', color, toggle: false }), this.control('master.tempo', { color, label: 'Tempo', size: 'md' }), this.control('drum.level', { color, label: 'Volumen', size: 'sm' }), this.control('drum.swing', { color, label: 'Swing', size: 'sm' }), this.control('drum.tone', { color, label: 'Tono', size: 'sm' }), this.control('drum.decay', { color, label: 'Cola', size: 'sm' })),
+      pads,
+    );
+    return panel;
+  }
+  buildLooperPanel() {
+    const color = COLORS.env;
+    const panel = h('section', { class: 'panel looper', style: `--pc:${color}` });
+    this.loopRec = h('button', { class: 'loop-btn rec', onclick: () => { this.start(); this.audio.loop('rec'); } }, '● GRABAR');
+    this.loopPlay = h('button', { class: 'loop-btn', onclick: () => this.audio.loop('play') }, '▶ PLAY');
+    this.loopStop = h('button', { class: 'loop-btn', onclick: () => this.audio.loop('stop') }, '■ STOP');
+    this.loopUndo = h('button', { class: 'tb', title: 'Quita la última capa', onclick: () => this.audio.loop('undo') }, 'Deshacer');
+    this.loopClear = h('button', { class: 'tb', title: 'Borra todas las capas', onclick: () => { if (confirm('¿Borrar todas las capas del loop?')) this.audio.loop('clear'); } }, 'Borrar');
+    this.loopBar = h('div', { class: 'loop-bar' }, h('div', { class: 'loop-fill' }));
+    this.loopStatus = h('div', { class: 'dev-status' }, 'Vacío. Elegí cuántos compases y pulsá GRABAR: se graba lo que toques durante ese tiempo y queda sonando en loop.');
+    this.loopLayers = h('div', { class: 'loop-layers' });
+    panel.append(
+      h('header', {}, h('h2', {}, 'LOOPER'), h('div', { class: 'spacer' }), this.control('loop.bars', { label: 'Compases', color, toggle: false, class: 'inline' }), this.control('loop.level', { color, label: 'Vol', size: 'sm' })),
+      h('div', { class: 'loop-controls' }, this.loopRec, this.loopPlay, this.loopStop, this.loopUndo, this.loopClear),
+      this.loopBar, this.loopStatus, this.loopLayers,
+    );
+    return panel;
+  }
+  hitDrum(i) { this.start(); this.audio.drum(i, 1); const el = this.drumPadEls && this.drumPadEls[i]; if (el) { el.classList.add('hit'); setTimeout(() => el.classList.remove('hit'), 120); } }
+  updateLooperUI(lp) {
+    if (!lp || !this.loopRec) return;
+    const st = lp.state;
+    this.loopRec.classList.toggle('armed', st === 'armed'); this.loopRec.classList.toggle('recording', st === 'recording');
+    this.loopRec.textContent = st === 'recording' ? '● GRABANDO…' : st === 'armed' ? '● ESPERANDO EL COMPÁS' : lp.layers.length ? '● SUMAR CAPA' : '● GRABAR';
+    this.loopPlay.classList.toggle('on', st === 'playing' || st === 'recording');
+    this.loopPlay.disabled = !lp.layers.length; this.loopStop.disabled = !lp.layers.length && st !== 'armed';
+    this.loopUndo.disabled = !lp.layers.length; this.loopClear.disabled = !lp.layers.length && st === 'empty';
+    const fill = this.loopBar.firstChild;
+    fill.style.width = `${(st === 'recording' ? lp.recProgress : lp.pos) * 100}%`;
+    fill.classList.toggle('rec', st === 'recording');
+    const msgs = { empty: 'Vacío. Pulsá GRABAR y tocá: se graba durante los compases elegidos y queda en loop.', armed: 'Esperando el próximo compás para empezar a grabar…', recording: 'Grabando… tocá lo que quieras sumar.', playing: `${lp.layers.length} capa(s) sonando. Pulsá SUMAR CAPA para grabar otra encima.`, stopped: 'Loop detenido. PLAY para seguir.' };
+    this.loopStatus.textContent = msgs[st] || '';
+    if (this._loopLayerCount !== lp.layers.length || this._loopMuteKey !== lp.layers.map(l => l.mute ? 1 : 0).join('')) {
+      this._loopLayerCount = lp.layers.length; this._loopMuteKey = lp.layers.map(l => l.mute ? 1 : 0).join('');
+      this.loopLayers.innerHTML = '';
+      lp.layers.forEach((l, i) => this.loopLayers.append(h('div', { class: 'loop-layer' + (l.mute ? ' muted' : '') }, h('span', {}, `Capa ${i + 1}`), h('button', { class: 'tb', onclick: () => this.audio.loop('mute', i) }, l.mute ? 'Activar' : 'Silenciar'), h('button', { class: 'pop-del', title: 'Quitar capa', onclick: () => this.audio.loop('remove', i) }, '✕'))));
+    }
+    const locked = lp.layers.length > 0 || st === 'recording';
+    for (const c of this.controls.get(pidx('master.tempo')) || []) c.el.classList.toggle('locked', locked);
+    for (const c of this.controls.get(pidx('loop.bars')) || []) c.el.classList.toggle('locked', locked);
   }
 
-  // ---- vista PLAY
-  buildPlayView() {
-    const root = $('#view-play');
-    const cv = h('canvas', { class: 'play-viz' });
-    this.playCanvas = cv;
-    const macros = h('div', { class: 'play-macros' });
-    this.playMacroLabels = [];
-    for (let k = 1; k <= 4; k++) {
-      const knob = this.ctl(`macro${k}`, { color: COLORS.macro, size: 'xl', label: '' });
-      const name = h('div', { class: 'play-macro-name', contenteditable: 'true', spellcheck: 'false' }, this.meta.macroNames[k - 1]);
-      name.addEventListener('input', () => this.setMacroName(k - 1, name.textContent));
-      name.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); name.blur(); } });
-      this.playMacroLabels.push(name);
-      macros.append(h('div', { class: 'play-macro' }, knob.el, name));
-    }
-    this.playTitle = h('h1', { class: 'play-title' }, 'Init');
-    this.playDesc = h('p', { class: 'play-desc' }, '');
-    root.append(
-      h('div', { class: 'play-layout' },
-        h('div', { class: 'play-left' },
-          h('div', { class: 'play-head' },
-            h('button', { class: 'ib big', onclick: () => this.loadPreset(this.presetIndex - 1) }, '‹'),
-            h('div', {}, this.playTitle, this.playDesc),
-            h('button', { class: 'ib big', onclick: () => this.loadPreset(this.presetIndex + 1) }, '›'),
-          ),
-          macros,
-          h('div', { class: 'play-quick' },
-            this.control('f1.cutoff', { color: COLORS.filter, size: 'md' }), this.control('f1.res', { color: COLORS.filter, size: 'md' }),
-            this.control('env1.attack', { color: COLORS.env, size: 'md' }), this.control('env1.release', { color: COLORS.env, size: 'md' }),
-            this.control('master.glide', { color: COLORS.master, size: 'md' }),
-          ),
-        ),
-        h('div', { class: 'play-right' }, cv),
-      ),
-    );
+  // ---- escala, chordifier y ejecución de notas
+  get scaleDef() { return SCALES.find(sc => sc.id === this.song.scale) || SCALES[0]; }
+  songChanged() {
+    localStorage.setItem('prisma.song', JSON.stringify(this.song));
+    if (this.padGrid) { this.padGrid.releaseAll(); this.relabelPads(); }
+    const o = $('#jam-oct'); if (o) o.textContent = `Oct ${this.song.octave}`;
   }
+  degreeToNote(d) {
+    const st = this.scaleDef.steps, L = st.length;
+    return 12 * (this.song.octave + 1) + this.song.key + 12 * Math.floor(d / L) + st[((d % L) + L) % L];
+  }
+  relabelPads() {
+    const L = this.scaleDef.steps.length;
+    this.padGrid.relabel((d) => { const n = this.degreeToNote(d); return { name: noteName(n), degree: String((d % L) + 1), isRoot: d % L === 0, hue: (d % L) * (300 / L) }; });
+  }
+  quantize(note) {
+    const st = this.scaleDef.steps;
+    if (st.length === 12) return note;
+    const pc = ((note - this.song.key) % 12 + 12) % 12;
+    let best = st[0], bd = 99;
+    for (const x of st) for (const cand of [x, x - 12, x + 12]) { const dd = Math.abs(cand - pc); if (dd < bd || (dd === bd && cand > best)) { bd = dd; best = cand; } }
+    return note + (best - pc);
+  }
+  chordify(note) {
+    const ct = CHORD_TYPES.find(c => c.id === this.song.chord) || CHORD_TYPES[0];
+    const st = this.scaleDef.steps, L = st.length;
+    const pc = ((note - this.song.key) % 12 + 12) % 12;
+    const deg = st.indexOf(pc);
+    if (!ct.deg || L === 12 || deg < 0) return ct.semi.map(o => note + o);
+    return ct.deg.map(o => { const di = deg + o; const oct = Math.floor(di / L); return note - st[deg] + st[((di % L) + L) % L] + 12 * oct; });
+  }
+  performOn(note, vel, quantize) {
+    this.start();
+    if (quantize && this.song.scaleLock) note = this.quantize(note);
+    if (this.activeChords.has(note)) return;
+    const notes = [...new Set(this.chordify(note).filter(n => n >= 0 && n <= 127))];
+    this.activeChords.set(note, notes);
+    for (const n of notes) this.audio.noteOn(n, vel);
+    if (this.keyboard) this.keyboard.light(note, true);
+  }
+  performOff(note, quantize) {
+    if (quantize && this.song.scaleLock) note = this.quantize(note);
+    const notes = this.activeChords.get(note); if (!notes) return;
+    this.activeChords.delete(note);
+    for (const n of notes) this.audio.noteOff(n);
+    if (this.keyboard) this.keyboard.light(note, false);
+  }
+
   setMacroName(i, name) {
     this.meta.macroNames[i] = name || `Macro ${i + 1}`;
     for (const cs of this.controls.get(pidx(`macro${i + 1}`)) || []) if (cs.labelEl && cs.size !== 140) cs.labelEl.textContent = this.meta.macroNames[i];
@@ -3520,6 +4334,8 @@ class App {
   buildFooter() {
     const foot = $('#footer');
     const kb = h('div', { class: 'keyboard' });
+    const pads = h('div', { class: 'padgrid' });
+    this.keyboardEl = kb; this.padGridEl = pads;
     const bend = h('input', { type: 'range', class: 'wheel bend', min: -100, max: 100, value: 0, orient: 'vertical' });
     bend.addEventListener('input', () => this.audio.bend(bend.value / 100));
     const release = () => { bend.value = 0; this.audio.bend(0); };
@@ -3536,15 +4352,15 @@ class App {
         sus,
         h('button', { class: 'tb', title: 'Silenciar todas las voces', onclick: () => this.audio.panic() }, 'Panic'),
       ),
-      kb,
-      h('div', { class: 'kb-help' }, 'Teclas: A W S E D F T G Y H U J K O L P · Z/X octava · Shift = ajuste fino · Doble click = reset'),
+      h('div', { class: 'kb-area' }, kb, pads),
+      this.kbHelp = h('div', { class: 'kb-help' }, ''),
     );
-    this.keyboard = new Keyboard(kb, { onNoteOn: (n, v) => this.noteOn(n, v), onNoteOff: (n) => this.noteOff(n), octaves: 3, baseOctave: 3 });
+    this.keyboard = new Keyboard(kb, { onNoteOn: (n, v) => this.performOn(n, v, true), onNoteOff: (n) => this.performOff(n, true), octaves: 3, baseOctave: 3 });
+    this.padGrid = new PadGrid(pads, { onPadOn: (d, v) => this.performOn(this.degreeToNote(d), v, false), onPadOff: (d) => this.performOff(this.degreeToNote(d), false), onDrum: (i) => this.hitDrum(i) });
+    this.relabelPads();
     const origSet = this.keyboard.setOctave.bind(this.keyboard);
     this.keyboard.setOctave = (o) => { origSet(o); octLabel.textContent = `C${this.keyboard.base}`; };
   }
-  noteOn(n, v) { this.start(); this.audio.noteOn(n, v); }
-  noteOff(n) { this.audio.noteOff(n); }
 
   // ---- audio
   async start() {
@@ -3574,12 +4390,14 @@ class App {
     $('#meter-fill').classList.toggle('hot', m.peak > 0.95);
     if (this.viz) this.viz.notes = m.notes;
     this.lastMeter = m;
+    this.updateLooperUI(m.loop);
+    if (this.stepLights) { const kids = this.stepLights.children; for (let i = 0; i < 16; i++) kids[i].classList.toggle('on', m.drumOn && i === m.drumStep); }
   }
-  refreshArpBadge() { $('#arp-ind').classList.toggle('on', this.value('arp.on') > 0.5); }
+  refreshArpBadge() { $('#arp-ind').classList.toggle('on', this.value('arp.on') > 0.5); this.refreshArpDesc(); }
   startLoop() {
     const tick = () => {
       requestAnimationFrame(tick);
-      if (this.view === 'play' && this.viz) this.viz.draw();
+      if (this.view === 'jam' && this.viz) this.viz.draw();
       if (this.view === 'synth') {
         this.scopes.a.draw(); this.scopes.b.draw();
         for (const { cv, k } of this.envCanvases) drawEnvelope(cv, this.value(`env${k}.attack`), this.value(`env${k}.decay`), this.value(`env${k}.sustain`), this.value(`env${k}.release`), this.value(`env${k}.curve`), COLORS.env, this.liveSrc[k - 1]);
@@ -3707,14 +4525,14 @@ class App {
     sel.value = this.presetIndex;
   }
   presetToState(p) {
-    // valores por defecto
-    PARAMS.forEach((d, i) => { this.norm[i] = norm(d, d.def); });
+    // valores por defecto, conservando el estado de sesión (ritmo, looper, tempo, volumen)
+    PARAMS.forEach((d, i) => { if (!isSongParam(d.id)) this.norm[i] = norm(d, d.def); });
     const setId = (id, v) => {
       const d = PARAMS[PARAM_INDEX[id]]; if (!d) { console.warn('preset: param desconocido', id); return; }
       if (typeof v === 'string') { const k = d.opts ? d.opts.indexOf(v) : -1; if (k < 0) { console.warn('preset: opción desconocida', id, v); return; } v = d.min + k; }
       this.norm[d.index] = norm(d, v);
     };
-    for (const [id, v] of Object.entries(p.params || {})) setId(id, v);
+    for (const [id, v] of Object.entries(p.params || {})) if (!isSongParam(id)) setId(id, v);
     (p.fx || []).forEach((f, i) => {
       const slot = i + 1, ti = FX_INDEX[f.type.toLowerCase().replace(/\s+/g, '')] ?? FX_TYPES.findIndex(t => t.name === f.type);
       if (ti < 0) return;
@@ -3740,7 +4558,10 @@ class App {
     this.buildEngineBody('a'); this.buildEngineBody('b');
     for (let s = 1; s <= FX_SLOTS; s++) this.buildFxSlot(s);
     for (let k = 0; k < 4; k++) this.setMacroName(k, this.meta.macroNames[k]);
-    this.playTitle.textContent = this.meta.name; this.playDesc.textContent = this.meta.description;
+    if (this.soundTitle) { this.soundTitle.textContent = this.meta.name; this.soundDesc.textContent = this.meta.description; }
+    if (this.soundCards) this.soundCards.querySelectorAll('.sound-card').forEach(c => c.classList.toggle('active', parseInt(c.dataset.i, 10) === i));
+    if (this.padGrid) { this.padGrid.releaseAll(); }
+    this.activeChords.clear();
     this.refreshAll();
   }
   stateToPreset(name) {
@@ -3761,8 +4582,8 @@ class App {
     if (existing >= 0) this.userPresets[existing] = p; else this.userPresets.push(p);
     localStorage.setItem('prisma.userPresets', JSON.stringify(this.userPresets));
     this.presetIndex = PRESETS.length + (existing >= 0 ? existing : this.userPresets.length - 1);
-    this.meta.name = name; this.playTitle.textContent = name;
-    this.fillPresetSelect();
+    this.meta.name = name; if (this.soundTitle) this.soundTitle.textContent = name;
+    this.fillPresetSelect(); this.buildSoundCards();
   }
   exportPreset() {
     const p = this.stateToPreset(this.meta.name);
@@ -3777,7 +4598,7 @@ class App {
       if (!p.name) p.name = file.name.replace(/\.json$/, '');
       this.userPresets.push(p);
       localStorage.setItem('prisma.userPresets', JSON.stringify(this.userPresets));
-      this.fillPresetSelect(); this.loadPreset(PRESETS.length + this.userPresets.length - 1);
+      this.fillPresetSelect(); this.buildSoundCards(); this.loadPreset(PRESETS.length + this.userPresets.length - 1);
     } catch (e) { alert('No se pudo importar: ' + e.message); }
   }
   async loadSampleFile(file, X) {

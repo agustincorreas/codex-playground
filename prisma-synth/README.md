@@ -18,6 +18,20 @@ npx http-server . -p 8080 -c-1      # o: python3 -m http.server 8080
 
 Pulsá **⏻ Start** (los navegadores exigen un gesto del usuario para iniciar audio) y tocá con el teclado de la computadora (`A W S E D F T G Y H U J K O L P`, `Z`/`X` cambian de octava), con el teclado en pantalla o con un controlador MIDI (Web MIDI, Chrome/Edge).
 
+## Modo JAM (para no músicos)
+
+La pestaña **JAM** es la vista por defecto y no requiere saber música:
+
+- **Sonidos** por categoría (Pads, Bajos, Leads, Teclas, Plucks, Texturas, Percusivos) con 28 presets de fábrica. Cada sonido trae su propio arpegio.
+- **Pads en escala**: 24 pads (3 octavas) que solo contienen notas de la tonalidad y escala elegidas, así que no hay notas equivocadas. 13 escalas con su "estado de ánimo" (Mayor, Menor, Pentatónicas, Blues, Dórica, Lidia, Árabe, Japonesa…). Teclas: `Z X C V B N M ,` / `A S D F G H J K` / `Q W E R T Y U I`.
+- **Chordifier**: cada pad puede sonar como nota sola, doble octava, power chord, acorde, acorde de séptima, abierto o "gordo" (5 notas). Los acordes se arman dentro de la escala.
+- **Arpegiador** con 12 patrones (Arriba, Rebote, Escalera, Galope, Octavas, Pulso, Trance, Acorde, Cascada…), velocidad, octavas, largo, swing y **Mantener** (sigue sonando al soltar).
+- **Ritmo**: caja de ritmos sintetizada (bombo, redoblante, palmas, hi-hats, tom, rim, shaker) con 4 kits y 12 patrones (House, Techno, Hip hop, Trap, Reggaetón, Breakbeat, Latina, Disco, Rock, Minimal, Mitad de tiempo, Afrobeat), tempo, swing, tono y cola. Las teclas `1`–`8` golpean cada instrumento.
+- **Looper**: grabá 1, 2, 4 u 8 compases de lo que toques y sumá capas encima (hasta 8), sincronizado con el ritmo. Silenciar, quitar, deshacer y borrar capas.
+- **Corregir MIDI a la escala**: las notas del teclado MIDI o del piano se ajustan a la escala elegida.
+
+Las pestañas **SYNTH** y **FX** son el modo avanzado (diseño de sonido completo).
+
 ## Qué incluye
 
 ### Motores de síntesis (2 por patch, A y B, mezclables)
@@ -46,13 +60,12 @@ Dos filtros multimodo (LP 12/24, HP 12/24, BP, Notch, Comb, Formant vocal) con r
 Corroder, Distortion (soft/hard/fold/crush), Multi Filter con seguidor de envolvente, Chorus, Phaser, Delay (ping‑pong, sync a tempo), Reverb (con shimmer), EQ de 3 bandas y Compressor. Todos los parámetros de efectos son modulables.
 
 ### Vistas
+- **JAM**: sonidos, pads en escala, chordifier, arpegiador, ritmo y looper.
 - **SYNTH**: motores, filtros, envolventes, LFOs, macros, matriz.
 - **FX**: cadena de efectos.
-- **ARP**: arpegiador (Up/Down/Up‑Down/Random/Order, divisiones, octavas, gate, swing).
-- **PLAY**: nombre del preset, 4 macros grandes, visualizador circular animado y controles rápidos.
 
 ### Presets
-14 presets de fábrica que cubren todos los motores. *Save* guarda en el navegador (localStorage); *Export/Import* usan JSON.
+28 presets de fábrica que cubren todos los motores, cada uno con su arpegio. *Save* guarda en el navegador (localStorage); *Export/Import* usan JSON.
 
 ### MIDI y dispositivos
 El botón **MIDI ▾** de la cabecera abre el panel de dispositivos: elegí la entrada MIDI (todas o un teclado concreto; la lista se actualiza al conectar o desconectar) y la salida de audio (Chrome/Edge, vía `setSinkId`). Mensajes soportados: note on/off, pitch bend, CC1 (mod wheel), CC64 (sustain), CC20‑23 (macros 1‑4), CC74 (cutoff F1), CC71 (resonancia F1).
