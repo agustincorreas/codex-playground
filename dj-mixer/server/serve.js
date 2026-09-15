@@ -9,7 +9,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = Number(process.env.PORT || 8787);
 const YTDLP = process.env.YTDLP || 'yt-dlp';
-export const SERVER_VERSION = 5; // subir cuando cambie la API del bridge
+export const SERVER_VERSION = 6; // subir cuando cambie la API del bridge
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
   '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon',
@@ -26,12 +26,12 @@ const readBody = (req) => new Promise((resolve) => { let b = ''; req.on('data', 
 const cache = new Map(); // key → { at, data }
 const cached = async (key, ttlMs, fn) => { const c = cache.get(key); if (c && Date.now() - c.at < ttlMs) return c.data; const data = await fn(); cache.set(key, { at: Date.now(), data }); return data; };
 
-let ytdlpOk = false, ffmpegOk = false;
+let ytdlpOk = false, ffmpegOk = false, ytdlpVersion = '';
 const FFMPEG = process.env.FFMPEG || 'ffmpeg';
 execFile(FFMPEG, ['-version'], (err) => { ffmpegOk = !err; if (!ffmpegOk) console.log('ffmpeg no encontrado: sin conversión a WAV de respaldo (opcional).'); });
 const cleanErr = (txt) => (String(txt || '').split('\n').map(l => l.trim()).filter(l => /ERROR/i.test(l)).pop() || String(txt || '').trim().split('\n').pop() || '').replace(/^ERROR:\s*/i, '').slice(0, 300);
 execFile(YTDLP, ['--version'], (err, out) => {
-  ytdlpOk = !err;
+  ytdlpOk = !err; ytdlpVersion = (out || '').trim();
   console.log(ytdlpOk ? `yt-dlp ${out.trim()} detectado: bridge de YouTube activo` : 'yt-dlp no encontrado: YouTube funcionará en modo embed (sin waveform/EQ). Instalá yt-dlp para audio completo.');
 });
 
@@ -52,6 +52,8 @@ const runJson = (args, { cookies = false, timeout = 60000 } = {}) => {
 const cookieError = (e) => {
   const msg = String(e.message || e);
   const browser = cfg.cookiesFromBrowser ? cfg.cookiesFromBrowser[0].toUpperCase() + cfg.cookiesFromBrowser.slice(1) : 'el archivo de cookies';
+  if (/page needs to be reloaded|cookies are no longer valid|rotated/i.test(msg))
+    return `YouTube invalidó las cookies leídas de ${browser} (pasa cuando el navegador sigue abierto y rota la sesión). Actualizá yt-dlp (pip install -U yt-dlp) o exportá un cookies.txt desde una ventana privada, cerrala y poné la ruta en Ajustes.`;
   if (/keychain|Safe Storage|could not copy|Could not find|cookie database|decrypt|Permission denied|Operation not permitted/i.test(msg))
     return `No se pudo leer la sesión de YouTube desde ${browser}. En Mac, el aviso del llavero pide la contraseña de tu usuario de Mac (la del login, no la de Google): escribila y elegí "Always Allow". Si Chrome está abierto y sigue fallando, cerralo y probá de nuevo, o exportá un cookies.txt y poné la ruta en Ajustes.`;
   if (/sign in|login|bot|cookies are no longer valid|not logged in/i.test(msg))
@@ -95,7 +97,7 @@ export function createServer() {
 return http.createServer(async (req, res) => {
   const u = new URL(req.url, `http://${req.headers.host}`);
   try {
-    if (u.pathname === '/api/bridge/status') return json(res, 200, { ok: true, ytdlp: ytdlpOk, version: SERVER_VERSION, account: !!(cfg.cookiesFromBrowser || cfg.cookiesFile), accountOk: !!cfg.cookiesOk });
+    if (u.pathname === '/api/bridge/status') return json(res, 200, { ok: true, ytdlp: ytdlpOk, ytdlpVersion, version: SERVER_VERSION, account: !!(cfg.cookiesFromBrowser || cfg.cookiesFile), accountOk: !!cfg.cookiesOk });
     if (u.pathname === '/api/config') {
       let probe = null;
       if (req.method === 'POST') {
@@ -160,26 +162,34 @@ return http.createServer(async (req, res) => {
       const url = u.searchParams.get('url'); if (!url) return json(res, 400, { error: 'url requerida' });
       if (!ytdlpOk) return json(res, 503, { error: 'yt-dlp no disponible' });
       const wantWav = u.searchParams.get('fmt') === 'wav';
-      const p = spawn(YTDLP, [...(cfg.cookiesOk ? ytArgs() : []), '-f', 'bestaudio[ext=m4a]/bestaudio/best', '--no-playlist', '--no-warnings', '-q', '-o', '-', url]);
-      let err = '', started = false, ff = null, out = p.stdout;
-      p.stderr.on('data', d => { err += d; });
-      if (wantWav) {
-        if (!ffmpegOk) { p.kill('SIGKILL'); return json(res, 503, { error: 'ffmpeg no está instalado: no se puede convertir el audio (brew install ffmpeg / apt install ffmpeg).' }); }
-        ff = spawn(FFMPEG, ['-loglevel', 'error', '-i', 'pipe:0', '-vn', '-ac', '2', '-ar', '44100', '-f', 'wav', 'pipe:1']);
-        ff.stderr.on('data', d => { err += d; });
-        p.stdout.pipe(ff.stdin); ff.stdin.on('error', () => {});
-        out = ff.stdout;
-      }
-      const fail = (msg) => { if (!started && !res.headersSent) json(res, 502, { error: msg }); };
-      out.once('data', (chunk) => {
-        started = true;
-        res.writeHead(200, { 'Content-Type': wantWav ? 'audio/wav' : 'audio/mp4', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store' });
-        res.write(chunk); out.pipe(res);
+      if (wantWav && !ffmpegOk) return json(res, 503, { error: 'ffmpeg no está instalado: no se puede convertir el audio (brew install ffmpeg / apt install ffmpeg).' });
+      // Primero sin cookies (las cookies de un navegador abierto se invalidan seguido); con cookies solo si YouTube exige sesión.
+      const attempt = (useCookies) => new Promise((resolve, reject) => {
+        const p = spawn(YTDLP, [...(useCookies ? ytArgs() : []), '-f', 'bestaudio[ext=m4a]/bestaudio/best', '--no-playlist', '--no-warnings', '-q', '-o', '-', url]);
+        let err = '', started = false, ff = null, out = p.stdout;
+        p.stderr.on('data', d => { err += d; });
+        if (wantWav) {
+          ff = spawn(FFMPEG, ['-loglevel', 'error', '-i', 'pipe:0', '-vn', '-ac', '2', '-ar', '44100', '-f', 'wav', 'pipe:1']);
+          ff.stderr.on('data', d => { err += d; }); p.stdout.pipe(ff.stdin); ff.stdin.on('error', () => {}); out = ff.stdout;
+        }
+        out.once('data', (chunk) => {
+          started = true;
+          res.writeHead(200, { 'Content-Type': wantWav ? 'audio/wav' : 'audio/mp4', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store' });
+          res.write(chunk); out.pipe(res); resolve(true);
+        });
+        out.on('end', () => { if (!started) reject(new Error(cleanErr(err) || 'yt-dlp no devolvió audio para este video')); });
+        p.on('error', e => { if (!started) reject(e); });
+        ff?.on('error', e => { if (!started) reject(new Error('ffmpeg: ' + e.message)); });
+        req.on('close', () => { p.kill('SIGKILL'); ff?.kill('SIGKILL'); });
       });
-      out.on('end', () => fail(cleanErr(err) || 'yt-dlp no devolvió audio para este video'));
-      p.on('error', e => fail(e.message));
-      ff?.on('error', e => fail('ffmpeg: ' + e.message));
-      req.on('close', () => { p.kill('SIGKILL'); ff?.kill('SIGKILL'); });
+      try { await attempt(false); }
+      catch (e1) {
+        const needsLogin = /sign in|log in|login|bot|age|private|members|premium|not available in your country/i.test(e1.message);
+        if (needsLogin && (cfg.cookiesFromBrowser || cfg.cookiesFile)) {
+          try { await attempt(true); }
+          catch (e2) { if (!res.headersSent) json(res, 502, { error: cookieError(e2) }); }
+        } else if (!res.headersSent) json(res, 502, { error: e1.message + (needsLogin ? ' · Activá tu cuenta de YouTube en Ajustes para este video.' : '') });
+      }
       return;
     }
     // estático
