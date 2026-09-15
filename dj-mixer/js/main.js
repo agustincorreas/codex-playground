@@ -26,10 +26,14 @@ const mode = () => document.body.classList.contains('mode-expert') ? 'expert' : 
 
 async function loadTrack(track, deck) {
   if (deck.playing) { toast(`El deck ${deck.id} está sonando. Pausalo o usá el otro deck.`, 'warn'); return false; }
-  if (track.source === 'spotify' && other(deck).kind === 'spotify') { toast('Spotify solo permite un deck a la vez.', 'warn'); return false; }
+  if (track.source === 'spotify' && !Deck.spotifyViaYouTube() && other(deck).kind === 'spotify') { toast('Spotify (reproductor oficial) solo permite un deck a la vez. Activá el bridge para usar los dos.', 'warn'); return false; }
   await engine.resume();
   const ok = await deck.load(track);
   if (!ok) return false;
+  if (track.source === 'spotify') {
+    if (deck.kind === 'buffer') toast(`Audio vía YouTube: ${track.matchedTitle || track.title}`);
+    else if (Deck.spotifyViaYouTube()) toast('No se encontró el tema en YouTube: se usa el reproductor de Spotify (sin EQ/waveform).', 'warn', 5000);
+  }
   // auto-gain (como Serato): trim sugerido por el análisis
   const g = track.analysis?.gainDb; if (typeof g === 'number') mixer.controls[deck.id].trim.set(g);
   else mixer.controls[deck.id].trim.set(0);
@@ -46,6 +50,7 @@ function syncDeck(deck) {
   if (deck.syncTo(o)) toast(`Deck ${deck.id} sincronizado a ${o.effectiveBpm.toFixed(1)} BPM`);
 }
 
+for (const d of Object.values(decks)) d.on('matched', () => library.persist());
 const views = {
   A: new DeckView(decks.A, $('#deck-A'), { color: COLORS.A, onDropTrack: (id, d) => loadTrack(library.byId(id), d), onSync: syncDeck }),
   B: new DeckView(decks.B, $('#deck-B'), { color: COLORS.B, onDropTrack: (id, d) => loadTrack(library.byId(id), d), onSync: syncDeck }),
@@ -158,7 +163,7 @@ setInterval(() => midi.refreshLeds(), 250);
 
 // ---------- ajustes ----------
 const settings = $('#settings');
-$('#settings-btn').addEventListener('click', () => { $('#spotify-client').value = spotify.clientId; $('#bridge-url').value = store.get('bridgeUrl', ''); $('#spotify-redirect').textContent = spotify.redirectUri; $('#xf-curve').value = store.get('xfCurve', 'smooth'); settings.showModal(); });
+$('#settings-btn').addEventListener('click', () => { $('#spotify-via-yt').checked = store.get('spotifyViaYouTube', true) !== false; $('#spotify-client').value = spotify.clientId; $('#bridge-url').value = store.get('bridgeUrl', ''); $('#spotify-redirect').textContent = spotify.redirectUri; $('#xf-curve').value = store.get('xfCurve', 'smooth'); settings.showModal(); });
 async function listDevices() {
   try { const s = await navigator.mediaDevices.getUserMedia({ audio: true }); s.getTracks().forEach(t => t.stop()); } catch { /* sin permiso: sin etiquetas */ }
   const devs = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'audiooutput');
@@ -173,6 +178,7 @@ $('#detect-devices').addEventListener('click', listDevices);
 $('#out-master').addEventListener('change', async (e) => { try { await engine.setMasterOutput(e.target.value); toast('Salida master cambiada'); } catch (err) { toast(err.message, 'error', 5000); } });
 $('#out-cue').addEventListener('change', async (e) => { try { await engine.setCueOutput(e.target.value); toast(e.target.value ? 'Auriculares activos' : 'Cue desactivado'); } catch (err) { toast(err.message, 'error', 5000); } });
 $('#split-cue').addEventListener('change', (e) => engine.setSplitCue(e.target.checked));
+$('#spotify-via-yt').addEventListener('change', (e) => { store.set('spotifyViaYouTube', e.target.checked); libView.render(); });
 $('#spotify-client').addEventListener('change', (e) => { spotify.clientId = e.target.value; });
 $('#bridge-url').addEventListener('change', async (e) => { store.set('bridgeUrl', e.target.value.trim()); await bridge.check(); libView.render(); status(); });
 $('#xf-curve').addEventListener('change', (e) => { store.set('xfCurve', e.target.value); mixer.curve = e.target.value; mixer.applyXf(mixer.xf.value); });

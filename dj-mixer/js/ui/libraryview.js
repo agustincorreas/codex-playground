@@ -1,6 +1,7 @@
 import { el, fmtTime, fmtBpm, toast, debounce } from '../utils.js';
 import { bridge } from '../sources/bridge.js';
 import { spotify } from '../sources/spotify.js';
+import { Deck } from '../audio/deck.js';
 
 const SRC_LABEL = { local: 'Local', youtube: 'YouTube', spotify: 'Spotify', url: 'URL' };
 
@@ -75,7 +76,17 @@ export class LibraryView {
     };
     spBtn.addEventListener('click', spGo); spIn.addEventListener('keydown', e => e.key === 'Enter' && spGo());
     this.$spResults = el('div', { class: 'results' });
-    this.$spPanel = el('div', { class: 'src-panel', dataset: { panel: 'spotify' } }, el('div', { class: 'row' }, this.$spLogin, spIn, spBtn, el('span', { class: 'muted small' }, 'Requiere Premium. Solo un deck a la vez. Sin EQ ni waveform (DRM).')), this.$spResults);
+    const plIn = el('input', { type: 'text', placeholder: 'Link de playlist o álbum de Spotify para importar', class: 'grow' });
+    const plBtn = el('button', { class: 'btn sm' }, 'Importar');
+    const plGo = async () => {
+      const v = plIn.value.trim(); if (!v) return;
+      if (!spotify.loggedIn) return toast('Conectá Spotify primero (Client ID en Ajustes).', 'warn');
+      try { toast('Importando…'); const items = await spotify.collectionTracks(v); const n = this.lib.addSpotifyMany(items); toast(`${n} pista(s) importadas (${items.length} en la lista)`); plIn.value = ''; }
+      catch (e) { toast(e.message, 'error', 6000); }
+    };
+    plBtn.addEventListener('click', plGo); plIn.addEventListener('keydown', e => e.key === 'Enter' && plGo());
+    this.$spNote = el('span', { class: 'muted small' });
+    this.$spPanel = el('div', { class: 'src-panel', dataset: { panel: 'spotify' } }, el('div', { class: 'row' }, this.$spLogin, spIn, spBtn, plIn, plBtn), this.$spNote, this.$spResults);
     // URL
     const urlIn = el('input', { type: 'url', placeholder: 'https://…/tema.mp3 (stream directo, radio, etc.)', class: 'grow' });
     const urlAdd = el('button', { class: 'btn sm accent' }, 'Agregar');
@@ -106,6 +117,9 @@ export class LibraryView {
     this.$ytPanel.hidden = this.source !== 'youtube'; this.$spPanel.hidden = this.source !== 'spotify'; this.$urlPanel.hidden = this.source !== 'url';
     this.$ytStatus.textContent = bridge.ytdlp ? 'Bridge activo: audio completo + búsqueda' : 'Modo embed (sin waveform/EQ). Bridge: npm start + yt-dlp';
     this.$spLogin.textContent = spotify.loggedIn ? 'Desconectar Spotify' : 'Conectar Spotify';
+    this.$spNote.textContent = Deck.spotifyViaYouTube()
+      ? 'Bridge activo: al cargar un tema de Spotify, el audio se toma de YouTube (waveform, EQ, loops y los dos decks). Requiere Premium para buscar e importar.'
+      : 'Sin bridge: reproductor oficial de Spotify (Premium). Un deck a la vez y sin EQ ni waveform por DRM. Con yt-dlp + npm start se desbloquea todo.';
     const list = this.lib.filter({ source: this.source, q: this.q });
     this.$count.textContent = `${list.length} pista${list.length === 1 ? '' : 's'}`;
     this.$empty.hidden = list.length > 0;

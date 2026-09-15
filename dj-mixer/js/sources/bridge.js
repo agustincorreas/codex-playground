@@ -22,5 +22,11 @@ export const bridge = {
     if (!r.ok) throw new Error('Búsqueda fallida');
     return r.json();
   },
+  async match({ artist, title, duration }) {
+    const q = new URLSearchParams({ artist: artist || '', title: title || '' }); if (duration) q.set('duration', String(Math.round(duration)));
+    const r = await fetch(`${this.base}/api/match?${q}`);
+    if (!r.ok) throw new Error('El bridge no pudo buscar en YouTube');
+    const j = await r.json(); return j && j.url ? j : null;
+  },
   streamUrl(url) { return `${this.base}/api/stream?url=${encodeURIComponent(url)}`; },
 };

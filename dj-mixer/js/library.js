@@ -21,6 +21,7 @@ export class Library extends EventTarget {
     this._attach(track); this._persist(); this.emit('change'); return track;
   }
   remove(id) { this.tracks = this.tracks.filter(t => t.id !== id); this.queue = this.queue.filter(q => q !== id); this._persist(); this.emit('change'); }
+  persist() { this._persist(); }
   _persist() {
     store.set('tracks', this.tracks.filter(t => t.source !== 'local').map(({ getBuffer, analysis, file, ...rest }) => rest));
     store.set('queue', this.queue);
@@ -33,8 +34,8 @@ export class Library extends EventTarget {
     track.getBuffer = async (ctx) => {
       let ab;
       if (track.source === 'local') ab = await track.file.arrayBuffer();
-      else if (track.source === 'youtube') {
-        const r = await fetch(bridge.streamUrl(track.url));
+      else if (track.source === 'youtube' || (track.source === 'spotify' && track.matchedUrl)) {
+        const r = await fetch(bridge.streamUrl(track.source === 'youtube' ? track.url : track.matchedUrl));
         if (!r.ok) throw new Error('El bridge no pudo obtener el audio de YouTube');
         ab = await r.arrayBuffer();
       } else {
@@ -92,6 +93,7 @@ export class Library extends EventTarget {
   addSpotify(item) {
     return this.add({ key: item.uri, source: 'spotify', uri: item.uri, title: item.title, artist: item.artist, duration: item.duration, cover: item.cover, bpm: null, added: Date.now() });
   }
+  addSpotifyMany(items) { let n = 0; for (const it of items) { if (!this.tracks.some(t => t.key === it.uri)) { this._attach({ key: it.uri, source: 'spotify', uri: it.uri, title: it.title, artist: it.artist, duration: it.duration, cover: it.cover, bpm: null, added: Date.now() }); n++; } } this._persist(); this.emit('change'); return n; }
   addUrl(url) {
     let u; try { u = new URL(url); } catch { throw new Error('URL inválida'); }
     const name = decodeURIComponent(u.pathname.split('/').pop() || u.hostname);

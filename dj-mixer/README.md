@@ -39,10 +39,11 @@ El modo se recuerda entre sesiones.
 | Local | `+ Archivos`, `+ Carpeta` o arrastrar | ✅ | mp3, m4a, flac, wav, ogg, opus… |
 | YouTube **con bridge** | `npm start` + [yt-dlp](https://github.com/yt-dlp/yt-dlp) instalado | ✅ | El servidor descarga el audio y el deck lo trata como archivo local. Habilita la búsqueda desde la app |
 | YouTube **embed** (sin bridge) | Pegar link | ❌ (barra de progreso, sin EQ) | Usa el reproductor oficial; play/pause/seek/volumen/velocidad. El video se ve en el lugar del platter |
-| Spotify | Client ID propio + cuenta Premium | ❌ (DRM) | Web Playback SDK: play/pause/seek/volumen. Un solo deck a la vez |
+| Spotify **con bridge** | Client ID + Premium + yt-dlp | ✅ | Spotify es el catálogo (búsqueda, playlists, álbumes); el audio se busca automáticamente en YouTube por artista/título/duración y se carga como archivo. Dos decks, EQ, loops, keylock |
+| Spotify **sin bridge** | Client ID propio + cuenta Premium | ❌ (DRM) | Web Playback SDK: play/pause/seek/volumen. Un solo deck a la vez |
 | URL directa | Pegar URL | ✅ si el servidor permite CORS, si no ❌ | Streams/radios funcionan como `<audio>` |
 
-Los decks "embed"/Spotify no pasan por el motor de audio: el fader, crossfader y master sí los controlan (por volumen), pero no hay EQ, filtro, cue a auriculares ni grabación de esa señal. Es una limitación del DRM/iframe, no de la app; por eso existe el bridge.
+Los decks "embed" y el reproductor oficial de Spotify no pasan por el motor de audio: el fader, crossfader y master sí los controlan (por volumen), pero no hay EQ, filtro, cue a auriculares ni grabación de esa señal. Es una limitación del DRM/iframe, no de la app; por eso existe el bridge.
 
 ### Bridge de YouTube
 
@@ -57,7 +58,9 @@ Si `yt-dlp` está en el PATH, el estado arriba a la derecha dice **Bridge YT ✓
 
 1. Creá una app en <https://developer.spotify.com/dashboard> y agregá como Redirect URI la que muestra Ajustes: `http://127.0.0.1:8787/`. Spotify rechaza `localhost` y cualquier `http://` que no sea la IP de loopback; en un servidor remoto necesitás HTTPS. Si abriste la app en `localhost`, al conectar salta sola a `127.0.0.1`.
 2. Pegá el Client ID en Ajustes → pestaña Spotify → **Conectar Spotify**.
-3. Buscá y agregá temas. Requiere Premium (restricción del SDK de Spotify).
+3. Buscá temas o importá una playlist/álbum pegando su link. Requiere Premium (restricción de Spotify).
+
+Con el bridge activo, al cargar un tema de Spotify la app busca el mismo tema en YouTube (`/api/match`: artista + título, duración a ±3 s, evita lives/covers/sped-up) y lo carga con audio real. La coincidencia se guarda por tema. Si no encuentra nada, cae al reproductor oficial. Podés desactivarlo en Ajustes para usar siempre el reproductor de Spotify.
 
 ## Controlador MIDI
 

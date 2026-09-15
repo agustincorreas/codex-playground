@@ -4,7 +4,7 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawn, execFile } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = Number(process.env.PORT || 8787);
@@ -35,7 +35,29 @@ const pick = (i) => ({
   thumb: i.thumbnail || (i.thumbnails && i.thumbnails.at(-1) && i.thumbnails.at(-1).url) || null,
 });
 
-http.createServer(async (req, res) => {
+// Elegir el resultado de YouTube que mejor coincide con un tema (artista, título, duración).
+const norm = (t) => (t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
+export function pickMatch(items, { artist = '', title = '', duration = null }) {
+  const want = norm(`${artist} ${title}`), wantTitle = norm(title), wantWords = new Set(want.split(' ').filter(Boolean));
+  const BAD = ['live', 'cover', 'karaoke', 'remix', 'sped up', 'slowed', 'nightcore', 'reaction', 'instrumental', '8d', 'lyrics video'];
+  let best = null, bestScore = -Infinity;
+  for (const i of items) {
+    const t = norm(i.title), ch = norm(i.artist);
+    if (!t) continue;
+    const words = new Set(`${t} ${ch}`.split(' '));
+    let overlap = 0; for (const w of wantWords) if (words.has(w)) overlap++;
+    let score = overlap / Math.max(1, wantWords.size) * 10;
+    if (t.includes(wantTitle)) score += 3;
+    if (duration && i.duration) { const d = Math.abs(i.duration - duration); score += d <= 3 ? 5 : d <= 10 ? 2 : d <= 30 ? -2 : -8; }
+    if (/official audio|topic|provided to youtube|audio/.test(`${t} ${ch}`)) score += 1.5;
+    for (const b of BAD) if (`${t} ${ch}`.includes(b) && !want.includes(b)) score -= 4;
+    if (score > bestScore) { bestScore = score; best = i; }
+  }
+  return best && bestScore >= 4 ? { ...best, score: Math.round(bestScore * 10) / 10 } : null;
+}
+
+export function createServer() {
+return http.createServer(async (req, res) => {
   const u = new URL(req.url, `http://${req.headers.host}`);
   try {
     if (u.pathname === '/api/bridge/status') return json(res, 200, { ok: true, ytdlp: ytdlpOk });
@@ -51,6 +73,14 @@ http.createServer(async (req, res) => {
       if (!ytdlpOk) return json(res, 503, { error: 'yt-dlp no disponible' });
       const items = await runJson(['-j', '--flat-playlist', '--no-warnings', `ytsearch10:${q}`]);
       return json(res, 200, items.map(pick));
+    }
+    if (u.pathname === '/api/match') {
+      const artist = u.searchParams.get('artist') || '', title = u.searchParams.get('title') || '', duration = Number(u.searchParams.get('duration')) || null;
+      if (!title) return json(res, 400, { error: 'title requerido' });
+      if (!ytdlpOk) return json(res, 503, { error: 'yt-dlp no disponible' });
+      const items = await runJson(['-j', '--flat-playlist', '--no-warnings', `ytsearch8:${artist} ${title}`]);
+      const m = pickMatch(items.map(pick), { artist, title, duration });
+      return json(res, 200, m || { error: 'sin coincidencia' });
     }
     if (u.pathname === '/api/stream') {
       const url = u.searchParams.get('url'); if (!url) return json(res, 400, { error: 'url requerida' });
@@ -75,4 +105,9 @@ http.createServer(async (req, res) => {
   } catch (e) {
     json(res, 500, { error: String(e.message || e) });
   }
-}).listen(PORT, () => console.log(`MIXR DJ → http://127.0.0.1:${PORT}  (usá 127.0.0.1 y no localhost si vas a conectar Spotify)`));
+});
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  createServer().listen(PORT, () => console.log(`MIXR DJ → http://127.0.0.1:${PORT}  (usá 127.0.0.1 y no localhost si vas a conectar Spotify)`));
+}

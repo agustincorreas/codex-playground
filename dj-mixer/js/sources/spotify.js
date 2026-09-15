@@ -81,6 +81,27 @@ export const spotify = {
       cover: t.album?.images?.at(-1)?.url || null,
     }));
   },
+  parseCollection(input) {
+    const s = (input || '').trim();
+    let m = s.match(/spotify:(playlist|album):([A-Za-z0-9]+)/); if (m) return { type: m[1], id: m[2] };
+    m = s.match(/open\.spotify\.com\/(?:intl-[a-z]+\/)?(playlist|album)\/([A-Za-z0-9]+)/); if (m) return { type: m[1], id: m[2] };
+    return null;
+  },
+  async collectionTracks(input) {
+    const c = this.parseCollection(input); if (!c) throw new Error('Pegá un link de playlist o álbum de Spotify');
+    let url = c.type === 'playlist' ? `/playlists/${c.id}/tracks?limit=100` : `/albums/${c.id}?limit=50`;
+    let albumCover = null; const out = [];
+    while (url) {
+      const j = await this.api(url);
+      const page = c.type === 'playlist' ? j : (albumCover = j.images?.at(-1)?.url || albumCover, j.tracks);
+      for (const it of page.items || []) {
+        const t = c.type === 'playlist' ? it.track : it; if (!t || !t.uri || t.is_local) continue;
+        out.push({ uri: t.uri, id: t.id, title: t.name, artist: (t.artists || []).map(a => a.name).join(', '), duration: t.duration_ms / 1000, cover: t.album?.images?.at(-1)?.url || albumCover });
+      }
+      url = page.next ? page.next.replace('https://api.spotify.com/v1', '') : null;
+    }
+    return out;
+  },
   async connect() {
     if (this.player && this.deviceId) return this.player;
     if (this.connecting) return this.connecting;

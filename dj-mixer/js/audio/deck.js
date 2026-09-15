@@ -139,15 +139,24 @@ export class Deck extends EventTarget {
   emit(type, detail) { this.dispatchEvent(new CustomEvent(type, { detail })); }
   on(type, fn) { this.addEventListener(type, e => fn(e.detail)); return this; }
 
+  static spotifyViaYouTube() { return bridge.ytdlp && store.get('spotifyViaYouTube', true) !== false; }
   _makeBackend(track) {
     if (track.source === 'youtube') return bridge.ytdlp ? new BufferBackend(this) : new YouTubeBackend(this);
-    if (track.source === 'spotify') return new SpotifyBackend(this);
+    if (track.source === 'spotify') return track.matchedUrl && Deck.spotifyViaYouTube() ? new BufferBackend(this) : new SpotifyBackend(this);
     return new BufferBackend(this);
   }
   async load(track) {
     if (this.loading) return;
     this.loading = true; this.emit('loading', track);
     this.eject(true);
+    // Spotify no permite procesar su audio (DRM): con el bridge, buscamos el mismo tema en YouTube.
+    if (track.source === 'spotify' && Deck.spotifyViaYouTube() && !track.matchedUrl && !track.matchFailed) {
+      try {
+        const m = await bridge.match({ artist: track.artist, title: track.title, duration: track.duration });
+        if (m) { track.matchedUrl = m.url; track.matchedTitle = m.title; this.emit('matched', track); }
+        else track.matchFailed = true;
+      } catch (e) { console.warn('match', e); }
+    }
     let backend = this._makeBackend(track);
     try {
       try { await backend.load(track); }
@@ -158,6 +167,7 @@ export class Deck extends EventTarget {
     } catch (e) {
       backend.dispose?.(); this.loading = false; this.emit('error', e); this.emit('state'); return false;
     }
+    if (track.source === 'spotify' && backend.kind === 'buffer') { track.duration = backend.duration; }
     this.backend = backend; this.track = track; this.analysis = track.analysis || null;
     const meta = store.get('meta.' + track.key, {});
     this.bpm = meta.bpm || track.bpm || this.analysis?.bpm || null;
