@@ -67,7 +67,15 @@ export const spotify = {
     return j;
   },
   async search(q) {
-    const j = await this.api(`/search?type=track&limit=20&q=${encodeURIComponent(q)}`);
+    // Algunas apps de Spotify (modo desarrollo) rechazan ciertos valores de limit con "Invalid limit": probar de mayor a menor.
+    let j = null, lastErr = null;
+    for (const limit of [20, 10, null]) {
+      const params = new URLSearchParams({ q, type: 'track', market: 'from_token' });
+      if (limit) params.set('limit', String(limit));
+      try { j = await this.api('/search?' + params); break; }
+      catch (e) { lastErr = e; if (!/limit/i.test(e.message)) throw e; }
+    }
+    if (!j) throw lastErr || new Error('Búsqueda de Spotify fallida');
     return (j?.tracks?.items || []).map(t => ({
       uri: t.uri, id: t.id, title: t.name, artist: t.artists.map(a => a.name).join(', '), duration: t.duration_ms / 1000,
       cover: t.album?.images?.at(-1)?.url || null,

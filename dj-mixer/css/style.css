@@ -208,14 +208,15 @@ dialog code { background: var(--panel2); padding: 2px 5px; border-radius: 4px; u
 @media (max-height: 820px) {
   body { grid-template-rows: 48px 110px auto minmax(320px, 1fr); }
   .platter, .deck.has-video .platter { width: 120px; height: 120px; }
-  .deck-body, #deck-B .deck-body { grid-template-columns: 120px minmax(0, 1fr) 54px; }
+  .deck-body { grid-template-columns: 120px minmax(0, 1fr) 54px; } #deck-B .deck-body { grid-template-columns: 54px minmax(0, 1fr) 120px; }
   .fader-row { height: 100px; } .pitch .fader { height: 120px; }
   .btn.big, body.mode-simple .btn.big { padding: 10px 0; }
   .knob svg { width: 34px; height: 34px; }
 }
 @media (max-width: 1100px) {
   #decks { grid-template-columns: 1fr 240px 1fr; }
-  .deck-body, #deck-B .deck-body { grid-template-columns: 110px minmax(0, 1fr) 50px; }
+  .deck-body { grid-template-columns: 110px minmax(0, 1fr) 50px; } #deck-B .deck-body { grid-template-columns: 50px minmax(0, 1fr) 110px; }
+  .deck.has-video .platter { width: 150px; height: 110px; } .deck.has-video .deck-body { grid-template-columns: 150px minmax(0, 1fr) 50px; } #deck-B.has-video .deck-body { grid-template-columns: 50px minmax(0, 1fr) 150px; }
   .platter { width: 110px; height: 110px; }
 }
 @media (max-width: 860px) {
