@@ -78,9 +78,18 @@ return http.createServer(async (req, res) => {
       const artist = u.searchParams.get('artist') || '', title = u.searchParams.get('title') || '', duration = Number(u.searchParams.get('duration')) || null;
       if (!title) return json(res, 400, { error: 'title requerido' });
       if (!ytdlpOk) return json(res, 503, { error: 'yt-dlp no disponible' });
-      const items = await runJson(['-j', '--flat-playlist', '--no-warnings', `ytsearch8:${artist} ${title}`]);
-      const m = pickMatch(items.map(pick), { artist, title, duration });
-      return json(res, 200, m || { error: 'sin coincidencia' });
+      // varias consultas, de más específica a más general
+      const firstArtist = artist.split(/,|&| feat\.? | ft\.? /i)[0].trim();
+      const cleanTitle = title.replace(/\s*[-–]\s*.*(remix|mix|edit|version|remaster).*$/i, (m) => ' ' + m.replace(/^[\s-–]+/, '')).trim();
+      const queries = [...new Set([`${artist} ${title}`, `${firstArtist} ${title}`, `${firstArtist} ${cleanTitle}`, title].map(q => q.trim()).filter(Boolean))];
+      let m = null, tried = 0;
+      for (const q of queries) {
+        const items = await runJson(['-j', '--flat-playlist', '--no-warnings', `ytsearch8:${q}`]).catch(() => []);
+        tried++;
+        m = pickMatch(items.map(pick), { artist: firstArtist, title, duration });
+        if (m) { m.query = q; break; }
+      }
+      return json(res, 200, m || { error: 'sin coincidencia', tried });
     }
     if (u.pathname === '/api/stream') {
       const url = u.searchParams.get('url'); if (!url) return json(res, 400, { error: 'url requerida' });

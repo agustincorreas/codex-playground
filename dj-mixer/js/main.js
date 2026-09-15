@@ -32,6 +32,7 @@ async function loadTrack(track, deck) {
   if (!ok) return false;
   if (track.source === 'spotify') {
     if (deck.kind === 'buffer') toast(`Audio vía YouTube: ${track.matchedTitle || track.title}`);
+    else if (track.matchError) toast(`Bridge: ${track.matchError} Se usa el reproductor de Spotify (sin EQ/waveform).`, 'error', 8000);
     else if (Deck.spotifyViaYouTube()) toast('No se encontró el tema en YouTube: se usa el reproductor de Spotify (sin EQ/waveform).', 'warn', 5000);
   }
   // auto-gain (como Serato): trim sugerido por el análisis

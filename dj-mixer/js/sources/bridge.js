@@ -25,8 +25,9 @@ export const bridge = {
   async match({ artist, title, duration }) {
     const q = new URLSearchParams({ artist: artist || '', title: title || '' }); if (duration) q.set('duration', String(Math.round(duration)));
     const r = await fetch(`${this.base}/api/match?${q}`);
-    if (!r.ok) throw new Error('El bridge no pudo buscar en YouTube');
-    const j = await r.json(); return j && j.url ? j : null;
+    if (r.status === 404) throw new Error('El servidor corre una versión vieja: cortalo con Ctrl+C y volvé a ejecutar npm start.');
+    if (!r.ok) throw new Error(`El bridge no pudo buscar en YouTube (HTTP ${r.status})`);
+    const j = await r.json(); console.info('[bridge] match', j); return j && j.url ? j : null;
   },
   streamUrl(url) { return `${this.base}/api/stream?url=${encodeURIComponent(url)}`; },
 };

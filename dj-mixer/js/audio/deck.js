@@ -151,11 +151,12 @@ export class Deck extends EventTarget {
     this.eject(true);
     // Spotify no permite procesar su audio (DRM): con el bridge, buscamos el mismo tema en YouTube.
     if (track.source === 'spotify' && Deck.spotifyViaYouTube() && !track.matchedUrl && !track.matchFailed) {
+      track.matchError = null;
       try {
         const m = await bridge.match({ artist: track.artist, title: track.title, duration: track.duration });
         if (m) { track.matchedUrl = m.url; track.matchedTitle = m.title; this.emit('matched', track); }
         else track.matchFailed = true;
-      } catch (e) { console.warn('match', e); }
+      } catch (e) { console.warn('match', e); track.matchError = e.message || String(e); }
     }
     let backend = this._makeBackend(track);
     try {
