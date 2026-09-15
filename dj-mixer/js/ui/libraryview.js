@@ -131,7 +131,9 @@ export class LibraryView {
   }
   spCard(item) {
     if (item.kind === 'track') return this.card(item, { add: () => this.lib.addSpotify(item.track) });
-    return this.card(item, { onOpen: () => this.spOpen(item) });
+    const c = this.card(item, { onOpen: () => item.locked ? toast('Spotify no permite leer sus playlists generadas (Mix, Radio, editoriales) desde apps externas. Las playlists tuyas o de otros usuarios sí.', 'warn', 6000) : this.spOpen(item) });
+    if (item.locked) c.classList.add('locked');
+    return c;
   }
   ytCard(r) { return this.card({ name: r.title, sub: r.artist, cover: r.thumb, key: 'yt:' + r.id }, { add: () => this.lib.addYouTube(r.url, r), wide: true }); }
   ytCardRow(title, items, note = '') {

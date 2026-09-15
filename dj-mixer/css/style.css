@@ -205,6 +205,7 @@ table.tracks .num { text-align: right; width: 70px; } .c-load { width: 60px; } .
 .sp-card:hover .sp-card-acts, .sp-card:focus-within .sp-card-acts { display: inline-flex; }
 .sp-card-acts .btn { background: rgba(11,12,15,.85); }
 .sp-card.added .sp-name::before { content: '✓ '; color: var(--green); }
+.sp-card.locked { opacity: .55; } .sp-card.locked .sp-name::before { content: '🔒 '; }
 .sp-cover { display: block; width: 108px; height: 108px; border-radius: 6px; background: var(--panel2) center/cover no-repeat; }
 .sp-cover.sm { width: 36px; height: 36px; }
 .sp-name { font-weight: 600; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

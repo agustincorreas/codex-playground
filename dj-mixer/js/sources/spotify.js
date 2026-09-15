@@ -66,6 +66,7 @@ export const spotify = {
     const r = await fetch('https://api.spotify.com/v1' + path, { ...opts, headers: { Authorization: 'Bearer ' + tok, 'Content-Type': 'application/json', ...(opts.headers || {}) } });
     if (r.status === 204) return null;
     const j = await r.json().catch(() => null);
+    if (r.status === 403 && /playlists|albums/.test(path)) throw new Error('Spotify no permite leer sus playlists generadas (Mix, Radio, editoriales) desde apps externas. Las playlists tuyas o de otros usuarios sí funcionan.');
     if (!r.ok) throw new Error(j?.error?.message || `Spotify API ${r.status}`);
     return j;
   },
@@ -85,7 +86,7 @@ export const spotify = {
     if (type === 'track') return (j.tracks?.items || []).map(mapTrack).filter(Boolean);
     if (type === 'artist') return (j.artists?.items || []).map(a => ({ kind: 'artist', id: a.id, uri: a.uri, name: a.name, sub: a.genres?.slice(0, 2).join(', ') || 'Artista', cover: img(a, true) }));
     if (type === 'album') return (j.albums?.items || []).map(a => ({ kind: 'album', id: a.id, uri: a.uri, name: a.name, sub: `${(a.artists || []).map(x => x.name).join(', ')} · ${(a.release_date || '').slice(0, 4)}`, cover: img(a, true) }));
-    return (j.playlists?.items || []).filter(Boolean).map(p => ({ kind: 'playlist', id: p.id, uri: p.uri, name: p.name, sub: `${p.owner?.display_name || ''} · ${p.tracks?.total ?? ''} temas`, cover: img(p, true) }));
+    return (j.playlists?.items || []).filter(Boolean).map(p => { const spotifyOwned = p.owner?.id === 'spotify'; return { kind: 'playlist', id: p.id, uri: p.uri, name: p.name, sub: spotifyOwned ? 'De Spotify · no accesible' : `${p.owner?.display_name || ''}${p.tracks?.total != null ? ' · ' + p.tracks.total + ' temas' : ''}`, cover: img(p, true), locked: spotifyOwned }; });
   },
   async artistDetail(id) {
     const [top, albums] = await Promise.all([this.api(`/artists/${id}/top-tracks?market=from_token`), this.api(`/artists/${id}/albums?include_groups=album,single&limit=20&market=from_token`)]);
@@ -97,7 +98,7 @@ export const spotify = {
     const seen = new Set();
     const recentTracks = (recent?.items || []).map(i => mapTrack(i.track)).filter(t => t && !seen.has(t.uri) && seen.add(t.uri));
     return {
-      playlists: (pl?.items || []).filter(Boolean).map(p => ({ kind: 'playlist', id: p.id, uri: p.uri, name: p.name, sub: `${p.tracks?.total ?? ''} temas`, cover: img(p, true) })),
+      playlists: (pl?.items || []).filter(Boolean).map(p => { const spotifyOwned = p.owner?.id === 'spotify'; return { kind: 'playlist', id: p.id, uri: p.uri, name: p.name, sub: spotifyOwned ? 'De Spotify · no accesible' : (p.tracks?.total != null ? `${p.tracks.total} temas` : (p.owner?.display_name || 'Playlist')), cover: img(p, true), locked: spotifyOwned }; }),
       recent: recentTracks, liked: (liked?.items || []).map(i => mapTrack(i.track)).filter(Boolean), top: (top?.items || []).map(mapTrack).filter(Boolean),
     };
   },
