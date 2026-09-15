@@ -15,11 +15,15 @@ export class LibraryView {
   }
   resultRow(r, add) {
     const plus = el('button', { class: 'btn xs', title: 'Agregar a la biblioteca' }, '+');
-    plus.addEventListener('click', () => { const t = add(); toast(`Agregado: ${t.title}`); });
+    plus.addEventListener('click', () => { const t = add(); toast(`Agregado: ${t.title}`); this.selected = t.id; this.render(); });
     const a = el('button', { class: 'btn xs a', title: 'Agregar y cargar en Deck A' }, 'A'); a.addEventListener('click', () => this.onLoad(add(), this.decks.A));
     const b = el('button', { class: 'btn xs b', title: 'Agregar y cargar en Deck B' }, 'B'); b.addEventListener('click', () => this.onLoad(add(), this.decks.B));
-    return el('div', { class: 'result' }, el('span', { class: 'cover', style: r.cover || r.thumb ? `background-image:url("${r.cover || r.thumb}")` : '' }),
+    const key = r.uri || (r.id ? 'yt:' + r.id : null);
+    const row = el('div', { class: 'result' + (key && this.lib.tracks.some(t => t.key === key) ? ' added' : '') }, el('span', { class: 'cover', style: r.cover || r.thumb ? `background-image:url("${r.cover || r.thumb}")` : '' }),
       el('span', { class: 'grow' }, `${r.title} `, el('small', { class: 'muted' }, `${r.artist} · ${fmtTime(r.duration || 0, { tenths: false })}`)), el('span', { class: 'acts' }, plus, a, b));
+    const mark = () => row.classList.add('added');
+    plus.addEventListener('click', mark); a.addEventListener('click', mark); b.addEventListener('click', mark);
+    return row;
   }
   build() {
     const srcBtn = (id, label) => { const b = el('button', { class: 'src-btn', dataset: { src: id } }, label); b.addEventListener('click', () => { this.source = id; this.render(); }); return b; };
@@ -30,9 +34,12 @@ export class LibraryView {
     folder.addEventListener('change', () => this.addFiles(folder.files));
     this.$add = el('div', { class: 'lib-add' }, el('label', { class: 'btn sm accent' }, '+ Archivos', files), el('label', { class: 'btn sm' }, '+ Carpeta', folder));
     // toolbar
-    this.$search = el('input', { type: 'search', placeholder: 'Buscar en la biblioteca…', class: 'search' });
+    this.$search = el('input', { type: 'search', placeholder: 'Buscar… (Enter agrega el mejor resultado de YouTube/Spotify)', class: 'search' });
     this.$search.addEventListener('input', debounce(() => { this.q = this.$search.value; this.render(); }, 120));
-    this.$search.addEventListener('keydown', e => { if (e.key === 'Escape') { this.$search.value = ''; this.q = ''; this.render(); } });
+    this.$search.addEventListener('keydown', e => {
+      if (e.key === 'Escape') { this.$search.value = ''; this.q = ''; this.render(); }
+      if (e.key === 'Enter') { e.preventDefault(); this.quickAdd(this.$search.value.trim(), e.shiftKey); }
+    });
     // YouTube
     const ytIn = el('input', { type: 'text', placeholder: 'Pegá un link de YouTube (o buscá si el bridge está activo)', class: 'grow' });
     const ytAdd = el('button', { class: 'btn sm accent' }, 'Agregar');
@@ -48,6 +55,7 @@ export class LibraryView {
           const res = await bridge.search(v);
           this.$ytResults.innerHTML = '';
           for (const r of res) this.$ytResults.append(this.resultRow(r, () => this.lib.addYouTube(r.url, r)));
+          this.addTop(res, (r) => this.lib.addYouTube(r.url, r));
           if (!res.length) this.$ytResults.innerHTML = '<div class="muted">Sin resultados</div>';
         } else toast('Pegá un link de YouTube. Para buscar, ejecutá el bridge (npm start + yt-dlp).', 'warn', 5000);
       } catch (e) { toast(e.message, 'error'); }
@@ -71,6 +79,7 @@ export class LibraryView {
         this.$spResults.innerHTML = '<div class="muted">Buscando…</div>';
         const res = await spotify.search(v); this.$spResults.innerHTML = '';
         for (const r of res) this.$spResults.append(this.resultRow(r, () => this.lib.addSpotify(r)));
+        this.addTop(res, (r) => this.lib.addSpotify(r));
         if (!res.length) this.$spResults.innerHTML = '<div class="muted">Sin resultados</div>';
       } catch (e) { toast(e.message, 'error', 5000); }
     };
@@ -105,6 +114,26 @@ export class LibraryView {
     this.root.addEventListener('dragleave', () => this.root.classList.remove('drop'));
     this.root.addEventListener('drop', e => { this.root.classList.remove('drop'); if (e.dataTransfer.files?.length) { e.preventDefault(); this.addFiles(e.dataTransfer.files); } });
     this.$list.addEventListener('keydown', e => this.keys(e));
+  }
+  // Busca afuera (Spotify si está esa pestaña, si no YouTube por el bridge) y agrega el mejor resultado.
+  async quickAdd(q, loadToo = false) {
+    if (!q) return;
+    const useSpotify = this.source === 'spotify' && spotify.loggedIn;
+    try {
+      let track = null;
+      if (/youtu\.?be/.test(q) || /^[\w-]{11}$/.test(q)) { let info = null; if (bridge.ytdlp) { try { info = await bridge.resolve(q); } catch { /* embed */ } } track = this.lib.addYouTube(q, info); }
+      else if (useSpotify) { const res = await spotify.search(q); if (!res.length) return toast('Sin resultados en Spotify', 'warn'); track = this.lib.addSpotify(res[0]); }
+      else if (bridge.ytdlp) { toast('Buscando en YouTube…'); const res = await bridge.search(q); if (!res.length) return toast('Sin resultados en YouTube', 'warn'); track = this.lib.addYouTube(res[0].url, res[0]); }
+      else if (spotify.loggedIn) { const res = await spotify.search(q); if (!res.length) return toast('Sin resultados en Spotify', 'warn'); track = this.lib.addSpotify(res[0]); }
+      else return toast('Para agregar desde YouTube activá el bridge (npm start + yt-dlp), o conectá Spotify.', 'warn', 5000);
+      this.$search.value = ''; this.q = ''; this.selected = track.id; this.source = 'all'; this.render();
+      toast(`Agregado: ${track.title}`);
+      if (loadToo) { const d = this.freeDeck(); if (d) this.onLoad(track, d); }
+    } catch (e) { toast(e.message, 'error', 5000); }
+  }
+  addTop(res, add) {
+    if (!res.length) return;
+    const t = add(res[0]); toast(`Agregado: ${t.title}`); this.selected = t.id;
   }
   async addFiles(files) {
     const added = await this.lib.addFiles(files);

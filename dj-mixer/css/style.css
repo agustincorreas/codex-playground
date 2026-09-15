@@ -172,6 +172,7 @@ body.mode-simple .row-label.loop-label { display: none; }
 .src-panel[hidden] { display: none; }
 .results { display: flex; flex-direction: column; gap: 2px; max-height: 40vh; overflow: auto; }
 .result { display: flex; align-items: center; gap: 8px; padding: 3px 4px; border-radius: 4px; } .result:hover { background: var(--panel2); }
+.result.added { box-shadow: inset 3px 0 0 var(--green); } .result.added .grow::after { content: ' ✓ en la lista'; color: var(--green); font-size: 11px; }
 .lib-list { overflow: auto; flex: 1; }
 table.tracks { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
 table.tracks th { position: sticky; top: 0; background: var(--panel); text-align: left; font-size: 10px; letter-spacing: .1em; color: var(--muted); padding: 6px 8px; border-bottom: 1px solid var(--line); z-index: 1; }
