@@ -7,7 +7,7 @@
 html, body { height: 100%; }
 body {
   margin: 0; background: var(--bg); color: var(--text); font: 13px/1.35 var(--font);
-  display: grid; grid-template-rows: 48px 150px auto minmax(180px, 1fr); height: 100vh; overflow: hidden; user-select: none;
+  display: grid; grid-template-rows: 48px 150px auto minmax(180px, 1fr); height: 100%; overflow: hidden; user-select: none;
 }
 button, input, select { font: inherit; color: inherit; }
 button { cursor: pointer; }
