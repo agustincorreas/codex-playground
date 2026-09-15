@@ -199,6 +199,12 @@ table.tracks .num { text-align: right; width: 70px; } .c-load { width: 60px; } .
 .sp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
 .sp-card { flex: none; width: 120px; background: transparent; border: 0; padding: 6px; border-radius: 8px; text-align: left; display: flex; flex-direction: column; gap: 4px; color: var(--text); }
 .sp-card:hover { background: var(--panel2); }
+.sp-card { position: relative; cursor: pointer; }
+.sp-card.wide { width: 160px; } .sp-card.wide .sp-cover { width: 148px; height: 83px; }
+.sp-card-acts { position: absolute; top: 8px; right: 8px; display: none; gap: 3px; }
+.sp-card:hover .sp-card-acts, .sp-card:focus-within .sp-card-acts { display: inline-flex; }
+.sp-card-acts .btn { background: rgba(11,12,15,.85); }
+.sp-card.added .sp-name::before { content: '✓ '; color: var(--green); }
 .sp-cover { display: block; width: 108px; height: 108px; border-radius: 6px; background: var(--panel2) center/cover no-repeat; }
 .sp-cover.sm { width: 36px; height: 36px; }
 .sp-name { font-weight: 600; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

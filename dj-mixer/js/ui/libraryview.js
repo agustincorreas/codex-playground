@@ -41,32 +41,30 @@ export class LibraryView {
       if (e.key === 'Escape') { this.$search.value = ''; this.q = ''; this.render(); }
       if (e.key === 'Enter' && this.isLink(this.$search.value)) { e.preventDefault(); this.addLink(this.$search.value.trim(), e.shiftKey); }
     });
-    // YouTube
-    const ytIn = el('input', { type: 'text', placeholder: 'Pegá un link de YouTube (o buscá si el bridge está activo)', class: 'grow' });
-    const ytAdd = el('button', { class: 'btn sm accent' }, 'Agregar');
+    // YouTube: link o búsqueda + inicio (tendencias, relacionados, y con cuenta: recomendados/historial/me gusta)
+    const ytIn = el('input', { type: 'text', placeholder: 'Pegá un link de YouTube o buscá (con el bridge activo)', class: 'grow' });
+    const ytAdd = el('button', { class: 'btn sm accent' }, 'Agregar / Buscar');
+    this.ytView = { mode: 'home' }; this.ytHome = null;
     const ytGo = async () => {
-      const v = ytIn.value.trim(); if (!v) return;
+      const v = ytIn.value.trim(); if (!v) { this.ytView = { mode: 'home' }; return this.renderYouTube(); }
       try {
-        if (/youtu\.?be/.test(v) || /^[\w-]{11}$/.test(v)) {
-          let info = null;
-          if (bridge.ytdlp) { try { info = await bridge.resolve(v); } catch { /* embed */ } }
-          const t = this.lib.addYouTube(v, info); toast(`Agregado: ${t.title}`); ytIn.value = ''; this.source = 'youtube';
-        } else if (bridge.ytdlp) {
-          this.$ytResults.innerHTML = '<div class="muted">Buscando…</div>';
-          const res = await bridge.search(v);
-          this.$ytResults.innerHTML = '';
-          for (const r of res) this.$ytResults.append(this.resultRow(r, () => this.lib.addYouTube(r.url, r)));
-          if (!res.length) this.$ytResults.innerHTML = '<div class="muted">Sin resultados</div>';
-        } else toast('Pegá un link de YouTube. Para buscar, ejecutá el bridge (npm start + yt-dlp).', 'warn', 5000);
-      } catch (e) { toast(e.message, 'error'); }
-      this.render();
+        if (/youtu\.?be/.test(v) || /^[\w-]{11}$/.test(v)) { await this.addLink(v); ytIn.value = ''; this.source = 'youtube'; this.render(); return; }
+        if (!bridge.ytdlp) return toast('Pegá un link de YouTube. Para buscar, ejecutá el bridge (npm start + yt-dlp).', 'warn', 5000);
+        this.ytView = { mode: 'loading' }; this.renderYouTube();
+        const res = await bridge.search(v);
+        this.ytView = { mode: 'results', items: res, q: v }; this.renderYouTube();
+      } catch (e) { this.ytView = { mode: 'home' }; this.renderYouTube(); toast(e.message, 'error'); }
     };
     ytAdd.addEventListener('click', ytGo);
-    ytIn.addEventListener('keydown', e => { if (e.key === 'Enter') ytGo(); if (e.key === 'Escape') { ytIn.value = ''; this.$ytResults.innerHTML = ''; } });
-    ytIn.addEventListener('input', () => { if (!ytIn.value.trim()) this.$ytResults.innerHTML = ''; });
+    ytIn.addEventListener('keydown', e => { if (e.key === 'Enter') ytGo(); if (e.key === 'Escape') { ytIn.value = ''; this.ytView = { mode: 'home' }; this.renderYouTube(); } });
+    ytIn.addEventListener('input', () => { if (!ytIn.value.trim() && this.ytView.mode !== 'home') { this.ytView = { mode: 'home' }; this.renderYouTube(); } });
+    const ytHomeBtn = el('button', { class: 'btn sm', title: 'Volver al inicio y actualizar' }, 'Inicio'); ytHomeBtn.addEventListener('click', () => { ytIn.value = ''; this.ytHome = null; this.ytView = { mode: 'home' }; this.renderYouTube(); });
+    this.ytCollapsed = store.get('ytCollapsed', false);
+    this.$ytToggle = el('button', { class: 'btn sm ghost' }, '');
+    this.$ytToggle.addEventListener('click', () => { this.ytCollapsed = !this.ytCollapsed; store.set('ytCollapsed', this.ytCollapsed); this.renderYouTube(); });
     this.$ytStatus = el('span', { class: 'muted small' });
-    this.$ytResults = el('div', { class: 'results' });
-    this.$ytPanel = el('div', { class: 'src-panel', dataset: { panel: 'youtube' } }, el('div', { class: 'row' }, ytIn, ytAdd, this.$ytStatus), this.$ytResults);
+    this.$ytContent = el('div', { class: 'sp-content' });
+    this.$ytPanel = el('div', { class: 'src-panel', dataset: { panel: 'youtube' } }, el('div', { class: 'row' }, ytHomeBtn, ytIn, ytAdd, this.$ytToggle), this.$ytStatus, this.$ytContent);
     // Spotify: búsqueda con filtros + inicio + detalle
     const spIn = el('input', { type: 'text', placeholder: 'Buscar en Spotify…', class: 'grow' });
     const spBtn = el('button', { class: 'btn sm accent' }, 'Buscar');
@@ -116,10 +114,68 @@ export class LibraryView {
     this.root.addEventListener('drop', e => { this.root.classList.remove('drop'); if (e.dataTransfer.files?.length) { e.preventDefault(); this.addFiles(e.dataTransfer.files); } });
     this.$list.addEventListener('keydown', e => this.keys(e));
   }
-  spCard(item) {
-    const c = el('button', { class: 'sp-card', title: item.name }, el('span', { class: 'sp-cover', style: item.cover ? `background-image:url("${item.cover}")` : '' }), el('span', { class: 'sp-name' }, item.name), el('span', { class: 'sp-sub muted' }, item.sub || ''));
-    c.addEventListener('click', () => this.spOpen(item));
+  // Tarjeta con portada. Si `add` está, es un tema: click agrega, y A/B agregan y cargan.
+  card(item, { onOpen = null, add = null, wide = false } = {}) {
+    const c = el('div', { class: `sp-card ${wide ? 'wide' : ''}`, title: item.name, tabindex: '0', role: 'button' },
+      el('span', { class: 'sp-cover', style: item.cover ? `background-image:url("${item.cover}")` : '' }), el('span', { class: 'sp-name' }, item.name), el('span', { class: 'sp-sub muted' }, item.sub || ''));
+    if (add) {
+      const mark = () => c.classList.add('added');
+      const a = el('button', { class: 'btn xs a', title: 'Cargar en Deck A' }, 'A'); a.addEventListener('click', e => { e.stopPropagation(); mark(); this.onLoad(add(), this.decks.A); });
+      const b = el('button', { class: 'btn xs b', title: 'Cargar en Deck B' }, 'B'); b.addEventListener('click', e => { e.stopPropagation(); mark(); this.onLoad(add(), this.decks.B); });
+      c.append(el('span', { class: 'sp-card-acts' }, a, b));
+      if (item.key && this.lib.tracks.some(t => t.key === item.key)) mark();
+      onOpen = () => { const t = add(); mark(); toast(`Agregado: ${t.title}`); this.selected = t.id; this.render(); };
+    }
+    if (onOpen) { c.addEventListener('click', onOpen); c.addEventListener('keydown', e => { if (e.key === 'Enter') onOpen(); }); }
     return c;
+  }
+  spCard(item) {
+    if (item.kind === 'track') return this.card(item, { add: () => this.lib.addSpotify(item.track) });
+    return this.card(item, { onOpen: () => this.spOpen(item) });
+  }
+  ytCard(r) { return this.card({ name: r.title, sub: r.artist, cover: r.thumb, key: 'yt:' + r.id }, { add: () => this.lib.addYouTube(r.url, r), wide: true }); }
+  ytCardRow(title, items, note = '') {
+    if (!items?.length && !note) return null;
+    return el('div', { class: 'sp-section' }, el('div', { class: 'row-label' }, title), items?.length ? el('div', { class: 'sp-cards' }, ...items.map(i => this.ytCard(i))) : el('div', { class: 'muted small' }, note));
+  }
+  libraryArtists(max = 3) {
+    const count = new Map();
+    for (const t of this.lib.tracks) { const a = (t.artist || '').split(/,|&| feat\.? /i)[0].trim(); if (a && !/^(youtube|spotify)$/i.test(a)) count.set(a, (count.get(a) || 0) + 1); }
+    return [...count.entries()].sort((x, y) => y[1] - x[1]).slice(0, max).map(e => e[0]);
+  }
+  async renderYouTube() {
+    const box = this.$ytContent; box.innerHTML = '';
+    const v = this.ytView;
+    const collapsed = this.ytCollapsed && v.mode === 'home';
+    this.$ytToggle.textContent = collapsed ? '▸ Mostrar inicio' : '▾ Ocultar inicio';
+    box.hidden = collapsed || !bridge.ytdlp; if (box.hidden) return;
+    if (v.mode === 'loading') { box.append(el('div', { class: 'muted sp-empty' }, 'Buscando…')); return; }
+    if (v.mode === 'results') {
+      if (!v.items.length) { box.append(el('div', { class: 'muted sp-empty' }, `Sin resultados para "${v.q}"`)); return; }
+      box.append(el('div', { class: 'sp-section' }, el('div', { class: 'row-label' }, `Resultados · "${v.q}"`), el('div', { class: 'results' }, ...v.items.map(r => this.resultRow(r, () => this.lib.addYouTube(r.url, r))))));
+      return;
+    }
+    // inicio: secciones que se completan a medida que llegan
+    if (!this.ytHome) this.ytHome = {};
+    const sections = [];
+    if (bridge.account) sections.push(['rec', 'Recomendado para vos'], ['history', 'Historial'], ['liked', 'Me gusta'], ['later', 'Ver más tarde']);
+    sections.push(['trending', 'Tendencias de música']);
+    const artists = this.libraryArtists();
+    for (const a of artists) sections.push([`related:${a}`, `Más de ${a}`]);
+    if (!bridge.account) box.append(el('div', { class: 'muted small sp-empty' }, 'Para ver tus recomendaciones, historial y me gusta, elegí tu navegador en Ajustes (⚙) → "YouTube: usar tu cuenta".'));
+    if (!artists.length) box.append(el('div', { class: 'muted small sp-empty' }, 'Cuando tengas temas en la biblioteca, acá aparecen sugerencias de sus artistas.'));
+    for (const [key, title] of sections) {
+      const holder = el('div', { class: 'sp-section' }, el('div', { class: 'row-label' }, title), el('div', { class: 'muted small' }, 'Cargando…'));
+      box.append(holder);
+      const fill = (data) => {
+        if (this.ytView !== v) return;
+        const row = this.ytCardRow(title, data.items, data.error || data.needsAccount ? (data.error || 'Necesita tu cuenta (Ajustes).') : 'Nada por acá.');
+        holder.replaceWith(row);
+      };
+      if (this.ytHome[key]) { fill(this.ytHome[key]); continue; }
+      const [section, q] = key.startsWith('related:') ? ['related', key.slice(8)] : [key, ''];
+      bridge.home(section, q).then(d => { this.ytHome[key] = d; fill(d); }).catch(e => fill({ items: [], error: e.message }));
+    }
   }
   spCardRow(title, items) { if (!items?.length) return null; return el('div', { class: 'sp-section' }, el('div', { class: 'row-label' }, title), el('div', { class: 'sp-cards' }, ...items.map(i => this.spCard(i)))); }
   spTrackList(title, tracks, { importAll = null } = {}) {
@@ -200,7 +256,8 @@ export class LibraryView {
   render() {
     this.$srcs.querySelectorAll('.src-btn').forEach(b => b.classList.toggle('active', b.dataset.src === this.source));
     this.$ytPanel.hidden = this.source !== 'youtube'; this.$spPanel.hidden = this.source !== 'spotify'; this.$urlPanel.hidden = this.source !== 'url';
-    this.$ytStatus.textContent = bridge.ytdlp ? 'Bridge activo: audio completo + búsqueda' : 'Modo embed (sin waveform/EQ). Bridge: npm start + yt-dlp';
+    this.$ytStatus.textContent = bridge.ytdlp ? (bridge.account ? 'Bridge activo con tu cuenta de YouTube: audio completo, búsqueda e inicio personalizado.' : 'Bridge activo: audio completo + búsqueda. Para ver tus recomendaciones e historial, elegí tu navegador en Ajustes (⚙).') : 'Modo embed (sin waveform/EQ ni búsqueda). Bridge: npm start + yt-dlp';
+    if (this.source === 'youtube') this.renderYouTube();
     this.$spLogin.textContent = spotify.loggedIn ? 'Desconectar Spotify' : 'Conectar Spotify';
     if (this.source === 'spotify') this.renderSpotify();
     this.$spNote.textContent = Deck.spotifyViaYouTube()

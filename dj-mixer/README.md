@@ -54,6 +54,8 @@ cd dj-mixer && npm start
 
 Si `yt-dlp` está en el PATH, el estado arriba a la derecha dice **Bridge YT ✓** y en la pestaña YouTube podés buscar por texto. Podés correr el bridge en otra máquina y poner su URL en Ajustes.
 
+La pestaña YouTube tiene un **Inicio** con "Tendencias de música" y sugerencias de los artistas que ya tenés en la biblioteca. Si en Ajustes elegís tu navegador en "YouTube: usar tu cuenta", yt-dlp lee la sesión de YouTube desde sus cookies (localmente, nunca salen de tu máquina) y aparecen además **Recomendado para vos, Historial, Me gusta y Ver más tarde**. En Mac, Chrome puede pedir acceso al llavero la primera vez; si no funciona, exportá un `cookies.txt` con una extensión del navegador y poné la ruta en Ajustes. La configuración queda en `server/.config.json`.
+
 ### Spotify
 
 1. Creá una app en <https://developer.spotify.com/dashboard> y agregá como Redirect URI la que muestra Ajustes: `http://127.0.0.1:8787/`. Spotify rechaza `localhost` y cualquier `http://` que no sea la IP de loopback; en un servidor remoto necesitás HTTPS. Si abriste la app en `localhost`, al conectar salta sola a `127.0.0.1`.

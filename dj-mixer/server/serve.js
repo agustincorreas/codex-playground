@@ -9,12 +9,22 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = Number(process.env.PORT || 8787);
 const YTDLP = process.env.YTDLP || 'yt-dlp';
-export const SERVER_VERSION = 3; // subir cuando cambie la API del bridge
+export const SERVER_VERSION = 4; // subir cuando cambie la API del bridge
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
   '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon',
   '.mp3': 'audio/mpeg', '.wav': 'audio/wav', '.ogg': 'audio/ogg', '.m4a': 'audio/mp4', '.webm': 'audio/webm', '.flac': 'audio/flac',
 };
+
+// Config persistente (cookies del navegador para la cuenta de YouTube)
+const CFG_PATH = path.join(ROOT, 'server', '.config.json');
+let cfg = {};
+try { cfg = JSON.parse(fs.readFileSync(CFG_PATH, 'utf8')); } catch { cfg = {}; }
+const saveCfg = () => fs.writeFileSync(CFG_PATH, JSON.stringify(cfg, null, 2));
+const ytArgs = () => { const a = []; if (cfg.cookiesFromBrowser) a.push('--cookies-from-browser', cfg.cookiesFromBrowser); if (cfg.cookiesFile) a.push('--cookies', cfg.cookiesFile); return a; };
+const readBody = (req) => new Promise((resolve) => { let b = ''; req.on('data', d => { b += d; if (b.length > 1e6) req.destroy(); }); req.on('end', () => { try { resolve(JSON.parse(b || '{}')); } catch { resolve({}); } }); });
+const cache = new Map(); // key → { at, data }
+const cached = async (key, ttlMs, fn) => { const c = cache.get(key); if (c && Date.now() - c.at < ttlMs) return c.data; const data = await fn(); cache.set(key, { at: Date.now(), data }); return data; };
 
 let ytdlpOk = false;
 execFile(YTDLP, ['--version'], (err, out) => {
@@ -24,8 +34,8 @@ execFile(YTDLP, ['--version'], (err, out) => {
 
 const json = (res, code, data) => { res.writeHead(code, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }); res.end(JSON.stringify(data)); };
 const runJson = (args) => new Promise((resolve, reject) => {
-  execFile(YTDLP, args, { maxBuffer: 32 * 1024 * 1024 }, (err, out) => {
-    if (err) return reject(err);
+  execFile(YTDLP, [...ytArgs(), ...args], { maxBuffer: 32 * 1024 * 1024, timeout: 60000 }, (err, out) => {
+    if (err && !out) return reject(err);
     const items = out.trim().split('\n').filter(Boolean).map(l => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
     resolve(items);
   });
@@ -61,7 +71,33 @@ export function createServer() {
 return http.createServer(async (req, res) => {
   const u = new URL(req.url, `http://${req.headers.host}`);
   try {
-    if (u.pathname === '/api/bridge/status') return json(res, 200, { ok: true, ytdlp: ytdlpOk, version: SERVER_VERSION });
+    if (u.pathname === '/api/bridge/status') return json(res, 200, { ok: true, ytdlp: ytdlpOk, version: SERVER_VERSION, account: !!(cfg.cookiesFromBrowser || cfg.cookiesFile) });
+    if (u.pathname === '/api/config') {
+      if (req.method === 'POST') { const b = await readBody(req); cfg.cookiesFromBrowser = String(b.cookiesFromBrowser || '').trim(); cfg.cookiesFile = String(b.cookiesFile || '').trim(); saveCfg(); cache.clear(); }
+      return json(res, 200, { cookiesFromBrowser: cfg.cookiesFromBrowser || '', cookiesFile: cfg.cookiesFile || '' });
+    }
+    // Inicio de YouTube: secciones de la cuenta (con cookies), tendencias de música y relacionados
+    if (u.pathname === '/api/yt/home') {
+      const section = u.searchParams.get('section') || '', q = u.searchParams.get('q') || '';
+      if (!ytdlpOk) return json(res, 503, { error: 'yt-dlp no disponible' });
+      const ACCOUNT = { rec: ':ytrec', history: ':ythistory', liked: ':ytfav', later: ':ytwatchlater', subs: ':ytsubs' };
+      let target = null, needsAccount = false;
+      if (ACCOUNT[section]) { target = ACCOUNT[section]; needsAccount = true; }
+      else if (section === 'trending') target = 'https://www.youtube.com/feed/trending?bp=4gINGgt5dG1hX2NoYXJ0cw%3D%3D';
+      else if (section === 'related' && q) target = `ytsearch8:${q} official audio`;
+      else return json(res, 400, { error: 'section inválida' });
+      if (needsAccount && !cfg.cookiesFromBrowser && !cfg.cookiesFile) return json(res, 200, { items: [], needsAccount: true });
+      try {
+        const items = await cached(`${section}:${q}`, 5 * 60 * 1000, async () => {
+          const raw = await runJson(['-j', '--flat-playlist', '--no-warnings', '--playlist-end', '24', target]);
+          return raw.map(pick).filter(i => i.id && (!i.duration || i.duration <= 20 * 60));
+        });
+        return json(res, 200, { items });
+      } catch (e) {
+        const msg = String(e.message || e);
+        return json(res, 200, { items: [], error: /cookies|login|sign in|bot/i.test(msg) ? 'No se pudo leer la sesión de YouTube: revisá el navegador elegido en Ajustes (en Mac puede pedir acceso al llavero).' : msg.split('\n').find(l => /ERROR/.test(l)) || 'yt-dlp falló' });
+      }
+    }
     if (u.pathname === '/api/resolve') {
       const url = u.searchParams.get('url'); if (!url) return json(res, 400, { error: 'url requerida' });
       if (!ytdlpOk) return json(res, 503, { error: 'yt-dlp no disponible' });
@@ -96,7 +132,7 @@ return http.createServer(async (req, res) => {
       const url = u.searchParams.get('url'); if (!url) return json(res, 400, { error: 'url requerida' });
       if (!ytdlpOk) return json(res, 503, { error: 'yt-dlp no disponible' });
       res.writeHead(200, { 'Content-Type': 'audio/mp4', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store' });
-      const p = spawn(YTDLP, ['-f', 'bestaudio[ext=m4a]/bestaudio', '--no-playlist', '--no-warnings', '-q', '-o', '-', url]);
+      const p = spawn(YTDLP, [...ytArgs(), '-f', 'bestaudio[ext=m4a]/bestaudio', '--no-playlist', '--no-warnings', '-q', '-o', '-', url]);
       p.stdout.pipe(res);
       p.stderr.on('data', d => process.stderr.write(d));
       req.on('close', () => p.kill('SIGKILL'));

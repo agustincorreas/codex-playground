@@ -164,7 +164,8 @@ setInterval(() => midi.refreshLeds(), 250);
 
 // ---------- ajustes ----------
 const settings = $('#settings');
-$('#settings-btn').addEventListener('click', () => { $('#spotify-via-yt').checked = store.get('spotifyViaYouTube', true) !== false; $('#spotify-client').value = spotify.clientId; $('#bridge-url').value = store.get('bridgeUrl', ''); $('#spotify-redirect').textContent = spotify.redirectUri; $('#xf-curve').value = store.get('xfCurve', 'smooth'); settings.showModal(); });
+$('#settings-btn').addEventListener('click', async () => {
+  if (bridge.available) { try { const c = await bridge.getConfig(); $('#yt-browser').value = c.cookiesFromBrowser || ''; $('#yt-cookies-file').value = c.cookiesFile || ''; } catch { /* sin bridge */ } } $('#spotify-via-yt').checked = store.get('spotifyViaYouTube', true) !== false; $('#spotify-client').value = spotify.clientId; $('#bridge-url').value = store.get('bridgeUrl', ''); $('#spotify-redirect').textContent = spotify.redirectUri; $('#xf-curve').value = store.get('xfCurve', 'smooth'); settings.showModal(); });
 async function listDevices() {
   try { const s = await navigator.mediaDevices.getUserMedia({ audio: true }); s.getTracks().forEach(t => t.stop()); } catch { /* sin permiso: sin etiquetas */ }
   const devs = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'audiooutput');
@@ -182,6 +183,8 @@ $('#split-cue').addEventListener('change', (e) => engine.setSplitCue(e.target.ch
 $('#spotify-via-yt').addEventListener('change', (e) => { store.set('spotifyViaYouTube', e.target.checked); libView.render(); });
 $('#spotify-client').addEventListener('change', (e) => { spotify.clientId = e.target.value; });
 $('#bridge-url').addEventListener('change', async (e) => { store.set('bridgeUrl', e.target.value.trim()); await bridge.check(); libView.render(); status(); });
+const saveYtConfig = async () => { try { await bridge.setConfig({ cookiesFromBrowser: $('#yt-browser').value, cookiesFile: $('#yt-cookies-file').value.trim() }); libView.ytHome = null; libView.render(); status(); toast(bridge.account ? 'Cuenta de YouTube activada (vía cookies)' : 'YouTube sin cuenta'); } catch (e) { toast('No se pudo guardar en el bridge: ' + e.message, 'error'); } };
+$('#yt-browser').addEventListener('change', saveYtConfig); $('#yt-cookies-file').addEventListener('change', saveYtConfig);
 $('#xf-curve').addEventListener('change', (e) => { store.set('xfCurve', e.target.value); mixer.curve = e.target.value; mixer.applyXf(mixer.xf.value); });
 mixer.curve = store.get('xfCurve', 'smooth');
 
@@ -213,7 +216,7 @@ requestAnimationFrame(frame);
 
 function status() {
   const bits = [];
-  bits.push(bridge.stale ? '⚠ servidor viejo' : bridge.ytdlp ? 'Bridge YT ✓' : 'YT embed');
+  bits.push(bridge.stale ? '⚠ servidor viejo' : bridge.ytdlp ? (bridge.account ? 'Bridge YT ✓ (cuenta)' : 'Bridge YT ✓') : 'YT embed');
   if (spotify.loggedIn) bits.push('Spotify ✓');
   if (!engine.hasKeylock) bits.push('sin keylock');
   $('#status').textContent = bits.join(' · ');
