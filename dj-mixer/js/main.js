@@ -213,7 +213,7 @@ requestAnimationFrame(frame);
 
 function status() {
   const bits = [];
-  bits.push(bridge.ytdlp ? 'Bridge YT ✓' : 'YT embed');
+  bits.push(bridge.stale ? '⚠ servidor viejo' : bridge.ytdlp ? 'Bridge YT ✓' : 'YT embed');
   if (spotify.loggedIn) bits.push('Spotify ✓');
   if (!engine.hasKeylock) bits.push('sin keylock');
   $('#status').textContent = bits.join(' · ');
@@ -224,6 +224,7 @@ function status() {
   await bridge.check();
   await engine.keylockReady;
   libView.render(); status();
+  if (bridge.stale) toast('El servidor corre una versión vieja de MIXR. Cortalo con Ctrl+C (o lsof -i :8787 y kill) y volvé a ejecutar npm start.', 'error', 12000);
   if (!store.get('welcomed')) { toast('Bienvenido a MIXR. Agregá pistas con "+ Archivos" o pegá un link de YouTube.', 'info', 6000); store.set('welcomed', true); }
 })();
 

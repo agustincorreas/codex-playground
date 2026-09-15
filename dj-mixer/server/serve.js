@@ -9,6 +9,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = Number(process.env.PORT || 8787);
 const YTDLP = process.env.YTDLP || 'yt-dlp';
+export const SERVER_VERSION = 3; // subir cuando cambie la API del bridge
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
   '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon',
@@ -60,7 +61,7 @@ export function createServer() {
 return http.createServer(async (req, res) => {
   const u = new URL(req.url, `http://${req.headers.host}`);
   try {
-    if (u.pathname === '/api/bridge/status') return json(res, 200, { ok: true, ytdlp: ytdlpOk });
+    if (u.pathname === '/api/bridge/status') return json(res, 200, { ok: true, ytdlp: ytdlpOk, version: SERVER_VERSION });
     if (u.pathname === '/api/resolve') {
       const url = u.searchParams.get('url'); if (!url) return json(res, 400, { error: 'url requerida' });
       if (!ytdlpOk) return json(res, 503, { error: 'yt-dlp no disponible' });
@@ -118,5 +119,15 @@ return http.createServer(async (req, res) => {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  createServer().listen(PORT, () => console.log(`MIXR DJ → http://127.0.0.1:${PORT}  (usá 127.0.0.1 y no localhost si vas a conectar Spotify)`));
+  const srv = createServer();
+  srv.on('error', (e) => {
+    if (e.code === 'EADDRINUSE') {
+      console.error(`\nEl puerto ${PORT} ya está en uso: hay otro servidor MIXR corriendo (probablemente una versión vieja).`);
+      console.error(`Cortalo con Ctrl+C en su terminal, o buscá el proceso con:  lsof -i :${PORT}   y matalo con:  kill -9 <PID>`);
+      console.error(`También podés usar otro puerto:  PORT=8788 npm start\n`);
+      process.exit(1);
+    }
+    throw e;
+  });
+  srv.listen(PORT, () => console.log(`MIXR DJ v${SERVER_VERSION} → http://127.0.0.1:${PORT}  (usá 127.0.0.1 y no localhost si vas a conectar Spotify)`));
 }
