@@ -35,9 +35,7 @@ export class Library extends EventTarget {
       let ab;
       if (track.source === 'local') ab = await track.file.arrayBuffer();
       else if (track.source === 'youtube' || (track.source === 'spotify' && track.matchedUrl)) {
-        const r = await fetch(bridge.streamUrl(track.source === 'youtube' ? track.url : track.matchedUrl));
-        if (!r.ok) throw new Error('El bridge no pudo obtener el audio de YouTube');
-        ab = await r.arrayBuffer();
+        return bridge.fetchAudio(ctx, track.source === 'youtube' ? track.url : track.matchedUrl);
       } else {
         const r = await fetch(track.url, { mode: 'cors' });
         if (!r.ok) throw new Error(`HTTP ${r.status}`);

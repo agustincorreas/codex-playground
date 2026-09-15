@@ -1,7 +1,7 @@
 // Cliente del bridge opcional (server/serve.js + yt-dlp): permite cargar YouTube como audio real.
 import { store } from '../store.js';
 
-export const EXPECTED_SERVER = 4;
+export const EXPECTED_SERVER = 5;
 export const bridge = {
   available: false, ytdlp: false, version: 0, stale: false, account: false,
   get base() { return (store.get('bridgeUrl', '') || '').replace(/\/$/, ''); },
@@ -37,5 +37,23 @@ export const bridge = {
   },
   async getConfig() { const r = await fetch(this.base + '/api/config'); return r.json(); },
   async setConfig(c) { const r = await fetch(this.base + '/api/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(c) }); await this.check(); return r.json(); },
-  streamUrl(url) { return `${this.base}/api/stream?url=${encodeURIComponent(url)}`; },
+  streamUrl(url, fmt = null) { return `${this.base}/api/stream?url=${encodeURIComponent(url)}${fmt ? '&fmt=' + fmt : ''}`; },
+  // Descarga y decodifica el audio de un video; si el navegador no decodifica el formato, pide una conversión a WAV.
+  async fetchAudio(ctx, url) {
+    const get = async (fmt) => {
+      const r = await fetch(this.streamUrl(url, fmt));
+      if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(j.error || `Bridge HTTP ${r.status}`); }
+      const ab = await r.arrayBuffer();
+      if (ab.byteLength < 1024) throw new Error('El bridge devolvió un audio vacío para este video');
+      return ab;
+    };
+    const ab = await get(null);
+    try { return await ctx.decodeAudioData(ab); }
+    catch (e) {
+      console.warn('[bridge] decode falló, pidiendo WAV', e);
+      const wav = await get('wav');
+      try { return await ctx.decodeAudioData(wav); }
+      catch { throw new Error('No se pudo decodificar el audio de este video (formato no soportado por el navegador).'); }
+    }
+  },
 };

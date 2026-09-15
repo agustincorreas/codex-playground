@@ -9,7 +9,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = Number(process.env.PORT || 8787);
 const YTDLP = process.env.YTDLP || 'yt-dlp';
-export const SERVER_VERSION = 4; // subir cuando cambie la API del bridge
+export const SERVER_VERSION = 5; // subir cuando cambie la API del bridge
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
   '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon',
@@ -26,7 +26,10 @@ const readBody = (req) => new Promise((resolve) => { let b = ''; req.on('data', 
 const cache = new Map(); // key → { at, data }
 const cached = async (key, ttlMs, fn) => { const c = cache.get(key); if (c && Date.now() - c.at < ttlMs) return c.data; const data = await fn(); cache.set(key, { at: Date.now(), data }); return data; };
 
-let ytdlpOk = false;
+let ytdlpOk = false, ffmpegOk = false;
+const FFMPEG = process.env.FFMPEG || 'ffmpeg';
+execFile(FFMPEG, ['-version'], (err) => { ffmpegOk = !err; if (!ffmpegOk) console.log('ffmpeg no encontrado: sin conversión a WAV de respaldo (opcional).'); });
+const cleanErr = (txt) => (String(txt || '').split('\n').map(l => l.trim()).filter(l => /ERROR/i.test(l)).pop() || String(txt || '').trim().split('\n').pop() || '').replace(/^ERROR:\s*/i, '').slice(0, 300);
 execFile(YTDLP, ['--version'], (err, out) => {
   ytdlpOk = !err;
   console.log(ytdlpOk ? `yt-dlp ${out.trim()} detectado: bridge de YouTube activo` : 'yt-dlp no encontrado: YouTube funcionará en modo embed (sin waveform/EQ). Instalá yt-dlp para audio completo.');
@@ -156,11 +159,27 @@ return http.createServer(async (req, res) => {
     if (u.pathname === '/api/stream') {
       const url = u.searchParams.get('url'); if (!url) return json(res, 400, { error: 'url requerida' });
       if (!ytdlpOk) return json(res, 503, { error: 'yt-dlp no disponible' });
-      res.writeHead(200, { 'Content-Type': 'audio/mp4', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store' });
-      const p = spawn(YTDLP, [...ytArgs(), '-f', 'bestaudio[ext=m4a]/bestaudio', '--no-playlist', '--no-warnings', '-q', '-o', '-', url]);
-      p.stdout.pipe(res);
-      p.stderr.on('data', d => process.stderr.write(d));
-      req.on('close', () => p.kill('SIGKILL'));
+      const wantWav = u.searchParams.get('fmt') === 'wav';
+      const p = spawn(YTDLP, [...(cfg.cookiesOk ? ytArgs() : []), '-f', 'bestaudio[ext=m4a]/bestaudio/best', '--no-playlist', '--no-warnings', '-q', '-o', '-', url]);
+      let err = '', started = false, ff = null, out = p.stdout;
+      p.stderr.on('data', d => { err += d; });
+      if (wantWav) {
+        if (!ffmpegOk) { p.kill('SIGKILL'); return json(res, 503, { error: 'ffmpeg no está instalado: no se puede convertir el audio (brew install ffmpeg / apt install ffmpeg).' }); }
+        ff = spawn(FFMPEG, ['-loglevel', 'error', '-i', 'pipe:0', '-vn', '-ac', '2', '-ar', '44100', '-f', 'wav', 'pipe:1']);
+        ff.stderr.on('data', d => { err += d; });
+        p.stdout.pipe(ff.stdin); ff.stdin.on('error', () => {});
+        out = ff.stdout;
+      }
+      const fail = (msg) => { if (!started && !res.headersSent) json(res, 502, { error: msg }); };
+      out.once('data', (chunk) => {
+        started = true;
+        res.writeHead(200, { 'Content-Type': wantWav ? 'audio/wav' : 'audio/mp4', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store' });
+        res.write(chunk); out.pipe(res);
+      });
+      out.on('end', () => fail(cleanErr(err) || 'yt-dlp no devolvió audio para este video'));
+      p.on('error', e => fail(e.message));
+      ff?.on('error', e => fail('ffmpeg: ' + e.message));
+      req.on('close', () => { p.kill('SIGKILL'); ff?.kill('SIGKILL'); });
       return;
     }
     // estático
