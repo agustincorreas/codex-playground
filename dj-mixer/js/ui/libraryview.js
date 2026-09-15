@@ -12,6 +12,14 @@ export class LibraryView {
     library.addEventListener('change', () => this.render());
     this.render();
   }
+  resultRow(r, add) {
+    const plus = el('button', { class: 'btn xs', title: 'Agregar a la biblioteca' }, '+');
+    plus.addEventListener('click', () => { const t = add(); toast(`Agregado: ${t.title}`); });
+    const a = el('button', { class: 'btn xs a', title: 'Agregar y cargar en Deck A' }, 'A'); a.addEventListener('click', () => this.onLoad(add(), this.decks.A));
+    const b = el('button', { class: 'btn xs b', title: 'Agregar y cargar en Deck B' }, 'B'); b.addEventListener('click', () => this.onLoad(add(), this.decks.B));
+    return el('div', { class: 'result' }, el('span', { class: 'cover', style: r.cover || r.thumb ? `background-image:url("${r.cover || r.thumb}")` : '' }),
+      el('span', { class: 'grow' }, `${r.title} `, el('small', { class: 'muted' }, `${r.artist} · ${fmtTime(r.duration || 0, { tenths: false })}`)), el('span', { class: 'acts' }, plus, a, b));
+  }
   build() {
     const srcBtn = (id, label) => { const b = el('button', { class: 'src-btn', dataset: { src: id } }, label); b.addEventListener('click', () => { this.source = id; this.render(); }); return b; };
     this.$srcs = el('div', { class: 'lib-sources' }, srcBtn('all', 'Todo'), srcBtn('local', '💾 Local'), srcBtn('youtube', '▶ YouTube'), srcBtn('spotify', '● Spotify'), srcBtn('url', '🔗 URL'), srcBtn('queue', '☰ Cola Automix'));
@@ -38,11 +46,7 @@ export class LibraryView {
           this.$ytResults.innerHTML = '<div class="muted">Buscando…</div>';
           const res = await bridge.search(v);
           this.$ytResults.innerHTML = '';
-          for (const r of res) {
-            const b = el('button', { class: 'btn sm' }, '+');
-            b.addEventListener('click', () => { const t = this.lib.addYouTube(r.url, r); toast(`Agregado: ${t.title}`); });
-            this.$ytResults.append(el('div', { class: 'result' }, el('span', { class: 'grow' }, `${r.title} `, el('small', { class: 'muted' }, `${r.artist} · ${fmtTime(r.duration || 0, { tenths: false })}`)), b));
-          }
+          for (const r of res) this.$ytResults.append(this.resultRow(r, () => this.lib.addYouTube(r.url, r)));
           if (!res.length) this.$ytResults.innerHTML = '<div class="muted">Sin resultados</div>';
         } else toast('Pegá un link de YouTube. Para buscar, ejecutá el bridge (npm start + yt-dlp).', 'warn', 5000);
       } catch (e) { toast(e.message, 'error'); }
@@ -65,11 +69,7 @@ export class LibraryView {
       try {
         this.$spResults.innerHTML = '<div class="muted">Buscando…</div>';
         const res = await spotify.search(v); this.$spResults.innerHTML = '';
-        for (const r of res) {
-          const b = el('button', { class: 'btn sm' }, '+');
-          b.addEventListener('click', () => { this.lib.addSpotify(r); toast(`Agregado: ${r.title}`); });
-          this.$spResults.append(el('div', { class: 'result' }, el('span', { class: 'grow' }, `${r.title} `, el('small', { class: 'muted' }, `${r.artist} · ${fmtTime(r.duration, { tenths: false })}`)), b));
-        }
+        for (const r of res) this.$spResults.append(this.resultRow(r, () => this.lib.addSpotify(r)));
         if (!res.length) this.$spResults.innerHTML = '<div class="muted">Sin resultados</div>';
       } catch (e) { toast(e.message, 'error', 5000); }
     };
