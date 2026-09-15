@@ -19,9 +19,7 @@ export class LibraryView {
     files.addEventListener('change', () => this.addFiles(files.files));
     const folder = el('input', { type: 'file', webkitdirectory: '', multiple: '' });
     folder.addEventListener('change', () => this.addFiles(folder.files));
-    const side = el('aside', { class: 'lib-side' }, this.$srcs,
-      el('div', { class: 'lib-add' }, el('label', { class: 'btn sm' }, '+ Archivos', files), el('label', { class: 'btn sm' }, '+ Carpeta', folder)),
-      el('div', { class: 'lib-hint muted' }, 'Arrastrá archivos acá o pistas a los decks. Doble click carga en el deck libre.'));
+    this.$add = el('div', { class: 'lib-add' }, el('label', { class: 'btn sm accent' }, '+ Archivos', files), el('label', { class: 'btn sm' }, '+ Carpeta', folder));
     // toolbar
     this.$search = el('input', { type: 'search', placeholder: 'Buscar en la biblioteca…', class: 'search' });
     this.$search.addEventListener('input', debounce(() => { this.q = this.$search.value; this.render(); }, 120));
@@ -85,12 +83,12 @@ export class LibraryView {
     urlAdd.addEventListener('click', urlGo); urlIn.addEventListener('keydown', e => e.key === 'Enter' && urlGo());
     this.$urlPanel = el('div', { class: 'src-panel', dataset: { panel: 'url' } }, el('div', { class: 'row' }, urlIn, urlAdd));
     this.$count = el('span', { class: 'muted small' });
-    const toolbar = el('div', { class: 'lib-toolbar' }, this.$search, this.$count);
+    const toolbar = el('div', { class: 'lib-toolbar' }, this.$srcs, this.$add, this.$search, this.$count);
     this.$tbody = el('tbody');
     const table = el('table', { class: 'tracks' }, el('thead', {}, el('tr', {}, el('th', { class: 'c-load' }), el('th', {}, 'Título'), el('th', {}, 'Artista'), el('th', { class: 'num' }, 'BPM'), el('th', { class: 'num' }, 'Tiempo'), el('th', {}, 'Fuente'), el('th', { class: 'c-act' }))), this.$tbody);
-    this.$list = el('div', { class: 'lib-list' }, table);
-    const main = el('div', { class: 'lib-main' }, toolbar, this.$ytPanel, this.$spPanel, this.$urlPanel, this.$list);
-    this.root.append(side, main);
+    this.$empty = el('div', { class: 'lib-empty muted' }, 'La biblioteca está vacía. Tocá "+ Archivos" o "+ Carpeta", arrastrá música acá, o pegá un link en YouTube / URL.');
+    this.$list = el('div', { class: 'lib-list' }, table, this.$empty);
+    this.root.append(toolbar, this.$ytPanel, this.$spPanel, this.$urlPanel, this.$list);
     // drop de archivos
     this.root.addEventListener('dragover', e => { if (e.dataTransfer.types.includes('Files')) { e.preventDefault(); this.root.classList.add('drop'); } });
     this.root.addEventListener('dragleave', () => this.root.classList.remove('drop'));
@@ -110,6 +108,8 @@ export class LibraryView {
     this.$spLogin.textContent = spotify.loggedIn ? 'Desconectar Spotify' : 'Conectar Spotify';
     const list = this.lib.filter({ source: this.source, q: this.q });
     this.$count.textContent = `${list.length} pista${list.length === 1 ? '' : 's'}`;
+    this.$empty.hidden = list.length > 0;
+    this.$empty.textContent = this.source === 'queue' ? 'La cola Automix está vacía: agregá pistas con el botón ☰ de la lista.' : 'La biblioteca está vacía. Tocá "+ Archivos" o "+ Carpeta", arrastrá música acá, o pegá un link en YouTube / URL.';
     this.$tbody.innerHTML = '';
     const inQueue = new Set(this.lib.queue);
     for (const t of list) {
