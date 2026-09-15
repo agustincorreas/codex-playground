@@ -58,7 +58,7 @@ Si `yt-dlp` está en el PATH, el estado arriba a la derecha dice **Bridge YT ✓
 
 1. Creá una app en <https://developer.spotify.com/dashboard> y agregá como Redirect URI la que muestra Ajustes: `http://127.0.0.1:8787/`. Spotify rechaza `localhost` y cualquier `http://` que no sea la IP de loopback; en un servidor remoto necesitás HTTPS. Si abriste la app en `localhost`, al conectar salta sola a `127.0.0.1`.
 2. Pegá el Client ID en Ajustes → pestaña Spotify → **Conectar Spotify**.
-3. Buscá temas o importá una playlist/álbum pegando su link. Requiere Premium (restricción de Spotify).
+3. La pestaña Spotify muestra un **Inicio** resumido (tus playlists, recientes, me gusta y lo más escuchado) y busca por **canción, artista, álbum o playlist**. Un artista abre sus temas más escuchados y sus álbumes; un álbum o playlist muestra sus temas con "Importar todo". También podés pegar el link de una playlist o álbum. Requiere Premium (restricción de Spotify).
 
 Con el bridge activo, al cargar un tema de Spotify la app busca el mismo tema en YouTube (`/api/match`: artista + título, duración a ±3 s, evita lives/covers/sped-up) y lo carga con audio real. La coincidencia se guarda por tema. Si no encuentra nada, cae al reproductor oficial. Podés desactivarlo en Ajustes para usar siempre el reproductor de Spotify.
 

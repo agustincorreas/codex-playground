@@ -1,7 +1,10 @@
 // Spotify: OAuth PKCE + Web Playback SDK (requiere cuenta Premium y un Client ID propio).
 import { store } from '../store.js';
 
-const SCOPES = 'streaming user-read-email user-read-private user-modify-playback-state user-read-playback-state';
+const SCOPES = 'streaming user-read-email user-read-private user-modify-playback-state user-read-playback-state playlist-read-private playlist-read-collaborative user-library-read user-read-recently-played user-top-read';
+export const HOME_SCOPES = ['playlist-read-private', 'user-library-read', 'user-read-recently-played', 'user-top-read'];
+const mapTrack = (t) => t && t.uri && !t.is_local ? ({ uri: t.uri, id: t.id, title: t.name, artist: (t.artists || []).map(a => a.name).join(', '), duration: t.duration_ms / 1000, cover: t.album?.images?.at(-1)?.url || null }) : null;
+const img = (o, big = false) => (big ? o?.images?.[0]?.url : o?.images?.at(-1)?.url) || null;
 const b64url = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 
 export const spotify = {
@@ -66,20 +69,37 @@ export const spotify = {
     if (!r.ok) throw new Error(j?.error?.message || `Spotify API ${r.status}`);
     return j;
   },
-  async search(q) {
+  hasScope(sc) { const have = (this.token?.scope || '').split(' '); return have.includes(sc); },
+  get hasHomeScopes() { return HOME_SCOPES.every(sc => this.hasScope(sc)); },
+  // type: track | artist | album | playlist
+  async search(q, type = 'track') {
     // Algunas apps de Spotify (modo desarrollo) rechazan ciertos valores de limit con "Invalid limit": probar de mayor a menor.
     let j = null, lastErr = null;
     for (const limit of [20, 10, null]) {
-      const params = new URLSearchParams({ q, type: 'track', market: 'from_token' });
+      const params = new URLSearchParams({ q, type, market: 'from_token' });
       if (limit) params.set('limit', String(limit));
       try { j = await this.api('/search?' + params); break; }
       catch (e) { lastErr = e; if (!/limit/i.test(e.message)) throw e; }
     }
     if (!j) throw lastErr || new Error('Búsqueda de Spotify fallida');
-    return (j?.tracks?.items || []).map(t => ({
-      uri: t.uri, id: t.id, title: t.name, artist: t.artists.map(a => a.name).join(', '), duration: t.duration_ms / 1000,
-      cover: t.album?.images?.at(-1)?.url || null,
-    }));
+    if (type === 'track') return (j.tracks?.items || []).map(mapTrack).filter(Boolean);
+    if (type === 'artist') return (j.artists?.items || []).map(a => ({ kind: 'artist', id: a.id, uri: a.uri, name: a.name, sub: a.genres?.slice(0, 2).join(', ') || 'Artista', cover: img(a, true) }));
+    if (type === 'album') return (j.albums?.items || []).map(a => ({ kind: 'album', id: a.id, uri: a.uri, name: a.name, sub: `${(a.artists || []).map(x => x.name).join(', ')} · ${(a.release_date || '').slice(0, 4)}`, cover: img(a, true) }));
+    return (j.playlists?.items || []).filter(Boolean).map(p => ({ kind: 'playlist', id: p.id, uri: p.uri, name: p.name, sub: `${p.owner?.display_name || ''} · ${p.tracks?.total ?? ''} temas`, cover: img(p, true) }));
+  },
+  async artistDetail(id) {
+    const [top, albums] = await Promise.all([this.api(`/artists/${id}/top-tracks?market=from_token`), this.api(`/artists/${id}/albums?include_groups=album,single&limit=20&market=from_token`)]);
+    return { tracks: (top.tracks || []).map(mapTrack).filter(Boolean), albums: (albums.items || []).map(a => ({ kind: 'album', id: a.id, uri: a.uri, name: a.name, sub: (a.release_date || '').slice(0, 4), cover: img(a, true) })) };
+  },
+  async home() {
+    const get = (p) => this.api(p).catch(() => null);
+    const [pl, recent, liked, top] = await Promise.all([get('/me/playlists?limit=20'), get('/me/player/recently-played?limit=30'), get('/me/tracks?limit=20&market=from_token'), get('/me/top/tracks?limit=20&time_range=short_term')]);
+    const seen = new Set();
+    const recentTracks = (recent?.items || []).map(i => mapTrack(i.track)).filter(t => t && !seen.has(t.uri) && seen.add(t.uri));
+    return {
+      playlists: (pl?.items || []).filter(Boolean).map(p => ({ kind: 'playlist', id: p.id, uri: p.uri, name: p.name, sub: `${p.tracks?.total ?? ''} temas`, cover: img(p, true) })),
+      recent: recentTracks, liked: (liked?.items || []).map(i => mapTrack(i.track)).filter(Boolean), top: (top?.items || []).map(mapTrack).filter(Boolean),
+    };
   },
   async trackFromLink(input) {
     const m = (input || '').match(/spotify:track:([A-Za-z0-9]+)|open\.spotify\.com\/(?:intl-[a-z]+\/)?track\/([A-Za-z0-9]+)/);
@@ -101,8 +121,8 @@ export const spotify = {
       const j = await this.api(url);
       const page = c.type === 'playlist' ? j : (albumCover = j.images?.at(-1)?.url || albumCover, j.tracks);
       for (const it of page.items || []) {
-        const t = c.type === 'playlist' ? it.track : it; if (!t || !t.uri || t.is_local) continue;
-        out.push({ uri: t.uri, id: t.id, title: t.name, artist: (t.artists || []).map(a => a.name).join(', '), duration: t.duration_ms / 1000, cover: t.album?.images?.at(-1)?.url || albumCover });
+        const t = c.type === 'playlist' ? it.track : it; const m = mapTrack(t); if (!m) continue;
+        if (!m.cover) m.cover = albumCover; out.push(m);
       }
       url = page.next ? page.next.replace('https://api.spotify.com/v1', '') : null;
     }

@@ -2,6 +2,7 @@ import { el, fmtTime, fmtBpm, toast, debounce } from '../utils.js';
 import { bridge } from '../sources/bridge.js';
 import { spotify } from '../sources/spotify.js';
 import { Deck } from '../audio/deck.js';
+import { store } from '../store.js';
 
 const SRC_LABEL = { local: 'Local', youtube: 'YouTube', spotify: 'Spotify', url: 'URL' };
 
@@ -60,41 +61,42 @@ export class LibraryView {
       } catch (e) { toast(e.message, 'error'); }
       this.render();
     };
-    ytAdd.addEventListener('click', ytGo); ytIn.addEventListener('keydown', e => e.key === 'Enter' && ytGo());
+    ytAdd.addEventListener('click', ytGo);
+    ytIn.addEventListener('keydown', e => { if (e.key === 'Enter') ytGo(); if (e.key === 'Escape') { ytIn.value = ''; this.$ytResults.innerHTML = ''; } });
+    ytIn.addEventListener('input', () => { if (!ytIn.value.trim()) this.$ytResults.innerHTML = ''; });
     this.$ytStatus = el('span', { class: 'muted small' });
     this.$ytResults = el('div', { class: 'results' });
     this.$ytPanel = el('div', { class: 'src-panel', dataset: { panel: 'youtube' } }, el('div', { class: 'row' }, ytIn, ytAdd, this.$ytStatus), this.$ytResults);
-    // Spotify
+    // Spotify: búsqueda con filtros + inicio + detalle
     const spIn = el('input', { type: 'text', placeholder: 'Buscar en Spotify…', class: 'grow' });
     const spBtn = el('button', { class: 'btn sm accent' }, 'Buscar');
+    this.spType = 'track'; this.spView = { mode: 'home' }; this.spHome = null;
+    const types = [['track', 'Canciones'], ['artist', 'Artistas'], ['album', 'Álbumes'], ['playlist', 'Playlists']];
+    this.$spTypes = el('div', { class: 'chips' }, ...types.map(([id, label]) => { const c = el('button', { class: 'chip', dataset: { type: id } }, label); c.addEventListener('click', () => { this.spType = id; this.renderSpotify(); if (spIn.value.trim()) spGo(); }); return c; }));
     this.$spLogin = el('button', { class: 'btn sm' }, 'Conectar Spotify');
     this.$spLogin.addEventListener('click', async () => {
-      try { if (spotify.loggedIn) { spotify.logout(); this.render(); } else await spotify.login(); } catch (e) { toast(e.message, 'error', 5000); }
+      try { if (spotify.loggedIn) { spotify.logout(); this.spHome = null; this.render(); } else await spotify.login(); } catch (e) { toast(e.message, 'error', 5000); }
     });
+    const spHomeBtn = el('button', { class: 'btn sm' }, 'Inicio'); spHomeBtn.addEventListener('click', () => { spIn.value = ''; this.spView = { mode: 'home' }; this.renderSpotify(); });
     const spGo = async () => {
-      const v = spIn.value.trim(); if (!v) return;
+      const v = spIn.value.trim(); if (!v) { this.spView = { mode: 'home' }; return this.renderSpotify(); }
       if (!spotify.loggedIn) return toast('Conectá Spotify primero (Client ID en Ajustes).', 'warn');
       if (/open\.spotify\.com|^spotify:/.test(v)) { await this.addLink(v); spIn.value = ''; return; }
       try {
-        this.$spResults.innerHTML = '<div class="muted">Buscando…</div>';
-        const res = await spotify.search(v); this.$spResults.innerHTML = '';
-        for (const r of res) this.$spResults.append(this.resultRow(r, () => this.lib.addSpotify(r)));
-        if (!res.length) this.$spResults.innerHTML = '<div class="muted">Sin resultados</div>';
-      } catch (e) { toast(e.message, 'error', 5000); }
+        this.spView = { mode: 'loading' }; this.renderSpotify();
+        const res = await spotify.search(v, this.spType);
+        this.spView = { mode: 'results', type: this.spType, items: res, q: v }; this.renderSpotify();
+      } catch (e) { this.spView = { mode: 'home' }; this.renderSpotify(); toast(e.message, 'error', 5000); }
     };
-    spBtn.addEventListener('click', spGo); spIn.addEventListener('keydown', e => e.key === 'Enter' && spGo());
-    this.$spResults = el('div', { class: 'results' });
-    const plIn = el('input', { type: 'text', placeholder: 'Link de playlist o álbum de Spotify para importar', class: 'grow' });
-    const plBtn = el('button', { class: 'btn sm' }, 'Importar');
-    const plGo = async () => {
-      const v = plIn.value.trim(); if (!v) return;
-      if (!spotify.loggedIn) return toast('Conectá Spotify primero (Client ID en Ajustes).', 'warn');
-      try { toast('Importando…'); const items = await spotify.collectionTracks(v); const n = this.lib.addSpotifyMany(items); toast(`${n} pista(s) importadas (${items.length} en la lista)`); plIn.value = ''; }
-      catch (e) { toast(e.message, 'error', 6000); }
-    };
-    plBtn.addEventListener('click', plGo); plIn.addEventListener('keydown', e => e.key === 'Enter' && plGo());
+    spBtn.addEventListener('click', spGo);
+    spIn.addEventListener('keydown', e => { if (e.key === 'Enter') spGo(); if (e.key === 'Escape') { spIn.value = ''; this.spView = { mode: 'home' }; this.renderSpotify(); } });
+    spIn.addEventListener('input', () => { if (!spIn.value.trim() && this.spView.mode !== 'home') { this.spView = { mode: 'home' }; this.renderSpotify(); } });
+    this.spCollapsed = store.get('spCollapsed', false);
+    this.$spToggle = el('button', { class: 'btn sm ghost', title: 'Mostrar u ocultar el inicio de Spotify' }, '');
+    this.$spToggle.addEventListener('click', () => { this.spCollapsed = !this.spCollapsed; store.set('spCollapsed', this.spCollapsed); this.renderSpotify(); });
+    this.$spContent = el('div', { class: 'sp-content' });
     this.$spNote = el('span', { class: 'muted small' });
-    this.$spPanel = el('div', { class: 'src-panel', dataset: { panel: 'spotify' } }, el('div', { class: 'row' }, this.$spLogin, spIn, spBtn, plIn, plBtn), this.$spNote, this.$spResults);
+    this.$spPanel = el('div', { class: 'src-panel', dataset: { panel: 'spotify' } }, el('div', { class: 'row' }, this.$spLogin, spHomeBtn, spIn, this.$spTypes, spBtn, this.$spToggle), this.$spNote, this.$spContent);
     // URL
     const urlIn = el('input', { type: 'url', placeholder: 'https://…/tema.mp3 (stream directo, radio, etc.)', class: 'grow' });
     const urlAdd = el('button', { class: 'btn sm accent' }, 'Agregar');
@@ -113,6 +115,64 @@ export class LibraryView {
     this.root.addEventListener('dragleave', () => this.root.classList.remove('drop'));
     this.root.addEventListener('drop', e => { this.root.classList.remove('drop'); if (e.dataTransfer.files?.length) { e.preventDefault(); this.addFiles(e.dataTransfer.files); } });
     this.$list.addEventListener('keydown', e => this.keys(e));
+  }
+  spCard(item) {
+    const c = el('button', { class: 'sp-card', title: item.name }, el('span', { class: 'sp-cover', style: item.cover ? `background-image:url("${item.cover}")` : '' }), el('span', { class: 'sp-name' }, item.name), el('span', { class: 'sp-sub muted' }, item.sub || ''));
+    c.addEventListener('click', () => this.spOpen(item));
+    return c;
+  }
+  spCardRow(title, items) { if (!items?.length) return null; return el('div', { class: 'sp-section' }, el('div', { class: 'row-label' }, title), el('div', { class: 'sp-cards' }, ...items.map(i => this.spCard(i)))); }
+  spTrackList(title, tracks, { importAll = null } = {}) {
+    if (!tracks?.length) return null;
+    const head = el('div', { class: 'row sp-head' }, el('span', { class: 'row-label' }, title));
+    if (importAll) { const b = el('button', { class: 'btn xs accent' }, `Importar todo (${tracks.length})`); b.addEventListener('click', () => { const n = this.lib.addSpotifyMany(tracks); toast(`${n} pista(s) importadas`); this.renderSpotify(); }); head.append(b); }
+    return el('div', { class: 'sp-section' }, head, el('div', { class: 'results' }, ...tracks.map(r => this.resultRow(r, () => this.lib.addSpotify(r)))));
+  }
+  async spOpen(item) {
+    if (item.kind === 'track') { const t = this.lib.addSpotify(item.track); toast(`Agregado: ${t.title}`); this.selected = t.id; this.render(); return; }
+    const back = this.spView;
+    this.spView = { mode: 'loading' }; this.renderSpotify();
+    try {
+      if (item.kind === 'artist') { const d = await spotify.artistDetail(item.id); this.spView = { mode: 'detail', item, back, tracks: d.tracks, albums: d.albums }; }
+      else { const tracks = await spotify.collectionTracks(`spotify:${item.kind}:${item.id}`); this.spView = { mode: 'detail', item, back, tracks, importAll: true }; }
+    } catch (e) { this.spView = back; toast(e.message, 'error', 5000); }
+    this.renderSpotify();
+  }
+  async renderSpotify() {
+    this.$spTypes.querySelectorAll('.chip').forEach(c => c.classList.toggle('active', c.dataset.type === this.spType));
+    const box = this.$spContent; box.innerHTML = '';
+    const v0 = this.spView;
+    // plegado: solo oculta el inicio; una búsqueda o un detalle siempre se muestran
+    const collapsed = this.spCollapsed && v0.mode === 'home';
+    this.$spToggle.textContent = collapsed ? '▸ Mostrar inicio' : '▾ Ocultar inicio';
+    box.hidden = collapsed; if (collapsed) return;
+    if (!spotify.loggedIn) { box.append(el('div', { class: 'muted sp-empty' }, 'Conectá Spotify para ver tu inicio y buscar por canción, artista, álbum o playlist.')); return; }
+    const v = this.spView;
+    if (v.mode === 'loading') { box.append(el('div', { class: 'muted sp-empty' }, 'Cargando…')); return; }
+    if (v.mode === 'home') {
+      if (!spotify.hasHomeScopes) {
+        const b = el('button', { class: 'btn sm accent' }, 'Reconectar Spotify'); b.addEventListener('click', () => spotify.login().catch(e => toast(e.message, 'error')));
+        box.append(el('div', { class: 'sp-empty row' }, el('span', { class: 'muted' }, 'Para ver tu inicio (playlists, recientes, me gusta) hay que volver a autorizar la app con permisos nuevos.'), b)); return;
+      }
+      if (!this.spHome) { box.append(el('div', { class: 'muted sp-empty' }, 'Cargando tu inicio…')); try { this.spHome = await spotify.home(); } catch (e) { box.innerHTML = ''; box.append(el('div', { class: 'muted sp-empty' }, 'No se pudo cargar el inicio: ' + e.message)); return; } if (this.spView !== v) return; box.innerHTML = ''; }
+      const h = this.spHome;
+      const recentCards = h.recent.slice(0, 12).map(t => ({ kind: 'track', track: t, name: t.title, sub: t.artist, cover: t.cover }));
+      box.append(this.spCardRow('Tus playlists', h.playlists), this.spCardRow('Escuchado recientemente', recentCards), this.spTrackList('Tus me gusta', h.liked, { importAll: true }), this.spTrackList('Lo que más escuchás', h.top, { importAll: true }));
+      if (!h.playlists.length && !h.recent.length && !h.liked.length && !h.top.length) box.append(el('div', { class: 'muted sp-empty' }, 'Tu cuenta todavía no tiene actividad para mostrar.'));
+      return;
+    }
+    if (v.mode === 'results') {
+      if (!v.items.length) { box.append(el('div', { class: 'muted sp-empty' }, `Sin resultados para "${v.q}"`)); return; }
+      if (v.type === 'track') box.append(this.spTrackList(`Canciones · "${v.q}"`, v.items));
+      else box.append(el('div', { class: 'sp-section' }, el('div', { class: 'row-label' }, `${v.type === 'artist' ? 'Artistas' : v.type === 'album' ? 'Álbumes' : 'Playlists'} · "${v.q}"`), el('div', { class: 'sp-grid' }, ...v.items.map(i => this.spCard(i)))));
+      return;
+    }
+    if (v.mode === 'detail') {
+      const backBtn = el('button', { class: 'btn xs ghost' }, '← Volver'); backBtn.addEventListener('click', () => { this.spView = v.back || { mode: 'home' }; this.renderSpotify(); });
+      box.append(el('div', { class: 'row sp-detail-head' }, backBtn, el('span', { class: 'sp-cover sm', style: v.item.cover ? `background-image:url("${v.item.cover}")` : '' }), el('b', {}, v.item.name), el('span', { class: 'muted small' }, v.item.sub || '')));
+      if (v.item.kind === 'artist') box.append(this.spTrackList('Más escuchadas', v.tracks), this.spCardRow('Álbumes y singles', v.albums));
+      else box.append(this.spTrackList('Temas', v.tracks, { importAll: true }));
+    }
   }
   isLink(v) { v = (v || '').trim(); return /youtu\.?be/.test(v) || /open\.spotify\.com|^spotify:/.test(v) || /^https?:\/\//.test(v); }
   // Pegar un link + Enter lo agrega a la lista (YouTube, tema/playlist/álbum de Spotify, o URL de audio).
@@ -142,6 +202,7 @@ export class LibraryView {
     this.$ytPanel.hidden = this.source !== 'youtube'; this.$spPanel.hidden = this.source !== 'spotify'; this.$urlPanel.hidden = this.source !== 'url';
     this.$ytStatus.textContent = bridge.ytdlp ? 'Bridge activo: audio completo + búsqueda' : 'Modo embed (sin waveform/EQ). Bridge: npm start + yt-dlp';
     this.$spLogin.textContent = spotify.loggedIn ? 'Desconectar Spotify' : 'Conectar Spotify';
+    if (this.source === 'spotify') this.renderSpotify();
     this.$spNote.textContent = Deck.spotifyViaYouTube()
       ? 'Bridge activo: al cargar un tema de Spotify, el audio se toma de YouTube (waveform, EQ, loops y los dos decks). Requiere Premium para buscar e importar.'
       : 'Sin bridge: reproductor oficial de Spotify (Premium). Un deck a la vez y sin EQ ni waveform por DRM. Con yt-dlp + npm start se desbloquea todo.';

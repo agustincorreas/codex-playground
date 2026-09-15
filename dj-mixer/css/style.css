@@ -188,6 +188,25 @@ table.tracks .num { text-align: right; width: 70px; } .c-load { width: 60px; } .
 .src-tag.youtube { color: #ff5c5c; } .src-tag.spotify { color: #1ed760; } .src-tag.url { color: var(--amber); } .src-tag.local { color: var(--a); }
 .acts { display: inline-flex; gap: 3px; }
 
+/* ---- Spotify: inicio, filtros y detalle ---- */
+.chips { display: inline-flex; gap: 2px; background: var(--panel2); border-radius: 999px; padding: 2px; }
+.chip { background: transparent; border: 0; border-radius: 999px; padding: 4px 10px; color: var(--muted); font-weight: 600; font-size: 11px; white-space: nowrap; }
+.chip.active { background: var(--text); color: var(--bg); }
+.sp-content { display: flex; flex-direction: column; gap: 10px; max-height: 45vh; overflow: auto; padding-right: 4px; }
+.sp-section { display: flex; flex-direction: column; gap: 6px; }
+.sp-head { justify-content: space-between; }
+.sp-cards { display: flex; gap: 10px; overflow-x: auto; padding: 2px 2px 6px; }
+.sp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
+.sp-card { flex: none; width: 120px; background: transparent; border: 0; padding: 6px; border-radius: 8px; text-align: left; display: flex; flex-direction: column; gap: 4px; color: var(--text); }
+.sp-card:hover { background: var(--panel2); }
+.sp-cover { display: block; width: 108px; height: 108px; border-radius: 6px; background: var(--panel2) center/cover no-repeat; }
+.sp-cover.sm { width: 36px; height: 36px; }
+.sp-name { font-weight: 600; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sp-sub { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sp-empty { padding: 10px 4px; }
+.sp-detail-head { gap: 10px; }
+.sp-content .results { max-height: none; }
+
 /* ---- diálogos ---- */
 dialog { background: var(--panel); color: var(--text); border: 1px solid var(--line2); border-radius: 10px; padding: 18px 20px; width: min(640px, 92vw); max-height: 88vh; }
 dialog::backdrop { background: rgba(0,0,0,.6); }
