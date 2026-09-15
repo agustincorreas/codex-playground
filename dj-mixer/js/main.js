@@ -183,7 +183,17 @@ $('#split-cue').addEventListener('change', (e) => engine.setSplitCue(e.target.ch
 $('#spotify-via-yt').addEventListener('change', (e) => { store.set('spotifyViaYouTube', e.target.checked); libView.render(); });
 $('#spotify-client').addEventListener('change', (e) => { spotify.clientId = e.target.value; });
 $('#bridge-url').addEventListener('change', async (e) => { store.set('bridgeUrl', e.target.value.trim()); await bridge.check(); libView.render(); status(); });
-const saveYtConfig = async () => { try { await bridge.setConfig({ cookiesFromBrowser: $('#yt-browser').value, cookiesFile: $('#yt-cookies-file').value.trim() }); libView.ytHome = null; libView.render(); status(); toast(bridge.account ? 'Cuenta de YouTube activada (vía cookies)' : 'YouTube sin cuenta'); } catch (e) { toast('No se pudo guardar en el bridge: ' + e.message, 'error'); } };
+const saveYtConfig = async () => {
+  const wants = $('#yt-browser').value || $('#yt-cookies-file').value.trim();
+  if (wants) toast('Probando la sesión de YouTube… En Mac puede aparecer el aviso del llavero: poné la contraseña de tu usuario de Mac y elegí "Always Allow".', 'info', 12000);
+  try {
+    const c = await bridge.setConfig({ cookiesFromBrowser: $('#yt-browser').value, cookiesFile: $('#yt-cookies-file').value.trim() });
+    libView.ytHome = null; libView.render(); status();
+    if (!wants) toast('YouTube sin cuenta');
+    else if (c.probe?.ok) toast('Cuenta de YouTube conectada', 'info', 4000);
+    else toast(c.probe?.error || 'No se pudo leer la sesión de YouTube', 'error', 15000);
+  } catch (e) { toast('No se pudo guardar en el bridge: ' + e.message, 'error'); }
+};
 $('#yt-browser').addEventListener('change', saveYtConfig); $('#yt-cookies-file').addEventListener('change', saveYtConfig);
 $('#xf-curve').addEventListener('change', (e) => { store.set('xfCurve', e.target.value); mixer.curve = e.target.value; mixer.applyXf(mixer.xf.value); });
 mixer.curve = store.get('xfCurve', 'smooth');

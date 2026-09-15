@@ -33,13 +33,34 @@ execFile(YTDLP, ['--version'], (err, out) => {
 });
 
 const json = (res, code, data) => { res.writeHead(code, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }); res.end(JSON.stringify(data)); };
-const runJson = (args) => new Promise((resolve, reject) => {
-  execFile(YTDLP, [...ytArgs(), ...args], { maxBuffer: 32 * 1024 * 1024, timeout: 60000 }, (err, out) => {
-    if (err && !out) return reject(err);
-    const items = out.trim().split('\n').filter(Boolean).map(l => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
-    resolve(items);
+// Las llamadas con cookies se serializan: en Mac cada proceso puede disparar el aviso del llavero.
+let cookieQueue = Promise.resolve();
+const runJson = (args, { cookies = false, timeout = 60000 } = {}) => {
+  const run = () => new Promise((resolve, reject) => {
+    execFile(YTDLP, [...(cookies ? ytArgs() : []), ...args], { maxBuffer: 32 * 1024 * 1024, timeout }, (err, out) => {
+      if (err && !out) return reject(err);
+      const items = out.trim().split('\n').filter(Boolean).map(l => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
+      resolve(items);
+    });
   });
-});
+  if (!cookies) return run();
+  const p = cookieQueue.then(run, run); cookieQueue = p.catch(() => {}); return p;
+};
+const cookieError = (e) => {
+  const msg = String(e.message || e);
+  const browser = cfg.cookiesFromBrowser ? cfg.cookiesFromBrowser[0].toUpperCase() + cfg.cookiesFromBrowser.slice(1) : 'el archivo de cookies';
+  if (/keychain|Safe Storage|could not copy|Could not find|cookie database|decrypt|Permission denied|Operation not permitted/i.test(msg))
+    return `No se pudo leer la sesión de YouTube desde ${browser}. En Mac, el aviso del llavero pide la contraseña de tu usuario de Mac (la del login, no la de Google): escribila y elegí "Always Allow". Si Chrome está abierto y sigue fallando, cerralo y probá de nuevo, o exportá un cookies.txt y poné la ruta en Ajustes.`;
+  if (/sign in|login|bot|cookies are no longer valid|not logged in/i.test(msg))
+    return `YouTube no aceptó la sesión leída de ${browser}: iniciá sesión en YouTube en ese navegador y volvé a intentar, o exportá un cookies.txt.`;
+  return (msg.split('\n').find(l => /ERROR/.test(l)) || msg).slice(0, 300);
+};
+// Probar las cookies con una sola llamada (dispara el aviso del llavero una vez)
+const probeCookies = async () => {
+  if (!cfg.cookiesFromBrowser && !cfg.cookiesFile) return { ok: false, error: 'sin cuenta' };
+  try { await runJson(['-j', '--flat-playlist', '--no-warnings', '--playlist-end', '1', ':ytfav'], { cookies: true, timeout: 120000 }); cfg.cookiesOk = true; saveCfg(); return { ok: true }; }
+  catch (e) { cfg.cookiesOk = false; saveCfg(); return { ok: false, error: cookieError(e) }; }
+};
 const pick = (i) => ({
   id: i.id, title: i.title || i.id, artist: i.uploader || i.channel || i.artist || '',
   duration: i.duration || null, url: i.webpage_url || i.url || `https://www.youtube.com/watch?v=${i.id}`,
@@ -71,10 +92,14 @@ export function createServer() {
 return http.createServer(async (req, res) => {
   const u = new URL(req.url, `http://${req.headers.host}`);
   try {
-    if (u.pathname === '/api/bridge/status') return json(res, 200, { ok: true, ytdlp: ytdlpOk, version: SERVER_VERSION, account: !!(cfg.cookiesFromBrowser || cfg.cookiesFile) });
+    if (u.pathname === '/api/bridge/status') return json(res, 200, { ok: true, ytdlp: ytdlpOk, version: SERVER_VERSION, account: !!(cfg.cookiesFromBrowser || cfg.cookiesFile), accountOk: !!cfg.cookiesOk });
     if (u.pathname === '/api/config') {
-      if (req.method === 'POST') { const b = await readBody(req); cfg.cookiesFromBrowser = String(b.cookiesFromBrowser || '').trim(); cfg.cookiesFile = String(b.cookiesFile || '').trim(); saveCfg(); cache.clear(); }
-      return json(res, 200, { cookiesFromBrowser: cfg.cookiesFromBrowser || '', cookiesFile: cfg.cookiesFile || '' });
+      let probe = null;
+      if (req.method === 'POST') {
+        const b = await readBody(req); cfg.cookiesFromBrowser = String(b.cookiesFromBrowser || '').trim(); cfg.cookiesFile = String(b.cookiesFile || '').trim(); cfg.cookiesOk = false; saveCfg(); cache.clear();
+        if (cfg.cookiesFromBrowser || cfg.cookiesFile) probe = await probeCookies();
+      }
+      return json(res, 200, { cookiesFromBrowser: cfg.cookiesFromBrowser || '', cookiesFile: cfg.cookiesFile || '', cookiesOk: !!cfg.cookiesOk, probe });
     }
     // Inicio de YouTube: secciones de la cuenta (con cookies), tendencias de música y relacionados
     if (u.pathname === '/api/yt/home') {
@@ -89,13 +114,13 @@ return http.createServer(async (req, res) => {
       if (needsAccount && !cfg.cookiesFromBrowser && !cfg.cookiesFile) return json(res, 200, { items: [], needsAccount: true });
       try {
         const items = await cached(`${section}:${q}`, 5 * 60 * 1000, async () => {
-          const raw = await runJson(['-j', '--flat-playlist', '--no-warnings', '--playlist-end', '24', target]);
+          const raw = await runJson(['-j', '--flat-playlist', '--no-warnings', '--playlist-end', '24', target], { cookies: needsAccount, timeout: needsAccount ? 120000 : 60000 });
           return raw.map(pick).filter(i => i.id && (!i.duration || i.duration <= 20 * 60));
         });
+        if (needsAccount) { cfg.cookiesOk = true; }
         return json(res, 200, { items });
       } catch (e) {
-        const msg = String(e.message || e);
-        return json(res, 200, { items: [], error: /cookies|login|sign in|bot/i.test(msg) ? 'No se pudo leer la sesión de YouTube: revisá el navegador elegido en Ajustes (en Mac puede pedir acceso al llavero).' : msg.split('\n').find(l => /ERROR/.test(l)) || 'yt-dlp falló' });
+        return json(res, 200, { items: [], error: needsAccount ? cookieError(e) : (String(e.message || e).split('\n').find(l => /ERROR/.test(l)) || 'yt-dlp falló').slice(0, 300) });
       }
     }
     if (u.pathname === '/api/resolve') {
