@@ -50,7 +50,7 @@
     <label class="check"><input type="checkbox" id="split-cue"> Split cue (izquierda = cue, derecha = master; para cable Y)</label>
     <hr>
     <label>Spotify Client ID <input type="text" id="spotify-client" placeholder="de developer.spotify.com"></label>
-    <p class="muted small">Redirect URI a registrar en tu app de Spotify: <code id="spotify-redirect"></code></p>
+    <p class="muted small">Redirect URI a registrar en tu app de Spotify: <code id="spotify-redirect"></code><br>Spotify solo acepta HTTPS o la IP de loopback <code>http://127.0.0.1:puerto/</code>; <code>localhost</code> no vale. Al conectar, la app salta sola a 127.0.0.1.</p>
     <label>Bridge YouTube (URL del servidor) <input type="text" id="bridge-url" placeholder="vacío = mismo origen (npm start)"></label>
     <hr>
     <label>Rango de crossfader <select id="xf-curve"><option value="smooth">Suave (mezcla)</option><option value="sharp">Cortante (scratch)</option></select></label>

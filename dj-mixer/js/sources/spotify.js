@@ -8,11 +8,18 @@ export const spotify = {
   player: null, deviceId: null, state: null, stateAt: 0, connecting: null, listeners: new Set(),
   get clientId() { return store.get('spotifyClientId', ''); },
   set clientId(v) { store.set('spotifyClientId', v.trim()); },
-  get redirectUri() { return location.origin + location.pathname; },
+  // Spotify exige HTTPS, salvo la IP de loopback: http://127.0.0.1:PUERTO/ (localhost no vale).
+  get redirectUri() { const u = new URL(location.href); if (u.hostname === 'localhost') u.hostname = '127.0.0.1'; return u.origin + u.pathname; },
+  get redirectOk() { const h = location.hostname; return location.protocol === 'https:' || h === '127.0.0.1' || h === '[::1]' || h === 'localhost'; },
   get token() { return store.get('spotifyToken', null); },
   get loggedIn() { return !!this.token?.refresh_token; },
   async login() {
     if (!this.clientId) throw new Error('Configurá tu Spotify Client ID en Ajustes.');
+    if (!this.redirectOk) throw new Error(`Spotify solo acepta HTTPS o http://127.0.0.1. Abrí la app en ${this.redirectUri} o serví con HTTPS.`);
+    if (location.hostname === 'localhost') { // saltar a 127.0.0.1 (otro origen) y seguir el login ahí
+      const u = new URL(this.redirectUri); u.searchParams.set('spotify_login', '1'); u.searchParams.set('client_id', this.clientId);
+      location.href = u.href; return;
+    }
     const verifier = b64url(crypto.getRandomValues(new Uint8Array(64)));
     const challenge = b64url(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier)));
     sessionStorage.setItem('mixr.pkce', verifier);
@@ -22,6 +29,12 @@ export const spotify = {
   logout() { store.del('spotifyToken'); this.player?.disconnect(); this.player = null; this.deviceId = null; },
   async handleRedirect() {
     const u = new URL(location.href); const code = u.searchParams.get('code');
+    if (u.searchParams.get('spotify_login')) {
+      const cid = u.searchParams.get('client_id'); if (cid) this.clientId = cid;
+      history.replaceState({}, '', u.pathname);
+      await this.login(); return false;
+    }
+    if (u.searchParams.get('error')) { history.replaceState({}, '', u.pathname); throw new Error(u.searchParams.get('error')); }
     if (!code) return false;
     const verifier = sessionStorage.getItem('mixr.pkce');
     history.replaceState({}, '', u.pathname);

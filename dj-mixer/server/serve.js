@@ -75,4 +75,4 @@ http.createServer(async (req, res) => {
   } catch (e) {
     json(res, 500, { error: String(e.message || e) });
   }
-}).listen(PORT, () => console.log(`MIXR DJ → http://localhost:${PORT}`));
+}).listen(PORT, () => console.log(`MIXR DJ → http://127.0.0.1:${PORT}  (usá 127.0.0.1 y no localhost si vas a conectar Spotify)`));

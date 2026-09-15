@@ -8,7 +8,7 @@ Mezclador de DJ de 2 decks que corre en el navegador. Minimalista, sin build ni 
 
 ```bash
 cd dj-mixer
-npm start            # → http://localhost:8787
+npm start            # → http://127.0.0.1:8787
 ```
 
 Cualquier servidor estático sirve (`npx http-server`, `python -m http.server`), pero `npm start` además levanta el **bridge de YouTube** (ver abajo). Usá **Chrome o Edge**: son los únicos con Web MIDI y selección de salida de audio.
@@ -55,7 +55,7 @@ Si `yt-dlp` está en el PATH, el estado arriba a la derecha dice **Bridge YT ✓
 
 ### Spotify
 
-1. Creá una app en <https://developer.spotify.com/dashboard> y agregá como Redirect URI la que muestra Ajustes (por ejemplo `http://localhost:8787/`).
+1. Creá una app en <https://developer.spotify.com/dashboard> y agregá como Redirect URI la que muestra Ajustes: `http://127.0.0.1:8787/`. Spotify rechaza `localhost` y cualquier `http://` que no sea la IP de loopback; en un servidor remoto necesitás HTTPS. Si abriste la app en `localhost`, al conectar salta sola a `127.0.0.1`.
 2. Pegá el Client ID en Ajustes → pestaña Spotify → **Conectar Spotify**.
 3. Buscá y agregá temas. Requiere Premium (restricción del SDK de Spotify).
 
