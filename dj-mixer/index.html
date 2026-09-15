@@ -22,6 +22,7 @@
   </div>
   <div class="top-right">
     <span id="status" class="muted small"></span>
+    <button type="button" id="keys-btn" class="pill" title="Atajos de teclado (?)">⌨</button>
     <button type="button" id="midi-btn" class="pill" title="Controlador MIDI">MIDI</button>
     <button type="button" id="settings-btn" class="pill" title="Ajustes">⚙</button>
   </div>
@@ -38,6 +39,8 @@
   <section id="mixer"></section>
   <section class="deck" id="deck-B" data-deck="B"></section>
 </main>
+
+<section id="sampler"></section>
 
 <section id="library"></section>
 
@@ -74,6 +77,15 @@
     </div>
     <p class="muted small">Modo "aprender": hacé click en un control de la pantalla y después mové el control del MIDI. También podés usar "Learn" en la tabla.</p>
     <div class="midi-table-wrap"><table id="midi-table"><thead><tr><th>Acción</th><th>Mapeo</th><th></th></tr></thead><tbody></tbody></table></div>
+    <div class="row end"><button class="btn accent">Cerrar</button></div>
+  </form>
+</dialog>
+
+<dialog id="keys-dialog">
+  <form method="dialog">
+    <h2>Tocar con el teclado</h2>
+    <div class="keys-grid" id="keys-grid"></div>
+    <p class="muted small">Los atajos no actúan mientras escribís en un cuadro de texto. Doble click en un knob o fader lo resetea.</p>
     <div class="row end"><button class="btn accent">Cerrar</button></div>
   </form>
 </dialog>

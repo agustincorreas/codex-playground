@@ -23,7 +23,9 @@ Cualquier servidor estático sirve (`npx http-server`, `python -m http.server`),
 | Fuentes externas | **YouTube** (link o búsqueda), **Spotify** (búsqueda + reproducción), **URL directa** (mp3, streams, radios) |
 | Automático | **Automix**: encadena la cola con sync y crossfade automático. Auto-gain al cargar. En modo simple, sync automático al cargar |
 | MIDI | Cualquier controlador: *MIDI learn* desde la pantalla o desde la tabla de acciones, jog relativo, LEDs de estado, exportar/importar mapa |
-| Extras | Grabación del master a archivo, atajos de teclado, salidas de audio seleccionables |
+| Sampler | 8 pads con samples sintetizados incluidos (kick, clap, hats, snare, crash, air horn, riser) o tus propios archivos (Shift+click o arrastrar), disparo cuantizado al beat, volumen y cue |
+| Sugerencias | Inicio de YouTube y Spotify con filas por género (house, deep, tech, afro, techno, trance, D&B, garage, breaks, bass, EDM, disco, downtempo, latino) |
+| Extras | Grabación del master a archivo, teclado completo con ayuda (`?`), beat jump, salidas de audio seleccionables |
 
 ## Modo simple vs. experto
 
@@ -78,18 +80,28 @@ El mapa se guarda en el navegador y se puede exportar/importar como JSON. Los bo
 
 Ajustes → **Detectar dispositivos** → elegí la interfaz/salida para *auriculares* y otra para *master*. Sin segunda salida, activá **Split cue**: canal izquierdo = cue, derecho = master (con un cable Y).
 
-## Atajos de teclado
+## Tocar con el teclado
+
+Apretá `?` en la app para ver el mapa completo. Resumen:
 
 | Deck A | Deck B | Acción |
 |---|---|---|
 | `W` | `P` | Play / pausa |
-| `Q` | `O` | Cue (mantener para escuchar) |
+| `Q` | `O` | Cue (mantener para escuchar desde el cue) |
 | `E` | `[` | Sync |
 | `R` | `]` | Autoloop 4 beats |
+| `T` | `\` | Keylock |
 | `1`–`4` | `7`–`0` | Hot cues 1–4 |
-| `A` | `B` | Cargar la pista seleccionada |
+| `S` / `D` | `K` / `L` | Empujar (nudge) atrás / adelante |
+| `Shift+S` / `Shift+D` | `Shift+K` / `Shift+L` | Pitch −/+ |
+| `G` / `H` | `;` / `'` | Beat jump −4 / +4 |
+| `A` | `Shift+Enter` | Cargar la pista seleccionada |
 
-`Z` / `X` mueven el crossfader, `C` lo centra, `F` enfoca la búsqueda (si pegás un link de YouTube, Spotify o una URL, Enter lo agrega a la lista; Shift+Enter además lo carga en el deck libre), `↑ ↓ Enter` navegan la biblioteca. Doble click en una pista la carga en el deck libre. Click sobre el BPM = tap tempo; doble click = editar. Shift+click en un hot cue lo borra. Doble click en cualquier knob/fader lo resetea; Shift al arrastrar = ajuste fino.
+`←` / `→` mueven el crossfader y `Shift+↓` lo centra. `Z X C V B N M ,` disparan los 8 pads del sampler. `↑` / `↓` recorren la biblioteca, `Enter` carga en el deck libre, `F` enfoca la búsqueda (si pegás un link, Enter lo agrega). Doble click en una pista la carga en el deck libre. Click sobre el BPM = tap tempo; doble click = editar. Shift+click en un hot cue lo borra. Doble click en cualquier knob/fader lo resetea; Shift al arrastrar = ajuste fino.
+
+## Sampler
+
+Ocho pads con sonidos sintetizados de fábrica. Shift+click (o arrastrar un archivo o una pista local) carga tu propio sample; Alt+click restaura el de fábrica; Ctrl+click lo para. **Q** cuantiza los disparos al próximo beat del deck que suena, ideal para tirar un crash o un riser justo en el compás. Tiene volumen propio y cue a auriculares, y se puede plegar.
 
 ## Estructura
 
@@ -104,6 +116,8 @@ dj-mixer/
 ├── js/sources/youtube.js   backend IFrame API
 ├── js/sources/spotify.js   PKCE + Web Playback SDK
 ├── js/sources/bridge.js    cliente del bridge yt-dlp
+├── js/audio/sampler.js     sampler (síntesis de samples + disparo cuantizado)
+├── js/genres.js            sugerencias por género (YouTube y Spotify)
 ├── js/library.js, js/id3.js, js/midi.js, js/automix.js
 ├── js/ui/                  components (knob/fader/button), waveform, deckview, mixerview, libraryview
 └── server/serve.js         estático + /api/resolve, /api/search, /api/stream (yt-dlp)

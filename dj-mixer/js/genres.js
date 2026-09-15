@@ -1,0 +1,36 @@
+// Sugerencias por género para los inicios de YouTube y Spotify.
+// yt: consultas de búsqueda (el bridge agrega "official audio"); sp: [título, consulta de Spotify, tipo].
+const g = (label, yt, sp) => ({ label, yt, sp });
+export const GENRES = {
+  house: g('House', ['house music 2026', 'deep house', 'tech house', 'afro house', 'classic house 90s'],
+    [['House nuevo', 'genre:house year:2025-2026', 'track'], ['Deep house', 'genre:"deep house"', 'track'], ['Tech house', 'genre:"tech house"', 'track'], ['Afro house', 'genre:"afro house"', 'track'], ['Clásicos house', 'genre:house year:1988-2005', 'track'], ['Playlists de house', 'house', 'playlist']]),
+  deephouse: g('Deep house', ['deep house 2026', 'melodic house', 'organic house', 'lo-fi house'],
+    [['Deep house nuevo', 'genre:"deep house" year:2025-2026', 'track'], ['Melodic house', 'genre:"melodic house"', 'track'], ['Organic house', 'genre:"organic house"', 'track'], ['Playlists deep house', 'deep house', 'playlist']]),
+  techhouse: g('Tech house', ['tech house 2026', 'minimal tech house', 'latin tech house', 'bass house'],
+    [['Tech house nuevo', 'genre:"tech house" year:2025-2026', 'track'], ['Minimal', 'genre:"minimal techno"', 'track'], ['Bass house', 'genre:"bass house"', 'track'], ['Playlists tech house', 'tech house', 'playlist']]),
+  afrohouse: g('Afro house', ['afro house 2026', 'afro tech', 'amapiano', 'organic house'],
+    [['Afro house nuevo', 'genre:"afro house" year:2025-2026', 'track'], ['Afro tech', 'genre:"afro tech"', 'track'], ['Amapiano', 'genre:amapiano', 'track'], ['Playlists afro house', 'afro house', 'playlist']]),
+  progressive: g('Progressive / Melodic', ['progressive house 2026', 'melodic techno', 'melodic house', 'anjunadeep'],
+    [['Progressive house', 'genre:"progressive house" year:2024-2026', 'track'], ['Melodic techno', 'genre:"melodic techno"', 'track'], ['Melodic house', 'genre:"melodic house"', 'track'], ['Playlists progressive', 'progressive house', 'playlist']]),
+  techno: g('Techno', ['techno 2026', 'peak time techno', 'hard techno', 'detroit techno'],
+    [['Techno nuevo', 'genre:techno year:2025-2026', 'track'], ['Peak time', 'genre:"peak time techno"', 'track'], ['Hard techno', 'genre:"hard techno"', 'track'], ['Playlists techno', 'techno', 'playlist']]),
+  trance: g('Trance', ['trance 2026', 'uplifting trance', 'psytrance', 'progressive trance'],
+    [['Trance nuevo', 'genre:trance year:2024-2026', 'track'], ['Uplifting', 'genre:"uplifting trance"', 'track'], ['Psytrance', 'genre:psytrance', 'track'], ['Playlists trance', 'trance', 'playlist']]),
+  dnb: g('Drum & bass', ['drum and bass 2026', 'liquid drum and bass', 'jungle', 'neurofunk'],
+    [['D&B nuevo', 'genre:"drum and bass" year:2024-2026', 'track'], ['Liquid', 'genre:"liquid funk"', 'track'], ['Jungle', 'genre:jungle', 'track'], ['Playlists drum & bass', 'drum and bass', 'playlist']]),
+  garage: g('UK garage', ['uk garage 2026', '2 step garage', 'speed garage', 'bassline'],
+    [['UKG nuevo', 'genre:"uk garage" year:2023-2026', 'track'], ['2-step', 'genre:"2-step"', 'track'], ['Speed garage', 'genre:"speed garage"', 'track'], ['Playlists garage', 'uk garage', 'playlist']]),
+  breaks: g('Breaks / Electro', ['breakbeat 2026', 'electro', 'big beat', 'nu skool breaks'],
+    [['Breaks', 'genre:breakbeat', 'track'], ['Electro', 'genre:electro', 'track'], ['Big beat', 'genre:"big beat"', 'track'], ['Playlists breaks', 'breakbeat', 'playlist']]),
+  bass: g('Bass / Dubstep', ['dubstep 2026', 'bass music', 'future bass', 'uk bass'],
+    [['Dubstep', 'genre:dubstep year:2023-2026', 'track'], ['Future bass', 'genre:"future bass"', 'track'], ['UK bass', 'genre:"uk bass"', 'track'], ['Playlists bass', 'dubstep', 'playlist']]),
+  edm: g('EDM / Big room', ['edm 2026', 'big room', 'future house', 'festival anthems'],
+    [['EDM nuevo', 'genre:edm year:2025-2026', 'track'], ['Big room', 'genre:"big room"', 'track'], ['Future house', 'genre:"future house"', 'track'], ['Playlists EDM', 'edm', 'playlist']]),
+  disco: g('Disco / Nu-disco', ['nu disco', 'disco house', 'funky house', 'french house'],
+    [['Nu-disco', 'genre:"nu disco"', 'track'], ['Disco house', 'genre:"disco house"', 'track'], ['French house', 'genre:"french house"', 'track'], ['Playlists disco', 'nu disco', 'playlist']]),
+  downtempo: g('Downtempo / Chill', ['downtempo 2026', 'chillout electronic', 'trip hop', 'ambient techno'],
+    [['Downtempo', 'genre:downtempo', 'track'], ['Chillout', 'genre:chillout', 'track'], ['Trip hop', 'genre:"trip hop"', 'track'], ['Playlists chill', 'chill electronic', 'playlist']]),
+  latin: g('Latino / Reggaetón', ['reggaeton 2026', 'latin house', 'guaracha', 'cumbia electronica'],
+    [['Reggaetón nuevo', 'genre:reggaeton year:2025-2026', 'track'], ['Latin house', 'genre:"latin house"', 'track'], ['Guaracha', 'genre:guaracha', 'track'], ['Playlists latino', 'perreo', 'playlist']]),
+};
+export const DEFAULT_GENRE = 'house';

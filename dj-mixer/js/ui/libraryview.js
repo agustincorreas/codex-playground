@@ -3,6 +3,7 @@ import { bridge } from '../sources/bridge.js';
 import { spotify } from '../sources/spotify.js';
 import { Deck } from '../audio/deck.js';
 import { store } from '../store.js';
+import { GENRES, DEFAULT_GENRE } from '../genres.js';
 
 const SRC_LABEL = { local: 'Local', youtube: 'YouTube', spotify: 'Spotify', url: 'URL' };
 
@@ -129,6 +130,12 @@ export class LibraryView {
     if (onOpen) { c.addEventListener('click', onOpen); c.addEventListener('keydown', e => { if (e.key === 'Enter') onOpen(); }); }
     return c;
   }
+  get genre() { const g = store.get('genre', DEFAULT_GENRE); return GENRES[g] ? g : DEFAULT_GENRE; }
+  genreChips(onChange) {
+    const row = el('div', { class: 'chips wrap' });
+    for (const [id, g] of Object.entries(GENRES)) { const c = el('button', { class: 'chip' + (id === this.genre ? ' active' : ''), type: 'button' }, g.label); c.addEventListener('click', () => { store.set('genre', id); onChange(); }); row.append(c); }
+    return el('div', { class: 'sp-section' }, el('div', { class: 'row-label' }, 'Sugerencias para tu set'), row);
+  }
   spCard(item) {
     if (item.kind === 'track') return this.card(item, { add: () => this.lib.addSpotify(item.track) });
     const c = this.card(item, { onOpen: () => item.locked ? toast('Spotify no permite leer sus playlists generadas (Mix, Radio, editoriales) desde apps externas. Las playlists tuyas o de otros usuarios sí.', 'warn', 6000) : this.spOpen(item) });
@@ -160,6 +167,9 @@ export class LibraryView {
     // inicio: secciones que se completan a medida que llegan
     if (!this.ytHome) this.ytHome = {};
     const sections = [];
+    box.append(this.genreChips(() => this.renderYouTube()));
+    const G = GENRES[this.genre];
+    for (const q of G.yt) sections.push([`related:${q}`, q.replace(/\b\w/g, c => c.toUpperCase())]);
     if (bridge.account) sections.push(['rec', 'Recomendado para vos'], ['history', 'Historial'], ['liked', 'Me gusta'], ['later', 'Ver más tarde']);
     sections.push(['trending', 'Tendencias de música']);
     const artists = this.libraryArtists();
@@ -215,6 +225,19 @@ export class LibraryView {
       if (!this.spHome) { box.append(el('div', { class: 'muted sp-empty' }, 'Cargando tu inicio…')); try { this.spHome = await spotify.home(); } catch (e) { box.innerHTML = ''; box.append(el('div', { class: 'muted sp-empty' }, 'No se pudo cargar el inicio: ' + e.message)); return; } if (this.spView !== v) return; box.innerHTML = ''; }
       const h = this.spHome;
       const recentCards = h.recent.slice(0, 12).map(t => ({ kind: 'track', track: t, name: t.title, sub: t.artist, cover: t.cover }));
+      box.append(this.genreChips(() => { this.spGenre = null; this.renderSpotify(); }));
+      const gid = this.genre, G = GENRES[gid];
+      if (!this.spGenre || this.spGenre.id !== gid) {
+        const holder = el('div', { class: 'muted small' }, `Buscando ${G.label}…`); box.append(holder);
+        const state = { id: gid, rows: null }; this.spGenre = state;
+        Promise.all(G.sp.map(([title, q, type]) => spotify.search(q, type).then(items => [title, type, type === 'playlist' ? items.filter(i => !i.locked) : items]).catch(() => [title, type, []])))
+          .then(rows => { state.rows = rows; if (this.spView === v && this.spGenre === state) this.renderSpotify(); });
+      } else {
+        for (const [title, type, items] of this.spGenre.rows || []) {
+          if (!items.length) continue;
+          box.append(type === 'track' ? this.spCardRow(title, items.slice(0, 14).map(t => ({ kind: 'track', track: t, name: t.title, sub: t.artist, cover: t.cover }))) : this.spCardRow(title, items.slice(0, 14)));
+        }
+      }
       box.append(this.spCardRow('Tus playlists', h.playlists), this.spCardRow('Escuchado recientemente', recentCards), this.spTrackList('Tus me gusta', h.liked, { importAll: true }), this.spTrackList('Lo que más escuchás', h.top, { importAll: true }));
       if (!h.playlists.length && !h.recent.length && !h.liked.length && !h.top.length) box.append(el('div', { class: 'muted sp-empty' }, 'Tu cuenta todavía no tiene actividad para mostrar.'));
       return;

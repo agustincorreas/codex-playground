@@ -296,6 +296,7 @@ export class Deck extends EventTarget {
   }
   exitLoop() { if (!this.loop) return; this.loop = null; this.backend.clearLoop(); this.emit('state'); }
   toggleLoop(beats) { this.loop ? this.exitLoop() : this.loopBeats(beats ?? 4); }
+  beatJump(beats) { if (!this.loaded) return; const step = this.bpm ? this.beatLen : 0.5; this.seek(this.position + beats * step); }
 
   tick() {
     if (!this.backend) return;

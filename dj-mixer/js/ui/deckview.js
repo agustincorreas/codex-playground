@@ -55,7 +55,9 @@ export class DeckView {
     const lhalf = button({ label: '½', cls: 'sm expert-only', action: a('loopHalf'), onPress: () => d.loopHalf() });
     const ldbl = button({ label: '×2', cls: 'sm expert-only', action: a('loopDouble'), onPress: () => d.loopDouble() });
     this.$loopExit = button({ label: 'EXIT', cls: 'sm', action: a('loopExit'), onPress: () => d.exitLoop() });
-    loops.append(lin.el, lout.el, lhalf.el, ldbl.el, this.$loopExit.el);
+    const jb = button({ label: '◀4', cls: 'sm expert-only', action: a('jumpBack'), title: 'Saltar 4 beats atrás', onPress: () => d.beatJump(-4) });
+    const jf = button({ label: '4▶', cls: 'sm expert-only', action: a('jumpFwd'), title: 'Saltar 4 beats adelante', onPress: () => d.beatJump(4) });
+    loops.append(lin.el, lout.el, lhalf.el, ldbl.el, this.$loopExit.el, jb.el, jf.el);
     this.$loopIn = lin;
     // transporte
     this.$cue = button({ label: 'CUE', cls: 'cue big', action: a('cue'), onPress: () => d.cueDown(), onRelease: () => d.cueUp() });
