@@ -34,11 +34,11 @@ export class LibraryView {
     folder.addEventListener('change', () => this.addFiles(folder.files));
     this.$add = el('div', { class: 'lib-add' }, el('label', { class: 'btn sm accent' }, '+ Archivos', files), el('label', { class: 'btn sm' }, '+ Carpeta', folder));
     // toolbar
-    this.$search = el('input', { type: 'search', placeholder: 'Buscar… (Enter agrega el mejor resultado de YouTube/Spotify)', class: 'search' });
+    this.$search = el('input', { type: 'search', placeholder: 'Buscar en la biblioteca… (o pegá un link y Enter)', class: 'search' });
     this.$search.addEventListener('input', debounce(() => { this.q = this.$search.value; this.render(); }, 120));
     this.$search.addEventListener('keydown', e => {
       if (e.key === 'Escape') { this.$search.value = ''; this.q = ''; this.render(); }
-      if (e.key === 'Enter') { e.preventDefault(); this.quickAdd(this.$search.value.trim(), e.shiftKey); }
+      if (e.key === 'Enter' && this.isLink(this.$search.value)) { e.preventDefault(); this.addLink(this.$search.value.trim(), e.shiftKey); }
     });
     // YouTube
     const ytIn = el('input', { type: 'text', placeholder: 'Pegá un link de YouTube (o buscá si el bridge está activo)', class: 'grow' });
@@ -55,7 +55,6 @@ export class LibraryView {
           const res = await bridge.search(v);
           this.$ytResults.innerHTML = '';
           for (const r of res) this.$ytResults.append(this.resultRow(r, () => this.lib.addYouTube(r.url, r)));
-          this.addTop(res, (r) => this.lib.addYouTube(r.url, r));
           if (!res.length) this.$ytResults.innerHTML = '<div class="muted">Sin resultados</div>';
         } else toast('Pegá un link de YouTube. Para buscar, ejecutá el bridge (npm start + yt-dlp).', 'warn', 5000);
       } catch (e) { toast(e.message, 'error'); }
@@ -75,11 +74,11 @@ export class LibraryView {
     const spGo = async () => {
       const v = spIn.value.trim(); if (!v) return;
       if (!spotify.loggedIn) return toast('Conectá Spotify primero (Client ID en Ajustes).', 'warn');
+      if (/open\.spotify\.com|^spotify:/.test(v)) { await this.addLink(v); spIn.value = ''; return; }
       try {
         this.$spResults.innerHTML = '<div class="muted">Buscando…</div>';
         const res = await spotify.search(v); this.$spResults.innerHTML = '';
         for (const r of res) this.$spResults.append(this.resultRow(r, () => this.lib.addSpotify(r)));
-        this.addTop(res, (r) => this.lib.addSpotify(r));
         if (!res.length) this.$spResults.innerHTML = '<div class="muted">Sin resultados</div>';
       } catch (e) { toast(e.message, 'error', 5000); }
     };
@@ -115,25 +114,22 @@ export class LibraryView {
     this.root.addEventListener('drop', e => { this.root.classList.remove('drop'); if (e.dataTransfer.files?.length) { e.preventDefault(); this.addFiles(e.dataTransfer.files); } });
     this.$list.addEventListener('keydown', e => this.keys(e));
   }
-  // Busca afuera (Spotify si está esa pestaña, si no YouTube por el bridge) y agrega el mejor resultado.
-  async quickAdd(q, loadToo = false) {
-    if (!q) return;
-    const useSpotify = this.source === 'spotify' && spotify.loggedIn;
+  isLink(v) { v = (v || '').trim(); return /youtu\.?be/.test(v) || /open\.spotify\.com|^spotify:/.test(v) || /^https?:\/\//.test(v); }
+  // Pegar un link + Enter lo agrega a la lista (YouTube, tema/playlist/álbum de Spotify, o URL de audio).
+  async addLink(v, loadToo = false) {
     try {
       let track = null;
-      if (/youtu\.?be/.test(q) || /^[\w-]{11}$/.test(q)) { let info = null; if (bridge.ytdlp) { try { info = await bridge.resolve(q); } catch { /* embed */ } } track = this.lib.addYouTube(q, info); }
-      else if (useSpotify) { const res = await spotify.search(q); if (!res.length) return toast('Sin resultados en Spotify', 'warn'); track = this.lib.addSpotify(res[0]); }
-      else if (bridge.ytdlp) { toast('Buscando en YouTube…'); const res = await bridge.search(q); if (!res.length) return toast('Sin resultados en YouTube', 'warn'); track = this.lib.addYouTube(res[0].url, res[0]); }
-      else if (spotify.loggedIn) { const res = await spotify.search(q); if (!res.length) return toast('Sin resultados en Spotify', 'warn'); track = this.lib.addSpotify(res[0]); }
-      else return toast('Para agregar desde YouTube activá el bridge (npm start + yt-dlp), o conectá Spotify.', 'warn', 5000);
+      if (/youtu\.?be/.test(v)) { let info = null; if (bridge.ytdlp) { try { info = await bridge.resolve(v); } catch { /* embed */ } } track = this.lib.addYouTube(v, info); }
+      else if (/open\.spotify\.com|^spotify:/.test(v)) {
+        if (!spotify.loggedIn) return toast('Conectá Spotify primero (Client ID en Ajustes).', 'warn');
+        if (spotify.parseCollection(v)) { toast('Importando…'); const items = await spotify.collectionTracks(v); const n = this.lib.addSpotifyMany(items); toast(`${n} pista(s) importadas`); this.$search.value = ''; this.q = ''; this.source = 'spotify'; this.render(); return; }
+        const t = await spotify.trackFromLink(v); if (!t) return toast('Link de Spotify no reconocido', 'warn'); track = this.lib.addSpotify(t);
+      }
+      else track = this.lib.addUrl(v);
       this.$search.value = ''; this.q = ''; this.selected = track.id; this.source = 'all'; this.render();
       toast(`Agregado: ${track.title}`);
       if (loadToo) { const d = this.freeDeck(); if (d) this.onLoad(track, d); }
     } catch (e) { toast(e.message, 'error', 5000); }
-  }
-  addTop(res, add) {
-    if (!res.length) return;
-    const t = add(res[0]); toast(`Agregado: ${t.title}`); this.selected = t.id;
   }
   async addFiles(files) {
     const added = await this.lib.addFiles(files);

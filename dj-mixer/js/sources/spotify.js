@@ -81,6 +81,12 @@ export const spotify = {
       cover: t.album?.images?.at(-1)?.url || null,
     }));
   },
+  async trackFromLink(input) {
+    const m = (input || '').match(/spotify:track:([A-Za-z0-9]+)|open\.spotify\.com\/(?:intl-[a-z]+\/)?track\/([A-Za-z0-9]+)/);
+    if (!m) return null;
+    const t = await this.api(`/tracks/${m[1] || m[2]}`);
+    return { uri: t.uri, id: t.id, title: t.name, artist: (t.artists || []).map(a => a.name).join(', '), duration: t.duration_ms / 1000, cover: t.album?.images?.at(-1)?.url || null };
+  },
   parseCollection(input) {
     const s = (input || '').trim();
     let m = s.match(/spotify:(playlist|album):([A-Za-z0-9]+)/); if (m) return { type: m[1], id: m[2] };

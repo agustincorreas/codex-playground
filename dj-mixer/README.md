@@ -85,7 +85,7 @@ Ajustes → **Detectar dispositivos** → elegí la interfaz/salida para *auricu
 | `1`–`4` | `7`–`0` | Hot cues 1–4 |
 | `A` | `B` | Cargar la pista seleccionada |
 
-`Z` / `X` mueven el crossfader, `C` lo centra, `F` enfoca la búsqueda (Enter agrega el mejor resultado de YouTube/Spotify; Shift+Enter además lo carga en el deck libre), `↑ ↓ Enter` navegan la biblioteca. Doble click en una pista la carga en el deck libre. Click sobre el BPM = tap tempo; doble click = editar. Shift+click en un hot cue lo borra. Doble click en cualquier knob/fader lo resetea; Shift al arrastrar = ajuste fino.
+`Z` / `X` mueven el crossfader, `C` lo centra, `F` enfoca la búsqueda (si pegás un link de YouTube, Spotify o una URL, Enter lo agrega a la lista; Shift+Enter además lo carga en el deck libre), `↑ ↓ Enter` navegan la biblioteca. Doble click en una pista la carga en el deck libre. Click sobre el BPM = tap tempo; doble click = editar. Shift+click en un hot cue lo borra. Doble click en cualquier knob/fader lo resetea; Shift al arrastrar = ajuste fino.
 
 ## Estructura
 
