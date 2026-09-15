@@ -10,6 +10,10 @@ Son útiles para jugar, mejorar código y experimentar.
 - `lector_excel.py`: lee un archivo de Excel y muestra su contenido (requiere `pandas`).
 - `generador_contraseñas.py`: genera contraseñas aleatorias seguras.
 
+## Proyecto: MIXR — DJ mixer web estilo Serato
+
+- [`dj-mixer/`](dj-mixer/README.md): mezclador de 2 decks en el navegador (Web Audio + Web MIDI). Archivos locales, YouTube, Spotify y URLs; modo simple y experto; Automix; soporte de controlador MIDI. `cd dj-mixer && npm start`.
+
 ## Proyecto: Sillage — Recomendador de perfumes
 
 - [`sillage/`](sillage/README.md): app React Native (Expo) con tier gratuito y membresía PRO.

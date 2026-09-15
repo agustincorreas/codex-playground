@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MIXR · DJ</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='14' fill='%2333d1ff'/><circle cx='16' cy='16' r='4' fill='%230b0c0f'/></svg>">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body class="mode-simple">
+<header id="topbar">
+  <div class="brand"><span class="logo"></span>MIXR</div>
+  <div class="mode-switch" role="group" aria-label="Modo">
+    <button type="button" data-mode="simple" class="active">Simple</button>
+    <button type="button" data-mode="expert">Experto</button>
+  </div>
+  <div class="top-center">
+    <button type="button" id="automix-btn" class="pill" data-action="automix" title="Encadena la cola con sync y crossfade automático">AUTOMIX</button>
+    <div id="master-slot"></div>
+    <button type="button" id="rec-btn" class="pill rec" data-action="rec" title="Grabar la salida master">● REC</button>
+    <span id="rec-time" class="muted small"></span>
+  </div>
+  <div class="top-right">
+    <span id="status" class="muted small"></span>
+    <button type="button" id="midi-btn" class="pill" title="Controlador MIDI">MIDI</button>
+    <button type="button" id="settings-btn" class="pill" title="Ajustes">⚙</button>
+  </div>
+</header>
+
+<section id="waves">
+  <div class="wave"><canvas id="wave-A"></canvas></div>
+  <div class="wave"><canvas id="wave-B"></canvas></div>
+  <div class="zoom expert-only"><button type="button" data-zoom="-">−</button><button type="button" data-zoom="+">+</button></div>
+</section>
+
+<main id="decks">
+  <section class="deck" id="deck-A" data-deck="A"></section>
+  <section id="mixer"></section>
+  <section class="deck" id="deck-B" data-deck="B"></section>
+</main>
+
+<section id="library"></section>
+
+<dialog id="settings">
+  <form method="dialog">
+    <h2>Ajustes</h2>
+    <label>Salida master <select id="out-master"><option value="">Predeterminada</option></select></label>
+    <label>Salida auriculares (cue) <select id="out-cue"><option value="">— sin cue —</option></select></label>
+    <button type="button" id="detect-devices" class="btn sm">Detectar dispositivos</button>
+    <label class="check"><input type="checkbox" id="split-cue"> Split cue (izquierda = cue, derecha = master; para cable Y)</label>
+    <hr>
+    <label>Spotify Client ID <input type="text" id="spotify-client" placeholder="de developer.spotify.com"></label>
+    <p class="muted small">Redirect URI a registrar en tu app de Spotify: <code id="spotify-redirect"></code></p>
+    <label>Bridge YouTube (URL del servidor) <input type="text" id="bridge-url" placeholder="vacío = mismo origen (npm start)"></label>
+    <hr>
+    <label>Rango de crossfader <select id="xf-curve"><option value="smooth">Suave (mezcla)</option><option value="sharp">Cortante (scratch)</option></select></label>
+    <div class="row end"><button class="btn accent">Cerrar</button></div>
+  </form>
+</dialog>
+
+<dialog id="midi-dialog">
+  <form method="dialog">
+    <h2>Controlador MIDI</h2>
+    <p id="midi-devices" class="muted small">Sin dispositivos.</p>
+    <div class="row">
+      <button type="button" id="midi-learn-ui" class="btn sm accent">Aprender desde pantalla</button>
+      <button type="button" id="midi-export" class="btn sm">Exportar mapa</button>
+      <label class="btn sm">Importar mapa <input type="file" id="midi-import" accept="application/json" hidden></label>
+      <button type="button" id="midi-clear" class="btn sm ghost">Borrar todo</button>
+    </div>
+    <p class="muted small">Modo "aprender": hacé click en un control de la pantalla y después mové el control del MIDI. También podés usar "Learn" en la tabla.</p>
+    <div class="midi-table-wrap"><table id="midi-table"><thead><tr><th>Acción</th><th>Mapeo</th><th></th></tr></thead><tbody></tbody></table></div>
+    <div class="row end"><button class="btn accent">Cerrar</button></div>
+  </form>
+</dialog>
+
+<div id="learn-banner" hidden>MIDI LEARN: hacé click en un control de la pantalla y mové tu controlador · <button type="button" id="learn-stop">Terminar</button></div>
+<div id="toast"></div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

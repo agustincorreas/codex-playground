@@ -1,0 +1,12 @@
+{
+  "name": "mixr-dj",
+  "version": "1.0.0",
+  "description": "MIXR — DJ mixer web minimalista estilo Serato (Web Audio, Web MIDI, YouTube, Spotify)",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "node server/serve.js",
+    "check": "node --check js/main.js && for f in js/*.js js/*/*.js server/*.js; do node --check \"$f\" || exit 1; done && echo OK"
+  },
+  "engines": { "node": ">=18" }
+}
