@@ -191,7 +191,7 @@ export class LibraryView {
     const back = this.spView;
     this.spView = { mode: 'loading' }; this.renderSpotify();
     try {
-      if (item.kind === 'artist') { const d = await spotify.artistDetail(item.id); this.spView = { mode: 'detail', item, back, tracks: d.tracks, albums: d.albums }; }
+      if (item.kind === 'artist') { const d = await spotify.artistDetail(item.id, item.name); this.spView = { mode: 'detail', item, back, tracks: d.tracks, albums: d.albums }; }
       else { const tracks = await spotify.collectionTracks(`spotify:${item.kind}:${item.id}`); this.spView = { mode: 'detail', item, back, tracks, importAll: true }; }
     } catch (e) { this.spView = back; toast(e.message, 'error', 5000); }
     this.renderSpotify();
@@ -228,7 +228,7 @@ export class LibraryView {
     if (v.mode === 'detail') {
       const backBtn = el('button', { class: 'btn xs ghost' }, '← Volver'); backBtn.addEventListener('click', () => { this.spView = v.back || { mode: 'home' }; this.renderSpotify(); });
       box.append(el('div', { class: 'row sp-detail-head' }, backBtn, el('span', { class: 'sp-cover sm', style: v.item.cover ? `background-image:url("${v.item.cover}")` : '' }), el('b', {}, v.item.name), el('span', { class: 'muted small' }, v.item.sub || '')));
-      if (v.item.kind === 'artist') box.append(this.spTrackList('Más escuchadas', v.tracks), this.spCardRow('Álbumes y singles', v.albums));
+      if (v.item.kind === 'artist') { box.append(this.spTrackList('Canciones', v.tracks), this.spCardRow('Álbumes y singles', v.albums)); if (!v.tracks.length && !v.albums.length) box.append(el('div', { class: 'muted sp-empty' }, 'Spotify no devolvió nada para este artista (restricciones para apps en modo desarrollo). Probá buscando sus canciones directamente.')); }
       else box.append(this.spTrackList('Temas', v.tracks, { importAll: true }));
     }
   }

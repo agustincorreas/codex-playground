@@ -66,7 +66,7 @@ export const spotify = {
     const r = await fetch('https://api.spotify.com/v1' + path, { ...opts, headers: { Authorization: 'Bearer ' + tok, 'Content-Type': 'application/json', ...(opts.headers || {}) } });
     if (r.status === 204) return null;
     const j = await r.json().catch(() => null);
-    if (r.status === 403 && /playlists|albums/.test(path)) throw new Error('Spotify no permite leer sus playlists generadas (Mix, Radio, editoriales) desde apps externas. Las playlists tuyas o de otros usuarios sí funcionan.');
+    if (r.status === 403) { const e = new Error(/\/playlists\//.test(path) ? 'Spotify no permite leer esta playlist desde apps externas (las generadas por Spotify, Mix, Radio y editoriales, están bloqueadas).' : 'Spotify bloqueó esta función para apps en modo desarrollo (cambios de 2026).'); e.status = 403; throw e; }
     if (!r.ok) throw new Error(j?.error?.message || `Spotify API ${r.status}`);
     return j;
   },
@@ -77,7 +77,7 @@ export const spotify = {
     // Algunas apps de Spotify (modo desarrollo) rechazan ciertos valores de limit con "Invalid limit": probar de mayor a menor.
     let j = null, lastErr = null;
     for (const limit of [20, 10, null]) {
-      const params = new URLSearchParams({ q, type, market: 'from_token' });
+      const params = new URLSearchParams({ q, type });
       if (limit) params.set('limit', String(limit));
       try { j = await this.api('/search?' + params); break; }
       catch (e) { lastErr = e; if (!/limit/i.test(e.message)) throw e; }
@@ -88,13 +88,19 @@ export const spotify = {
     if (type === 'album') return (j.albums?.items || []).map(a => ({ kind: 'album', id: a.id, uri: a.uri, name: a.name, sub: `${(a.artists || []).map(x => x.name).join(', ')} · ${(a.release_date || '').slice(0, 4)}`, cover: img(a, true) }));
     return (j.playlists?.items || []).filter(Boolean).map(p => { const spotifyOwned = p.owner?.id === 'spotify'; return { kind: 'playlist', id: p.id, uri: p.uri, name: p.name, sub: spotifyOwned ? 'De Spotify · no accesible' : `${p.owner?.display_name || ''}${p.tracks?.total != null ? ' · ' + p.tracks.total + ' temas' : ''}`, cover: img(p, true), locked: spotifyOwned }; });
   },
-  async artistDetail(id) {
-    const [top, albums] = await Promise.all([this.api(`/artists/${id}/top-tracks?market=from_token`), this.api(`/artists/${id}/albums?include_groups=album,single&limit=20&market=from_token`)]);
-    return { tracks: (top.tracks || []).map(mapTrack).filter(Boolean), albums: (albums.items || []).map(a => ({ kind: 'album', id: a.id, uri: a.uri, name: a.name, sub: (a.release_date || '').slice(0, 4), cover: img(a, true) })) };
+  // Spotify quitó "top tracks" (y en algunos casos los álbumes del artista) para apps en modo desarrollo (feb. 2026):
+  // se intenta la ruta oficial y, si falla, se usa la búsqueda filtrada por artista.
+  async artistDetail(id, name) {
+    const quoted = `artist:"${(name || '').replace(/"/g, '')}"`;
+    const tracks = await this.api(`/artists/${id}/top-tracks`).then(j => (j.tracks || []).map(mapTrack).filter(Boolean)).catch(() => null)
+      ?? await this.search(quoted, 'track').catch(() => []);
+    const albums = await this.api(`/artists/${id}/albums?include_groups=album,single&limit=20`).then(j => (j.items || []).map(a => ({ kind: 'album', id: a.id, uri: a.uri, name: a.name, sub: (a.release_date || '').slice(0, 4), cover: img(a, true) }))).catch(() => null)
+      ?? await this.search(quoted, 'album').catch(() => []);
+    return { tracks, albums };
   },
   async home() {
     const get = (p) => this.api(p).catch(() => null);
-    const [pl, recent, liked, top] = await Promise.all([get('/me/playlists?limit=20'), get('/me/player/recently-played?limit=30'), get('/me/tracks?limit=20&market=from_token'), get('/me/top/tracks?limit=20&time_range=short_term')]);
+    const [pl, recent, liked, top] = await Promise.all([get('/me/playlists?limit=20'), get('/me/player/recently-played?limit=30'), get('/me/tracks?limit=20'), get('/me/top/tracks?limit=20&time_range=short_term')]);
     const seen = new Set();
     const recentTracks = (recent?.items || []).map(i => mapTrack(i.track)).filter(t => t && !seen.has(t.uri) && seen.add(t.uri));
     return {
@@ -116,13 +122,15 @@ export const spotify = {
   },
   async collectionTracks(input) {
     const c = this.parseCollection(input); if (!c) throw new Error('Pegá un link de playlist o álbum de Spotify');
-    let url = c.type === 'playlist' ? `/playlists/${c.id}/tracks?limit=100` : `/albums/${c.id}?limit=50`;
+    let url = c.type === 'playlist' ? `/playlists/${c.id}/items?limit=100` : `/albums/${c.id}?limit=50`;
     let albumCover = null; const out = [];
     while (url) {
-      const j = await this.api(url);
+      let j;
+      try { j = await this.api(url); }
+      catch (e) { if (c.type === 'playlist' && url.includes('/items') && e.status === 403) { url = url.replace('/items', '/tracks'); j = await this.api(url); } else throw e; }
       const page = c.type === 'playlist' ? j : (albumCover = j.images?.at(-1)?.url || albumCover, j.tracks);
       for (const it of page.items || []) {
-        const t = c.type === 'playlist' ? it.track : it; const m = mapTrack(t); if (!m) continue;
+        const t = c.type === 'playlist' ? (it.item || it.track) : it; const m = mapTrack(t); if (!m) continue;
         if (!m.cover) m.cover = albumCover; out.push(m);
       }
       url = page.next ? page.next.replace('https://api.spotify.com/v1', '') : null;
