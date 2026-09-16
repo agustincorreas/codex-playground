@@ -1,57 +1,44 @@
-# Armonía — generador de armonías semi-modular
+# Armonía — chord generating synthesizer
 
-Instrumento web inspirado en [Nopia](https://nopia.io/): un **generador de acordes
-basado en armonía tonal** donde cada tecla no es una nota sino un **grado** de la
-tonalidad. Corre 100 % en el navegador con Web Audio, sin dependencias ni build.
+Instrumento web inspirado en el **Orchid** de Telepathic Instruments: un sintetizador
+generador de acordes donde elegís la fundamental en un teclado de una octava y el
+tipo de acorde con botones, en vez de tocar todas las notas. Corre 100 % en el
+navegador con Web Audio, sin dependencias ni build.
 
-Abrí `index.html` (o serví la carpeta con cualquier servidor estático) y presioná
-**Encender** o simplemente tocá una tecla.
+- `index.html` + `style.css` + `theory.js` + `audio.js` + `app.js`: código fuente.
+- `armonia.html`: **todo en un solo archivo**, para abrir con doble clic (regenerar con `python3 build.py`).
 
-## Cómo está organizado el panel
+## El panel
 
-| Módulo | Qué hace |
+| Control | Qué hace |
 | --- | --- |
-| **Display (OLED)** | Nombre del acorde, grado romano, función armónica, notas, mini piano y osciloscopio. |
-| **Tonal selector** | 12 botones en forma de teclado eligen la tónica. Switch **mayor / menor**. Switch **función**: diatónico · dominantes (cada tecla se vuelve un 7ª de dominante → dominantes secundarias) · disminuidos (de paso). |
-| **Chord builder** | Teclado de una octava. Teclas blancas = grados I–VII; negras = acordes cromáticos (intercambio modal, napolitano, sensibles). |
-| **Voicing** | Dial de **extensiones** (tríada · 7 · 9 · 11 · 13), **inversión**, **octava**, tipo de voicing (cerrado · drop 2 · abierto · amplio), **sus** y **hold**. |
-| **Strum · pitch** | Superficie de strum para tocar las notas del acorde una a una y tira de pitch-bend (±2 semitonos, cromático o continuo). |
-| **Clock · looper** | Tempo, play, metrónomo y looper de eventos (1–8 compases, rec → play → overdub). |
-| **Keys / Bass / Arp / Pad** | Cuatro módulos de sonido (analógico virtual). Bass con pads **root / alt** y modos por reloj; Arp con modos, rate sincronizado, octavas y gate; Pad con swell y detune. |
-| **Master FX** | Drive, filtro resonante, delay sincronizado, reverb, master. |
-| **Mod (patch bay)** | Fuentes LFO · ENV · CLOCK · STRUM · RAND. Hacé clic en una fuente y luego en un jack de destino (cutoff, pitch, trémolo, tiempo/mix del delay, mix de reverb, detune del pad, pan). Cada destino tiene su mini-perilla de cantidad; clic en un cable lo quita. Viene pre-parcheado ENV→cutoff y LFO→pad detune. |
+| **Teclado (C–C)** | Cada tecla es la fundamental del acorde. Se puede deslizar entre teclas. |
+| **Chord Type** (fila superior) | Major · Minor · Sus · Dim. Uno a la vez. |
+| **Chord Modifiers** (fila inferior) | 6 · m7 · M7 · 9. Se combinan libremente (Cmaj9, Dm7, G13, Bø7, C6/9…). |
+| **Voicing Dial** | Gira nota a nota: cada paso sube la nota más grave una octava (o baja la más aguda), en cascada de inversiones. Con el acorde sonando, las notas que se mueven se re-disparan: un arpegio dinámico. |
+| **Octave** | Desplaza el registro ±2 octavas. |
+| **Sound** | Keys · E-Piano · Organ · Pad · Strings · Pluck · Brass · Bells. |
+| **Perform** | Chord · Strum · Strum 2 Oct · Slop (timing humano) · Arpeggiate · Arp 2 Oct · Pattern A/B/C · Harp (cascada de 3 octavas). |
+| **FX** | Dry · Room · Hall · Echo · Tape · Chorus · Lo-fi, con perilla de cantidad. |
+| **Key** | Transpone el teclado (la tecla de la izquierda pasa a ser la tónica elegida). |
+| **Bass** | Nivel del bajo; botón ON. El bajo sigue la fundamental, con groove cuando hay beat. |
+| **Loop** | Looper de 1 · 2 · 4 · 8 compases: Rec (se arma y empieza con el primer acorde) → Play → Overdub; Clr borra. |
+| **BPM** | Tempo. Debajo, el selector de **beats** de batería sintetizada: Hip hop · Boom bap · Lo-fi · Disco · House · Bossa nova · Electronic · Trap · Funk. Play arranca beat y loop. |
+| **Options** | Latch (mantener el acorde) · Arp 1/16 · Swing (0/25/50) · Metrónomo. Girá el encoder para elegir, clic para conmutar. |
+| **Volume** | Master. |
+
+La pantalla muestra el nombre del acorde, sus notas, y el estado de cada sección.
 
 ## Atajos de teclado
 
-- `A S D F G H J` grados I–VII · `W E T Y U` teclas negras
-- `Z` / `X` bajo root / alt · `1–5` extensiones · `↑ ↓` octava · `espacio` play
+- `A W S E D F T G Y H U J K` teclas C…C · `1–4` tipo · `5–8` modificadores
+- `← →` voicing · `↑ ↓` octava · `espacio` play · `B` bajo on/off
 
 ## MIDI
 
-Web MIDI funciona en **Chrome y Edge** (Firefox pide instalar un permiso; Safari no lo soporta).
-Al abrir la página el navegador pregunta si permitís el uso de MIDI: aceptá. El indicador de la
-cabecera muestra el estado (verde = dispositivos detectados, rojo = sin permiso o sin soporte) y
-parpadea en amarillo con cada mensaje recibido.
+Web MIDI funciona en **Chrome y Edge**; aceptá el permiso cuando el navegador lo pida
+(el indicador de la cabecera queda verde con dispositivos detectados y parpadea con cada mensaje).
 
-**MIDI IN** (se elige solo el primer teclado conectado):
-- cualquier nota = tecla del chord builder según su clase de altura (C→I, C♯→♭II, D→ii… en
-  cualquier octava), con velocidad
-- rueda de modulación (CC1) → dial de extensiones · pedal de sustain (CC64) → hold
-- pitch-bend → tira de pitch · CC74 → cutoff · CC7 → master
-
-**MIDI OUT**: Keys → canal 1, Bass → canal 2, Arp → canal 3, Pad → canal 4, más pitch-bend.
-
-Para regenerar `armonia.html` después de editar los fuentes: `python3 build.py`.
-
-## Archivos
-
-- `theory.js` — motor de armonía (grados, extensiones, voicings, nombres, funciones)
-- `audio.js` — motor de sonido, FX, fuentes de modulación y reloj
-- `app.js` — interfaz, patch bay, looper, MIDI
-- `style.css` — estética pastel / minimal del panel
-
-## Versión de un solo archivo
-
-`armonia.html` contiene todo (HTML, CSS y JS) en un único archivo: descargalo y abrilo
-con doble clic en Chrome, Edge, Firefox o Safari. No necesita servidor ni internet
-(sólo las fuentes se cargan online; si no hay conexión usa las del sistema).
+- **MIDI IN**: cualquier nota = fundamental (en cualquier octava), con velocidad ·
+  rueda de modulación → voicing · pedal de sustain → latch · CC7 → volumen · pitch-bend.
+- **MIDI OUT**: acorde → canal 1, bajo → canal 2.
