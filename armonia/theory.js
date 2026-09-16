@@ -57,12 +57,32 @@
     return root + core + seventh + ext;
   }
 
+  const SCALES = { major: [0, 2, 4, 5, 7, 9, 11], minor: [0, 2, 3, 5, 7, 8, 10] };
+
+  /** Key Mode: la nota tocada genera el acorde diatónico de la tonalidad (las notas fuera de la escala se ajustan). */
+  function keyChord(st) {
+    const scale = SCALES[st.minor ? 'minor' : 'major'];
+    let rel = mod(st.root - st.key, 12);
+    while (scale.indexOf(rel) < 0) rel = mod(rel - 1, 12);
+    const deg = scale.indexOf(rel);
+    const stack = (k) => scale[(deg + k) % 7] + 12 * Math.floor((deg + k) / 7) - scale[deg];
+    const iv = [0, stack(2), stack(4)];
+    if (st.minor && deg === 4) iv[1] = 4;                       // V mayor (menor armónica)
+    const mods = { 6: !!st.mods[6], m7: false, M7: false, 9: !!st.mods[9] };
+    if (st.mods[6]) iv.push(9);
+    if (st.mods.m7 || st.mods.M7) { const s = stack(6); iv.push(s); if (s === 11) mods.M7 = true; else mods.m7 = true; }
+    if (st.mods[9]) iv.push(stack(8) === 13 ? 14 : stack(8));   // evita la ♭9 diatónica
+    const type = iv[1] === 3 ? (iv[2] === 6 ? 'dim' : 'min') : 'maj';
+    return { rootPc: mod(st.key + rel, 12), intervals: [...new Set(iv)].sort((a, b) => a - b), type, mods, degree: deg };
+  }
+
   /**
-   * @param {object} st { root (0-11), type, mods {6,m7,M7,9}, voicing (int), octave (int) }
+   * @param {object} st { root (0-11), type, mods {6,m7,M7,9}, voicing (int), octave (int), keyMode, key, minor }
    */
   function buildChord(st) {
-    const rootPc = mod(st.root, 12);
-    const iv = intervalsFor(st.type, st.mods);
+    let rootPc, iv, type = st.type, mods = st.mods;
+    if (st.keyMode) { const k = keyChord(st); rootPc = k.rootPc; iv = k.intervals; type = k.type; mods = k.mods; }
+    else { rootPc = mod(st.root, 12); iv = intervalsFor(type, mods); }
     let n = iv.map((i) => 48 + rootPc + i + 12 * (st.octave || 0));
     const v = st.voicing || 0;
     for (let k = 0; k < Math.abs(v); k++) {
@@ -73,8 +93,8 @@
     return {
       rootPc, intervals: iv, notes: [...new Set(n)],
       pcs: iv.map((i) => mod(rootPc + i, 12)),
-      name: nameFor(rootPc, st.type, st.mods),
-      typeName: TYPES[st.type].name,
+      name: nameFor(rootPc, type, mods), type, mods,
+      typeName: TYPES[type].name,
       useFlats: FLAT_ROOTS.includes(rootPc),
     };
   }
@@ -85,5 +105,5 @@
   }
   function midiName(m, useFlats) { return (useFlats ? FLAT : SHARP)[mod(m, 12)] + (Math.floor(m / 12) - 1); }
 
-  global.Theory = { SHARP, FLAT, TYPES, MODS, buildChord, bassNote, midiName, mod };
+  global.Theory = { SHARP, FLAT, TYPES, MODS, SCALES, buildChord, keyChord, bassNote, midiName, mod };
 })(window);

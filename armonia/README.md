@@ -21,10 +21,10 @@ navegador con Web Audio, sin dependencias ni build.
 | **Perform** | Chord · Strum · Strum 2 Oct · Slop (timing humano) · Arpeggiate · Arp 2 Oct · Pattern A/B/C · Harp (cascada de 3 octavas). |
 | **FX** | Dry · Room · Hall · Echo · Tape · Chorus · Lo-fi, con perilla de cantidad. |
 | **Key** | Transpone el teclado (la tecla de la izquierda pasa a ser la tónica elegida). |
-| **Bass** | Nivel del bajo; botón ON. El bajo sigue la fundamental, con groove cuando hay beat. |
-| **Loop** | Looper de 1 · 2 · 4 · 8 compases: Rec (se arma y empieza con el primer acorde) → Play → Overdub; Clr borra. |
+| **Bass** | Nivel del bajo. El botón cicla **Off → On → Solo**. En On el bajo sigue la fundamental (con groove cuando hay beat); en **Solo** el teclado toca el bajo monofónico mientras el acorde latcheado o en loop sigue sonando: para pasear la línea de bajo. |
+| **Loop** | Looper de 1 · 2 · 4 · 8 compases: Rec (se arma y empieza con la primera nota) → Play → Overdub. Cada pasada de overdub es una capa nueva sin tocar el loop original; **Undo** quita la última capa grabada y Clr borra todo. La pantalla muestra la cantidad de capas. |
 | **BPM** | Tempo. Debajo, el selector de **beats** de batería sintetizada: Hip hop · Boom bap · Lo-fi · Disco · House · Bossa nova · Electronic · Trap · Funk. Play arranca beat y loop. |
-| **Options** | Latch (mantener el acorde) · Arp 1/16 · Swing (0/25/50) · Metrónomo. Girá el encoder para elegir, clic para conmutar. |
+| **Options** | **Key mode** (cualquier tecla genera el acorde diatónico de la tonalidad elegida con Key; las notas fuera de la escala se ajustan y los botones de tipo muestran el resultado; 6 · 7 · 9 agregan la extensión que corresponde a la tonalidad) · **Minor key** · Latch (mantener el acorde) · Arp 1/16 · Swing (0/25/50) · Metrónomo. Girá el encoder para elegir, clic para conmutar. |
 | **Volume** | Master. |
 
 La pantalla muestra el nombre del acorde, sus notas, y el estado de cada sección.

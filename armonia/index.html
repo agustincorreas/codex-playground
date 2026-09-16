@@ -38,6 +38,7 @@
           <span><em>perform</em><b id="sPerform">Chord</b></span>
           <span><em>fx</em><b id="sFx">Room</b></span>
           <span><em>key</em><b id="sKey">C</b></span>
+          <span><em>bass</em><b id="sBass">On</b></span>
           <span><em>voicing</em><b id="sVoice">0</b></span>
           <span><em>beat</em><b id="sBeat">Off</b></span>
           <span><em>bpm</em><b id="sBpm">96</b></span>
@@ -75,7 +76,7 @@
         <div class="side right-side">
           <div class="encs">
             <div class="ctl" data-knob="bassLevel" data-value="0.8" data-cap="r" data-label="Bass"><div class="sub"><button class="tog" id="bassOn" type="button"><i></i>on</button></div></div>
-            <div class="ctl" data-enc="loopBars" data-cap="k" data-label="Loop"><div class="sub row"><button class="tog rec" id="rec" type="button"><i></i>rec</button><button class="tog" id="loopPlay" type="button"><i></i>play</button><button class="tog ghost" id="loopClear" type="button">clr</button></div></div>
+            <div class="ctl" data-enc="loopBars" data-cap="k" data-label="Loop"><div class="sub row"><button class="tog rec" id="rec" type="button"><i></i>rec</button><button class="tog" id="loopPlay" type="button"><i></i>play</button><button class="tog ghost" id="loopUndo" type="button">undo</button><button class="tog ghost" id="loopClear" type="button">clr</button></div></div>
             <div class="ctl" data-knob="bpm" data-min="50" data-max="180" data-step="1" data-value="96" data-cap="k" data-label="BPM"><div class="sub"><div class="ctl" data-enc="beat" data-list="1" data-label=""></div><button class="tog play" id="play" type="button"><i></i>play</button></div></div>
             <div class="ctl" data-enc="option" data-noval="1" data-cap="k" data-label="Options"><div class="sub row wrap" id="options"></div></div>
             <div class="ctl" data-knob="volume" data-value="0.8" data-cap="k" data-label="Volume"></div>
@@ -90,7 +91,7 @@
 
   <footer class="foot">
     <span><kbd>A W S E D F T G Y H U J K</kbd> teclas · <kbd>1–4</kbd> tipo · <kbd>5–8</kbd> modificadores · <kbd>← →</kbd> voicing · <kbd>↑ ↓</kbd> octava · <kbd>espacio</kbd> play · <kbd>B</kbd> bajo</span>
-    <span>MIDI: nota = fundamental · rueda mod = voicing · sustain = latch</span>
+    <span>Key mode: cualquier tecla → acorde de la tonalidad · Bass solo: el teclado toca el bajo · MIDI: nota = fundamental · rueda mod = voicing · sustain = latch</span>
   </footer>
 </div>
 <!--ARTIFACT-END-->

@@ -82,7 +82,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .side { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 .encs { display: flex; gap: 10px; align-items: flex-start; flex-wrap: wrap; }
 .encs > .ctl { flex: 1 1 86px; min-width: 86px; }
-.encs > .ctl[data-enc="loopBars"] { flex-basis: 150px; }
+.encs > .ctl[data-enc="loopBars"] { flex-basis: 200px; }
 
 /* ---------------- controles */
 .ctl { position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; }
@@ -154,6 +154,10 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .cbtn.on { transform: translateY(2px); box-shadow: 0 1px 0 #1b1b1e, 0 2px 4px rgba(0,0,0,.4), 0 0 18px rgba(244, 241, 232, .25); }
 .cbtn.on i { background: radial-gradient(circle at 40% 35%, #ffffff, #e9e5d9); box-shadow: 0 0 14px rgba(255, 255, 255, .8), 0 0 3px #fff; }
 .cbtn.on span { color: var(--ink); }
+.cgrid.keymode .cbtn[data-type] { cursor: default; }
+.cgrid.keymode .cbtn[data-type] i { opacity: .55; }
+.cgrid.keymode .cbtn[data-type].on i { opacity: 1; background: radial-gradient(circle at 40% 35%, #fff2c8, #f2b636); box-shadow: 0 0 14px rgba(242, 182, 54, .8); }
+.tog.solo i { background: var(--cap-r); box-shadow: 0 0 8px var(--cap-r); }
 .cgrid .cbtn:nth-child(n+5) span { bottom: -14px; }
 .cgrid { padding-bottom: 14px; margin-bottom: 4px; }
 .cgrid .cbtn:nth-child(-n+4) span { bottom: auto; top: -13px; }

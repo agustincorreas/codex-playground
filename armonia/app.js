@@ -19,7 +19,7 @@
     key: Theory.SHARP.map((n, i) => [i, n]),
     loopBars: [[1, '1 bar'], [2, '2 bars'], [4, '4 bars'], [8, '8 bars']],
     beat: [['off', 'Off'], ['hiphop', 'Hip hop'], ['boombap', 'Boom bap'], ['lofi', 'Lo-fi'], ['disco', 'Disco'], ['house', 'House'], ['bossa', 'Bossa nova'], ['electro', 'Electronic'], ['trap', 'Trap'], ['funk', 'Funk']],
-    option: [['latch', 'Latch'], ['arp16', 'Arp 1/16'], ['swing', 'Swing'], ['metro', 'Metro']],
+    option: [['keymode', 'Key mode'], ['minor', 'Minor key'], ['latch', 'Latch'], ['arp16', 'Arp 1/16'], ['swing', 'Swing'], ['metro', 'Metro']],
   };
   const CLOCKED = new Set(['arp', 'arp2', 'patA', 'patB', 'patC']);
   // patrones de 16 pasos: número = índice de nota del acorde, 'A' = acorde completo, 'B' = bajo, '.' = silencio
@@ -44,8 +44,8 @@
   /* ------------------------------------------------------------ estado */
   const S = {
     root: 0, key: 0, keyIndex: null, type: 'maj', mods: { 6: false, m7: false, M7: false, 9: false }, voicing: 0, octave: 0,
-    sound: 'keys', perform: 'chord', fx: 'room', fxAmt: .6, bassOn: true, bassLevel: .8, loopBars: 2, bpm: 96, beat: 'off',
-    latch: false, arp16: true, swing: 0, metro: false, volume: .8,
+    sound: 'keys', perform: 'chord', fx: 'room', fxAmt: .6, bass: 'auto', bassLevel: .8, loopBars: 2, bpm: 96, beat: 'off',
+    keymode: false, minor: false, latch: false, arp16: true, swing: 0, metro: false, volume: .8,
   };
   let current = null, chordActive = false, powered = false;
   const held = new Set();
@@ -119,7 +119,7 @@
     perform: (v) => { $('#sPerform').textContent = label('perform', v); if (chordActive) retrigger(); },
     fx: (v) => { engine.setFx(v, S.fxAmt); $('#sFx').textContent = label('fx', v); },
     fxAmt: (v) => engine.setFx(S.fx, v),
-    key: (v) => { buildKeyboardLabels(); $('#sKey').textContent = label('key', v); refreshChord(); },
+    key: (v) => { buildKeyboardLabels(); renderKey(); refreshChord(); },
     octave: () => refreshChord(),
     loopBars: (v) => renderLoop(),
     beat: (v) => { $('#sBeat').textContent = label('beat', v); },
@@ -127,7 +127,10 @@
     volume: (v) => engine.setLevel('master', v),
     bassLevel: (v) => engine.setLevel('bass', v),
     latch: (v) => { if (!v && held.size === 0 && chordActive) releaseChord(); },
+    keymode: () => { $('#cgrid').classList.toggle('keymode', S.keymode); renderKey(); refreshChord(); },
+    minor: () => { renderKey(); refreshChord(); },
   };
+  function renderKey() { const k = $('#sKey'); k.textContent = label('key', S.key) + (S.keymode ? (S.minor ? ' minor' : ' major') : ''); k.classList.toggle('hot', S.keymode); }
   const label = (list, v) => (LISTS[list].find((o) => String(o[0]) === String(v)) || [v, v])[1];
   function set(path, v) { S[path] = v; if (H[path]) H[path](v); }
 
@@ -215,14 +218,15 @@
   function bindChordButtons() {
     $$('#cgrid .cbtn').forEach((b) => b.addEventListener('pointerdown', (e) => {
       e.preventDefault(); ensureAudio();
-      if (b.dataset.type) S.type = b.dataset.type;
+      if (b.dataset.type) { if (S.keymode) return; S.type = b.dataset.type; }
       else S.mods[b.dataset.mod] = !S.mods[b.dataset.mod];
       renderChordButtons(); refreshChord();
     }));
     renderChordButtons();
   }
   function renderChordButtons() {
-    $$('#cgrid .cbtn').forEach((b) => b.classList.toggle('on', b.dataset.type ? b.dataset.type === S.type : !!S.mods[b.dataset.mod]));
+    const type = S.keymode && current ? current.type : S.type, mods = S.keymode && current ? current.mods : S.mods;
+    $$('#cgrid .cbtn').forEach((b) => b.classList.toggle('on', b.dataset.type ? b.dataset.type === type : !!mods[b.dataset.mod]));
   }
 
   /* ------------------------------------------------------------ teclado */
@@ -252,16 +256,25 @@
   kb.addEventListener('pointerup', endPointer); kb.addEventListener('pointercancel', endPointer);
 
   /* ------------------------------------------------------------ acordes */
-  const chordFor = () => Theory.buildChord({ root: S.root, type: S.type, mods: S.mods, voicing: S.voicing, octave: S.octave });
+  const chordFor = () => Theory.buildChord({ root: S.root, type: S.type, mods: S.mods, voicing: S.voicing, octave: S.octave, keyMode: S.keymode, key: S.key, minor: S.minor });
   function keyDown(i, vel = .85) {
     ensureAudio();
-    held.add(i); S.keyIndex = i; S.root = (S.key + i) % 12; keyEls[i].classList.add('on');
+    keyEls[i].classList.add('on');
+    if (S.bass === 'solo') { bassSolo(36 + S.key + i, vel); return; }   // el teclado toca el bajo
+    held.add(i); S.keyIndex = i; S.root = (S.key + i) % 12;
     triggerChord(chordFor(), { vel });
   }
   function keyUp(i) {
-    held.delete(i); keyEls[i].classList.remove('on');
+    keyEls[i].classList.remove('on');
+    if (S.bass === 'solo') return;
+    held.delete(i);
     if (held.size || S.latch) return;
     releaseChord();
+  }
+  function bassSolo(note, vel, time, fromLoop) {
+    const t = time ?? engine.now();
+    engine.bassOn(note, t, vel); allOff(CH.bass, t); noteOn(CH.bass, note, Math.round(vel * 127), t);
+    if (!fromLoop) loopRecord({ type: 'bass', note, vel });
   }
   function harpNotes(notes) { const out = []; for (let o = 0; o < 3; o++) for (const n of notes) if (n + 12 * o <= 108) out.push(n + 12 * o); return out; }
   function performNotes(chord) {
@@ -288,7 +301,7 @@
         engine.noteOn(n, vi, ti, { relMul: S.perform === 'harp' ? 2.2 : 1 }); noteOn(CH.chord, n, Math.round(vi * 127), ti);
       });
     }
-    if (S.bassOn) playBass(t);
+    if (S.bass === 'auto') playBass(t);
     if (!opts.fromLoop) loopRecord({ type: 'on', chord, keyIndex: S.keyIndex, perform: S.perform });
     render();
   }
@@ -309,7 +322,7 @@
       for (const n of old) if (!current.notes.includes(n)) { engine.releaseNote(n, t); noteOff(CH.chord, n, t); }
       for (const n of current.notes) if (!old.includes(n)) { engine.noteOn(n, .8, t); noteOn(CH.chord, n, 100, t); }
     }
-    render();
+    render(); renderChordButtons();
   }
   function retrigger() { if (current) triggerChord(current, { fromLoop: true }); }
   /** Voicing Dial: cascada de inversiones; la nota que se mueve se re-dispara (arpegio dinámico). */
@@ -323,10 +336,19 @@
     const n = Theory.bassNote(current, false);
     engine.bassOn(n, t, vel); allOff(CH.bass, t); noteOn(CH.bass, n, Math.round(vel * 120), t);
   }
-  $('#bassOn').addEventListener('click', () => { S.bassOn = !S.bassOn; $('#bassOn').classList.toggle('on', S.bassOn); });
+  const BASS_MODES = ['off', 'auto', 'solo'];
+  function setBassMode(m) {
+    S.bass = m;
+    const b = $('#bassOn'); b.classList.toggle('on', m !== 'off'); b.classList.toggle('solo', m === 'solo');
+    b.lastChild.textContent = m === 'auto' ? 'on' : m;
+    $('#sBass').textContent = m === 'auto' ? 'On' : m === 'solo' ? 'Solo' : 'Off'; $('#sBass').classList.toggle('hot', m === 'solo');
+    if (m === 'solo') { held.clear(); keyEls.forEach((k) => k.classList.remove('on')); }
+  }
+  $('#bassOn').addEventListener('click', () => setBassMode(BASS_MODES[(BASS_MODES.indexOf(S.bass) + 1) % 3]));
 
   /* ------------------------------------------------------------ pantalla */
   function render() {
+    renderChordButtons();
     $('#screen').classList.toggle('idle', !chordActive);
     if (!current) { $('#oName').textContent = '—'; $('#oNotes').textContent = 'tocá una tecla'; return; }
     $('#oName').textContent = current.name;
@@ -345,7 +367,7 @@
 
   /* ------------------------------------------------------------ transporte + looper */
   const transport = { playing: false, startTick: 0 };
-  const loop = { state: 'idle', events: [], startTick: 0, hasContent: false };
+  const loop = { state: 'idle', events: [], startTick: 0, hasContent: false, layer: 0 };
   const loopLen = () => S.loopBars * 96;
   function setPlaying(p) {
     ensureAudio();
@@ -360,7 +382,15 @@
     if (loop.state === 'idle') loop.state = 'armed';
     else if (loop.state === 'armed') loop.state = 'idle';
     else if (loop.state === 'rec' || loop.state === 'overdub') loop.state = 'play';
-    else if (loop.state === 'play') loop.state = 'overdub';
+    else if (loop.state === 'play') { loop.state = 'overdub'; loop.layer++; }
+    renderLoop();
+  });
+  $('#loopUndo').addEventListener('click', () => {
+    if (!loop.events.length) return;
+    const last = Math.max(...loop.events.map((e) => e.layer));
+    loop.events = loop.events.filter((e) => e.layer !== last);          // quita la última capa grabada
+    if (loop.state === 'overdub') loop.layer++;
+    if (!loop.events.length) { loop.hasContent = false; loop.state = 'idle'; if (held.size === 0) releaseChord(true); }
     renderLoop();
   });
   $('#loopPlay').addEventListener('click', () => {
@@ -369,29 +399,30 @@
     else { if (!transport.playing) setPlaying(true); loop.state = 'play'; loop.startTick = clock.nowTick(); }
     renderLoop();
   });
-  $('#loopClear').addEventListener('click', () => { loop.events = []; loop.hasContent = false; loop.state = 'idle'; renderLoop(); });
+  $('#loopClear').addEventListener('click', () => { loop.events = []; loop.hasContent = false; loop.state = 'idle'; loop.layer = 0; renderLoop(); });
   function renderLoop(onlyPos) {
     const s = $('#sLoop');
     if (!onlyPos) {
       const r = $('#rec'); r.classList.toggle('arm', loop.state === 'armed'); r.classList.toggle('on', loop.state === 'rec' || loop.state === 'overdub');
-      $('#loopPlay').classList.toggle('on', loop.state === 'play' || loop.state === 'overdub'); $('#loopPlay').disabled = !loop.hasContent;
+      $('#loopPlay').classList.toggle('on', loop.state === 'play' || loop.state === 'overdub'); $('#loopPlay').disabled = !loop.hasContent; $('#loopUndo').disabled = !loop.hasContent;
     }
     if (loop.state === 'idle') { s.textContent = loop.hasContent ? `${S.loopBars} bars` : '—'; s.classList.remove('hot'); return; }
     if (loop.state === 'armed') { s.textContent = 'armed'; s.classList.add('hot'); return; }
     const pos = ((clock.nowTick() - loop.startTick) % loopLen()) / 96;
-    s.textContent = `${loop.state === 'rec' ? 'REC' : loop.state === 'overdub' ? 'DUB' : 'PLAY'} ${Math.floor(pos) + 1}.${Math.floor((pos % 1) * 4) + 1}`;
+    const layers = new Set(loop.events.map((e) => e.layer)).size;
+    s.textContent = `${loop.state === 'rec' ? 'REC' : loop.state === 'overdub' ? 'DUB' : 'PLAY'} ${Math.floor(pos) + 1}.${Math.floor((pos % 1) * 4) + 1}${layers > 1 ? ' ×' + layers : ''}`;
     s.classList.toggle('hot', loop.state !== 'play');
   }
   function loopRecord(ev) {
     if (loop.state === 'armed') {
-      if (ev.type !== 'on') return;
+      if (ev.type === 'off') return;
       if (!transport.playing) setPlaying(true);
-      loop.state = 'rec'; loop.startTick = clock.nowTick(); loop.events = []; renderLoop();
+      loop.state = 'rec'; loop.startTick = clock.nowTick(); loop.events = []; loop.layer = 1; renderLoop();
     }
     if (loop.state !== 'rec' && loop.state !== 'overdub') return;
     const now = clock.nowTick(), rel = (now - loop.startTick) % loopLen();
-    loop.events.push({ tick: (Math.round(rel / 6) * 6) % loopLen(), absTick: now, ...ev });
-    loop.hasContent = true;
+    loop.events.push({ tick: (Math.round(rel / 6) * 6) % loopLen(), absTick: now, layer: loop.layer, ...ev });
+    if (!loop.hasContent) { loop.hasContent = true; renderLoop(); }
   }
 
   /* ------------------------------------------------------------ reloj: arp, patrones, beats, bajo, loop */
@@ -407,6 +438,7 @@
         if (e.tick !== pos || Math.abs(e.absTick - tick) < 12) continue;
         if (e.type === 'on' && held.size === 0) { S.keyIndex = e.keyIndex; triggerChord(e.chord, { fromLoop: true, time }); flashKey(e.keyIndex); }
         else if (e.type === 'off' && held.size === 0 && !S.latch) releaseChord(true, time);
+        else if (e.type === 'bass') bassSolo(e.note, e.vel, time, true);
       }
     }
     // metrónomo y beats
@@ -423,7 +455,7 @@
         if (B.R && B.R[step] === 'x') engine.rim(tb);
       }
       // bajo con groove: reengancha en el 1 y el 3 cuando hay beat
-      if (chordActive && S.bassOn && B && (tick % 96 === 0 || tick % 96 === 48) && !S.perform.startsWith('pat')) playBass(time, tick % 96 === 0 ? 1 : .8);
+      if (chordActive && S.bass === 'auto' && B && (tick % 96 === 0 || tick % 96 === 48) && !S.perform.startsWith('pat')) playBass(time, tick % 96 === 0 ? 1 : .8);
     }
     // performance por reloj
     if (chordActive && current && CLOCKED.has(S.perform)) {
@@ -442,7 +474,7 @@
           const hit = (n, v) => { engine.noteOn(n, v, ts, { gate }); noteOn(CH.chord, n, Math.round(v * 127), ts); noteOff(CH.chord, n, ts + gate); };
           if (tok.includes('A')) current.notes.forEach((n) => hit(n, step % 4 === 0 ? .85 : .65));
           if (/\d/.test(tok)) hit(notes[+tok.match(/\d/)[0] % notes.length], .8);
-          if (tok.includes('B') && S.bassOn) playBass(ts, step === 0 ? 1 : .8);
+          if (tok.includes('B') && S.bass === 'auto') playBass(ts, step === 0 ? 1 : .8);
         }
       }
     }
@@ -473,6 +505,6 @@
   $$('[data-knob]').forEach(buildKnob);
   $$('[data-enc]').forEach(buildEnc);
   $$('[data-dial]').forEach(buildDial);
-  $('#bassOn').classList.toggle('on', S.bassOn);
-  render(); renderLoop(); setupMidi();
+  setBassMode(S.bass);
+  renderKey(); render(); renderLoop(); setupMidi();
 })();
