@@ -36,6 +36,20 @@
                a: .002, dcy: 2.6, s: 0, rel: 2.2, cut: 9000, env: 0, q: .5, width: .8, chorus: .2 },
     marimba: { name: 'Marimba', oscs: [{ t: 'sine', r: 1, g: .5 }, { t: 'sine', r: 4, g: .14 }, { t: 'sine', r: 10, g: .03 }],
                noise: { g: .18, dcy: .006, hp: 1200 }, a: .001, dcy: .5, s: 0, rel: .3, cut: 6000, env: 0, q: .5, width: .6, chorus: .1 },
+    clav:    { name: 'Clav', oscs: [{ t: 'square', r: 1, g: .22 }, { t: 'sawtooth', r: 1, d: 7, g: .14 }, { t: 'square', r: 2, g: .05 }],
+               noise: { g: .15, dcy: .006, hp: 2500 }, a: .001, dcy: .7, s: .05, rel: .12, cut: 900, env: 5200, q: 3, width: .3, chorus: .05 },
+    harp:    { name: 'Harp', oscs: [{ t: 'triangle', r: 1, g: .42 }, { t: 'sine', r: 2, g: .16 }, { t: 'sine', r: 3, g: .05 }, { t: 'sawtooth', r: 1, d: -3, g: .05 }],
+               noise: { g: .1, dcy: .008, hp: 3500 }, a: .001, dcy: 2.2, s: 0, rel: 1.2, cut: 2600, env: 2400, q: .7, width: .8, chorus: .3 },
+    vibes:   { name: 'Vibes', oscs: [{ t: 'sine', r: 1, g: .5 }, { t: 'sine', r: 4, g: .12, fm: { r: 1, i: .4, dcy: .3 } }, { t: 'sine', r: 10, g: .02 }],
+               noise: { g: .08, dcy: .005, hp: 2000 }, a: .001, dcy: 2.4, s: 0, rel: 1.4, cut: 7000, env: 0, q: .5, trem: { depth: .35, rate: 4.2 }, width: .7, chorus: .15 },
+    flute:   { name: 'Flute', oscs: [{ t: 'sine', r: 1, g: .5 }, { t: 'triangle', r: 1, d: 4, g: .18 }, { t: 'sine', r: 2, g: .06 }],
+               noise: { g: .05, dcy: .12, hp: 2500 }, a: .09, dcy: .4, s: .85, rel: .3, cut: 2400, env: 800, q: .8, vib: { depth: 10, rate: 5, delay: .35 }, width: .4, chorus: .1 },
+    poly80:  { name: 'Poly 80', oscs: [{ t: 'sawtooth', r: 1, g: .14, uni: true }, { t: 'square', r: 1, d: -7, g: .08 }, { t: 'sawtooth', r: .5, g: .06 }],
+               unison: { n: 3, spread: 11 }, a: .02, dcy: .6, s: .6, rel: .5, cut: 1100, env: 2600, q: 1.1, width: .7, chorus: .6 },
+    kalimba: { name: 'Kalimba', oscs: [{ t: 'sine', r: 1, g: .5 }, { t: 'sine', r: 5.9, g: .1 }, { t: 'sine', r: 2, g: .08 }],
+               noise: { g: .2, dcy: .005, hp: 2500 }, a: .001, dcy: .8, s: 0, rel: .5, cut: 6000, env: 0, q: .5, width: .8, chorus: .2 },
+    glass:   { name: 'Glass', oscs: [{ t: 'sine', r: 1, g: .38, fm: { r: 2.01, i: .7, dcy: 1.2 } }, { t: 'triangle', r: 2, d: 6, g: .12 }, { t: 'sine', r: 4, g: .05 }],
+               a: .15, dcy: 2, s: .5, rel: 2.5, cut: 5000, env: 800, q: .5, vib: { depth: 3, rate: .25, delay: 0 }, width: .9, chorus: .7 },
     dream:   { name: 'Dream', oscs: [{ t: 'triangle', r: 1, g: .32, uni: true }, { t: 'sine', r: 2, g: .12 }, { t: 'sine', r: .5, g: .1 }],
                unison: { n: 3, spread: 10 }, a: .01, dcy: 2.5, s: .35, rel: 2.8, cut: 2500, env: 1500, q: .6, vib: { depth: 4, rate: .3, delay: 0 }, width: .9, chorus: .8 },
   };
@@ -69,13 +83,14 @@
       this.mix = ctx.createGain(); this.chordBus.connect(this.mix); this.bassBus.connect(this.mix);
 
       // chorus estéreo del bus de acordes (dos delays modulados, uno por canal)
-      this.chorusWet = ctx.createGain(); this.chorusWet.gain.value = 0;
+      this.chorusIn = ctx.createGain();
+      this.chorusWet = ctx.createGain(); this.chorusWet.gain.value = .9;
       const merger = ctx.createChannelMerger(2);
       const mk = (base, rate, depth, ch) => {
         const d = ctx.createDelay(.1); d.delayTime.value = base;
         const l = ctx.createOscillator(); l.frequency.value = rate; const lg = ctx.createGain(); lg.gain.value = depth;
         l.connect(lg); lg.connect(d.delayTime); l.start();
-        this.chordBus.connect(d); d.connect(merger, 0, ch);
+        this.chorusIn.connect(d); d.connect(merger, 0, ch);
       };
       mk(.013, .55, .0028, 0); mk(.021, .83, .0034, 1);
       merger.connect(this.chorusWet); this.chorusWet.connect(this.mix);
@@ -112,7 +127,12 @@
       this.limiter = ctx.createDynamicsCompressor();
       this.limiter.threshold.value = -6; this.limiter.knee.value = 8; this.limiter.ratio.value = 5; this.limiter.attack.value = .004; this.limiter.release.value = .18;
       this.analyser = ctx.createAnalyser(); this.analyser.fftSize = 1024;
-      this.filter.connect(this.master); this.dlyReturn.connect(this.master); this.revReturn.connect(this.master); this.drumBus.connect(this.master);
+      this.filter.connect(this.master); this.dlyReturn.connect(this.master); this.revReturn.connect(this.master);
+      // batería: compresor → saturación suave → master, con un poco de reverb
+      this.drumComp = ctx.createDynamicsCompressor(); this.drumComp.threshold.value = -14; this.drumComp.ratio.value = 4; this.drumComp.attack.value = .003; this.drumComp.release.value = .12; this.drumComp.knee.value = 6;
+      this.drumSat = ctx.createWaveShaper(); { const c = new Float32Array(256); for (let i = 0; i < 256; i++) { const x = i / 128 - 1; c[i] = Math.tanh(x * 1.6) / Math.tanh(1.6); } this.drumSat.curve = c; }
+      this.drumBus.connect(this.drumComp); this.drumComp.connect(this.drumSat); this.drumSat.connect(this.master);
+      this.drumRev = ctx.createGain(); this.drumRev.gain.value = .12; this.drumSat.connect(this.drumRev); this.drumRev.connect(this.conv);
       this.master.connect(this.limiter); this.limiter.connect(this.analyser); this.analyser.connect(ctx.destination);
 
       this.metroGain = ctx.createGain(); this.metroGain.gain.value = .3; this.metroGain.connect(this.limiter);
@@ -135,7 +155,6 @@
       if (SOUNDS[id]) this.sound = id;
       if (!this.ready) return;
       const P = SOUNDS[this.sound], t = this.now();
-      this.chorusWet.gain.setTargetAtTime((P.chorus || 0) * .9, t, .05);
       if (P.vib) this.vibLfo.frequency.setTargetAtTime(P.vib.rate, t, .05);
       if (P.trem) this.tremLfo.frequency.setTargetAtTime(P.trem.rate, t, .05);
     }
@@ -184,7 +203,7 @@
     noteOn(midi, vel = .8, time = this.now(), opts = {}) {
       if (!this.ready) return null;
       if (this.voices.length > 30) this.noteOff(this.voices[0], time, true); // límite de polifonía
-      const ctx = this.ctx, P = SOUNDS[this.sound], f0 = mtof(midi), oscs = [], extra = [];
+      const ctx = this.ctx, P = SOUNDS[opts.preset] || SOUNDS[this.sound], f0 = mtof(midi), oscs = [], extra = [];
 
       // filtro con envolvente sensible a la velocidad
       const filt = ctx.createBiquadFilter(); filt.type = 'lowpass'; filt.Q.value = P.q;
@@ -248,7 +267,8 @@
         n.connect(hp); hp.connect(g); g.connect(filt); n.start(time); n.stop(time + P.noise.dcy + .05);
       }
       filt.connect(vca); vca.connect(pan); pan.connect(this.chordBus);
-      const v = { midi, vca, oscs, rel: P.rel * (opts.relMul || 1), sustain: P.s, extra: [vibGain, ...extra].filter(Boolean) };
+      const cs = ctx.createGain(); cs.gain.value = P.chorus || 0; pan.connect(cs); cs.connect(this.chorusIn);
+      const v = { midi, vca, oscs, track: opts.track || 'live', rel: P.rel * (opts.relMul || 1), sustain: P.s, extra: [vibGain, cs, ...extra].filter(Boolean) };
       this.voices.push(v);
       if (opts.gate) this.noteOff(v, time + opts.gate);
       else if (P.s === 0) this.noteOff(v, time + P.a + P.dcy * 1.6, true);
@@ -265,8 +285,8 @@
       const i = this.voices.indexOf(v); if (i >= 0) this.voices.splice(i, 1);
       setTimeout(() => { try { v.vca.disconnect(); for (const x of v.extra || []) x.disconnect(); } catch (e) { /* noop */ } }, (end - this.now()) * 1000 + 60);
     }
-    releaseAll(time = this.now()) { for (const v of this.voices.slice()) this.noteOff(v, time); }
-    releaseNote(midi, time = this.now()) { for (const v of this.voices.slice()) if (v.midi === midi) this.noteOff(v, time); }
+    releaseAll(time = this.now(), track) { for (const v of this.voices.slice()) if (!track || v.track === track) this.noteOff(v, time); }
+    releaseNote(midi, time = this.now(), track) { for (const v of this.voices.slice()) if (v.midi === midi && (!track || v.track === track)) this.noteOff(v, time); }
 
     bend(semis) {
       if (!this.ready) return;
@@ -301,34 +321,56 @@
     _bassOff(v, time) { v.vca.gain.cancelScheduledValues(time); v.vca.gain.setValueAtTime(Math.max(v.vca.gain.value, .0001), time); v.vca.gain.setTargetAtTime(.0001, time, .02); for (const o of v.oscs) { try { o.stop(time + .15); } catch (e) { /* noop */ } } }
 
     // ------------------------------------------------------------ batería
+    _burst(t, dur, filters, gain, curve) {
+      const ctx = this.ctx, n = ctx.createBufferSource(); n.buffer = this.noise; let node = n;
+      for (const [type, f, q] of filters) { const b = ctx.createBiquadFilter(); b.type = type; b.frequency.value = f; b.Q.value = q; node.connect(b); node = b; }
+      const g = ctx.createGain(); g.gain.setValueAtTime(gain, t);
+      if (curve) curve(g.gain, t); else g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+      node.connect(g); g.connect(this.drumBus); n.start(t); n.stop(t + dur + .05);
+      return g;
+    }
     kick(t, vel = 1) {
       const ctx = this.ctx, o = ctx.createOscillator(), g = ctx.createGain();
-      o.frequency.setValueAtTime(160, t); o.frequency.exponentialRampToValueAtTime(42, t + .11);
-      g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(1.1 * vel, t + .004); g.gain.exponentialRampToValueAtTime(.0001, t + .38);
-      o.connect(g); g.connect(this.drumBus); o.start(t); o.stop(t + .4);
+      o.frequency.setValueAtTime(170, t); o.frequency.exponentialRampToValueAtTime(52, t + .09); o.frequency.exponentialRampToValueAtTime(44, t + .5);
+      g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(1.15 * vel, t + .003); g.gain.setTargetAtTime(.0001, t + .05, .13);
+      const sat = ctx.createWaveShaper(); const c = new Float32Array(256); for (let i = 0; i < 256; i++) { const x = i / 128 - 1; c[i] = Math.tanh(x * 2.5) / Math.tanh(2.5); } sat.curve = c;
+      o.connect(sat); sat.connect(g); g.connect(this.drumBus); o.start(t); o.stop(t + .6);
+      this._burst(t, .012, [['highpass', 2500, .7]], .35 * vel);           // clic del batidor
     }
     snare(t, vel = 1) {
-      const ctx = this.ctx, n = ctx.createBufferSource(); n.buffer = this.noise;
-      const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 1900; f.Q.value = .8;
-      const g = ctx.createGain(); g.gain.setValueAtTime(.7 * vel, t); g.gain.exponentialRampToValueAtTime(.0001, t + .2);
-      n.connect(f); f.connect(g); g.connect(this.drumBus); n.start(t); n.stop(t + .22);
-      const o = ctx.createOscillator(), og = ctx.createGain(); o.type = 'triangle'; o.frequency.setValueAtTime(230, t); o.frequency.exponentialRampToValueAtTime(150, t + .08);
-      og.gain.setValueAtTime(.5 * vel, t); og.gain.exponentialRampToValueAtTime(.0001, t + .12); o.connect(og); og.connect(this.drumBus); o.start(t); o.stop(t + .14);
+      const ctx = this.ctx;
+      this._burst(t, .2, [['bandpass', 1900, .9]], .55 * vel);
+      this._burst(t, .13, [['highpass', 4200, .7]], .4 * vel);            // bordona
+      const o = ctx.createOscillator(), og = ctx.createGain(); o.type = 'triangle';
+      o.frequency.setValueAtTime(200, t); o.frequency.exponentialRampToValueAtTime(140, t + .07);
+      og.gain.setValueAtTime(.6 * vel, t); og.gain.exponentialRampToValueAtTime(.0001, t + .14); o.connect(og); og.connect(this.drumBus); o.start(t); o.stop(t + .16);
+      const o2 = ctx.createOscillator(), g2 = ctx.createGain(); o2.frequency.value = 330; g2.gain.setValueAtTime(.2 * vel, t); g2.gain.exponentialRampToValueAtTime(.0001, t + .06); o2.connect(g2); g2.connect(this.drumBus); o2.start(t); o2.stop(t + .08);
     }
-    hat(t, open, vel = 1) {
-      const ctx = this.ctx, n = ctx.createBufferSource(); n.buffer = this.noise;
-      const f = ctx.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 7500;
-      const g = ctx.createGain(); const d = open ? .32 : .05;
-      g.gain.setValueAtTime(.3 * vel, t); g.gain.exponentialRampToValueAtTime(.0001, t + d);
-      n.connect(f); f.connect(g); g.connect(this.drumBus); n.start(t); n.stop(t + d + .02);
+    hat(t, open, vel = 1) { // seis cuadradas metálicas (estilo 808)
+      const ctx = this.ctx, bp = ctx.createBiquadFilter(), hp = ctx.createBiquadFilter(), g = ctx.createGain();
+      bp.type = 'bandpass'; bp.frequency.value = 9500; bp.Q.value = .9; hp.type = 'highpass'; hp.frequency.value = 6800;
+      const d = open ? .38 : .055;
+      g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.32 * vel, t + .002); g.gain.exponentialRampToValueAtTime(.0001, t + d);
+      for (const f of [205.3, 304.4, 369.6, 522.7, 540, 800]) { const o = ctx.createOscillator(); o.type = 'square'; o.frequency.value = f * 1.9; o.connect(bp); o.start(t); o.stop(t + d + .02); }
+      bp.connect(hp); hp.connect(g); g.connect(this.drumBus);
+    }
+    clap(t, vel = 1) {
+      for (let i = 0; i < 3; i++) this._burst(t + i * .011, .03, [['bandpass', 1300, 1.4]], .5 * vel);
+      this._burst(t + .03, .22, [['bandpass', 1500, 1]], .35 * vel);
     }
     rim(t, vel = 1) {
-      const ctx = this.ctx, o = ctx.createOscillator(), g = ctx.createGain(); o.type = 'square'; o.frequency.value = 820;
-      const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 1800; f.Q.value = 3;
-      g.gain.setValueAtTime(.5 * vel, t); g.gain.exponentialRampToValueAtTime(.0001, t + .04);
-      o.connect(f); f.connect(g); g.connect(this.drumBus); o.start(t); o.stop(t + .05);
+      const ctx = this.ctx, o = ctx.createOscillator(), g = ctx.createGain(), f = ctx.createBiquadFilter(); o.type = 'square'; o.frequency.value = 880;
+      f.type = 'bandpass'; f.frequency.value = 2200; f.Q.value = 4;
+      g.gain.setValueAtTime(.6 * vel, t); g.gain.exponentialRampToValueAtTime(.0001, t + .045); o.connect(f); f.connect(g); g.connect(this.drumBus); o.start(t); o.stop(t + .05);
+      this._burst(t, .02, [['highpass', 3000, .7]], .2 * vel);
     }
-    clap(t, vel = 1) { for (let i = 0; i < 3; i++) this.snare(t + i * .012, vel * .45); }
+    shaker(t, vel = 1) { this._burst(t, .07, [['bandpass', 6500, 1.2], ['highpass', 4000, .7]], .22 * vel, (p, t0) => { p.setValueAtTime(.0001, t0); p.linearRampToValueAtTime(.22 * vel, t0 + .02); p.exponentialRampToValueAtTime(.0001, t0 + .07); }); }
+    tom(t, vel = 1, hi) {
+      const ctx = this.ctx, o = ctx.createOscillator(), g = ctx.createGain(); o.type = 'sine';
+      const f0 = hi ? 210 : 130; o.frequency.setValueAtTime(f0 * 1.5, t); o.frequency.exponentialRampToValueAtTime(f0, t + .12);
+      g.gain.setValueAtTime(.8 * vel, t); g.gain.exponentialRampToValueAtTime(.0001, t + .3); o.connect(g); g.connect(this.drumBus); o.start(t); o.stop(t + .32);
+      this._burst(t, .04, [['bandpass', 2500, 1]], .15 * vel);
+    }
 
     metronome(time, accent) {
       if (!this.ready) return;

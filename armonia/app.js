@@ -15,36 +15,45 @@
   /* ------------------------------------------------------------ listas */
   const LISTS = {
     sound: Object.keys(SOUNDS).map((k) => [k, SOUNDS[k].name]),
-    perform: [['chord', 'Chord'], ['strum', 'Strum'], ['strum2', 'Strum 2 Oct'], ['slop', 'Slop'], ['arp', 'Arpeggiate'], ['arp2', 'Arp 2 Oct'], ['patA', 'Pattern A'], ['patB', 'Pattern B'], ['patC', 'Pattern C'], ['harp', 'Harp']],
+    perform: [['chord', 'Chord'], ['strum', 'Strum ↓'], ['strumUp', 'Strum ↑'], ['strumAlt', 'Strum ↕'], ['strum2', 'Strum 2 Oct'], ['rake', 'Rake'], ['roll', 'Roll'], ['slop', 'Slop'], ['arp', 'Arpeggiate'], ['arpUD', 'Arp ↕'], ['arp2', 'Arp 2 Oct'], ['patA', 'Pattern A'], ['patB', 'Pattern B'], ['patC', 'Pattern C'], ['patD', 'Pattern D'], ['harp', 'Harp']],
     fx: Object.keys(FX).map((k) => [k, FX[k].name]),
     key: Theory.SHARP.map((n, i) => [i, n]),
     loopBars: [[1, '1 bar'], [2, '2 bars'], [4, '4 bars'], [8, '8 bars']],
-    beat: [['off', 'Off'], ['hiphop', 'Hip hop'], ['boombap', 'Boom bap'], ['lofi', 'Lo-fi'], ['disco', 'Disco'], ['house', 'House'], ['bossa', 'Bossa nova'], ['electro', 'Electronic'], ['trap', 'Trap'], ['funk', 'Funk']],
+    beat: [['off', 'Off'], ['hiphop', 'Hip hop'], ['boombap', 'Boom bap'], ['lofi', 'Lo-fi'], ['neosoul', 'Neo soul'], ['disco', 'Disco'], ['house', 'House'], ['techno', 'Techno'], ['bossa', 'Bossa nova'], ['reggaeton', 'Reggaetón'], ['breaks', 'Breakbeat'], ['electro', 'Electronic'], ['trap', 'Trap'], ['funk', 'Funk']],
     option: [['quantize', 'Quantize'], ['latch', 'Latch'], ['arp16', 'Arp 1/16'], ['swing', 'Swing'], ['metro', 'Metro']],
   };
-  const CLOCKED = new Set(['arp', 'arp2', 'patA', 'patB', 'patC']);
+  const CLOCKED = new Set(['arp', 'arpUD', 'arp2', 'patA', 'patB', 'patC', 'patD']);
+  const STRUMS = new Set(['strum', 'strumUp', 'strumAlt', 'strum2', 'rake']);
   const PATTERNS = {
     patA: ['0', '.', '1', '.', '2', '.', '1', '.', '0', '.', '1', '.', '2', '.', '3', '.'],
     patB: ['AB', '.', '.', 'A', '.', '.', 'A', '.', 'B', '.', 'A', '.', '.', '.', 'A', '.'],
     patC: ['AB', '.', '.', 'A', '.', '.', 'AB', '.', '.', 'A', '.', '.', 'AB', '.', 'A', '.'],
+    patD: ['0B', '2', '1', '2', '3', '2', '1', '2', '0B', '2', '1', '2', '3', '2', '1', '2'],
   };
+  // beats de 16 pasos · K bombo · S redoblante · H hat · O hat abierto · C palma · R aro · T shaker · L tom
+  // dinámica: X acento · x normal · o ghost · . silencio
   const BEATS = {
-    hiphop:  { sw: .28, K: 'x..x..x...x.x...', S: '....x.......x...', H: 'x.x.x.x.x.x.x.x.' },
-    boombap: { sw: .22, K: 'x.....x.x.....x.', S: '....x.......x...', H: 'x.x.xxx.x.x.x.x.' },
-    lofi:    { sw: .34, K: 'x......x..x.....', S: '....x.......x...', H: '..x...x...x...x.', O: '......x.........' },
-    disco:   { sw: 0,   K: 'x...x...x...x...', S: '....x.......x...', H: 'x.x.x.x.x.x.x.x.', O: '..x...x...x...x.' },
-    house:   { sw: 0,   K: 'x...x...x...x...', C: '....x.......x...', O: '..x...x...x...x.', H: 'x...x...x...x...' },
-    bossa:   { sw: 0,   K: 'x..x..x.x..x..x.', R: 'x..x..x...x..x..', H: 'x.x.x.x.x.x.x.x.' },
-    electro: { sw: 0,   K: 'x..x....x.x.....', S: '....x.......x...', H: 'xxxxxxxxxxxxxxxx', O: '......x.......x.' },
-    trap:    { sw: .1,  K: 'x......x..x.....', S: '....x.......x...', H: 'x.xxx.x.xxx.x.xx' },
-    funk:    { sw: .12, K: 'x.x...x..x..x...', S: '....x..x....x...', H: 'x.x.x.x.x.x.x.x.', O: '.......x........' },
+    hiphop:    { sw: .3,  K: 'X..x..x...X.x...', S: '....X......o.X..', H: 'x.o.x.o.x.o.x.o.', O: '..............x.' },
+    boombap:   { sw: .24, K: 'X.....x.X.....x.', S: '....X.......X..o', H: 'x.x.xox.x.x.xox.', T: '..x...x...x...x.' },
+    lofi:      { sw: .36, K: 'X......x..x.....', S: '....X.......X...', H: '..x...x...x...x.', O: '......x.........', T: 'o.o.o.o.o.o.o.o.' },
+    neosoul:   { sw: .4,  K: 'X.....x...x.x...', S: '....X..o....X...', H: 'x.x.x.x.x.x.x.xo', R: '..........o.....', T: '.o.o.o.o.o.o.o.o' },
+    disco:     { sw: 0,   K: 'X...X...X...X...', S: '....X.......X...', H: 'x.x.x.x.x.x.x.x.', O: '..X...X...X...X.', C: '....x.......x...' },
+    house:     { sw: .08, K: 'X...X...X...X...', C: '....X.......X...', O: '..X...X...X...X.', H: 'x.o.x.o.x.o.x.o.', T: '..x...x...x...x.' },
+    techno:    { sw: 0,   K: 'X...X...X...X...', S: '....x.......x...', H: 'oxoxoxoxoxoxoxox', O: '..x...x...x...x.', C: '............x...' },
+    bossa:     { sw: 0,   K: 'X..x..X.X..x..X.', R: 'x..x..x...x..x..', H: 'x.x.x.x.x.x.x.x.', T: 'o.oxo.oxo.oxo.ox' },
+    reggaeton: { sw: 0,   K: 'X...X...X...X...', S: '...X..X....X..X.', H: 'x.x.x.x.x.x.x.x.', T: '..o...o...o...o.' },
+    breaks:    { sw: .1,  K: 'X.....X...X..X..', S: '....X..o.o..X...', H: 'x.x.x.x.xox.x.x.', O: '.......x........' },
+    electro:   { sw: 0,   K: 'X..x....X.x.....', S: '....X.......X...', H: 'xoxoxoxoxoxoxoxo', O: '......x.......x.', C: '....x.......x...' },
+    trap:      { sw: .12, K: 'X......x..X.....', S: '....X.......X...', H: 'x.xxx.x.xxxox.xx', O: '.......o.......x' },
+    funk:      { sw: .14, K: 'X.x...x..x..X...', S: '....X..o....X..o', H: 'x.x.x.x.x.x.x.x.', O: '.......x........', L: '..............x.' },
   };
+  const DYN = { X: 1, x: .72, o: .32 };
 
   /* ------------------------------------------------------------ ayuda */
   const HELP = {
     screen: ['Pantalla', 'Muestra el acorde que suena y sus notas, el estado de cada sección y la barra del loop.', 'Un nombre en amarillo con flecha es un acorde esperando el próximo tiempo (Quantize).'],
-    sound: ['Sound', 'Elige el timbre del acorde: Keys, E-Piano, Wurli, Organ, Pad, Strings, Choir, Pluck, Guitar, Brass, Bells, Marimba o Dream. Cada uno trae su propio chorus, vibrato o trémolo.', 'El bajo tiene su propio motor; no cambia con Sound. La velocidad (MIDI) cambia el brillo.'],
-    perform: ['Perform', 'Cómo se toca el acorde: todo junto (Chord), rasgueado (Strum), con timing humano (Slop), arpegiado al tempo (Arpeggiate), con patrones rítmicos (Pattern) o en cascada de tres octavas (Harp).', 'Arpeggiate y Pattern siguen el BPM. Al cambiar de acorde el patrón continúa sin cortarse gracias a Quantize.'],
+    sound: ['Sound', 'Elige el timbre del acorde: 20 presets, de Keys y E-Piano a Choir, Clav, Harp, Vibes, Flute, Poly 80, Kalimba, Glass o Dream. Cada uno trae su propio chorus, vibrato o trémolo.', 'Cambiar Sound afecta lo que tocás ahora y lo que grabás en la capa actual: las capas ya grabadas del loop conservan su sonido.'],
+    perform: ['Perform', 'Cómo se toca el acorde: todo junto (Chord); rasgueos como guitarra con fundamental grave y acento (Strum ↓ de grave a agudo, ↑ al revés, ↕ alterna en cada tecla, 2 Oct dobla la octava, Rake rasguea rápido y fuerte, Roll despliega dos octavas subiendo y bajando); Slop con timing humano; arpegios al tempo (Arpeggiate, Arp ↕, Arp 2 Oct); patrones rítmicos A–D; o Harp, cascada de tres octavas.', 'Los modos al tempo siguen el BPM. Al cambiar de acorde el patrón continúa sin cortarse gracias a Quantize.'],
     fx: ['FX', 'Efecto master: Dry, Room, Hall, Echo, Tape, Chorus o Lo-fi.', 'La perilla AMT regula cuánto efecto se aplica.'],
     fxAmt: ['FX amount', 'Cantidad del efecto elegido, de seco (0) a máximo (100).', ''],
     key: ['Key', 'Transpone el teclado: la tecla de la izquierda pasa a ser esta nota.', 'Con Key Mode activo, además define la tonalidad de la que salen los acordes.'],
@@ -55,7 +64,7 @@
     bass: ['Bass', 'Nivel del bajo. El bajo sigue la fundamental del acorde y, con un beat sonando, remarca los tiempos 1 y 3.', ''],
     bassMode: ['Bass mode', 'Off: sin bajo. On: bajo automático en la fundamental. Solo: el teclado deja de cambiar acordes y toca el bajo nota a nota, mientras el acorde en latch o en loop sigue sonando.', 'Las notas del bajo en Solo también se graban en el looper.'],
     loop: ['Loop', 'Largo del loop en compases (1, 2, 4 u 8). Elegilo antes de grabar.', ''],
-    rec: ['Rec', 'Arma la grabación: el loop arranca exacto con la primera nota que toques, cuantizada al tempo. Al completar los compases pasa solo a reproducirse. Volver a apretar Rec durante la reproducción abre una capa de Overdub.', 'La barra de la pantalla muestra en rojo la grabación, en amarillo el overdub y en blanco la reproducción.'],
+    rec: ['Rec', 'Arma la grabación: el loop arranca exacto con la primera nota que toques, cuantizada al tempo. Al completar los compases pasa solo a reproducirse. Volver a apretar Rec durante la reproducción abre una capa de Overdub.', 'Cada capa es una pista independiente: guarda su Sound, su Perform y su bajo, y suena superpuesta a las demás. Podés grabar un pad, luego cambiar a Pluck con arpegio y grabar encima. Rojo = grabando, amarillo = overdub, blanco = reproducción.'],
     loopPlay: ['Loop play', 'Reproduce o detiene el loop grabado.', ''],
     undo: ['Undo', 'Quita la última capa grabada con Overdub, sin tocar las anteriores.', ''],
     clear: ['Clear', 'Borra el loop completo.', ''],
@@ -65,7 +74,7 @@
     options: ['Options', 'Quantize alinea los cambios de acorde a la semicorchea más próxima cuando hay beat, loop, arpegio o patrón, para que nada quede cortado. Latch mantiene el acorde al soltar la tecla. Arp 1/16 hace el arpegio el doble de rápido. Swing balancea las semicorcheas (0, 25 o 50 %). Metro enciende el metrónomo con Play.', ''],
     volume: ['Volume', 'Volumen general.', ''],
     keyboard: ['Teclado', 'Una octava: cada tecla es la fundamental del acorde. Podés deslizar el dedo entre teclas. En Bass Solo, toca el bajo.', 'Atajos: A W S E D F T G Y H U J K. Un teclado MIDI conectado hace lo mismo.'],
-    midi: ['MIDI', 'Entrada: cualquier nota del controlador es la fundamental; rueda de modulación = voicing; pedal de sustain = latch. Salida: acorde en canal 1, bajo en canal 2.', 'Funciona en Chrome y Edge abriendo el archivo local; aceptá el permiso MIDI.'],
+    midi: ['MIDI', 'Entrada: las teclas del controlador son las mismas de la pantalla (el Do del teclado es la primera tecla, en cualquier octava); rueda de modulación = voicing; pedal de sustain = latch. Salida: acorde en canal 1, bajo en canal 2.', 'Funciona en Chrome y Edge; aceptá el permiso MIDI.'],
   };
 
   /* ------------------------------------------------------------ estado */
@@ -75,10 +84,18 @@
     sound: 'keys', perform: 'chord', fx: 'room', fxAmt: .6, bass: 'auto', bassLevel: .8, loopBars: 2, bpm: 96, beat: 'off',
     quantize: true, latch: false, arp16: true, swing: 0, metro: false, volume: .8,
   };
-  let current = null, chordActive = false, powered = false, pending = null;
+  let current = null, shown = null, chordActive = false, powered = false, pending = null;
   const held = new Set();
-  const arp = { idx: 0 };
   const midiNotes = new Map();
+
+  /* Pistas: la pista "live" es lo que tocás; cada capa del loop tiene la suya, con su propio sonido,
+     modo de performance y bajo, para que suenen superpuestas y cambiar Sound no altere lo ya grabado. */
+  const mkTrack = (id) => ({ id, chord: null, active: false, sound: S.sound, perform: S.perform, bass: S.bass, arpIdx: 0, arpDir: 1, strumDir: 1 });
+  const live = mkTrack('live');
+  const layerTracks = {};
+  const trackFor = (layer) => layerTracks[layer] || (layerTracks[layer] = mkTrack('L' + layer));
+  const activeTracks = () => [live, ...Object.keys(layerTracks).sort((a, b) => a - b).map((k) => layerTracks[k])].filter((t) => t.active && t.chord);
+  const bassOwner = () => activeTracks().find((t) => t.bass === 'auto') || null;
 
   /* ------------------------------------------------------------ MIDI */
   const midi = { out: null, in: null, active: [new Set(), new Set()] };
@@ -93,7 +110,7 @@
   function onMidiMessage(e) {
     const [st, d1, d2] = e.data, type = st & 0xf0;
     midiActivity();
-    if (type === 0x90 && d2 > 0) { const i = Theory.mod(d1 - S.key, 12); midiNotes.set(d1, i); keyDown(i, d2 / 127); }
+    if (type === 0x90 && d2 > 0) { const i = d1 % 12; midiNotes.set(d1, i); keyDown(i, d2 / 127); }
     else if (type === 0x80 || (type === 0x90 && d2 === 0)) { const i = midiNotes.get(d1); if (i == null) return; midiNotes.delete(d1); if (![...midiNotes.values()].includes(i)) keyUp(i); }
     else if (type === 0xb0) {
       if (d1 === 1) setVoicing(Math.round((d2 / 127) * 8) - 4);
@@ -126,6 +143,7 @@
     }).catch(() => midiStatus('err', 'permiso MIDI denegado · revisá el candado'));
   }
   window.__armoniaMidi = (bytes) => onMidiMessage({ data: bytes });
+  window.__armoniaState = () => ({ live: { ...live }, layers: Object.fromEntries(Object.entries(layerTracks).map(([k, t]) => [k, { sound: t.sound, perform: t.perform, active: t.active }])), loop: { state: loop.state, layer: loop.layer, events: loop.events.length }, voices: engine.voices.map((v) => v.track + ':' + v.midi) });
 
   /* ------------------------------------------------------------ encendido */
   function ensureAudio() {
@@ -143,7 +161,7 @@
   /* ------------------------------------------------------------ parámetros */
   const label = (list, v) => (LISTS[list].find((o) => String(o[0]) === String(v)) || [v, v])[1];
   const H = {
-    sound: (v) => { engine.setSound(v); $('#sSound').textContent = label('sound', v); },
+    sound: (v) => { engine.setSound(v); $('#sSound').textContent = label('sound', v); if (chordActive) retrigger(); },
     perform: (v) => { $('#sPerform').textContent = label('perform', v); if (chordActive) retrigger(); },
     fx: (v) => { engine.setFx(v, S.fxAmt); $('#sFx').textContent = label('fx', v); },
     fxAmt: (v) => engine.setFx(S.fx, v),
@@ -308,51 +326,66 @@
     if (!fromLoop) loopRecord({ type: 'bass', note, vel });
   }
   const harpNotes = (notes) => { const out = []; for (let o = 0; o < 3; o++) for (const n of notes) if (n + 12 * o <= 108) out.push(n + 12 * o); return out; };
-  function performNotes(chord) {
-    if (S.perform === 'strum2') return [...chord.notes, ...chord.notes.map((n) => n + 12).filter((n) => n <= 108)];
-    if (S.perform === 'harp') return harpNotes(chord.notes);
-    return chord.notes.slice();
-  }
-  function stagger() {
-    const beat = 60 / S.bpm;
-    if (S.perform === 'strum' || S.perform === 'strum2') return beat / 18;
-    if (S.perform === 'harp') return beat / 4;
-    return 0;
-  }
-  function triggerChord(chord, opts = {}) {
-    const t = opts.time ?? engine.now();
-    engine.releaseAll(t); allOff(CH.chord, t);
-    current = chord; chordActive = true;
-    if (!opts.keepArp) arp.idx = 0;
-    const vel = opts.vel ?? .85;
-    if (!CLOCKED.has(S.perform)) {
-      const notes = performNotes(chord), st = stagger();
-      notes.forEach((n, i) => {
-        let ti = t + i * st, vi = vel;
-        if (S.perform === 'slop') { ti += Math.random() * .07; vi *= .7 + Math.random() * .3; }
-        engine.noteOn(n, vi, ti, { relMul: S.perform === 'harp' ? 2.2 : 1 }); noteOn(CH.chord, n, Math.round(vi * 127), ti);
-      });
+  /** Notas y tiempos según el modo de performance (no clockeado). Devuelve [{n, dt, v}] */
+  function performPlan(tr, chord, vel) {
+    const beat = 60 / S.bpm, mode = tr.perform, notes = chord.notes.slice();
+    const rootLow = chord.rootPc + 36 + 12 * (notes[0] >= 60 ? 1 : 0);              // fundamental grave, como la 6ª cuerda
+    const withBass = (ns) => (rootLow < ns[0] - 4 ? [rootLow, ...ns] : ns);
+    const ramp = (ns, step, accentEnd, accel) => ns.map((n, i) => {
+      const f = ns.length > 1 ? i / (ns.length - 1) : 0;
+      const dt = step * i * (1 - (accel || 0) * f);                                    // el rasgueo se acelera al final
+      const v = vel * (accentEnd ? .7 + .3 * f : 1 - .3 * f);
+      return { n, dt, v };
+    });
+    switch (mode) {
+      case 'strum': return ramp(withBass(notes), beat / 22, true, .25);
+      case 'strumUp': return ramp(withBass(notes).reverse(), beat / 22, true, .25);
+      case 'strumAlt': { tr.strumDir = -tr.strumDir; const ns = withBass(notes); return ramp(tr.strumDir > 0 ? ns : ns.reverse(), beat / 22, true, .25); }
+      case 'strum2': return ramp(withBass([...notes, ...notes.map((n) => n + 12).filter((n) => n <= 108)]), beat / 26, true, .3);
+      case 'rake': return ramp(withBass(notes), beat / 60, true, 0).map((x, i, a) => ({ ...x, v: i === a.length - 1 ? vel : vel * .55 }));
+      case 'roll': { const up = [...notes, ...notes.map((n) => n + 12).filter((n) => n <= 108)]; const seq = [...up, ...up.slice(0, -1).reverse()]; return seq.map((n, i) => ({ n, dt: (beat / 6) * i, v: vel * (.8 + .2 * Math.sin((i / seq.length) * Math.PI)) })); }
+      case 'harp': return harpNotes(notes).map((n, i) => ({ n, dt: (beat / 4) * i, v: vel * .9 }));
+      case 'slop': return notes.map((n) => ({ n, dt: Math.random() * .07, v: vel * (.7 + Math.random() * .3) }));
+      default: return notes.map((n) => ({ n, dt: 0, v: vel }));
     }
-    if (S.bass === 'auto') playBass(t);
-    if (!opts.fromLoop) loopRecord({ type: 'on', chord, keyIndex: S.keyIndex, perform: S.perform }, opts.tick);
+  }
+  function triggerOnTrack(tr, chord, opts = {}) {
+    const t = opts.time ?? engine.now();
+    engine.releaseAll(t, tr.id); if (tr === live) allOff(CH.chord, t);
+    tr.chord = chord; tr.active = true;
+    tr.sound = opts.sound ?? S.sound; tr.perform = opts.perform ?? S.perform; tr.bass = opts.bass ?? S.bass;
+    if (!opts.keepArp) { tr.arpIdx = 0; tr.arpDir = 1; }
+    const vel = opts.vel ?? .85;
+    if (!CLOCKED.has(tr.perform)) {
+      const relMul = tr.perform === 'harp' ? 2.2 : tr.perform === 'roll' ? 1.6 : 1;
+      for (const { n, dt, v } of performPlan(tr, chord, vel)) {
+        engine.noteOn(n, v, t + dt, { relMul, preset: tr.sound, track: tr.id });
+        if (tr === live) noteOn(CH.chord, n, Math.round(v * 127), t + dt);
+      }
+    }
+    if (tr.bass === 'auto' && bassOwner() === tr) playBass(t, 1, tr);
+    if (tr === live && !opts.fromLoop) loopRecord({ type: 'on', chord, keyIndex: S.keyIndex, sound: tr.sound, perform: tr.perform, bass: tr.bass }, opts.tick);
+    shown = chord; if (tr === live) { current = chord; chordActive = true; }
     render();
   }
-  function releaseChord(fromLoop, time, tick) {
+  function releaseTrack(tr, fromLoop, time, tick) {
     const t = time ?? engine.now();
-    engine.releaseAll(t); allOff(CH.chord, t);
-    chordActive = false;
-    if (!fromLoop) loopRecord({ type: 'off' }, tick);
+    engine.releaseAll(t, tr.id); if (tr === live) allOff(CH.chord, t);
+    tr.active = false;
+    if (tr === live) { chordActive = false; if (!fromLoop) loopRecord({ type: 'off' }, tick); }
     render();
   }
+  const triggerChord = (chord, opts = {}) => triggerOnTrack(live, chord, opts);
+  const releaseChord = (fromLoop, time, tick) => releaseTrack(live, fromLoop, time, tick);
   function refreshChord() {
     if (S.keyIndex == null) { render(); return; }
     const old = current ? current.notes : [];
-    current = chordFor();
+    current = chordFor(); live.chord = current; if (chordActive) shown = current;
     if (pending) pending.chord = current;
-    if (chordActive && !CLOCKED.has(S.perform)) {
+    if (chordActive && !CLOCKED.has(live.perform)) {
       const t = engine.now();
-      for (const n of old) if (!current.notes.includes(n)) { engine.releaseNote(n, t); noteOff(CH.chord, n, t); }
-      for (const n of current.notes) if (!old.includes(n)) { engine.noteOn(n, .8, t); noteOn(CH.chord, n, 100, t); }
+      for (const n of old) if (!current.notes.includes(n)) { engine.releaseNote(n, t, 'live'); noteOff(CH.chord, n, t); }
+      for (const n of current.notes) if (!old.includes(n)) { engine.noteOn(n, .8, t, { preset: live.sound, track: 'live' }); noteOn(CH.chord, n, 100, t); }
     }
     render();
   }
@@ -362,9 +395,9 @@
     S.voicing = v; const d = $('[data-dial="voicing"]'); if (d && d._render) d._render();
     refreshChord();
   }
-  function playBass(t, vel = 1) {
-    if (!current) return;
-    const n = Theory.bassNote(current, false);
+  function playBass(t, vel = 1, tr) {
+    const chord = (tr || bassOwner() || live).chord; if (!chord) return;
+    const n = Theory.bassNote(chord, false);
     engine.bassOn(n, t, vel); allOff(CH.bass, t); noteOn(CH.bass, n, Math.round(vel * 120), t);
   }
   const BASS_MODES = ['off', 'auto', 'solo'];
@@ -373,6 +406,7 @@
     const b = $('#bassOn'); b.classList.toggle('on', m !== 'off'); b.classList.toggle('solo', m === 'solo');
     b.lastChild.textContent = m === 'auto' ? 'on' : m;
     $('#sBass').textContent = m === 'auto' ? 'On' : m === 'solo' ? 'Solo' : 'Off'; $('#sBass').classList.toggle('hot', m === 'solo');
+    live.bass = m;
     if (m === 'solo') { held.clear(); pending = null; keyEls.forEach((k) => k.classList.remove('on')); }
   }
   $('#bassOn').addEventListener('click', () => { if (!helpOn) setBassMode(BASS_MODES[(BASS_MODES.indexOf(S.bass) + 1) % 3]); });
@@ -380,11 +414,13 @@
   /* ------------------------------------------------------------ pantalla */
   function render() {
     renderChordButtons();
-    $('#screen').classList.toggle('idle', !chordActive && !pending);
+    const anyActive = activeTracks().length > 0;
+    $('#screen').classList.toggle('idle', !anyActive && !pending);
     const name = $('#oName'); name.classList.remove('pend');
-    if (!current) { name.textContent = '—'; $('#oNotes').textContent = 'tocá una tecla'; return; }
-    name.textContent = current.name;
-    $('#oNotes').textContent = current.notes.map((n) => Theory.midiName(n, current.useFlats)).join(' ');
+    const c = chordActive ? current : (shown || current);
+    if (!c) { name.textContent = '—'; $('#oNotes').textContent = 'tocá una tecla'; return; }
+    name.textContent = c.name;
+    $('#oNotes').textContent = c.notes.map((n) => Theory.midiName(n, c.useFlats)).join(' ');
   }
   function renderPending() { if (!pending) return; const name = $('#oName'); name.textContent = '→ ' + pending.chord.name; name.classList.add('pend'); }
   const scope = $('#scope'), sctx = scope.getContext('2d'), buf = new Float32Array(1024);
@@ -410,11 +446,12 @@
       if (loop.hasContent && loop.state === 'idle') { loop.state = 'play'; loop.startTick = transport.startTick; }
     } else {
       if (loop.state !== 'idle' && loop.state !== 'armed') loop.state = 'idle';
-      pending = null;
+      pending = null; releaseLayers();
       if (held.size === 0) releaseChord(true);
     }
     renderLoop();
   }
+  function releaseLayers() { for (const k in layerTracks) releaseTrack(layerTracks[k], true); }
   $('#play').addEventListener('click', () => { if (!helpOn) setPlaying(!transport.playing); });
   $('#rec').addEventListener('click', () => {
     if (helpOn) return;
@@ -427,7 +464,7 @@
   });
   $('#loopPlay').addEventListener('click', () => {
     if (helpOn || !loop.hasContent) return;
-    if (loop.state === 'play' || loop.state === 'overdub') { loop.state = 'idle'; if (held.size === 0) releaseChord(true); }
+    if (loop.state === 'play' || loop.state === 'overdub') { loop.state = 'idle'; releaseLayers(); }
     else { if (!transport.playing) setPlaying(true); loop.state = 'play'; loop.startTick = transport.playing ? loop.startTick : transport.startTick; }
     renderLoop();
   });
@@ -435,11 +472,12 @@
     if (helpOn || !loop.events.length) return;
     const last = Math.max(...loop.events.map((e) => e.layer));
     loop.events = loop.events.filter((e) => e.layer !== last);
+    if (layerTracks[last]) { releaseTrack(layerTracks[last], true); delete layerTracks[last]; }
     if (loop.state === 'overdub') loop.layer++;
-    if (!loop.events.length) { loop.hasContent = false; loop.state = 'idle'; if (held.size === 0) releaseChord(true); }
+    if (!loop.events.length) { loop.hasContent = false; loop.state = 'idle'; }
     renderLoop();
   });
-  $('#loopClear').addEventListener('click', () => { if (helpOn) return; loop.events = []; loop.hasContent = false; loop.state = 'idle'; loop.layer = 0; renderLoop(); });
+  $('#loopClear').addEventListener('click', () => { if (helpOn) return; loop.events = []; loop.hasContent = false; loop.state = 'idle'; loop.layer = 0; releaseLayers(); for (const k in layerTracks) delete layerTracks[k]; renderLoop(); });
   function buildLoopSegs() { $('#loopSegs').innerHTML = '<i></i>'.repeat(S.loopBars); }
   let lastBar = -1;
   function renderLoop(onlyPos) {
@@ -494,8 +532,8 @@
       const pos = (((tick - loop.startTick) % loopLen()) + loopLen()) % loopLen();
       for (const e of loop.events) {
         if (e.tick !== pos || Math.abs(e.absTick - tick) < 12) continue;
-        if (e.type === 'on' && held.size === 0 && !pending) { S.keyIndex = e.keyIndex; triggerChord(e.chord, { fromLoop: true, time, keepArp: true }); flashKey(e.keyIndex); }
-        else if (e.type === 'off' && held.size === 0 && !S.latch) releaseChord(true, time);
+        if (e.type === 'on') { triggerOnTrack(trackFor(e.layer), e.chord, { fromLoop: true, time, keepArp: true, sound: e.sound, perform: e.perform, bass: e.bass }); flashKey(e.keyIndex); }
+        else if (e.type === 'off') releaseTrack(trackFor(e.layer), true, time);
         else if (e.type === 'bass') bassSolo(e.note, e.vel, time, true);
       }
     }
@@ -504,34 +542,38 @@
       if (S.metro && beat) engine.metronome(time, rel % 96 === 0);
       const B = BEATS[S.beat];
       if (B && step16) {
-        const sw = S.swing || B.sw, tb = time + (rel % 12 === 6 ? sw * clock.tickSec * 6 * .9 : 0);
-        if (B.K && B.K[step] === 'x') engine.kick(tb);
-        if (B.S && B.S[step] === 'x') engine.snare(tb);
-        if (B.C && B.C[step] === 'x') engine.clap(tb);
-        if (B.H && B.H[step] === 'x') engine.hat(tb, false, step % 4 === 0 ? 1 : .6);
-        if (B.O && B.O[step] === 'x') engine.hat(tb, true, .8);
-        if (B.R && B.R[step] === 'x') engine.rim(tb);
+        const sw = S.swing || B.sw, tb = time + (rel % 12 === 6 ? sw * clock.tickSec * 6 * .9 : 0) + (Math.random() - .5) * .004;
+        const hit = (inst, fn) => { const c = B[inst] && B[inst][step]; if (c && c !== '.') fn(tb, DYN[c] * (0.94 + Math.random() * .08)); };
+        hit('K', (t, v) => engine.kick(t, v)); hit('S', (t, v) => engine.snare(t, v)); hit('C', (t, v) => engine.clap(t, v));
+        hit('H', (t, v) => engine.hat(t, false, v)); hit('O', (t, v) => engine.hat(t, true, v)); hit('R', (t, v) => engine.rim(t, v));
+        hit('T', (t, v) => engine.shaker(t, v)); hit('L', (t, v) => engine.tom(t, v, step % 8 < 4));
       }
-      if (chordActive && S.bass === 'auto' && B && (rel % 96 === 0 || rel % 96 === 48) && !S.perform.startsWith('pat') && !pending) playBass(time, rel % 96 === 0 ? 1 : .8);
+      const bo = bassOwner();
+      if (bo && B && (rel % 96 === 0 || rel % 96 === 48) && !bo.perform.startsWith('pat') && !pending) playBass(time, rel % 96 === 0 ? 1 : .8, bo);
     }
-    // performance por reloj
-    if (chordActive && current && CLOCKED.has(S.perform)) {
-      const notes = S.perform === 'arp2' ? [...current.notes, ...current.notes.map((n) => n + 12)] : current.notes;
-      if (S.perform === 'arp' || S.perform === 'arp2') {
+    // performance por reloj, pista por pista
+    for (const tr of activeTracks()) {
+      if (!CLOCKED.has(tr.perform)) continue;
+      const chord = tr.chord, isLive = tr === live;
+      const notes = tr.perform === 'arp2' ? [...chord.notes, ...chord.notes.map((n) => n + 12)] : chord.notes;
+      const play = (n, v, gate) => { engine.noteOn(n, v, ts, { gate, preset: tr.sound, track: tr.id }); if (isLive) { noteOn(CH.chord, n, Math.round(v * 127), ts); noteOff(CH.chord, n, ts + gate); } };
+      if (tr.perform === 'arp' || tr.perform === 'arp2' || tr.perform === 'arpUD') {
         const rate = S.arp16 ? 6 : 12;
         if (rel % rate === 0) {
-          const n = notes[arp.idx % notes.length]; arp.idx++;
-          const gate = clock.tickSec * rate * .75;
-          engine.noteOn(n, .8, ts, { gate }); noteOn(CH.chord, n, 100, ts); noteOff(CH.chord, n, ts + gate);
+          let n;
+          if (tr.perform === 'arpUD' && notes.length > 1) {
+            n = notes[tr.arpIdx]; tr.arpIdx += tr.arpDir;
+            if (tr.arpIdx >= notes.length) { tr.arpIdx = notes.length - 2; tr.arpDir = -1; } else if (tr.arpIdx < 0) { tr.arpIdx = 1; tr.arpDir = 1; }
+          } else { n = notes[tr.arpIdx % notes.length]; tr.arpIdx++; }
+          play(n, .78 + (rel % 24 === 0 ? .12 : 0), clock.tickSec * rate * .75);
         }
       } else if (step16) {
-        const tok = PATTERNS[S.perform][step];
+        const tok = PATTERNS[tr.perform][step];
         if (tok !== '.') {
           const gate = clock.tickSec * 6 * 1.6;
-          const hit = (n, v) => { engine.noteOn(n, v, ts, { gate }); noteOn(CH.chord, n, Math.round(v * 127), ts); noteOff(CH.chord, n, ts + gate); };
-          if (tok.includes('A')) current.notes.forEach((n) => hit(n, step % 4 === 0 ? .85 : .65));
-          if (/\d/.test(tok)) hit(notes[+tok.match(/\d/)[0] % notes.length], .8);
-          if (tok.includes('B') && S.bass === 'auto') playBass(ts, step === 0 ? 1 : .8);
+          if (tok.includes('A')) chord.notes.forEach((n) => play(n, step % 4 === 0 ? .85 : .65, gate));
+          if (/\d/.test(tok)) play(notes[+tok.match(/\d/)[0] % notes.length], step % 4 === 0 ? .85 : .7, gate);
+          if (tok.includes('B') && tr.bass === 'auto' && bassOwner() === tr) playBass(ts, step === 0 ? 1 : .8, tr);
         }
       }
     }
