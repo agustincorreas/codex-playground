@@ -2,7 +2,10 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="theme-color" content="#2a2b2f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <title>Armonía</title>
 <meta name="description" content="Sintetizador generador de acordes: tipo, modificadores, voicing en cascada y modos de performance.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -15,11 +18,12 @@
   <header class="brand">
     <div class="brand-name"><span class="logo"><i></i><i></i><i></i></span>Armonía<small>chord generating synthesizer</small></div>
     <div class="brand-right">
-      <div class="midi-bar">
+      <div class="midi-bar" data-help="midi">
         <label class="midi-out"><span>MIDI IN</span><select id="midiIn"><option value="">— sin entrada —</option></select></label>
         <label class="midi-out"><span>MIDI OUT</span><select id="midiOut"><option value="">— sin salida —</option></select></label>
         <span class="midi-status" id="midiStatus"><i></i>midi</span>
       </div>
+      <button class="helpbtn" id="helpBtn" type="button" title="Modo ayuda">?</button>
       <button class="power" id="power" type="button"><i></i>ENCENDER</button>
     </div>
   </header>
@@ -28,7 +32,7 @@
     <div class="vents left"></div>
     <div class="panel" id="panel">
 
-      <section class="screen" id="screen">
+      <section class="screen" id="screen" data-help="screen">
         <div class="scr-chord">
           <b id="oName">—</b>
           <span class="scr-notes" id="oNotes">tocá una tecla</span>
@@ -45,18 +49,19 @@
           <span><em>loop</em><b id="sLoop">—</b></span>
         </div>
         <canvas class="scope" id="scope" width="120" height="30"></canvas>
+        <div class="loopbar" id="loopbar"><div class="segs" id="loopSegs"></div><div class="cursor" id="loopCursor"></div><span class="lbl" id="loopLbl"></span></div>
       </section>
 
       <section class="deck">
         <div class="side left-side">
           <div class="encs">
-            <div class="ctl" data-enc="sound" data-cap="y" data-label="Sound"></div>
-            <div class="ctl" data-enc="perform" data-cap="y" data-label="Perform"></div>
-            <div class="ctl" data-enc="fx" data-cap="y" data-label="FX"><div class="sub"><div class="ctl mini" data-knob="fxAmt" data-value="0.6" data-label="amt"></div></div></div>
-            <div class="ctl" data-enc="key" data-cap="k" data-label="Key"></div>
+            <div class="ctl" data-enc="sound" data-cap="y" data-label="Sound" data-help="sound"></div>
+            <div class="ctl" data-enc="perform" data-cap="y" data-label="Perform" data-help="perform"></div>
+            <div class="ctl" data-enc="fx" data-cap="y" data-label="FX" data-help="fx"><div class="sub"><div class="ctl mini" data-knob="fxAmt" data-value="0.6" data-label="amt" data-help="fxAmt"></div></div></div>
+            <div class="ctl" data-enc="key" data-cap="k" data-label="Key" data-help="key"><div class="sub"><button class="tog" id="keyMode" type="button" data-help="keymode"><i></i>key mode</button></div></div>
           </div>
           <div class="chordarea">
-            <div class="cgrid" id="cgrid">
+            <div class="cgrid" id="cgrid" data-help="chord">
               <button class="cbtn" data-type="maj" type="button"><i></i><span>Major</span></button>
               <button class="cbtn" data-type="min" type="button"><i></i><span>Minor</span></button>
               <button class="cbtn" data-type="sus" type="button"><i></i><span>Sus</span></button>
@@ -67,31 +72,32 @@
               <button class="cbtn mod" data-mod="9" type="button"><i></i><span>9</span></button>
             </div>
             <div class="voicing">
-              <div class="ctl" data-dial="voicing" data-label="Voicing"></div>
-              <div class="ctl" data-knob="octave" data-min="-2" data-max="2" data-step="1" data-value="0" data-label="Octave" data-cap="k" data-small="1"></div>
+              <div class="ctl" data-dial="voicing" data-label="Voicing" data-help="voicing"></div>
+              <div class="ctl" data-knob="octave" data-min="-2" data-max="2" data-step="1" data-value="0" data-label="Octave" data-cap="k" data-small="1" data-help="octave"></div>
             </div>
           </div>
         </div>
 
         <div class="side right-side">
           <div class="encs">
-            <div class="ctl" data-knob="bassLevel" data-value="0.8" data-cap="r" data-label="Bass"><div class="sub"><button class="tog" id="bassOn" type="button"><i></i>on</button></div></div>
-            <div class="ctl" data-enc="loopBars" data-cap="k" data-label="Loop"><div class="sub row"><button class="tog rec" id="rec" type="button"><i></i>rec</button><button class="tog" id="loopPlay" type="button"><i></i>play</button><button class="tog ghost" id="loopUndo" type="button">undo</button><button class="tog ghost" id="loopClear" type="button">clr</button></div></div>
-            <div class="ctl" data-knob="bpm" data-min="50" data-max="180" data-step="1" data-value="96" data-cap="k" data-label="BPM"><div class="sub"><div class="ctl" data-enc="beat" data-list="1" data-label=""></div><button class="tog play" id="play" type="button"><i></i>play</button></div></div>
-            <div class="ctl" data-enc="option" data-noval="1" data-cap="k" data-label="Options"><div class="sub row wrap" id="options"></div></div>
-            <div class="ctl" data-knob="volume" data-value="0.8" data-cap="k" data-label="Volume"></div>
+            <div class="ctl" data-knob="bassLevel" data-value="0.8" data-cap="r" data-label="Bass" data-help="bass"><div class="sub"><button class="tog" id="bassOn" type="button" data-help="bassMode"><i></i>on</button></div></div>
+            <div class="ctl" data-enc="loopBars" data-cap="k" data-label="Loop" data-help="loop"><div class="sub row"><button class="tog rec" id="rec" type="button" data-help="rec"><i></i>rec</button><button class="tog" id="loopPlay" type="button" data-help="loopPlay"><i></i>play</button><button class="tog ghost" id="loopUndo" type="button" data-help="undo">undo</button><button class="tog ghost" id="loopClear" type="button" data-help="clear">clr</button></div></div>
+            <div class="ctl" data-knob="bpm" data-min="50" data-max="180" data-step="1" data-value="96" data-cap="k" data-label="BPM" data-help="bpm"><div class="sub"><div class="ctl" data-enc="beat" data-list="1" data-label="" data-help="beat"></div><button class="tog play" id="play" type="button" data-help="play"><i></i>play</button></div></div>
+            <div class="ctl options" data-label="Options" data-help="options"><label>Options</label><div class="sub row wrap" id="options"></div></div>
+            <div class="ctl" data-knob="volume" data-value="0.8" data-cap="k" data-label="Volume" data-help="volume"></div>
           </div>
-          <div class="keyboard" id="keyboard"></div>
+          <div class="keyboard" id="keyboard" data-help="keyboard"></div>
         </div>
       </section>
       <div class="model">ORC · armonía</div>
     </div>
     <div class="vents right"></div>
   </main>
+  <div class="helpcard" id="helpcard" hidden><b id="helpTitle"></b><p id="helpText"></p><small id="helpMore"></small></div>
 
   <footer class="foot">
     <span><kbd>A W S E D F T G Y H U J K</kbd> teclas · <kbd>1–4</kbd> tipo · <kbd>5–8</kbd> modificadores · <kbd>← →</kbd> voicing · <kbd>↑ ↓</kbd> octava · <kbd>espacio</kbd> play · <kbd>B</kbd> bajo</span>
-    <span>Key mode: cualquier tecla → acorde de la tonalidad · Bass solo: el teclado toca el bajo · MIDI: nota = fundamental · rueda mod = voicing · sustain = latch</span>
+    <span><kbd>?</kbd> modo ayuda: tocá cualquier control para ver qué hace</span>
   </footer>
 </div>
 <!--ARTIFACT-END-->

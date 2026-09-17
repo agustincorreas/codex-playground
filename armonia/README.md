@@ -7,6 +7,9 @@ navegador con Web Audio, sin dependencias ni build.
 
 - `index.html` + `style.css` + `theory.js` + `audio.js` + `app.js`: código fuente.
 - `armonia.html`: **todo en un solo archivo**, para abrir con doble clic (regenerar con `python3 build.py`).
+- `armonia-movil.html`: la misma app con el **layout para celulares** forzado (teclado y botones de acorde fijos abajo, controles desplazables arriba). `armonia.html` también cambia solo a ese layout en pantallas angostas.
+
+Apretá **?** (o F1) para el **modo ayuda**: cada control se resalta y al tocarlo se explica qué hace y cómo se relaciona con el resto.
 
 ## El panel
 
@@ -20,11 +23,11 @@ navegador con Web Audio, sin dependencias ni build.
 | **Sound** | Keys · E-Piano · Organ · Pad · Strings · Pluck · Brass · Bells. |
 | **Perform** | Chord · Strum · Strum 2 Oct · Slop (timing humano) · Arpeggiate · Arp 2 Oct · Pattern A/B/C · Harp (cascada de 3 octavas). |
 | **FX** | Dry · Room · Hall · Echo · Tape · Chorus · Lo-fi, con perilla de cantidad. |
-| **Key** | Transpone el teclado (la tecla de la izquierda pasa a ser la tónica elegida). |
+| **Key** | Transpone el teclado (la tecla de la izquierda pasa a ser la tónica elegida). El botón **Key mode** debajo cicla Off → Major → Minor: en Major/Minor cualquier tecla genera el acorde diatónico de esa tonalidad y los botones de tipo pasan a ser automáticos (se ven en amarillo). Ese "Minor" es la tonalidad completa; el botón Minor de los tipos es un acorde suelto y en Key mode no se usa. |
 | **Bass** | Nivel del bajo. El botón cicla **Off → On → Solo**. En On el bajo sigue la fundamental (con groove cuando hay beat); en **Solo** el teclado toca el bajo monofónico mientras el acorde latcheado o en loop sigue sonando: para pasear la línea de bajo. |
-| **Loop** | Looper de 1 · 2 · 4 · 8 compases: Rec (se arma y empieza con la primera nota) → Play → Overdub. Cada pasada de overdub es una capa nueva sin tocar el loop original; **Undo** quita la última capa grabada y Clr borra todo. La pantalla muestra la cantidad de capas. |
+| **Loop** | Looper de 1 · 2 · 4 · 8 compases. Rec arma; el loop arranca **exacto** con la primera nota (cuantizada al grid) y, si el beat no estaba sonando, el beat arranca alineado con ese punto. Al completar los compases pasa solo a reproducirse en bucle. Rec de nuevo abre una capa de Overdub sin tocar el loop original; **Undo** quita la última capa y Clr borra todo. La barra de la pantalla muestra compases, posición, y el color del estado (rojo grabando, amarillo overdub, blanco reproduciendo). |
 | **BPM** | Tempo. Debajo, el selector de **beats** de batería sintetizada: Hip hop · Boom bap · Lo-fi · Disco · House · Bossa nova · Electronic · Trap · Funk. Play arranca beat y loop. |
-| **Options** | **Key mode** (cualquier tecla genera el acorde diatónico de la tonalidad elegida con Key; las notas fuera de la escala se ajustan y los botones de tipo muestran el resultado; 6 · 7 · 9 agregan la extensión que corresponde a la tonalidad) · **Minor key** · Latch (mantener el acorde) · Arp 1/16 · Swing (0/25/50) · Metrónomo. Girá el encoder para elegir, clic para conmutar. |
+| **Options** | **Quantize** (los cambios de acorde caen en la semicorchea siguiente cuando hay beat, loop, arpegio o patrón, así nada queda cortado; la pantalla muestra "→ acorde" mientras espera) · Latch (mantener el acorde) · Arp 1/16 · Swing (0/25/50) · Metrónomo. |
 | **Volume** | Master. |
 
 La pantalla muestra el nombre del acorde, sus notas, y el estado de cada sección.
