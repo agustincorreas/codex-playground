@@ -43,7 +43,7 @@
   /* ------------------------------------------------------------ ayuda */
   const HELP = {
     screen: ['Pantalla', 'Muestra el acorde que suena y sus notas, el estado de cada sección y la barra del loop.', 'Un nombre en amarillo con flecha es un acorde esperando el próximo tiempo (Quantize).'],
-    sound: ['Sound', 'Elige el timbre del acorde: Keys, E-Piano, Organ, Pad, Strings, Pluck, Brass o Bells.', 'El bajo tiene su propio motor; no cambia con Sound.'],
+    sound: ['Sound', 'Elige el timbre del acorde: Keys, E-Piano, Wurli, Organ, Pad, Strings, Choir, Pluck, Guitar, Brass, Bells, Marimba o Dream. Cada uno trae su propio chorus, vibrato o trémolo.', 'El bajo tiene su propio motor; no cambia con Sound. La velocidad (MIDI) cambia el brillo.'],
     perform: ['Perform', 'Cómo se toca el acorde: todo junto (Chord), rasgueado (Strum), con timing humano (Slop), arpegiado al tempo (Arpeggiate), con patrones rítmicos (Pattern) o en cascada de tres octavas (Harp).', 'Arpeggiate y Pattern siguen el BPM. Al cambiar de acorde el patrón continúa sin cortarse gracias a Quantize.'],
     fx: ['FX', 'Efecto master: Dry, Room, Hall, Echo, Tape, Chorus o Lo-fi.', 'La perilla AMT regula cuánto efecto se aplica.'],
     fxAmt: ['FX amount', 'Cantidad del efecto elegido, de seco (0) a máximo (100).', ''],
@@ -138,6 +138,7 @@
     requestAnimationFrame(frame);
   }
   $('#power').addEventListener('click', ensureAudio);
+  document.addEventListener('touchend', () => { if (powered) engine.resume(); }, { passive: true }); // iOS: reactivar audio tras un gesto
 
   /* ------------------------------------------------------------ parámetros */
   const label = (list, v) => (LISTS[list].find((o) => String(o[0]) === String(v)) || [v, v])[1];

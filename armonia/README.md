@@ -20,7 +20,7 @@ Apretá **?** (o F1) para el **modo ayuda**: cada control se resalta y al tocarl
 | **Chord Modifiers** (fila inferior) | 6 · m7 · M7 · 9. Se combinan libremente (Cmaj9, Dm7, G13, Bø7, C6/9…). |
 | **Voicing Dial** | Gira nota a nota: cada paso sube la nota más grave una octava (o baja la más aguda), en cascada de inversiones. Con el acorde sonando, las notas que se mueven se re-disparan: un arpegio dinámico. |
 | **Octave** | Desplaza el registro ±2 octavas. |
-| **Sound** | Keys · E-Piano · Organ · Pad · Strings · Pluck · Brass · Bells. |
+| **Sound** | Keys · E-Piano (FM) · Wurli · Organ (con percusión) · Pad (unísono) · Strings · Choir (formantes) · Pluck · Guitar · Brass · Bells (FM) · Marimba · Dream. Cada preset define su chorus estéreo, vibrato, trémolo, transitorio y panorama por voz; la velocidad MIDI controla el brillo. |
 | **Perform** | Chord · Strum · Strum 2 Oct · Slop (timing humano) · Arpeggiate · Arp 2 Oct · Pattern A/B/C · Harp (cascada de 3 octavas). |
 | **FX** | Dry · Room · Hall · Echo · Tape · Chorus · Lo-fi, con perilla de cantidad. |
 | **Key** | Transpone el teclado (la tecla de la izquierda pasa a ser la tónica elegida). El botón **Key mode** debajo cicla Off → Major → Minor: en Major/Minor cualquier tecla genera el acorde diatónico de esa tonalidad y los botones de tipo pasan a ser automáticos (se ven en amarillo). Ese "Minor" es la tonalidad completa; el botón Minor de los tipos es un acorde suelto y en Key mode no se usa. |
