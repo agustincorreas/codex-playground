@@ -4,7 +4,7 @@ name: Publicar Armonía en GitHub Pages
 
 on:
   push:
-    branches: [main, 'claude/determined-maxwell-69v8ji']
+    branches: [main]
     paths: ['armonia/**', '.github/workflows/pages.yml']
   workflow_dispatch:
 
