@@ -45,3 +45,15 @@ Web MIDI funciona en **Chrome y Edge**; aceptá el permiso cuando el navegador l
 - **MIDI IN**: cualquier nota = fundamental (en cualquier octava), con velocidad ·
   rueda de modulación → voicing · pedal de sustain → latch · CC7 → volumen · pitch-bend.
 - **MIDI OUT**: acorde → canal 1, bajo → canal 2.
+
+## Cómo ejecutarlo fuera de Claude
+
+1. **En la PC**: descargá `armonia.html` y abrilo con doble clic (Chrome o Edge para MIDI). No necesita servidor.
+2. **Desde el código fuente**: cloná el repo y abrí `armonia/index.html`, o servilo con
+   `python3 -m http.server 8000` dentro de `armonia/` y entrá a `http://localhost:8000`.
+   Después de editar los fuentes, `python3 build.py` regenera los archivos de un solo archivo.
+3. **Como web pública (ideal para el celular)**: el workflow `.github/workflows/pages.yml`
+   publica la carpeta `armonia/` en GitHub Pages cada vez que se actualiza `main`.
+   Queda en `https://agustincorreas.github.io/codex-playground/` (y `/armonia-movil.html`
+   para forzar el layout de teléfono). La primera vez, en GitHub → Settings → Pages,
+   verificá que la fuente sea "GitHub Actions".
