@@ -54,6 +54,14 @@
                unison: { n: 3, spread: 10 }, a: .01, dcy: 2.5, s: .35, rel: 2.8, cut: 2500, env: 1500, q: .6, vib: { depth: 4, rate: .3, delay: 0 }, width: .9, chorus: .8 },
   };
 
+  const BASS = {
+    sub:    { name: 'Sub',    sub: .8, saw: .12, sq: .05, cut: 120, env: 500,  q: 1.5, dcy: .6,  drive: 1.2, click: .05 },
+    finger: { name: 'Finger', sub: .55, saw: .32, sq: .08, cut: 180, env: 1100, q: 2.5, dcy: .5,  drive: 2.2, click: .12 },
+    pick:   { name: 'Pick',   sub: .4, saw: .3, sq: .25, cut: 260, env: 2200, q: 3,   dcy: .42, drive: 2.6, click: .3 },
+    synth:  { name: 'Synth',  sub: .3, saw: .45, sq: .2, cut: 160, env: 3200, q: 6,   dcy: .35, drive: 1.8, click: .04, det: 9 },
+    e808:   { name: '808',    sub: .95, saw: .05, sq: 0, cut: 200, env: 200,  q: 1,   dcy: 1.4, drive: 3.5, click: .02, drop: true },
+  };
+
   const FX = {
     dry:    { name: 'Dry',    rev: [.4, 0],   dly: [.375, 0, 0],   wob: 0,    drive: 0,   cut: 1 },
     room:   { name: 'Room',   rev: [.35, .28], dly: [.375, 0, 0],  wob: 0,    drive: 0,   cut: 1 },
@@ -295,27 +303,27 @@
     }
 
     // ------------------------------------------------------------ bajo
-    bassOn(midi, time = this.now(), vel = 1) {
+    bassOn(midi, time = this.now(), vel = 1, preset = 'finger') {
       if (!this.ready) return;
-      const ctx = this.ctx;
+      const ctx = this.ctx, B = BASS[preset] || BASS.finger;
       if (this.bassVoice) this._bassOff(this.bassVoice, time);
       const f = mtof(midi);
-      const o1 = ctx.createOscillator(); o1.type = 'sine'; o1.frequency.setValueAtTime(f, time);
-      const o2 = ctx.createOscillator(); o2.type = 'sawtooth'; o2.frequency.setValueAtTime(f, time); o2.detune.value = -4;
-      const o3 = ctx.createOscillator(); o3.type = 'square'; o3.frequency.setValueAtTime(f, time); o3.detune.value = 5;
-      const fl = ctx.createBiquadFilter(); fl.type = 'lowpass'; fl.Q.value = 3;
-      fl.frequency.setValueAtTime(900 + vel * 1200, time); fl.frequency.setTargetAtTime(160 + f * .5, time, .16);
-      const sub = ctx.createGain(); sub.gain.value = .7; const saw = ctx.createGain(); saw.gain.value = .28; const sq = ctx.createGain(); sq.gain.value = .12;
+      const o1 = ctx.createOscillator(); o1.type = 'sine'; o1.frequency.setValueAtTime(B.drop ? f * 2.2 : f, time); if (B.drop) o1.frequency.exponentialRampToValueAtTime(f, time + .06);
+      const o2 = ctx.createOscillator(); o2.type = 'sawtooth'; o2.frequency.setValueAtTime(f, time); o2.detune.value = -(B.det || 4);
+      const o3 = ctx.createOscillator(); o3.type = 'square'; o3.frequency.setValueAtTime(f, time); o3.detune.value = (B.det || 5);
+      const fl = ctx.createBiquadFilter(); fl.type = 'lowpass'; fl.Q.value = B.q;
+      fl.frequency.setValueAtTime(B.cut + B.env * vel, time); fl.frequency.setTargetAtTime(B.cut + f * .4, time, .12);
+      const sub = ctx.createGain(); sub.gain.value = B.sub; const saw = ctx.createGain(); saw.gain.value = B.saw; const sq = ctx.createGain(); sq.gain.value = B.sq;
       o1.connect(sub); o2.connect(saw); o3.connect(sq); saw.connect(fl); sq.connect(fl);
-      const drive = ctx.createWaveShaper(); const c = new Float32Array(256); for (let i = 0; i < 256; i++) { const x = (i / 128) - 1; c[i] = Math.tanh(x * 2.2) / Math.tanh(2.2); } drive.curve = c;
-      fl.connect(drive);
-      const n = ctx.createBufferSource(); n.buffer = this.noise; const nh = ctx.createBiquadFilter(); nh.type = 'bandpass'; nh.frequency.value = 2400; nh.Q.value = 1;
-      const ng = ctx.createGain(); ng.gain.setValueAtTime(.12 * vel, time); ng.gain.exponentialRampToValueAtTime(.0001, time + .03);
+      const drive = ctx.createWaveShaper(); const c = new Float32Array(256); for (let i = 0; i < 256; i++) { const x = (i / 128) - 1; c[i] = Math.tanh(x * B.drive) / Math.tanh(B.drive); } drive.curve = c;
+      fl.connect(drive); sub.connect(drive);
+      const n = ctx.createBufferSource(); n.buffer = this.noise; const nh = ctx.createBiquadFilter(); nh.type = 'bandpass'; nh.frequency.value = 2600; nh.Q.value = 1;
+      const ng = ctx.createGain(); ng.gain.setValueAtTime(B.click * vel, time); ng.gain.exponentialRampToValueAtTime(.0001, time + .03);
       n.connect(nh); nh.connect(ng); n.start(time); n.stop(time + .05);
       const g = ctx.createGain();
-      g.gain.setValueAtTime(.0001, time); g.gain.exponentialRampToValueAtTime(.55 * vel, time + .006); g.gain.setTargetAtTime(.0001, time + .05, .5);
-      sub.connect(g); drive.connect(g); ng.connect(g); g.connect(this.bassBus);
-      for (const o of [o1, o2, o3]) { o.start(time); o.stop(time + 2.4); }
+      g.gain.setValueAtTime(.0001, time); g.gain.exponentialRampToValueAtTime(.55 * vel, time + .006); g.gain.setTargetAtTime(.0001, time + .05, B.dcy);
+      drive.connect(g); ng.connect(g); g.connect(this.bassBus);
+      for (const o of [o1, o2, o3]) { o.start(time); o.stop(time + B.dcy * 5 + .3); }
       this.bassVoice = { midi, vca: g, oscs: [o1, o2, o3] };
     }
     _bassOff(v, time) { v.vca.gain.cancelScheduledValues(time); v.vca.gain.setValueAtTime(Math.max(v.vca.gain.value, .0001), time); v.vca.gain.setTargetAtTime(.0001, time, .02); for (const o of v.oscs) { try { o.stop(time + .15); } catch (e) { /* noop */ } } }
@@ -353,6 +361,14 @@
       g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.32 * vel, t + .002); g.gain.exponentialRampToValueAtTime(.0001, t + d);
       for (const f of [205.3, 304.4, 369.6, 522.7, 540, 800]) { const o = ctx.createOscillator(); o.type = 'square'; o.frequency.value = f * 1.9; o.connect(bp); o.start(t); o.stop(t + d + .02); }
       bp.connect(hp); hp.connect(g); g.connect(this.drumBus);
+    }
+    ride(t, vel = 1) {
+      const ctx = this.ctx, bp = ctx.createBiquadFilter(), hp = ctx.createBiquadFilter(), g = ctx.createGain();
+      bp.type = 'bandpass'; bp.frequency.value = 5200; bp.Q.value = .6; hp.type = 'highpass'; hp.frequency.value = 3200;
+      g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.16 * vel, t + .003); g.gain.exponentialRampToValueAtTime(.0001, t + .55);
+      for (const f of [205.3, 304.4, 369.6, 522.7, 540, 800]) { const o = ctx.createOscillator(); o.type = 'square'; o.frequency.value = f * 1.27; o.connect(bp); o.start(t); o.stop(t + .6); }
+      bp.connect(hp); hp.connect(g); g.connect(this.drumBus);
+      this._burst(t, .04, [['highpass', 6000, .7]], .12 * vel);
     }
     clap(t, vel = 1) {
       for (let i = 0; i < 3; i++) this._burst(t + i * .011, .03, [['bandpass', 1300, 1.4]], .5 * vel);
@@ -404,5 +420,5 @@
     }
   }
 
-  global.Engine = Engine; global.Clock = Clock; global.SOUNDS = SOUNDS; global.FX = FX; global.mtof = mtof;
+  global.Engine = Engine; global.Clock = Clock; global.SOUNDS = SOUNDS; global.FX = FX; global.BASS = BASS; global.mtof = mtof;
 })(window);
