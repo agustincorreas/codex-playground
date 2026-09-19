@@ -303,7 +303,7 @@
     }
 
     // ------------------------------------------------------------ bajo
-    bassOn(midi, time = this.now(), vel = 1, preset = 'finger') {
+    bassOn(midi, time = this.now(), vel = 1, preset = 'finger', dur) {
       if (!this.ready) return;
       const ctx = this.ctx, B = BASS[preset] || BASS.finger;
       if (this.bassVoice) this._bassOff(this.bassVoice, time);
@@ -323,7 +323,8 @@
       const g = ctx.createGain();
       g.gain.setValueAtTime(.0001, time); g.gain.exponentialRampToValueAtTime(.55 * vel, time + .006); g.gain.setTargetAtTime(.0001, time + .05, B.dcy);
       drive.connect(g); ng.connect(g); g.connect(this.bassBus);
-      for (const o of [o1, o2, o3]) { o.start(time); o.stop(time + B.dcy * 5 + .3); }
+      if (dur) { g.gain.setTargetAtTime(.0001, time + dur, .03); }                      // nota corta (staccato)
+      for (const o of [o1, o2, o3]) { o.start(time); o.stop(time + (dur ? dur + .3 : B.dcy * 5 + .3)); }
       this.bassVoice = { midi, vca: g, oscs: [o1, o2, o3] };
     }
     _bassOff(v, time) { v.vca.gain.cancelScheduledValues(time); v.vca.gain.setValueAtTime(Math.max(v.vca.gain.value, .0001), time); v.vca.gain.setTargetAtTime(.0001, time, .02); for (const o of v.oscs) { try { o.stop(time + .15); } catch (e) { /* noop */ } } }

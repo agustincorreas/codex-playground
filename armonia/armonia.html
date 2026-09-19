@@ -814,7 +814,7 @@ body.mobile .helpcard { left: 10px !important; right: 10px; top: auto !important
     }
 
     // ------------------------------------------------------------ bajo
-    bassOn(midi, time = this.now(), vel = 1, preset = 'finger') {
+    bassOn(midi, time = this.now(), vel = 1, preset = 'finger', dur) {
       if (!this.ready) return;
       const ctx = this.ctx, B = BASS[preset] || BASS.finger;
       if (this.bassVoice) this._bassOff(this.bassVoice, time);
@@ -834,7 +834,8 @@ body.mobile .helpcard { left: 10px !important; right: 10px; top: auto !important
       const g = ctx.createGain();
       g.gain.setValueAtTime(.0001, time); g.gain.exponentialRampToValueAtTime(.55 * vel, time + .006); g.gain.setTargetAtTime(.0001, time + .05, B.dcy);
       drive.connect(g); ng.connect(g); g.connect(this.bassBus);
-      for (const o of [o1, o2, o3]) { o.start(time); o.stop(time + B.dcy * 5 + .3); }
+      if (dur) { g.gain.setTargetAtTime(.0001, time + dur, .03); }                      // nota corta (staccato)
+      for (const o of [o1, o2, o3]) { o.start(time); o.stop(time + (dur ? dur + .3 : B.dcy * 5 + .3)); }
       this.bassVoice = { midi, vca: g, oscs: [o1, o2, o3] };
     }
     _bassOff(v, time) { v.vca.gain.cancelScheduledValues(time); v.vca.gain.setValueAtTime(Math.max(v.vca.gain.value, .0001), time); v.vca.gain.setTargetAtTime(.0001, time, .02); for (const o of v.oscs) { try { o.stop(time + .15); } catch (e) { /* noop */ } } }
@@ -956,7 +957,7 @@ body.mobile .helpcard { left: 10px !important; right: 10px; top: auto !important
     key: Theory.SHARP.map((n, i) => [i, n]),
     loopBars: [[1, '1 bar'], [2, '2 bars'], [4, '4 bars'], [8, '8 bars']],
     beat: [['off', 'Off'], ['hiphop', 'Hip hop'], ['boombap', 'Boom bap'], ['dilla', 'Dilla'], ['lofi', 'Lo-fi'], ['neosoul', 'Neo soul'], ['triphop', 'Trip hop'], ['disco', 'Disco'], ['house', 'House'], ['garage', 'UK garage'], ['techno', 'Techno'], ['dnb', 'Drum & bass'], ['bossa', 'Bossa nova'], ['samba', 'Samba'], ['cumbia', 'Cumbia'], ['reggaeton', 'Reggaetón'], ['dub', 'Dub'], ['afrobeat', 'Afrobeat'], ['breaks', 'Breakbeat'], ['electro', 'Electronic'], ['trap', 'Trap'], ['funk', 'Funk'], ['motown', 'Motown'], ['rock', 'Rock'], ['jazz', 'Jazz'], ['ambient', 'Ambient']],
-    bass: [['off', 'Bass off'], ['root', 'Root'], ['root5', 'Root · 5th'], ['walk', 'Walking'], ['oct', 'Octaves'], ['pulse', 'Pulse 8ths'], ['solo', 'Solo']],
+    bass: [['off', 'Bass off'], ['root', 'Root'], ['pop8', 'Pop 8ths'], ['motown', 'Motown'], ['disco', 'Disco octaves'], ['funk', 'Funk 16ths'], ['reggae', 'Reggae one drop'], ['walk', 'Walking jazz'], ['rock', 'Rock 8ths'], ['synthwave', 'Synthwave'], ['house', 'House offbeat'], ['dembow', 'Dembow'], ['bossa', 'Bossa nova'], ['tumbao', 'Tumbao'], ['trap', 'Trap 808'], ['country', 'Country 2-beat'], ['solo', 'Solo']],
     bassSound: Object.keys(BASS).map((k) => [k, BASS[k].name]),
     option: [['secret', 'Secret chords'], ['quant', 'Quantize'], ['extRetrig', 'Ext retrig'], ['velocity', 'Velocity'], ['latch', 'Latch'], ['arp16', 'Arp 1/16'], ['swing', 'Swing'], ['metro', 'Metro']],
   };
@@ -999,6 +1000,26 @@ body.mobile .helpcard { left: 10px !important; right: 10px; top: auto !important
   };
   const DYN = { X: 1, x: .72, o: .32 };
 
+  /* Líneas de bajo icónicas por estilo: 16 semicorcheas relativas al acorde.
+     R fundamental · 8 octava · 3 tercera · 5 quinta · 6 sexta · 7 séptima · L sensible inferior (½ tono abajo)
+     F ♭7 inferior · 5- quinta grave · 3- tercera grave · sufijo _ = nota corta · prefijo ! = acento · ~ = ghost · . = silencio */
+  const BASSLINES = {
+    pop8:      '!R . R . 5 . 5 . 7 . 7 . 5 . 5 .',
+    motown:    '!R . . R_ . 5 . 6 7 . 8 . . 5_ L .',
+    disco:     '!R_ . 8_ . R_ . 8_ . R_ . 8_ . 5_ . 8_ .',
+    funk:      '!R_ . . R_ . 7_ . R_ . . 5_ . 7_ . R_ 8_',
+    reggae:    '. . . . !R . 5_ . . . R . 3 . 5 .',
+    walk:      '!R . . . 3 . . . 5 . . . L . . .',
+    rock:      '!R R R R R R 7 R !R R R R 5 5 F F',
+    synthwave: '!R_ R_ R_ 8_ R_ R_ 8_ R_ !R_ R_ R_ 8_ R_ 5_ 8_ R_',
+    house:     '. . !R_ . . . R_ . . . !R_ . . . 5_ .',
+    dembow:    '!R . . R . . R . !R . . R . . 5 .',
+    bossa:     '!R . . 5 . . R . !R . . 5- . . R .',
+    tumbao:    '. . . !5 . . 3 . . . !R . . 5 . .',
+    trap:      '!R . . . . . . R_ . . R . . . . 7_',
+    country:   '!R . . . 5- . . . R . . . 5 . . .',
+  };
+
   /* ------------------------------------------------------------ ayuda */
   const HELP = {
     screen: ['Pantalla', 'Muestra el acorde que suena y sus notas, el estado de cada sección y la barra del loop.', 'Un nombre en amarillo con flecha es un acorde esperando el próximo tiempo (Quantize).'],
@@ -1015,7 +1036,7 @@ body.mobile .helpcard { left: 10px !important; right: 10px; top: auto !important
     save: ['Save', 'Guarda el loop actual (capas, compases y tempo) en este navegador.', ''],
     load: ['Load', 'Recupera el loop guardado. Después apretá Play o Loop para reproducirlo.', ''],
     bass: ['Bass', 'Nivel del bajo. El bajo sigue la fundamental del acorde y, con un beat sonando, remarca los tiempos 1 y 3.', ''],
-    bassMode: ['Bass mode', 'Off: sin bajo. Root: fundamental con el acorde y en los tiempos 1 y 3. Root · 5th: fundamental y quinta alternadas. Walking: línea caminante por las notas del acorde, una por tiempo. Octaves: corcheas alternando octavas. Pulse 8ths: corcheas repetidas con acentos. Solo: el teclado toca el bajo nota a nota mientras el acorde sigue sonando.', 'Los patrones siguen el reloj con Play; sin transporte el bajo toca la fundamental al cambiar de acorde. Cada capa del loop recuerda su modo de bajo.'],
+    bassMode: ['Bass mode', 'Off: sin bajo. Root: fundamental con el acorde y en los tiempos 1 y 3. Después, líneas de bajo icónicas por estilo, siempre transpuestas al acorde que toques: Pop 8ths (corcheas fundamental-quinta-séptima), Motown (sincopado con cromatismos), Disco octaves, Funk 16ths, Reggae one drop (calla el 1), Walking jazz, Rock 8ths, Synthwave, House offbeat, Dembow, Bossa nova, Tumbao (anticipado), Trap 808 y Country 2-beat. Solo: el teclado toca el bajo nota a nota.', 'Las líneas siguen el reloj con Play; sin transporte el bajo toca la fundamental al cambiar de acorde. Cada capa del loop recuerda su línea y su sonido de bajo.'],
     bassSound: ['Bass sound', 'Timbre del bajo: Sub (seno profundo), Finger (eléctrico redondo), Pick (con púa, más brillante), Synth (filtro resonante) u 808 (con caída de tono y saturación).', ''],
     loop: ['Loop', 'Largo del loop en compases (1, 2, 4 u 8). Elegilo antes de grabar.', ''],
     rec: ['Rec', 'Arma la grabación: el loop arranca exacto con la primera nota que toques, cuantizada al tempo. Al completar los compases pasa solo a reproducirse. Volver a apretar Rec durante la reproducción abre una capa de Overdub.', 'Cada capa es una pista independiente: guarda su Sound, su Perform y su bajo, y suena superpuesta a las demás. Podés grabar un pad, luego cambiar a Pluck con arpegio y grabar encima. Rojo = grabando, amarillo = overdub, blanco = reproducción.'],
@@ -1349,7 +1370,7 @@ body.mobile .helpcard { left: 10px !important; right: 10px; top: auto !important
         if (tr === live) noteOn(CH.chord, n, Math.round(v * 127), t + dt);
       }
     }
-    if (bassAuto(tr.bass) && bassOwner() === tr) playBass(t, 1, tr);
+    if (bassAuto(tr.bass) && bassOwner() === tr && !(transport.playing && tr.bass !== 'root')) playBass(t, 1, tr);
     if (tr === live && !opts.fromLoop) loopRecord({ type: 'on', chord, keyIndex: S.keyIndex, sound: tr.sound, perform: tr.perform, bass: tr.bass, bassSound: tr.bassSound }, opts.tick);
     shown = chord; if (tr === live) { current = chord; chordActive = true; }
     render();
@@ -1390,22 +1411,27 @@ body.mobile .helpcard { left: 10px !important; right: 10px; top: auto !important
     S.voicing = v; const d = $('[data-dial="voicing"]'); if (d && d._render) d._render();
     refreshChord();
   }
-  function playBass(t, vel = 1, tr, offset = 0) {
+  function playBass(t, vel = 1, tr, offset = 0, dur) {
     tr = tr || bassOwner() || live; const chord = tr.chord; if (!chord) return;
     const n = Theory.bassNote(chord, false) + offset;
-    engine.bassOn(n, t, vel, tr.bassSound || S.bassSound); allOff(CH.bass, t); noteOn(CH.bass, n, Math.round(vel * 120), t);
+    engine.bassOn(n, t, vel, tr.bassSound || S.bassSound, dur); allOff(CH.bass, t); noteOn(CH.bass, n, Math.round(vel * 120), t);
+    if (dur) noteOff(CH.bass, n, t + dur);
   }
-  /** Nota del patrón de bajo para el tick relativo al compás (0..95). */
+  /** Nota del patrón de bajo para el tick relativo al compás (0..95): [intervalo, velocidad, duración]. */
   function bassStep(tr, pos) {
-    const iv = tr.chord.intervals, fifth = iv.includes(7) ? 7 : iv.includes(6) ? 6 : 12, third = iv.find((x) => x === 3 || x === 4) ?? 0;
-    switch (tr.bass) {
-      case 'root':  return pos === 0 ? [0, 1] : pos === 48 ? [0, .8] : null;
-      case 'root5': return pos === 0 ? [0, 1] : pos === 48 ? [fifth, .85] : pos === 84 ? [fifth - 12, .6] : null;
-      case 'walk':  if (pos % 24) return null; { const seq = [0, third, fifth, iv.includes(10) ? 10 : iv.includes(9) ? 9 : fifth + 2]; const n = seq[tr.walk % 4]; tr.walk++; return [n, tr.walk % 4 === 1 ? 1 : .8]; }
-      case 'oct':   return pos % 12 ? null : [pos % 24 ? 12 : 0, pos % 24 ? .75 : .95];
-      case 'pulse': return pos % 12 ? null : [0, pos % 48 === 0 ? 1 : pos % 24 ? .6 : .8];
-      default: return null;
-    }
+    if (pos % 6) return null;
+    if (tr.bass === 'root') return pos === 0 ? [0, 1] : pos === 48 ? [0, .8] : null;
+    const line = BASSLINES[tr.bass]; if (!line) return null;
+    let tok = line.split(/\s+/)[pos / 6]; if (!tok || tok === '.') return null;
+    let vel = .85; if (tok[0] === '!') { vel = 1; tok = tok.slice(1); } else if (tok[0] === '~') { vel = .5; tok = tok.slice(1); }
+    let dur = null; if (tok.endsWith('_')) { dur = clock.tickSec * 6 * .85; tok = tok.slice(0, -1); }
+    const iv = tr.chord.intervals;
+    const third = iv.find((x) => x === 3 || x === 4) ?? (iv.includes(5) ? 5 : 4);
+    const fifth = iv.includes(7) ? 7 : iv.includes(6) ? 6 : iv.includes(8) ? 8 : 7;
+    const seventh = iv.includes(10) ? 10 : iv.includes(11) ? 11 : iv.includes(9) ? 9 : 10;
+    const MAP = { R: 0, 8: 12, 3: third, 5: fifth, 6: 9, 7: seventh, L: -1, F: -2, '5-': fifth - 12, '3-': third - 12 };
+    const i = MAP[tok]; if (i == null) return null;
+    return [i, vel, dur];
   }
   function setBassMode(m) {
     S.bass = m; live.bass = m;
@@ -1570,7 +1596,7 @@ body.mobile .helpcard { left: 10px !important; right: 10px; top: auto !important
       const bo = bassOwner();
       if (bo && !bo.perform.startsWith('pat') && !pending && rel % 6 === 0) {
         const st = bassStep(bo, ((rel % 96) + 96) % 96);
-        if (st && !(bo.bass === 'root' && !B)) playBass(ts, st[1], bo, st[0]);
+        if (st && !(bo.bass === 'root' && !B)) playBass(ts, st[1], bo, st[0], st[2]);
       }
     }
     // performance por reloj, pista por pista
@@ -1643,6 +1669,7 @@ body.mobile .helpcard { left: 10px !important; right: 10px; top: auto !important
     else if (e.code === 'ArrowDown') { e.preventDefault(); setKnob('octave', clamp(S.octave - 1, -2, 2)); }
     else if (e.code === 'Space') { e.preventDefault(); setPlaying(!transport.playing); }
     else if (e.code === 'KeyB') setEnc('bass', BASS_MODES[(BASS_MODES.indexOf(S.bass) + 1) % BASS_MODES.length]);
+    else if (e.code === 'KeyV') setEnc('bass', BASS_MODES[(BASS_MODES.indexOf(S.bass) - 1 + BASS_MODES.length) % BASS_MODES.length]);
     else if (e.code === 'Slash' || e.code === 'F1') { e.preventDefault(); setHelp(!helpOn); }
   });
   document.addEventListener('keyup', (e) => { if (e.code in KEYMAP && downKeys.has(e.code)) { downKeys.delete(e.code); keyUp(KEYMAP[e.code]); } });
