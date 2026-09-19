@@ -178,6 +178,8 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .cgrid.keymode::after { content: 'auto · key mode'; position: absolute; left: 0; right: 0; top: -2px; text-align: center; font: 500 7px var(--sans); letter-spacing: .18em; text-transform: uppercase; color: var(--cap-y); }
 .cgrid { position: relative; }
 .cgrid.keymode .cbtn[data-type] span { display: none; }
+.cgrid[data-combo]:not(.keymode)::after { content: attr(data-combo); position: absolute; left: 0; right: 0; top: -2px; text-align: center; font: 500 7px var(--sans); letter-spacing: .16em; text-transform: uppercase; color: var(--cap-y); white-space: nowrap; }
+.cgrid[data-combo]:not(.keymode) .cbtn[data-type] span { display: none; }
 
 /* ---------------- modo ayuda */
 .app.help [data-help] { outline: 1.5px dashed var(--cap-y); outline-offset: 4px; border-radius: 8px; cursor: help; }

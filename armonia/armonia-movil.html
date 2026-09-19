@@ -191,6 +191,8 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .cgrid.keymode::after { content: 'auto · key mode'; position: absolute; left: 0; right: 0; top: -2px; text-align: center; font: 500 7px var(--sans); letter-spacing: .18em; text-transform: uppercase; color: var(--cap-y); }
 .cgrid { position: relative; }
 .cgrid.keymode .cbtn[data-type] span { display: none; }
+.cgrid[data-combo]:not(.keymode)::after { content: attr(data-combo); position: absolute; left: 0; right: 0; top: -2px; text-align: center; font: 500 7px var(--sans); letter-spacing: .16em; text-transform: uppercase; color: var(--cap-y); white-space: nowrap; }
+.cgrid[data-combo]:not(.keymode) .cbtn[data-type] span { display: none; }
 
 /* ---------------- modo ayuda */
 .app.help [data-help] { outline: 1.5px dashed var(--cap-y); outline-offset: 4px; border-radius: 8px; cursor: help; }
@@ -331,6 +333,7 @@ body.mobile .helpcard { left: 10px !important; right: 10px; top: auto !important
           <span><em>key</em><b id="sKey">C</b></span>
           <span><em>bass</em><b id="sBass">On</b></span>
           <span><em>voicing</em><b id="sVoice">0</b></span>
+          <span><em>prog</em><b id="sProg">Off</b></span>
           <span><em>beat</em><b id="sBeat">Off</b></span>
           <span><em>bpm</em><b id="sBpm">96</b></span>
           <span><em>loop</em><b id="sLoop">—</b></span>
@@ -345,6 +348,7 @@ body.mobile .helpcard { left: 10px !important; right: 10px; top: auto !important
             <div class="ctl" data-enc="sound" data-cap="y" data-label="Sound" data-help="sound"></div>
             <div class="ctl" data-enc="perform" data-cap="y" data-label="Perform" data-help="perform"></div>
             <div class="ctl" data-enc="fx" data-cap="y" data-label="FX" data-help="fx"><div class="sub"><div class="ctl mini" data-knob="fxAmt" data-value="0.6" data-label="amt" data-help="fxAmt"></div></div></div>
+            <div class="ctl" data-enc="prog" data-cap="y" data-label="Prog" data-help="prog"></div>
             <div class="ctl" data-enc="key" data-cap="k" data-label="Key" data-help="key"><div class="sub"><button class="tog" id="keyMode" type="button" data-help="keymode"><i></i>key mode</button></div></div>
           </div>
           <div class="chordarea">
@@ -955,10 +959,11 @@ body.mobile .helpcard { left: 10px !important; right: 10px; top: auto !important
     perform: [['chord', 'Chord'], ['strum', 'Strum ↓'], ['strumUp', 'Strum ↑'], ['strumAlt', 'Strum ↕'], ['strum2', 'Strum 2 Oct'], ['rake', 'Rake'], ['roll', 'Roll'], ['slop', 'Slop'], ['arp', 'Arpeggiate'], ['arpUD', 'Arp ↕'], ['arp2', 'Arp 2 Oct'], ['patA', 'Pattern A'], ['patB', 'Pattern B'], ['patC', 'Pattern C'], ['patD', 'Pattern D'], ['harp', 'Harp']],
     fx: Object.keys(FX).map((k) => [k, FX[k].name]),
     key: Theory.SHARP.map((n, i) => [i, n]),
-    loopBars: [[1, '1 bar'], [2, '2 bars'], [4, '4 bars'], [8, '8 bars']],
+    loopBars: [[1, '1 bar'], [2, '2 bars'], [4, '4 bars'], [8, '8 bars'], [12, '12 bars'], [16, '16 bars']],
     beat: [['off', 'Off'], ['hiphop', 'Hip hop'], ['boombap', 'Boom bap'], ['dilla', 'Dilla'], ['lofi', 'Lo-fi'], ['neosoul', 'Neo soul'], ['triphop', 'Trip hop'], ['disco', 'Disco'], ['house', 'House'], ['garage', 'UK garage'], ['techno', 'Techno'], ['dnb', 'Drum & bass'], ['bossa', 'Bossa nova'], ['samba', 'Samba'], ['cumbia', 'Cumbia'], ['reggaeton', 'Reggaetón'], ['dub', 'Dub'], ['afrobeat', 'Afrobeat'], ['breaks', 'Breakbeat'], ['electro', 'Electronic'], ['trap', 'Trap'], ['funk', 'Funk'], ['motown', 'Motown'], ['rock', 'Rock'], ['jazz', 'Jazz'], ['ambient', 'Ambient']],
     bass: [['off', 'Bass off'], ['root', 'Root'], ['pop8', 'Pop 8ths'], ['motown', 'Motown'], ['disco', 'Disco octaves'], ['funk', 'Funk 16ths'], ['reggae', 'Reggae one drop'], ['walk', 'Walking jazz'], ['rock', 'Rock 8ths'], ['synthwave', 'Synthwave'], ['house', 'House offbeat'], ['dembow', 'Dembow'], ['bossa', 'Bossa nova'], ['tumbao', 'Tumbao'], ['trap', 'Trap 808'], ['country', 'Country 2-beat'], ['solo', 'Solo']],
     bassSound: Object.keys(BASS).map((k) => [k, BASS[k].name]),
+    prog: [['off', 'Off'], ['pop', 'Pop'], ['doowop', "50s doo-wop"], ['rock', 'Rock'], ['blues', 'Blues 12'], ['jazz', 'Jazz ii–V–I'], ['bossa', 'Bossa nova'], ['neosoul', 'Neo soul'], ['funk', 'Funk vamp'], ['reggae', 'Reggae'], ['reggaeton', 'Reggaetón'], ['trap', 'Trap'], ['gospel', 'Gospel'], ['edm', 'EDM'], ['synthwave', 'Synthwave'], ['cumbia', 'Cumbia'], ['bolero', 'Bolero'], ['andaluza', 'Andaluza']],
     option: [['secret', 'Secret chords'], ['quant', 'Quantize'], ['extRetrig', 'Ext retrig'], ['velocity', 'Velocity'], ['latch', 'Latch'], ['arp16', 'Arp 1/16'], ['swing', 'Swing'], ['metro', 'Metro']],
   };
   const CLOCKED = new Set(['arp', 'arpUD', 'arp2', 'patA', 'patB', 'patC', 'patD']);
@@ -1000,6 +1005,28 @@ body.mobile .helpcard { left: 10px !important; right: 10px; top: auto !important
   };
   const DYN = { X: 1, x: .72, o: .32 };
 
+  /* Progresiones por género: [semitonos desde la tónica, tipo, modificadores, duración en tiempos] */
+  const P = (st, type, mods = {}, beats = 4) => ({ st, type, mods, beats });
+  const PROGRESSIONS = {
+    pop:       { minor: false, roman: 'I V vi IV',            steps: [P(0, 'maj'), P(7, 'maj'), P(9, 'min'), P(5, 'maj')] },
+    doowop:    { minor: false, roman: 'I vi IV V',            steps: [P(0, 'maj'), P(9, 'min'), P(5, 'maj'), P(7, 'maj')] },
+    rock:      { minor: false, roman: 'I ♭VII IV I',          steps: [P(0, 'maj'), P(10, 'maj'), P(5, 'maj'), P(0, 'maj')] },
+    blues:     { minor: false, roman: 'I7 IV7 V7 · 12 bars',  steps: [P(0, 'maj', { m7: 1 }), P(0, 'maj', { m7: 1 }), P(0, 'maj', { m7: 1 }), P(0, 'maj', { m7: 1 }), P(5, 'maj', { m7: 1 }), P(5, 'maj', { m7: 1 }), P(0, 'maj', { m7: 1 }), P(0, 'maj', { m7: 1 }), P(7, 'maj', { m7: 1 }), P(5, 'maj', { m7: 1 }), P(0, 'maj', { m7: 1 }), P(7, 'maj', { m7: 1 })] },
+    jazz:      { minor: false, roman: 'ii7 V7 Imaj7',         steps: [P(2, 'min', { m7: 1 }), P(7, 'maj', { m7: 1, 9: 1 }), P(0, 'maj', { M7: 1 }), P(0, 'maj', { M7: 1, 6: 1 })] },
+    bossa:     { minor: false, roman: 'Imaj7 ii7 V7 Imaj7',   steps: [P(0, 'maj', { M7: 1, 9: 1 }), P(2, 'min', { m7: 1 }), P(7, 'maj', { m7: 1 }), P(0, 'maj', { M7: 1 })] },
+    neosoul:   { minor: false, roman: 'ii9 V13 Imaj9 vi9',    steps: [P(2, 'min', { m7: 1, 9: 1 }), P(7, 'maj', { m7: 1, 9: 1, 6: 1 }), P(0, 'maj', { M7: 1, 9: 1 }), P(9, 'min', { m7: 1, 9: 1 })] },
+    funk:      { minor: true,  roman: 'i7 · IV7 vamp',        steps: [P(0, 'min', { m7: 1 }), P(0, 'min', { m7: 1 }), P(5, 'maj', { m7: 1, 9: 1 }), P(0, 'min', { m7: 1 })] },
+    reggae:    { minor: false, roman: 'I IV I V',             steps: [P(0, 'maj'), P(5, 'maj'), P(0, 'maj'), P(7, 'maj')] },
+    reggaeton: { minor: true,  roman: 'i VI III VII',         steps: [P(0, 'min'), P(8, 'maj'), P(3, 'maj'), P(10, 'maj')] },
+    trap:      { minor: true,  roman: 'i iv VI V',            steps: [P(0, 'min'), P(5, 'min'), P(8, 'maj'), P(7, 'maj', { m7: 1 })] },
+    gospel:    { minor: false, roman: 'I vi7 ii7 V9',         steps: [P(0, 'maj', { M7: 1 }), P(9, 'min', { m7: 1 }), P(2, 'min', { m7: 1, 9: 1 }), P(7, 'maj', { m7: 1, 9: 1 })] },
+    edm:       { minor: false, roman: 'vi IV I V',            steps: [P(9, 'min'), P(5, 'maj'), P(0, 'maj'), P(7, 'maj')] },
+    synthwave: { minor: true,  roman: 'i VII VI V',           steps: [P(0, 'min'), P(10, 'maj'), P(8, 'maj'), P(7, 'maj')] },
+    cumbia:    { minor: false, roman: 'I IV I V',             steps: [P(0, 'maj'), P(5, 'maj'), P(0, 'maj'), P(7, 'maj', { m7: 1 })] },
+    bolero:    { minor: true,  roman: 'i iv V7 i',            steps: [P(0, 'min'), P(5, 'min'), P(7, 'maj', { m7: 1 }), P(0, 'min')] },
+    andaluza:  { minor: true,  roman: 'i VII VI V',           steps: [P(0, 'min'), P(10, 'maj'), P(8, 'maj'), P(7, 'maj')] },
+  };
+
   /* Líneas de bajo icónicas por estilo: 16 semicorcheas relativas al acorde.
      R fundamental · 8 octava · 3 tercera · 5 quinta · 6 sexta · 7 séptima · L sensible inferior (½ tono abajo)
      F ♭7 inferior · 5- quinta grave · 3- tercera grave · sufijo _ = nota corta · prefijo ! = acento · ~ = ghost · . = silencio */
@@ -1027,6 +1054,7 @@ body.mobile .helpcard { left: 10px !important; right: 10px; top: auto !important
     perform: ['Perform', 'Cómo se toca el acorde: todo junto (Chord); rasgueos como guitarra con fundamental grave y acento (Strum ↓ de grave a agudo, ↑ al revés, ↕ alterna en cada tecla, 2 Oct dobla la octava, Rake rasguea rápido y fuerte, Roll despliega dos octavas subiendo y bajando); Slop con timing humano; arpegios al tempo (Arpeggiate, Arp ↕, Arp 2 Oct); patrones rítmicos A–D; o Harp, cascada de tres octavas.', 'Los modos al tempo siguen el BPM. Al cambiar de acorde el patrón continúa sin cortarse gracias a Quantize.'],
     fx: ['FX', 'Efecto master: Dry, Room, Hall, Echo, Tape, Chorus o Lo-fi.', 'La perilla AMT regula cuánto efecto se aplica.'],
     fxAmt: ['FX amount', 'Cantidad del efecto elegido, de seco (0) a máximo (100).', ''],
+    prog: ['Prog', 'Progresiones de acordes por género. Elegí un estilo y, con Play, el instrumento va cambiando de acorde al tempo en la tonalidad de Key, con los tipos y extensiones típicos del género (Pop I–V–vi–IV, Blues de 12 compases con séptimas, Jazz ii–V–I, Neo soul con novenas, Reggaetón i–VI–III–VII, etc.). Los botones de tipo muestran cada acorde, y podés cambiar Sound, Perform y bajo mientras suena.', 'Si tocás una tecla, la progresión se pausa hasta que soltás. Con Rec armado se graba en el loop como cualquier acorde: el largo del loop se ajusta solo al de la progresión.'],
     key: ['Key', 'Transpone el teclado: la tecla de la izquierda pasa a ser esta nota. Atajo: mantené apretado el encoder medio segundo y después tocá una tecla; esa nota pasa a ser la tonalidad.', 'Con Key Mode activo, además define la tonalidad de la que salen los acordes.'],
     keymode: ['Key Mode', 'Off: vos elegís el tipo con los botones Major/Minor/Sus/Dim. Major o Minor: cualquier tecla genera automáticamente el acorde que pertenece a esa tonalidad, y los botones de tipo se eligen solos (quedan en amarillo, informativos).', '"Minor" acá es la tonalidad completa (por ejemplo La menor); el botón Minor de abajo es el tipo de un solo acorde. Con Key Mode activo ese botón no se usa.'],
     chord: ['Chord Type y Modifiers', 'Fila de arriba: el tipo del acorde. Con Secret chords activo, tocá un segundo botón de tipo para combinarlos: Major+Minor = aumentado, Major+Sus = sus2, Major+Dim = ♭5, Minor+Sus = power chord, Minor+Dim = m♭6, Sus+Dim = cuartal (7sus4). Fila de abajo: modificadores 6, m7, M7 y 9, combinables.', 'En Key Mode la fila de arriba es automática; m7 y M7 se convierten en "la séptima que corresponde a la tonalidad".'],
@@ -1058,10 +1086,11 @@ body.mobile .helpcard { left: 10px !important; right: 10px; top: auto !important
     keyModeState: 'off', keymode: false, minor: false,
     sound: 'keys', perform: 'chord', fx: 'room', fxAmt: .6, bass: 'root', bassSound: 'finger', bassLevel: .8, loopBars: 2, bpm: 96, beat: 'off',
     quant: 6, secret: true, extRetrig: false, velocity: true, latch: false, arp16: true, swing: 0, metro: false, volume: .8,
-    type2: null, split: false, splitPoint: 5,
+    type2: null, split: false, splitPoint: 5, prog: 'off',
   };
   const QUANTS = [[0, 'Q off'], [24, 'Q 1/4'], [12, 'Q 1/8'], [8, 'Q 1/8T'], [6, 'Q 1/16'], [4, 'Q 1/16T'], [3, 'Q 1/32']];
   let keyPick = false;
+  const progState = { step: -1, active: false };
   let current = null, shown = null, chordActive = false, powered = false, pending = null;
   const held = new Set();
   const midiNotes = new Map();
@@ -1152,6 +1181,14 @@ body.mobile .helpcard { left: 10px !important; right: 10px; top: auto !important
     volume: (v) => engine.setLevel('master', v),
     bassLevel: (v) => engine.setLevel('bass', v),
     bass: (v) => setBassMode(v),
+    prog: (v) => {
+      const p = PROGRESSIONS[v]; progState.step = -1;
+      $('#sProg').textContent = v === 'off' ? 'Off' : label('prog', v); $('#sProg').classList.toggle('hot', v !== 'off');
+      if (!p) { if (progState.active) { progState.active = false; if (held.size === 0) releaseChord(); } return; }
+      const bars = Math.ceil(p.steps.reduce((a, x) => a + x.beats, 0) / 4);
+      if (loop.state === 'idle' || loop.state === 'armed') { const opt = [1, 2, 4, 8, 12, 16].find((b) => b >= bars) || 16; if (opt !== S.loopBars) setEnc('loopBars', opt); }
+      if (!transport.playing) setPlaying(true);
+    },
     bassSound: (v) => { live.bassSound = v; },
     latch: (v) => { if (!v && held.size === 0 && chordActive) releaseChord(); },
   };
@@ -1267,6 +1304,8 @@ body.mobile .helpcard { left: 10px !important; right: 10px; top: auto !important
   function renderChordButtons() {
     const type = S.keymode && current ? current.type : S.type, mods = S.keymode && current ? current.mods : S.mods;
     const t2 = S.keymode ? null : S.type2;
+    const combo = t2 && Theory.comboType(S.type, t2);
+    if (combo) $('#cgrid').dataset.combo = `${Theory.TYPES[S.type].name} + ${Theory.TYPES[t2].name} = ${Theory.TYPES[combo].name}`; else delete $('#cgrid').dataset.combo;
     $$('#cgrid .cbtn').forEach((b) => {
       const on = b.dataset.type ? (b.dataset.type === type || b.dataset.type === t2) : !!mods[b.dataset.mod];
       b.classList.toggle('on', on); b.classList.toggle('secret', !!t2 && on && !!b.dataset.type);
@@ -1324,6 +1363,7 @@ body.mobile .helpcard { left: 10px !important; right: 10px; top: auto !important
     held.delete(i);
     if (pending && pending.keyIndex === i && !S.latch && held.size === 0) { pending.released = true; return; }
     if (held.size || S.latch) return;
+    if (S.prog !== 'off' && transport.playing) { progState.step = -1; return; }   // la progresión retoma en el próximo tiempo
     releaseChord();
   }
   function bassSolo(note, vel, time, fromLoop, sound) {
@@ -1475,7 +1515,7 @@ body.mobile .helpcard { left: 10px !important; right: 10px; top: auto !important
       if (loop.hasContent && loop.state === 'idle') { loop.state = 'play'; loop.startTick = transport.startTick; }
     } else {
       if (loop.state !== 'idle' && loop.state !== 'armed') loop.state = 'idle';
-      pending = null; releaseLayers();
+      pending = null; releaseLayers(); progState.step = -1; progState.active = false;
       if (held.size === 0) releaseChord(true);
     }
     renderLoop();
@@ -1570,6 +1610,19 @@ body.mobile .helpcard { left: 10px !important; right: 10px; top: auto !important
       S.keyIndex = p.keyIndex;
       triggerChord(p.chord, { vel: p.vel, time, tick, keepArp: true });
       if (p.released) releaseChord(false, time + clock.tickSec * S.quant, tick + S.quant);
+    }
+    // progresión por género: un acorde por paso, en la tonalidad de Key
+    if (S.prog !== 'off' && transport.playing && rel >= 0 && rel % 24 === 0 && held.size === 0 && !pending) {
+      const pg = PROGRESSIONS[S.prog], total = pg.steps.reduce((a, x) => a + x.beats, 0), posBeat = Math.floor(rel / 24) % total;
+      let acc = 0, idx = -1;
+      for (let i = 0; i < pg.steps.length; i++) { if (acc === posBeat) { idx = i; break; } acc += pg.steps[i].beats; }
+      if (idx >= 0 && idx !== progState.step) {
+        const st = pg.steps[idx]; progState.step = idx; progState.active = true;
+        S.type = st.type; S.type2 = null; S.mods = { 6: !!st.mods[6], m7: !!st.mods.m7, M7: !!st.mods.M7, 9: !!st.mods[9] };
+        S.root = (S.key + st.st) % 12; S.keyIndex = st.st % 12;
+        const chord = Theory.buildChord({ root: S.root, type: S.type, mods: S.mods, voicing: S.voicing, octave: S.octave });
+        triggerChord(chord, { time, tick, keepArp: true }); flashKey(S.keyIndex);
+      }
     }
     // looper
     if (loop.state === 'rec' && tick - loop.startTick >= loopLen()) { loop.state = 'play'; renderLoop(); }
