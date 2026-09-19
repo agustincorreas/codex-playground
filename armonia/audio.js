@@ -54,6 +54,9 @@
                unison: { n: 3, spread: 10 }, a: .01, dcy: 2.5, s: .35, rel: 2.8, cut: 2500, env: 1500, q: .6, vib: { depth: 4, rate: .3, delay: 0 }, width: .9, chorus: .8 },
   };
 
+  for (const k in (window.SOUND_BANK || {})) SOUNDS[k] = window.SOUND_BANK[k];
+  for (const k in SOUNDS) if (!SOUNDS[k].cat) SOUNDS[k].cat = 'Clásico';
+
   const BASS = {
     sub:    { name: 'Sub',    sub: .8, saw: .12, sq: .05, cut: 120, env: 500,  q: 1.5, dcy: .6,  drive: 1.2, click: .05 },
     finger: { name: 'Finger', sub: .55, saw: .32, sq: .08, cut: 180, env: 1100, q: 2.5, dcy: .5,  drive: 2.2, click: .12 },
@@ -78,6 +81,8 @@
       this.sound = 'keys'; this.fx = 'room'; this.fxAmount = .6;
       this.voices = []; this.bassVoice = null;
       this.levels = { chord: .8, bass: .8, drums: .7, master: .8 };
+      this.macro = { cut: 1, res: 0, atk: 1, rel: 1 };   // edición sobre el preset
+      this._waves = {};
     }
 
     init() {
@@ -103,8 +108,9 @@
       mk(.013, .55, .0028, 0); mk(.021, .83, .0034, 1);
       merger.connect(this.chorusWet); this.chorusWet.connect(this.mix);
 
-      // LFOs compartidos para vibrato y trémolo
+      // LFOs compartidos para vibrato, trémolo y filtro
       this.vibLfo = ctx.createOscillator(); this.vibLfo.frequency.value = 5.5; this.vibLfo.start();
+      this.filtLfo = ctx.createOscillator(); this.filtLfo.frequency.value = .2; this.filtLfo.start();
       this.tremLfo = ctx.createOscillator(); this.tremLfo.frequency.value = 5; this.tremLfo.start();
       document.addEventListener('visibilitychange', () => { if (!document.hidden) this.resume(); });
 
@@ -144,6 +150,7 @@
       this.master.connect(this.limiter); this.limiter.connect(this.analyser); this.analyser.connect(ctx.destination);
 
       this.metroGain = ctx.createGain(); this.metroGain.gain.value = .3; this.metroGain.connect(this.limiter);
+      this.streamDest = ctx.createMediaStreamDestination(); this.limiter.connect(this.streamDest);
       this.noise = this._noiseBuffer();
       this.ready = true;
       this.applyFx(); this.setSound(this.sound);
@@ -159,10 +166,18 @@
 
     // ------------------------------------------------------------ niveles / FX
     setLevel(k, v) { this.levels[k] = v; if (!this.ready) return; const n = { chord: this.chordBus, bass: this.bassBus, drums: this.drumBus, master: this.master }[k]; n.gain.setTargetAtTime(v, this.now(), .02); }
+    setMacro(k, v) { this.macro[k] = v; }
+    pulseWave(d) {
+      if (this._waves[d]) return this._waves[d];
+      const n = 48, re = new Float32Array(n), im = new Float32Array(n);
+      for (let k = 1; k < n; k++) im[k] = (2 / (k * Math.PI)) * Math.sin(k * Math.PI * d);
+      return (this._waves[d] = this.ctx.createPeriodicWave(re, im, { disableNormalization: false }));
+    }
     setSound(id) {
       if (SOUNDS[id]) this.sound = id;
       if (!this.ready) return;
       const P = SOUNDS[this.sound], t = this.now();
+      if (P.flfo) this.filtLfo.frequency.setTargetAtTime(P.flfo.rate, t, .05);
       if (P.vib) this.vibLfo.frequency.setTargetAtTime(P.vib.rate, t, .05);
       if (P.trem) this.tremLfo.frequency.setTargetAtTime(P.trem.rate, t, .05);
     }
@@ -214,16 +229,18 @@
       const ctx = this.ctx, P = SOUNDS[opts.preset] || SOUNDS[this.sound], f0 = mtof(midi), oscs = [], extra = [];
 
       // filtro con envolvente sensible a la velocidad
-      const filt = ctx.createBiquadFilter(); filt.type = 'lowpass'; filt.Q.value = P.q;
-      filt.frequency.setValueAtTime(P.cut * (0.6 + vel * .5) + P.env * vel, time);
-      filt.frequency.setTargetAtTime(P.cut * (0.6 + vel * .5), time + P.a, Math.max(.05, P.dcy / 3));
+      const M = this.macro, cut = P.cut * M.cut, a = P.a * M.atk;
+      const filt = ctx.createBiquadFilter(); filt.type = 'lowpass'; filt.Q.value = P.q + M.res * 8;
+      filt.frequency.setValueAtTime(cut * (0.6 + vel * .5) + P.env * vel * M.cut, time);
+      filt.frequency.setTargetAtTime(cut * (0.6 + vel * .5), time + a, Math.max(.05, P.dcy / 3));
+      if (P.flfo) { const fg = ctx.createGain(); fg.gain.value = P.flfo.depth * M.cut; this.filtLfo.connect(fg); fg.connect(filt.frequency); extra.push(fg); }
 
       // VCA (ADSR) y panorama por voz
       const vca = ctx.createGain();
       const peak = .26 * (0.3 + vel * .7), sus = peak * P.s;
       vca.gain.setValueAtTime(.0001, time);
-      vca.gain.linearRampToValueAtTime(peak, time + P.a);
-      vca.gain.setTargetAtTime(Math.max(sus, .0001), time + P.a, P.dcy / 3);
+      vca.gain.linearRampToValueAtTime(peak, time + a);
+      vca.gain.setTargetAtTime(Math.max(sus, .0001), time + a, P.dcy / 3);
       const pan = ctx.createStereoPanner(); pan.pan.value = (Math.random() * 2 - 1) * (P.width || 0) * .6;
 
       // entrada del filtro: directa o a través de formantes (coro)
@@ -246,7 +263,9 @@
       if (P.trem) { const tg = ctx.createGain(); tg.gain.value = peak * P.trem.depth; this.tremLfo.connect(tg); tg.connect(vca.gain); extra.push(tg); }
 
       const mkOsc = (o, detune) => {
-        const osc = ctx.createOscillator(); osc.type = o.t; osc.frequency.setValueAtTime(f0 * o.r, time);
+        const osc = ctx.createOscillator();
+        if (o.t === 'pulse25') osc.setPeriodicWave(this.pulseWave(.25)); else if (o.t === 'pulse12') osc.setPeriodicWave(this.pulseWave(.12)); else osc.type = o.t;
+        osc.frequency.setValueAtTime(f0 * o.r, time);
         osc.detune.value = detune; osc._base = detune;
         if (vibGain) vibGain.connect(osc.detune);
         if (o.fm) { // modulador FM con índice decreciente
@@ -276,10 +295,10 @@
       }
       filt.connect(vca); vca.connect(pan); pan.connect(this.chordBus);
       const cs = ctx.createGain(); cs.gain.value = P.chorus || 0; pan.connect(cs); cs.connect(this.chorusIn);
-      const v = { midi, vca, oscs, track: opts.track || 'live', rel: P.rel * (opts.relMul || 1), sustain: P.s, extra: [vibGain, cs, ...extra].filter(Boolean) };
+      const v = { midi, vca, oscs, track: opts.track || 'live', rel: P.rel * (opts.relMul || 1) * M.rel, sustain: P.s, extra: [vibGain, cs, ...extra].filter(Boolean) };
       this.voices.push(v);
       if (opts.gate) this.noteOff(v, time + opts.gate);
-      else if (P.s === 0) this.noteOff(v, time + P.a + P.dcy * 1.6, true);
+      else if (P.s === 0) this.noteOff(v, time + a + P.dcy * 1.6, true);
       return v;
     }
     noteOff(v, time = this.now(), silent) {

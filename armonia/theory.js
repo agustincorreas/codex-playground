@@ -67,17 +67,17 @@
     return root + core + seventh + ext;
   }
 
-  const SCALES = { major: [0, 2, 4, 5, 7, 9, 11], minor: [0, 2, 3, 5, 7, 8, 10] };
+  const SCALES = { major: [0, 2, 4, 5, 7, 9, 11], minor: [0, 2, 3, 5, 7, 8, 10], dorian: [0, 2, 3, 5, 7, 9, 10], mixolydian: [0, 2, 4, 5, 7, 9, 10], lydian: [0, 2, 4, 6, 7, 9, 11], phrygian: [0, 1, 3, 5, 7, 8, 10], harmonic: [0, 2, 3, 5, 7, 8, 11] };
 
   /** Key Mode: la nota tocada genera el acorde diatónico de la tonalidad (las notas fuera de la escala se ajustan). */
   function keyChord(st) {
-    const scale = SCALES[st.minor ? 'minor' : 'major'];
+    const scale = SCALES[st.scale] || SCALES[st.minor ? 'minor' : 'major'];
     let rel = mod(st.root - st.key, 12);
     while (scale.indexOf(rel) < 0) rel = mod(rel - 1, 12);
     const deg = scale.indexOf(rel);
     const stack = (k) => scale[(deg + k) % 7] + 12 * Math.floor((deg + k) / 7) - scale[deg];
     const iv = [0, stack(2), stack(4)];
-    if (st.minor && deg === 4) iv[1] = 4;                       // V mayor (menor armónica)
+    if ((st.scale === 'minor' || (!st.scale && st.minor)) && deg === 4) iv[1] = 4;   // V mayor (menor armónica)
     const mods = { 6: !!st.mods[6], m7: false, M7: false, 9: !!st.mods[9] };
     if (st.mods[6]) iv.push(9);
     if (st.mods.m7 || st.mods.M7) { const s = stack(6); iv.push(s); if (s === 11) mods.M7 = true; else mods.m7 = true; }

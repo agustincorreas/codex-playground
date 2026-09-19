@@ -56,13 +56,14 @@
       <section class="deck">
         <div class="side left-side">
           <div class="encs">
-            <div class="ctl" data-enc="sound" data-cap="y" data-label="Sound" data-help="sound"></div>
+            <div class="ctl" data-enc="sound" data-cap="y" data-label="Sound" data-help="sound"><div class="sub macros" data-help="macros"><div class="ctl mini" data-knob="mCut" data-min="0.2" data-max="2" data-value="1" data-label="cut"></div><div class="ctl mini" data-knob="mRes" data-min="0" data-max="1" data-value="0" data-label="res"></div><div class="ctl mini" data-knob="mAtk" data-min="0.2" data-max="3" data-value="1" data-label="atk"></div><div class="ctl mini" data-knob="mRel" data-min="0.3" data-max="3" data-value="1" data-label="rel"></div></div></div>
             <div class="ctl" data-enc="perform" data-cap="y" data-label="Perform" data-help="perform"></div>
             <div class="ctl" data-enc="fx" data-cap="y" data-label="FX" data-help="fx"><div class="sub"><div class="ctl mini" data-knob="fxAmt" data-value="0.6" data-label="amt" data-help="fxAmt"></div></div></div>
             <div class="ctl" data-enc="prog" data-cap="y" data-label="Prog" data-help="prog"></div>
             <div class="ctl" data-enc="key" data-cap="k" data-label="Key" data-help="key"><div class="sub"><button class="tog" id="keyMode" type="button" data-help="keymode"><i></i>key mode</button></div></div>
           </div>
           <div class="chordarea">
+            <div class="cgcol">
             <div class="cgrid" id="cgrid" data-help="chord">
               <button class="cbtn" data-type="maj" type="button"><i></i><span>Major</span></button>
               <button class="cbtn" data-type="min" type="button"><i></i><span>Minor</span></button>
@@ -73,8 +74,11 @@
               <button class="cbtn mod" data-mod="M7" type="button"><i></i><span>M7</span></button>
               <button class="cbtn mod" data-mod="9" type="button"><i></i><span>9</span></button>
             </div>
+            <div class="cpads" id="cpads" data-help="pads"></div>
+            </div>
             <div class="voicing">
               <div class="ctl" data-dial="voicing" data-label="Voicing" data-help="voicing"></div>
+              <button class="dice" id="dice" type="button" data-help="dice" title="acorde al azar">⚄</button>
               <div class="ctl" data-knob="octave" data-min="-2" data-max="2" data-step="1" data-value="0" data-label="Octave" data-cap="k" data-small="1" data-help="octave"><div class="sub"><button class="tog" id="splitBtn" type="button" data-help="split"><i></i>split</button></div></div>
             </div>
           </div>
@@ -83,11 +87,12 @@
         <div class="side right-side">
           <div class="encs">
             <div class="ctl" data-knob="bassLevel" data-value="0.8" data-cap="r" data-label="Bass" data-help="bass"><div class="sub"><div class="ctl" data-enc="bass" data-list="1" data-label="" data-help="bassMode"></div><div class="ctl" data-enc="bassSound" data-list="1" data-label="" data-help="bassSound"></div></div></div>
-            <div class="ctl" data-enc="loopBars" data-cap="k" data-label="Loop" data-help="loop"><div class="sub row"><button class="tog rec" id="rec" type="button" data-help="rec"><i></i>rec</button><button class="tog" id="loopPlay" type="button" data-help="loopPlay"><i></i>play</button><button class="tog ghost" id="loopUndo" type="button" data-help="undo">undo</button><button class="tog ghost" id="loopClear" type="button" data-help="clear">clr</button><button class="tog ghost" id="loopSave" type="button" data-help="save">save</button><button class="tog ghost" id="loopLoad" type="button" data-help="load">load</button></div></div>
-            <div class="ctl" data-knob="bpm" data-min="50" data-max="180" data-step="1" data-value="96" data-cap="k" data-label="BPM" data-help="bpm"><div class="sub"><div class="ctl" data-enc="beat" data-list="1" data-label="" data-help="beat"></div><button class="tog play" id="play" type="button" data-help="play"><i></i>play</button></div></div>
+            <div class="ctl" data-enc="loopBars" data-cap="k" data-label="Loop" data-help="loop"><div class="sub row"><button class="tog rec" id="rec" type="button" data-help="rec"><i></i>rec</button><button class="tog" id="loopPlay" type="button" data-help="loopPlay"><i></i>play</button><button class="tog ghost" id="loopUndo" type="button" data-help="undo">undo</button><button class="tog ghost" id="loopClear" type="button" data-help="clear">clr</button><button class="tog ghost" id="loopSave" type="button" data-help="save">save</button><button class="tog ghost" id="loopLoad" type="button" data-help="load">load</button><button class="tog ghost" id="loopMidi" type="button" data-help="exportMidi">midi</button><button class="tog rec" id="recAudio" type="button" data-help="recAudio"><i></i>audio</button></div></div>
+            <div class="ctl" data-knob="bpm" data-min="50" data-max="180" data-step="1" data-value="96" data-cap="k" data-label="BPM" data-help="bpm"><div class="sub"><div class="ctl" data-enc="beat" data-list="1" data-label="" data-help="beat"></div><div class="row2"><button class="tog play" id="play" type="button" data-help="play"><i></i>play</button><button class="tog ghost" id="tap" type="button" data-help="tap">tap</button></div></div></div>
             <div class="ctl options" data-label="Options" data-help="options"><label>Options</label><div class="sub row wrap" id="options"></div></div>
             <div class="ctl" data-knob="volume" data-value="0.8" data-cap="k" data-label="Volume" data-help="volume"></div>
           </div>
+          <div class="strumplate" id="strumplate" data-help="strumplate"><span>strum</span></div>
           <div class="keyboard" id="keyboard" data-help="keyboard"><i class="splitmark" id="splitMark" hidden></i></div>
         </div>
       </section>
@@ -104,6 +109,7 @@
 </div>
 <!--ARTIFACT-END-->
 <script src="theory.js"></script>
+<script src="sounds.js"></script>
 <script src="audio.js"></script>
 <script src="app.js"></script>
 </body>

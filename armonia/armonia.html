@@ -108,7 +108,8 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .deck { display: grid; grid-template-columns: minmax(300px, 5fr) minmax(360px, 7fr); gap: 22px; align-items: start; }
 .side { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 .encs { display: flex; gap: 10px; align-items: flex-start; flex-wrap: wrap; }
-.encs > .ctl { flex: 1 1 86px; min-width: 86px; }
+.encs > .ctl { flex: 1 1 78px; min-width: 78px; }
+.ctl .sub.macros { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 8px; margin-top: 4px; }
 .encs > .ctl[data-enc="loopBars"] { flex-basis: 200px; }
 
 /* ---------------- controles */
@@ -209,6 +210,21 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .cgrid { padding-top: 12px; }
 
 .voicing { display: flex; align-items: flex-end; gap: 14px; }
+.cgcol { display: flex; flex-direction: column; gap: 10px; }
+.cpads { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; width: 240px; }
+.cpads button { height: 26px; border: 1px solid #1b1b1e; border-radius: 6px; background: linear-gradient(#3b3c42, #2e2f34); color: var(--muted); font: 500 8px var(--mono); padding: 0 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; box-shadow: 0 2px 0 #1b1b1e; transition: .08s; }
+.cpads button.filled { color: var(--ink); border-color: #4a4b52; }
+.cpads button.on { background: var(--cap-y); color: var(--panel); transform: translateY(1px); box-shadow: 0 0 10px rgba(242,182,54,.6); }
+.cpads button.storing { animation: blink .4s 2; }
+.dice { width: 34px; height: 34px; border-radius: 8px; border: 1px solid #1b1b1e; background: linear-gradient(#3f4046, #2f3035); color: var(--ink); font-size: 18px; line-height: 1; box-shadow: 0 2px 0 #1b1b1e; align-self: center; margin-bottom: 26px; }
+.dice:active { transform: translateY(2px); box-shadow: none; }
+.strumplate { position: relative; height: 26px; margin-bottom: 8px; border-radius: 8px; cursor: crosshair; touch-action: none; overflow: hidden;
+  background: repeating-linear-gradient(90deg, #35363b 0 6px, #2b2c30 6px 12px); box-shadow: inset 0 0 0 1px #1d1d20, inset 0 2px 6px rgba(0,0,0,.5); }
+.strumplate span { position: absolute; right: 10px; top: 0; line-height: 26px; font: 500 8px var(--sans); letter-spacing: .2em; text-transform: uppercase; color: var(--dim); pointer-events: none; }
+.strumplate i { position: absolute; top: 0; bottom: 0; width: 3px; background: var(--cap-y); box-shadow: 0 0 10px var(--cap-y); opacity: 0; transition: opacity .25s; }
+.strumplate i.hit { opacity: 1; transition: none; }
+.row2 { display: flex; gap: 4px; }
+.tog.rec.on i { animation: none; }
 
 /* ---------------- teclado */
 .keyboard { position: relative; height: 200px; }
@@ -279,15 +295,23 @@ body.mobile .ctl .sub.wrap { max-width: none; }
 body.mobile .tog { padding: 7px 10px 7px 8px; font-size: 10px; }
 body.mobile .enc-val b { min-width: 48px; font-size: 10px; }
 body.mobile .enc-val button { padding: 4px 6px; font-size: 14px; }
+body.mobile .strumplate { order: 4; position: sticky; bottom: 166px; z-index: 6; margin: 0 -8px; padding: 0; height: 30px; border-radius: 0; box-shadow: inset 0 0 0 1px #1d1d20; }
 body.mobile .chordarea {
-  order: 3; position: sticky; bottom: 166px; z-index: 5; gap: 12px; justify-content: space-between; flex-wrap: nowrap;
+  order: 3; position: sticky; bottom: 196px; z-index: 5; gap: 6px; justify-content: space-between; flex-wrap: nowrap;
   padding: 12px 6px 6px; margin: 0 -8px; background: linear-gradient(180deg, rgba(42,43,47,0) 0%, var(--panel) 22%);
 }
-body.mobile .cgrid { grid-template-columns: repeat(4, 44px); grid-auto-rows: 44px; gap: 6px; padding: 12px 0 14px; margin: 0; }
+body.mobile .cgrid { grid-template-columns: repeat(4, 38px); grid-auto-rows: 38px; gap: 5px; padding: 12px 0 14px; margin: 0; }
+body.mobile .cpads { width: 167px; gap: 3px; }
+body.mobile .cpads button { height: 22px; font-size: 7px; }
+body.mobile .dice { margin-bottom: 20px; }
 body.mobile .cbtn { border-radius: 8px; }
 body.mobile .cbtn i { width: 22px; height: 22px; }
 body.mobile .voicing { gap: 8px; }
-body.mobile .knob.big { width: 72px; height: 72px; }
+body.mobile .knob.big { width: 60px; height: 60px; }
+body.mobile .voicing { gap: 4px; }
+body.mobile .dice { width: 28px; height: 28px; font-size: 14px; margin-bottom: 22px; }
+body.mobile .cbtn i { width: 20px; height: 20px; }
+body.mobile .cgcol { gap: 6px; }
 body.mobile .keyboard {
   order: 4; position: sticky; bottom: 0; z-index: 6; height: 150px; margin: 0 -8px; padding: 6px 8px 10px;
   background: var(--panel); box-shadow: 0 -8px 16px -10px rgba(0,0,0,.6);
@@ -345,13 +369,14 @@ body.mobile .helpcard { left: 10px !important; right: 10px; top: auto !important
       <section class="deck">
         <div class="side left-side">
           <div class="encs">
-            <div class="ctl" data-enc="sound" data-cap="y" data-label="Sound" data-help="sound"></div>
+            <div class="ctl" data-enc="sound" data-cap="y" data-label="Sound" data-help="sound"><div class="sub macros" data-help="macros"><div class="ctl mini" data-knob="mCut" data-min="0.2" data-max="2" data-value="1" data-label="cut"></div><div class="ctl mini" data-knob="mRes" data-min="0" data-max="1" data-value="0" data-label="res"></div><div class="ctl mini" data-knob="mAtk" data-min="0.2" data-max="3" data-value="1" data-label="atk"></div><div class="ctl mini" data-knob="mRel" data-min="0.3" data-max="3" data-value="1" data-label="rel"></div></div></div>
             <div class="ctl" data-enc="perform" data-cap="y" data-label="Perform" data-help="perform"></div>
             <div class="ctl" data-enc="fx" data-cap="y" data-label="FX" data-help="fx"><div class="sub"><div class="ctl mini" data-knob="fxAmt" data-value="0.6" data-label="amt" data-help="fxAmt"></div></div></div>
             <div class="ctl" data-enc="prog" data-cap="y" data-label="Prog" data-help="prog"></div>
             <div class="ctl" data-enc="key" data-cap="k" data-label="Key" data-help="key"><div class="sub"><button class="tog" id="keyMode" type="button" data-help="keymode"><i></i>key mode</button></div></div>
           </div>
           <div class="chordarea">
+            <div class="cgcol">
             <div class="cgrid" id="cgrid" data-help="chord">
               <button class="cbtn" data-type="maj" type="button"><i></i><span>Major</span></button>
               <button class="cbtn" data-type="min" type="button"><i></i><span>Minor</span></button>
@@ -362,8 +387,11 @@ body.mobile .helpcard { left: 10px !important; right: 10px; top: auto !important
               <button class="cbtn mod" data-mod="M7" type="button"><i></i><span>M7</span></button>
               <button class="cbtn mod" data-mod="9" type="button"><i></i><span>9</span></button>
             </div>
+            <div class="cpads" id="cpads" data-help="pads"></div>
+            </div>
             <div class="voicing">
               <div class="ctl" data-dial="voicing" data-label="Voicing" data-help="voicing"></div>
+              <button class="dice" id="dice" type="button" data-help="dice" title="acorde al azar">⚄</button>
               <div class="ctl" data-knob="octave" data-min="-2" data-max="2" data-step="1" data-value="0" data-label="Octave" data-cap="k" data-small="1" data-help="octave"><div class="sub"><button class="tog" id="splitBtn" type="button" data-help="split"><i></i>split</button></div></div>
             </div>
           </div>
@@ -372,11 +400,12 @@ body.mobile .helpcard { left: 10px !important; right: 10px; top: auto !important
         <div class="side right-side">
           <div class="encs">
             <div class="ctl" data-knob="bassLevel" data-value="0.8" data-cap="r" data-label="Bass" data-help="bass"><div class="sub"><div class="ctl" data-enc="bass" data-list="1" data-label="" data-help="bassMode"></div><div class="ctl" data-enc="bassSound" data-list="1" data-label="" data-help="bassSound"></div></div></div>
-            <div class="ctl" data-enc="loopBars" data-cap="k" data-label="Loop" data-help="loop"><div class="sub row"><button class="tog rec" id="rec" type="button" data-help="rec"><i></i>rec</button><button class="tog" id="loopPlay" type="button" data-help="loopPlay"><i></i>play</button><button class="tog ghost" id="loopUndo" type="button" data-help="undo">undo</button><button class="tog ghost" id="loopClear" type="button" data-help="clear">clr</button><button class="tog ghost" id="loopSave" type="button" data-help="save">save</button><button class="tog ghost" id="loopLoad" type="button" data-help="load">load</button></div></div>
-            <div class="ctl" data-knob="bpm" data-min="50" data-max="180" data-step="1" data-value="96" data-cap="k" data-label="BPM" data-help="bpm"><div class="sub"><div class="ctl" data-enc="beat" data-list="1" data-label="" data-help="beat"></div><button class="tog play" id="play" type="button" data-help="play"><i></i>play</button></div></div>
+            <div class="ctl" data-enc="loopBars" data-cap="k" data-label="Loop" data-help="loop"><div class="sub row"><button class="tog rec" id="rec" type="button" data-help="rec"><i></i>rec</button><button class="tog" id="loopPlay" type="button" data-help="loopPlay"><i></i>play</button><button class="tog ghost" id="loopUndo" type="button" data-help="undo">undo</button><button class="tog ghost" id="loopClear" type="button" data-help="clear">clr</button><button class="tog ghost" id="loopSave" type="button" data-help="save">save</button><button class="tog ghost" id="loopLoad" type="button" data-help="load">load</button><button class="tog ghost" id="loopMidi" type="button" data-help="exportMidi">midi</button><button class="tog rec" id="recAudio" type="button" data-help="recAudio"><i></i>audio</button></div></div>
+            <div class="ctl" data-knob="bpm" data-min="50" data-max="180" data-step="1" data-value="96" data-cap="k" data-label="BPM" data-help="bpm"><div class="sub"><div class="ctl" data-enc="beat" data-list="1" data-label="" data-help="beat"></div><div class="row2"><button class="tog play" id="play" type="button" data-help="play"><i></i>play</button><button class="tog ghost" id="tap" type="button" data-help="tap">tap</button></div></div></div>
             <div class="ctl options" data-label="Options" data-help="options"><label>Options</label><div class="sub row wrap" id="options"></div></div>
             <div class="ctl" data-knob="volume" data-value="0.8" data-cap="k" data-label="Volume" data-help="volume"></div>
           </div>
+          <div class="strumplate" id="strumplate" data-help="strumplate"><span>strum</span></div>
           <div class="keyboard" id="keyboard" data-help="keyboard"><i class="splitmark" id="splitMark" hidden></i></div>
         </div>
       </section>
@@ -462,17 +491,17 @@ body.mobile .helpcard { left: 10px !important; right: 10px; top: auto !important
     return root + core + seventh + ext;
   }
 
-  const SCALES = { major: [0, 2, 4, 5, 7, 9, 11], minor: [0, 2, 3, 5, 7, 8, 10] };
+  const SCALES = { major: [0, 2, 4, 5, 7, 9, 11], minor: [0, 2, 3, 5, 7, 8, 10], dorian: [0, 2, 3, 5, 7, 9, 10], mixolydian: [0, 2, 4, 5, 7, 9, 10], lydian: [0, 2, 4, 6, 7, 9, 11], phrygian: [0, 1, 3, 5, 7, 8, 10], harmonic: [0, 2, 3, 5, 7, 8, 11] };
 
   /** Key Mode: la nota tocada genera el acorde diatónico de la tonalidad (las notas fuera de la escala se ajustan). */
   function keyChord(st) {
-    const scale = SCALES[st.minor ? 'minor' : 'major'];
+    const scale = SCALES[st.scale] || SCALES[st.minor ? 'minor' : 'major'];
     let rel = mod(st.root - st.key, 12);
     while (scale.indexOf(rel) < 0) rel = mod(rel - 1, 12);
     const deg = scale.indexOf(rel);
     const stack = (k) => scale[(deg + k) % 7] + 12 * Math.floor((deg + k) / 7) - scale[deg];
     const iv = [0, stack(2), stack(4)];
-    if (st.minor && deg === 4) iv[1] = 4;                       // V mayor (menor armónica)
+    if ((st.scale === 'minor' || (!st.scale && st.minor)) && deg === 4) iv[1] = 4;   // V mayor (menor armónica)
     const mods = { 6: !!st.mods[6], m7: false, M7: false, 9: !!st.mods[9] };
     if (st.mods[6]) iv.push(9);
     if (st.mods.m7 || st.mods.M7) { const s = stack(6); iv.push(s); if (s === 11) mods.M7 = true; else mods.m7 = true; }
@@ -511,6 +540,63 @@ body.mobile .helpcard { left: 10px !important; right: 10px; top: auto !important
   function midiName(m, useFlats) { return (useFlats ? FLAT : SHARP)[mod(m, 12)] + (Math.floor(m / 12) - 1); }
 
   global.Theory = { SHARP, FLAT, TYPES, MODS, SCALES, comboType, buildChord, keyChord, bassNote, midiName, mod };
+})(window);
+
+/* ==========================================================================
+   ARMONÍA · banco 80s/90s — 40 presets polifónicos
+   Formato igual a SOUNDS (audio.js). Tipos extra: pulse25 / pulse12 (PWM fija), flfo (LFO de filtro).
+   ========================================================================== */
+(function (global) {
+  'use strict';
+  const U = (n, spread) => ({ n, spread });
+  global.SOUND_BANK = {
+    /* ---------- pads */
+    polypad84: { cat: 'Pad', name: 'Poly Pad 84', oscs: [{ t: 'sawtooth', r: 1, g: .14, uni: true }, { t: 'pulse25', r: 1, d: -6, g: .1 }, { t: 'sawtooth', r: .5, g: .06 }], unison: U(3, 12), a: .35, dcy: 1, s: .85, rel: 1.6, cut: 900, env: 1200, q: .8, vib: { depth: 4, rate: .6, delay: 0 }, width: .8, chorus: .85 },
+    warmpad:   { cat: 'Pad', name: 'Warm Analog', oscs: [{ t: 'sawtooth', r: 1, g: .15, uni: true }, { t: 'triangle', r: .5, g: .12 }], unison: U(4, 9), a: .8, dcy: 1.2, s: .9, rel: 2.4, cut: 500, env: 500, q: .5, width: .9, chorus: .5 },
+    supersaw:  { cat: 'Pad', name: 'Supersaw', oscs: [{ t: 'sawtooth', r: 1, g: .09, uni: true }, { t: 'sawtooth', r: 2, d: 4, g: .03 }], unison: U(7, 22), a: .25, dcy: .8, s: .9, rel: 1.4, cut: 1800, env: 1500, q: .6, width: 1, chorus: .4 },
+    glasspad:  { cat: 'Pad', name: 'Glass Pad 87', oscs: [{ t: 'sine', r: 1, g: .32, fm: { r: 3, i: .5, dcy: 1.5 } }, { t: 'triangle', r: 2, d: 5, g: .1 }, { t: 'sine', r: 4, g: .05 }], noise: { g: .06, dcy: 1.2, hp: 3000 }, a: .2, dcy: 2, s: .6, rel: 2.4, cut: 4500, env: 800, q: .5, width: .9, chorus: .6 },
+    darkpad:   { cat: 'Pad', name: 'Dark Pad', oscs: [{ t: 'sawtooth', r: .5, g: .16, uni: true }, { t: 'square', r: .25, g: .08 }], unison: U(3, 10), a: 1.2, dcy: 1.5, s: .9, rel: 3, cut: 380, env: 300, q: .9, flfo: { rate: .12, depth: 260 }, width: .8, chorus: .4 },
+    choir90:   { cat: 'Pad', name: 'Choir 90s', oscs: [{ t: 'sawtooth', r: 1, g: .2, uni: true }, { t: 'sawtooth', r: .5, g: .05 }], unison: U(3, 8), formants: [[600, 8, 1], [1040, 11, .6], [2250, 13, .3]], a: .6, dcy: 1, s: .9, rel: 2, cut: 4200, env: 0, q: .5, vib: { depth: 10, rate: 4.6, delay: 1 }, width: .9, chorus: .6 },
+    sweeppad:  { cat: 'Pad', name: 'Sweep Pad', oscs: [{ t: 'sawtooth', r: 1, g: .14, uni: true }, { t: 'pulse25', r: 1, d: 7, g: .08 }], unison: U(3, 11), a: .5, dcy: 1, s: .85, rel: 2, cut: 700, env: 400, q: 2.5, flfo: { rate: .18, depth: 900 }, width: .9, chorus: .5 },
+    drone:     { cat: 'Pad', name: 'Ambient Drone', oscs: [{ t: 'sine', r: 1, g: .3 }, { t: 'sine', r: .5, g: .2 }, { t: 'triangle', r: 1.5, d: 3, g: .06 }, { t: 'sine', r: 3, g: .04 }], noise: { g: .04, dcy: 3, hp: 2000 }, a: 1.5, dcy: 2, s: .95, rel: 4, cut: 2500, env: 0, q: .5, vib: { depth: 3, rate: .2, delay: 0 }, width: 1, chorus: .7 },
+    stringmach:{ cat: 'Pad', name: 'String Machine', oscs: [{ t: 'sawtooth', r: 1, g: .16, uni: true }, { t: 'sawtooth', r: 2, d: 4, g: .07 }], unison: U(3, 6), a: .12, dcy: .3, s: .95, rel: .9, cut: 2600, env: 300, q: .5, vib: { depth: 6, rate: 6, delay: .1 }, width: .7, chorus: 1 },
+    trancepad: { cat: 'Pad', name: 'Trance Pad', oscs: [{ t: 'sawtooth', r: 1, g: .1, uni: true }, { t: 'sawtooth', r: .5, g: .05 }], unison: U(6, 18), a: .4, dcy: 1, s: .9, rel: 1.8, cut: 1200, env: 1400, q: 1.5, flfo: { rate: .25, depth: 500 }, width: 1, chorus: .5 },
+    /* ---------- keys */
+    dxep:      { cat: 'Keys', name: 'DX E-Piano', oscs: [{ t: 'sine', r: 1, g: .5, fm: { r: 1, i: 2.4, dcy: .35 } }, { t: 'sine', r: 1, g: .3, fm: { r: 14, i: .5, dcy: .1 } }, { t: 'sine', r: 2, d: 3, g: .1 }], noise: { g: .04, dcy: .01, hp: 2500 }, a: .002, dcy: 2.5, s: .1, rel: .9, cut: 6000, env: 3000, q: .5, trem: { depth: .15, rate: 5.4 }, width: .7, chorus: .3 },
+    fmpiano:   { cat: 'Keys', name: 'FM Piano 80s', oscs: [{ t: 'sine', r: 1, g: .5, fm: { r: 2, i: 2.8, dcy: .4 } }, { t: 'sine', r: 3, g: .08, fm: { r: 1, i: .6, dcy: .2 } }], noise: { g: .08, dcy: .008, hp: 3500 }, a: .002, dcy: 2, s: .05, rel: .7, cut: 7000, env: 2000, q: .5, width: .6, chorus: .15 },
+    housepiano:{ cat: 'Keys', name: 'House Piano', oscs: [{ t: 'sawtooth', r: 1, g: .28 }, { t: 'square', r: 1, d: 6, g: .12 }, { t: 'sine', r: 2, g: .12 }, { t: 'triangle', r: 4, g: .05 }], noise: { g: .15, dcy: .01, hp: 3000 }, a: .002, dcy: 1.1, s: .08, rel: .35, cut: 2200, env: 4200, q: .9, width: .5, chorus: .25 },
+    clav80:    { cat: 'Keys', name: 'Clav 80s', oscs: [{ t: 'pulse12', r: 1, g: .3 }, { t: 'sawtooth', r: 1, d: 9, g: .12 }, { t: 'pulse25', r: 2, g: .06 }], noise: { g: .15, dcy: .006, hp: 2500 }, a: .001, dcy: .8, s: .05, rel: .15, cut: 1100, env: 5000, q: 3.5, width: .3, chorus: .1 },
+    harpsi:    { cat: 'Keys', name: 'Digital Harpsi', oscs: [{ t: 'pulse12', r: 1, g: .26 }, { t: 'pulse12', r: 2, d: 5, g: .14 }, { t: 'sawtooth', r: 4, g: .04 }], noise: { g: .1, dcy: .005, hp: 4000 }, a: .001, dcy: 1, s: 0, rel: .25, cut: 3500, env: 2500, q: 1.2, width: .5, chorus: .2 },
+    polypluck: { cat: 'Keys', name: 'Poly Pluck', oscs: [{ t: 'sawtooth', r: 1, g: .24 }, { t: 'pulse25', r: 1, d: -5, g: .14 }, { t: 'sawtooth', r: .5, g: .05 }], a: .002, dcy: .55, s: 0, rel: .4, cut: 300, env: 5200, q: 2.6, width: .6, chorus: .45 },
+    digivibes: { cat: 'Keys', name: 'Digital Vibes', oscs: [{ t: 'sine', r: 1, g: .5 }, { t: 'sine', r: 4, g: .14, fm: { r: 1, i: .3, dcy: .3 } }, { t: 'sine', r: 10, g: .02 }], noise: { g: .06, dcy: .005, hp: 2500 }, a: .001, dcy: 2, s: 0, rel: 1.2, cut: 8000, env: 0, q: .5, trem: { depth: .4, rate: 5 }, width: .8, chorus: .2 },
+    musicbox:  { cat: 'Keys', name: 'Music Box', oscs: [{ t: 'sine', r: 2, g: .45 }, { t: 'sine', r: 8.05, g: .08 }, { t: 'sine', r: 12.4, g: .03 }], noise: { g: .08, dcy: .004, hp: 5000 }, a: .001, dcy: 1.4, s: 0, rel: .8, cut: 9000, env: 0, q: .5, width: .9, chorus: .3 },
+    /* ---------- brass y leads polifónicos */
+    polybrass: { cat: 'Brass', name: 'Poly Brass', oscs: [{ t: 'sawtooth', r: 1, g: .2, uni: true }, { t: 'sawtooth', r: .5, g: .06 }], unison: U(3, 9), a: .05, dcy: .4, s: .7, rel: .3, cut: 500, env: 3400, q: 1.6, vib: { depth: 6, rate: 5.5, delay: .4 }, width: .5, chorus: .2 },
+    brassstab: { cat: 'Brass', name: 'Brass Stab', oscs: [{ t: 'sawtooth', r: 1, g: .22, uni: true }, { t: 'pulse25', r: 1, d: 8, g: .12 }], unison: U(2, 12), a: .01, dcy: .35, s: .25, rel: .2, cut: 900, env: 5000, q: 2, width: .4, chorus: .3 },
+    horns80:   { cat: 'Brass', name: 'Horns 80s', oscs: [{ t: 'pulse25', r: 1, g: .22, uni: true }, { t: 'sawtooth', r: 1, d: 6, g: .1 }], unison: U(2, 7), a: .09, dcy: .4, s: .75, rel: .4, cut: 700, env: 2200, q: 1, vib: { depth: 8, rate: 5.2, delay: .5 }, width: .5, chorus: .35 },
+    sawlead:   { cat: 'Lead', name: 'Saw Lead Poly', oscs: [{ t: 'sawtooth', r: 1, g: .26 }, { t: 'sawtooth', r: 1, d: 12, g: .18 }, { t: 'sawtooth', r: 2, g: .04 }], a: .01, dcy: .3, s: .8, rel: .25, cut: 1500, env: 2500, q: 1.2, vib: { depth: 7, rate: 5.8, delay: .3 }, width: .3, chorus: .2 },
+    chiplead:  { cat: 'Lead', name: 'Square Lead 8-bit', oscs: [{ t: 'pulse12', r: 1, g: .3 }, { t: 'pulse25', r: 2, g: .05 }], a: .002, dcy: .2, s: .8, rel: .1, cut: 9000, env: 0, q: .5, vib: { depth: 12, rate: 6.5, delay: .2 }, width: .1, chorus: 0 },
+    synclead:  { cat: 'Lead', name: 'Sync Lead', oscs: [{ t: 'sawtooth', r: 1, g: .22 }, { t: 'sawtooth', r: 1.5, g: .14 }, { t: 'square', r: 2, d: 4, g: .05 }], a: .01, dcy: .4, s: .7, rel: .25, cut: 1200, env: 4200, q: 2.2, width: .3, chorus: .15 },
+    trancelead:{ cat: 'Lead', name: 'Trance Lead', oscs: [{ t: 'sawtooth', r: 1, g: .1, uni: true }, { t: 'sawtooth', r: 2, d: 6, g: .04 }], unison: U(6, 26), a: .02, dcy: .4, s: .8, rel: .5, cut: 2600, env: 2200, q: .9, width: .9, chorus: .4 },
+    /* ---------- campanas / FM */
+    fmbells:   { cat: 'Bell', name: 'FM Bells 80s', oscs: [{ t: 'sine', r: 1, g: .42, fm: { r: 3.5, i: 3, dcy: 1 } }, { t: 'sine', r: 2, g: .12 }, { t: 'sine', r: 7, g: .04 }], a: .002, dcy: 2.5, s: 0, rel: 2, cut: 9000, env: 0, q: .5, width: .9, chorus: .25 },
+    tubular:   { cat: 'Bell', name: 'Tubular', oscs: [{ t: 'sine', r: 1, g: .4, fm: { r: 2.76, i: 1.8, dcy: 1.4 } }, { t: 'sine', r: 5.4, g: .06 }, { t: 'sine', r: 1.5, g: .05 }], noise: { g: .1, dcy: .006, hp: 4000 }, a: .002, dcy: 3.2, s: 0, rel: 2.5, cut: 8000, env: 0, q: .5, width: .8, chorus: .2 },
+    crystal:   { cat: 'Bell', name: 'Crystal', oscs: [{ t: 'sine', r: 1, g: .3, fm: { r: 3.5, i: .9, dcy: .8 } }, { t: 'sine', r: 2, g: .2 }, { t: 'triangle', r: 4, d: 4, g: .08 }], a: .01, dcy: 1.6, s: .2, rel: 1.6, cut: 7000, env: 1000, q: .5, width: 1, chorus: .5 },
+    digimarimba:{ cat: 'Bell', name: 'Digital Marimba', oscs: [{ t: 'sine', r: 1, g: .5 }, { t: 'sine', r: 4, g: .18 }, { t: 'sine', r: 9.2, g: .04 }], noise: { g: .2, dcy: .005, hp: 1500 }, a: .001, dcy: .45, s: 0, rel: .3, cut: 7000, env: 0, q: .5, width: .6, chorus: .1 },
+    fmkalimba: { cat: 'Bell', name: 'FM Kalimba', oscs: [{ t: 'sine', r: 1, g: .45, fm: { r: 5.9, i: .8, dcy: .15 } }, { t: 'sine', r: 2, g: .08 }], noise: { g: .2, dcy: .004, hp: 3000 }, a: .001, dcy: .9, s: 0, rel: .5, cut: 7000, env: 0, q: .5, width: .8, chorus: .2 },
+    /* ---------- voces y cuerdas */
+    voxhumana: { cat: 'Vox', name: 'Vox Humana', oscs: [{ t: 'pulse25', r: 1, g: .2, uni: true }, { t: 'sawtooth', r: 1, d: 5, g: .08 }], unison: U(2, 8), formants: [[500, 7, 1], [900, 10, .5], [2400, 12, .25]], a: .3, dcy: .5, s: .9, rel: 1.2, cut: 3500, env: 0, q: .5, vib: { depth: 14, rate: 5.4, delay: .4 }, width: .7, chorus: .4 },
+    anastrings:{ cat: 'Strings', name: 'Analog Strings', oscs: [{ t: 'sawtooth', r: 1, g: .15, uni: true }, { t: 'sawtooth', r: 2, d: 3, g: .05 }, { t: 'sawtooth', r: .5, g: .05 }], unison: U(3, 10), a: .4, dcy: .8, s: .9, rel: 1.5, cut: 1400, env: 500, q: .6, vib: { depth: 8, rate: 5, delay: .7 }, width: .8, chorus: .55 },
+    orchhit:   { cat: 'Strings', name: 'Orchestra Hit', oscs: [{ t: 'sawtooth', r: 1, g: .18, uni: true }, { t: 'sawtooth', r: .5, g: .14 }, { t: 'square', r: 2, g: .06 }, { t: 'sawtooth', r: 4, g: .03 }], unison: U(4, 14), noise: { g: .2, dcy: .05, hp: 1500 }, a: .005, dcy: .5, s: 0, rel: .4, cut: 2500, env: 3000, q: .8, width: .9, chorus: .3 },
+    choiraah:  { cat: 'Vox', name: 'Choir Aah 80s', oscs: [{ t: 'sawtooth', r: 1, g: .18, uni: true }, { t: 'triangle', r: 2, g: .06 }], unison: U(3, 7), formants: [[750, 8, 1], [1200, 10, .5], [2700, 12, .2]], a: .45, dcy: 1, s: .9, rel: 1.6, cut: 4000, env: 0, q: .5, vib: { depth: 9, rate: 4.8, delay: .8 }, width: .9, chorus: .5 },
+    /* ---------- órganos y otros */
+    rockorgan: { cat: 'Organ', name: 'Rock Organ', oscs: [{ t: 'sine', r: 1, g: .38 }, { t: 'sine', r: 2, g: .3 }, { t: 'sine', r: 3, g: .2 }, { t: 'sine', r: 4, g: .14 }, { t: 'sine', r: 6, g: .08 }, { t: 'sine', r: 8, g: .08 }], perc: { r: 3, g: .35, dcy: .3 }, a: .006, dcy: .1, s: 1, rel: .08, cut: 7000, env: 0, q: .5, vib: { depth: 8, rate: 6.8, delay: 0 }, trem: { depth: .25, rate: 6.8 }, width: .3, chorus: .5 },
+    cheeseorg: { cat: 'Organ', name: 'Cheese Organ', oscs: [{ t: 'square', r: 1, g: .2 }, { t: 'sine', r: 2, g: .2 }, { t: 'square', r: 4, g: .05 }], a: .01, dcy: .1, s: 1, rel: .1, cut: 4500, env: 0, q: .5, vib: { depth: 5, rate: 5.6, delay: 0 }, width: .3, chorus: .3 },
+    accordion: { cat: 'Organ', name: 'Accordion', oscs: [{ t: 'pulse25', r: 1, g: .18, uni: true }, { t: 'sawtooth', r: 2, d: 3, g: .05 }], unison: U(3, 14), a: .05, dcy: .2, s: .95, rel: .15, cut: 3200, env: 300, q: .6, width: .5, chorus: .3 },
+    steeldrum: { cat: 'Bell', name: 'Steel Drum', oscs: [{ t: 'sine', r: 1, g: .4, fm: { r: 2.5, i: 1.2, dcy: .25 } }, { t: 'sine', r: 3, g: .1 }, { t: 'sine', r: 4.2, g: .05 }], noise: { g: .1, dcy: .005, hp: 3000 }, a: .002, dcy: .9, s: 0, rel: .6, cut: 7000, env: 0, q: .5, width: .8, chorus: .3 },
+    chip8bit:  { cat: 'Lead', name: '8-bit Chip', oscs: [{ t: 'pulse25', r: 1, g: .3 }], a: .001, dcy: .3, s: .6, rel: .05, cut: 12000, env: 0, q: .5, width: 0, chorus: 0 },
+    lofikeys:  { cat: 'Keys', name: 'Lo-fi Keys', oscs: [{ t: 'triangle', r: 1, g: .45 }, { t: 'sine', r: 2, g: .12 }, { t: 'sawtooth', r: 1, d: 8, g: .06 }], noise: { g: .12, dcy: .4, hp: 4000 }, a: .004, dcy: 1.4, s: .2, rel: .8, cut: 1100, env: 1200, q: .8, vib: { depth: 6, rate: .9, delay: 0 }, width: .5, chorus: .35 },
+  };
 })(window);
 
 /* ==========================================================================
@@ -569,6 +655,9 @@ body.mobile .helpcard { left: 10px !important; right: 10px; top: auto !important
                unison: { n: 3, spread: 10 }, a: .01, dcy: 2.5, s: .35, rel: 2.8, cut: 2500, env: 1500, q: .6, vib: { depth: 4, rate: .3, delay: 0 }, width: .9, chorus: .8 },
   };
 
+  for (const k in (window.SOUND_BANK || {})) SOUNDS[k] = window.SOUND_BANK[k];
+  for (const k in SOUNDS) if (!SOUNDS[k].cat) SOUNDS[k].cat = 'Clásico';
+
   const BASS = {
     sub:    { name: 'Sub',    sub: .8, saw: .12, sq: .05, cut: 120, env: 500,  q: 1.5, dcy: .6,  drive: 1.2, click: .05 },
     finger: { name: 'Finger', sub: .55, saw: .32, sq: .08, cut: 180, env: 1100, q: 2.5, dcy: .5,  drive: 2.2, click: .12 },
@@ -593,6 +682,8 @@ body.mobile .helpcard { left: 10px !important; right: 10px; top: auto !important
       this.sound = 'keys'; this.fx = 'room'; this.fxAmount = .6;
       this.voices = []; this.bassVoice = null;
       this.levels = { chord: .8, bass: .8, drums: .7, master: .8 };
+      this.macro = { cut: 1, res: 0, atk: 1, rel: 1 };   // edición sobre el preset
+      this._waves = {};
     }
 
     init() {
@@ -618,8 +709,9 @@ body.mobile .helpcard { left: 10px !important; right: 10px; top: auto !important
       mk(.013, .55, .0028, 0); mk(.021, .83, .0034, 1);
       merger.connect(this.chorusWet); this.chorusWet.connect(this.mix);
 
-      // LFOs compartidos para vibrato y trémolo
+      // LFOs compartidos para vibrato, trémolo y filtro
       this.vibLfo = ctx.createOscillator(); this.vibLfo.frequency.value = 5.5; this.vibLfo.start();
+      this.filtLfo = ctx.createOscillator(); this.filtLfo.frequency.value = .2; this.filtLfo.start();
       this.tremLfo = ctx.createOscillator(); this.tremLfo.frequency.value = 5; this.tremLfo.start();
       document.addEventListener('visibilitychange', () => { if (!document.hidden) this.resume(); });
 
@@ -659,6 +751,7 @@ body.mobile .helpcard { left: 10px !important; right: 10px; top: auto !important
       this.master.connect(this.limiter); this.limiter.connect(this.analyser); this.analyser.connect(ctx.destination);
 
       this.metroGain = ctx.createGain(); this.metroGain.gain.value = .3; this.metroGain.connect(this.limiter);
+      this.streamDest = ctx.createMediaStreamDestination(); this.limiter.connect(this.streamDest);
       this.noise = this._noiseBuffer();
       this.ready = true;
       this.applyFx(); this.setSound(this.sound);
@@ -674,10 +767,18 @@ body.mobile .helpcard { left: 10px !important; right: 10px; top: auto !important
 
     // ------------------------------------------------------------ niveles / FX
     setLevel(k, v) { this.levels[k] = v; if (!this.ready) return; const n = { chord: this.chordBus, bass: this.bassBus, drums: this.drumBus, master: this.master }[k]; n.gain.setTargetAtTime(v, this.now(), .02); }
+    setMacro(k, v) { this.macro[k] = v; }
+    pulseWave(d) {
+      if (this._waves[d]) return this._waves[d];
+      const n = 48, re = new Float32Array(n), im = new Float32Array(n);
+      for (let k = 1; k < n; k++) im[k] = (2 / (k * Math.PI)) * Math.sin(k * Math.PI * d);
+      return (this._waves[d] = this.ctx.createPeriodicWave(re, im, { disableNormalization: false }));
+    }
     setSound(id) {
       if (SOUNDS[id]) this.sound = id;
       if (!this.ready) return;
       const P = SOUNDS[this.sound], t = this.now();
+      if (P.flfo) this.filtLfo.frequency.setTargetAtTime(P.flfo.rate, t, .05);
       if (P.vib) this.vibLfo.frequency.setTargetAtTime(P.vib.rate, t, .05);
       if (P.trem) this.tremLfo.frequency.setTargetAtTime(P.trem.rate, t, .05);
     }
@@ -729,16 +830,18 @@ body.mobile .helpcard { left: 10px !important; right: 10px; top: auto !important
       const ctx = this.ctx, P = SOUNDS[opts.preset] || SOUNDS[this.sound], f0 = mtof(midi), oscs = [], extra = [];
 
       // filtro con envolvente sensible a la velocidad
-      const filt = ctx.createBiquadFilter(); filt.type = 'lowpass'; filt.Q.value = P.q;
-      filt.frequency.setValueAtTime(P.cut * (0.6 + vel * .5) + P.env * vel, time);
-      filt.frequency.setTargetAtTime(P.cut * (0.6 + vel * .5), time + P.a, Math.max(.05, P.dcy / 3));
+      const M = this.macro, cut = P.cut * M.cut, a = P.a * M.atk;
+      const filt = ctx.createBiquadFilter(); filt.type = 'lowpass'; filt.Q.value = P.q + M.res * 8;
+      filt.frequency.setValueAtTime(cut * (0.6 + vel * .5) + P.env * vel * M.cut, time);
+      filt.frequency.setTargetAtTime(cut * (0.6 + vel * .5), time + a, Math.max(.05, P.dcy / 3));
+      if (P.flfo) { const fg = ctx.createGain(); fg.gain.value = P.flfo.depth * M.cut; this.filtLfo.connect(fg); fg.connect(filt.frequency); extra.push(fg); }
 
       // VCA (ADSR) y panorama por voz
       const vca = ctx.createGain();
       const peak = .26 * (0.3 + vel * .7), sus = peak * P.s;
       vca.gain.setValueAtTime(.0001, time);
-      vca.gain.linearRampToValueAtTime(peak, time + P.a);
-      vca.gain.setTargetAtTime(Math.max(sus, .0001), time + P.a, P.dcy / 3);
+      vca.gain.linearRampToValueAtTime(peak, time + a);
+      vca.gain.setTargetAtTime(Math.max(sus, .0001), time + a, P.dcy / 3);
       const pan = ctx.createStereoPanner(); pan.pan.value = (Math.random() * 2 - 1) * (P.width || 0) * .6;
 
       // entrada del filtro: directa o a través de formantes (coro)
@@ -761,7 +864,9 @@ body.mobile .helpcard { left: 10px !important; right: 10px; top: auto !important
       if (P.trem) { const tg = ctx.createGain(); tg.gain.value = peak * P.trem.depth; this.tremLfo.connect(tg); tg.connect(vca.gain); extra.push(tg); }
 
       const mkOsc = (o, detune) => {
-        const osc = ctx.createOscillator(); osc.type = o.t; osc.frequency.setValueAtTime(f0 * o.r, time);
+        const osc = ctx.createOscillator();
+        if (o.t === 'pulse25') osc.setPeriodicWave(this.pulseWave(.25)); else if (o.t === 'pulse12') osc.setPeriodicWave(this.pulseWave(.12)); else osc.type = o.t;
+        osc.frequency.setValueAtTime(f0 * o.r, time);
         osc.detune.value = detune; osc._base = detune;
         if (vibGain) vibGain.connect(osc.detune);
         if (o.fm) { // modulador FM con índice decreciente
@@ -791,10 +896,10 @@ body.mobile .helpcard { left: 10px !important; right: 10px; top: auto !important
       }
       filt.connect(vca); vca.connect(pan); pan.connect(this.chordBus);
       const cs = ctx.createGain(); cs.gain.value = P.chorus || 0; pan.connect(cs); cs.connect(this.chorusIn);
-      const v = { midi, vca, oscs, track: opts.track || 'live', rel: P.rel * (opts.relMul || 1), sustain: P.s, extra: [vibGain, cs, ...extra].filter(Boolean) };
+      const v = { midi, vca, oscs, track: opts.track || 'live', rel: P.rel * (opts.relMul || 1) * M.rel, sustain: P.s, extra: [vibGain, cs, ...extra].filter(Boolean) };
       this.voices.push(v);
       if (opts.gate) this.noteOff(v, time + opts.gate);
-      else if (P.s === 0) this.noteOff(v, time + P.a + P.dcy * 1.6, true);
+      else if (P.s === 0) this.noteOff(v, time + a + P.dcy * 1.6, true);
       return v;
     }
     noteOff(v, time = this.now(), silent) {
@@ -955,7 +1060,7 @@ body.mobile .helpcard { left: 10px !important; right: 10px; top: auto !important
 
   /* ------------------------------------------------------------ listas */
   const LISTS = {
-    sound: Object.keys(SOUNDS).map((k) => [k, SOUNDS[k].name]),
+    sound: Object.keys(SOUNDS).map((k) => [k, (SOUNDS[k].cat ? SOUNDS[k].cat + ' · ' : '') + SOUNDS[k].name]),
     perform: [['chord', 'Chord'], ['strum', 'Strum ↓'], ['strumUp', 'Strum ↑'], ['strumAlt', 'Strum ↕'], ['strum2', 'Strum 2 Oct'], ['rake', 'Rake'], ['roll', 'Roll'], ['slop', 'Slop'], ['arp', 'Arpeggiate'], ['arpUD', 'Arp ↕'], ['arp2', 'Arp 2 Oct'], ['patA', 'Pattern A'], ['patB', 'Pattern B'], ['patC', 'Pattern C'], ['patD', 'Pattern D'], ['harp', 'Harp']],
     fx: Object.keys(FX).map((k) => [k, FX[k].name]),
     key: Theory.SHARP.map((n, i) => [i, n]),
@@ -964,7 +1069,7 @@ body.mobile .helpcard { left: 10px !important; right: 10px; top: auto !important
     bass: [['off', 'Bass off'], ['root', 'Root'], ['pop8', 'Pop 8ths'], ['motown', 'Motown'], ['disco', 'Disco octaves'], ['funk', 'Funk 16ths'], ['reggae', 'Reggae one drop'], ['walk', 'Walking jazz'], ['rock', 'Rock 8ths'], ['synthwave', 'Synthwave'], ['house', 'House offbeat'], ['dembow', 'Dembow'], ['bossa', 'Bossa nova'], ['tumbao', 'Tumbao'], ['trap', 'Trap 808'], ['country', 'Country 2-beat'], ['solo', 'Solo']],
     bassSound: Object.keys(BASS).map((k) => [k, BASS[k].name]),
     prog: [['off', 'Off'], ['pop', 'Pop'], ['doowop', "50s doo-wop"], ['rock', 'Rock'], ['blues', 'Blues 12'], ['jazz', 'Jazz ii–V–I'], ['bossa', 'Bossa nova'], ['neosoul', 'Neo soul'], ['funk', 'Funk vamp'], ['reggae', 'Reggae'], ['reggaeton', 'Reggaetón'], ['trap', 'Trap'], ['gospel', 'Gospel'], ['edm', 'EDM'], ['synthwave', 'Synthwave'], ['cumbia', 'Cumbia'], ['bolero', 'Bolero'], ['andaluza', 'Andaluza']],
-    option: [['secret', 'Secret chords'], ['quant', 'Quantize'], ['extRetrig', 'Ext retrig'], ['velocity', 'Velocity'], ['latch', 'Latch'], ['arp16', 'Arp 1/16'], ['swing', 'Swing'], ['metro', 'Metro']],
+    option: [['secret', 'Secret chords'], ['quant', 'Quantize'], ['extRetrig', 'Ext retrig'], ['velocity', 'Velocity'], ['latch', 'Latch'], ['arp16', 'Arp 1/16'], ['swing', 'Swing'], ['metro', 'Metro'], ['loopKey', 'Loop → Key'], ['clockOut', 'Clock out'], ['clockIn', 'Clock in']],
   };
   const CLOCKED = new Set(['arp', 'arpUD', 'arp2', 'patA', 'patB', 'patC', 'patD']);
   const STRUMS = new Set(['strum', 'strumUp', 'strumAlt', 'strum2', 'rake']);
@@ -1052,11 +1157,18 @@ body.mobile .helpcard { left: 10px !important; right: 10px; top: auto !important
     screen: ['Pantalla', 'Muestra el acorde que suena y sus notas, el estado de cada sección y la barra del loop.', 'Un nombre en amarillo con flecha es un acorde esperando el próximo tiempo (Quantize).'],
     sound: ['Sound', 'Elige el timbre del acorde: 20 presets, de Keys y E-Piano a Choir, Clav, Harp, Vibes, Flute, Poly 80, Kalimba, Glass o Dream. Cada uno trae su propio chorus, vibrato o trémolo.', 'Cambiar Sound afecta lo que tocás ahora y lo que grabás en la capa actual: las capas ya grabadas del loop conservan su sonido.'],
     perform: ['Perform', 'Cómo se toca el acorde: todo junto (Chord); rasgueos como guitarra con fundamental grave y acento (Strum ↓ de grave a agudo, ↑ al revés, ↕ alterna en cada tecla, 2 Oct dobla la octava, Rake rasguea rápido y fuerte, Roll despliega dos octavas subiendo y bajando); Slop con timing humano; arpegios al tempo (Arpeggiate, Arp ↕, Arp 2 Oct); patrones rítmicos A–D; o Harp, cascada de tres octavas.', 'Los modos al tempo siguen el BPM. Al cambiar de acorde el patrón continúa sin cortarse gracias a Quantize.'],
+    macros: ['Edición del sonido', 'Cuatro macros sobre el preset elegido: cut (brillo del filtro), res (resonancia), atk (ataque) y rel (cola). Se aplican a lo que tocás y a lo que grabás desde ahora.', 'Doble clic en una perilla la devuelve a su valor original.'],
+    pads: ['Chord pads', 'Ocho memorias de acorde. Clic corto: toca el acorde guardado (con su tipo, modificadores, voicing y octava). Mantené apretado medio segundo para guardar el acorde actual en ese pad.', 'Se guardan en este navegador. Sirven para tener tu propia progresión o voicings a mano.'],
+    dice: ['Dado', 'Acorde al azar: en Key Mode elige un grado de la tonalidad; si no, una fundamental, tipo y extensiones al azar. Mantenelo apretado para escucharlo, o con Latch queda sonando.', ''],
+    strumplate: ['Strum plate', 'Pasá el dedo o el mouse de izquierda a derecha para rasguear las notas del acorde que suena en dos octavas, como un Omnichord. Si no hay acorde, no hace nada.', ''],
+    tap: ['Tap', 'Marcá el tempo con cuatro toques seguidos y el BPM se ajusta al promedio.', ''],
+    exportMidi: ['Exportar MIDI', 'Descarga el loop como archivo .mid (una pista por capa y una de bajo, con el tempo) para seguirlo en tu DAW.', 'Dentro de claude.ai las descargas están bloqueadas: usá el archivo HTML o la página publicada.'],
+    recAudio: ['Grabar audio', 'Graba la salida de audio mientras esté encendido y al apagarlo descarga un archivo .webm.', 'Dentro de claude.ai las descargas están bloqueadas: usá el archivo HTML o la página publicada.'],
     fx: ['FX', 'Efecto master: Dry, Room, Hall, Echo, Tape, Chorus o Lo-fi.', 'La perilla AMT regula cuánto efecto se aplica.'],
     fxAmt: ['FX amount', 'Cantidad del efecto elegido, de seco (0) a máximo (100).', ''],
     prog: ['Prog', 'Progresiones de acordes por género. Elegí un estilo y, con Play, el instrumento va cambiando de acorde al tempo en la tonalidad de Key, con los tipos y extensiones típicos del género (Pop I–V–vi–IV, Blues de 12 compases con séptimas, Jazz ii–V–I, Neo soul con novenas, Reggaetón i–VI–III–VII, etc.). Los botones de tipo muestran cada acorde, y podés cambiar Sound, Perform y bajo mientras suena.', 'Si tocás una tecla, la progresión se pausa hasta que soltás. Con Rec armado se graba en el loop como cualquier acorde: el largo del loop se ajusta solo al de la progresión.'],
     key: ['Key', 'Transpone el teclado: la tecla de la izquierda pasa a ser esta nota. Atajo: mantené apretado el encoder medio segundo y después tocá una tecla; esa nota pasa a ser la tonalidad.', 'Con Key Mode activo, además define la tonalidad de la que salen los acordes.'],
-    keymode: ['Key Mode', 'Off: vos elegís el tipo con los botones Major/Minor/Sus/Dim. Major o Minor: cualquier tecla genera automáticamente el acorde que pertenece a esa tonalidad, y los botones de tipo se eligen solos (quedan en amarillo, informativos).', '"Minor" acá es la tonalidad completa (por ejemplo La menor); el botón Minor de abajo es el tipo de un solo acorde. Con Key Mode activo ese botón no se usa.'],
+    keymode: ['Key Mode', 'Off: vos elegís el tipo con los botones Major/Minor/Sus/Dim. Con una escala elegida (major, minor, dorian, mixolydian, lydian, phrygian o menor armónica), cualquier tecla genera automáticamente el acorde que pertenece a esa tonalidad y modo, y los botones de tipo se eligen solos (quedan en amarillo, informativos).', '"Minor" acá es la tonalidad completa (por ejemplo La menor); el botón Minor de abajo es el tipo de un solo acorde. Con Key Mode activo ese botón no se usa.'],
     chord: ['Chord Type y Modifiers', 'Fila de arriba: el tipo del acorde. Con Secret chords activo, tocá un segundo botón de tipo para combinarlos: Major+Minor = aumentado, Major+Sus = sus2, Major+Dim = ♭5, Minor+Sus = power chord, Minor+Dim = m♭6, Sus+Dim = cuartal (7sus4). Fila de abajo: modificadores 6, m7, M7 y 9, combinables.', 'En Key Mode la fila de arriba es automática; m7 y M7 se convierten en "la séptima que corresponde a la tonalidad".'],
     voicing: ['Voicing Dial', 'Gira nota a nota: cada paso sube la nota más grave una octava (o baja la más aguda), cambiando el color del acorde en cascada.', 'Con el acorde sonando, las notas que se mueven se vuelven a disparar: un arpegio dinámico en tiempo real.'],
     octave: ['Octave', 'Desplaza todo el acorde hasta dos octavas hacia arriba o abajo.', ''],
@@ -1074,7 +1186,7 @@ body.mobile .helpcard { left: 10px !important; right: 10px; top: auto !important
     bpm: ['BPM', 'Tempo de todo: arpegios, patrones, strum, delay, beats y loop.', ''],
     beat: ['Beat', '26 loops de batería sintetizada, de Hip hop, Dilla y Neo soul a House, Techno, Drum & bass, Bossa nova, Samba, Cumbia, Reggaetón, Dub, Afrobeat, Motown, Rock, Jazz o Ambient. Arranca con Play.', 'Si un beat suena, los cambios de acorde se alinean a su grid (Quantize).'],
     play: ['Play', 'Transporte: arranca y detiene el beat, el metrónomo y el loop.', 'Con Rec armado, la primera nota tocada también pone Play.'],
-    options: ['Options', 'Secret chords habilita acordes extra combinando dos botones de tipo. Quantize elige el grid (1/4 a 1/32, o off) al que se alinean los cambios de acorde y la grabación del loop cuando hay beat, loop, arpegio o patrón. Ext retrig: al agregar una extensión se vuelve a disparar todo el acorde en vez de sumar sólo la nota nueva. Velocity: en pantalla, tocar la tecla más abajo suena más fuerte; con MIDI usa la velocidad del controlador. Latch mantiene el acorde al soltar. Arp 1/16 duplica la velocidad del arpegio. Swing balancea las semicorcheas. Metro enciende el metrónomo con Play.', ''],
+    options: ['Options', 'Secret chords habilita acordes extra combinando dos botones de tipo. Quantize elige el grid (1/4 a 1/32, o off) al que se alinean los cambios de acorde y la grabación del loop cuando hay beat, loop, arpegio o patrón. Ext retrig: al agregar una extensión se vuelve a disparar todo el acorde en vez de sumar sólo la nota nueva. Velocity: en pantalla, tocar la tecla más abajo suena más fuerte; con MIDI usa la velocidad del controlador. Latch mantiene el acorde al soltar. Arp 1/16 duplica la velocidad del arpegio. Swing balancea las semicorcheas. Metro enciende el metrónomo con Play. Loop → Key transpone el loop grabado cuando cambiás Key. Clock out manda MIDI clock y start/stop; Clock in sigue el tempo y el transporte de un reloj MIDI externo.', ''],
     volume: ['Volume', 'Volumen general.', ''],
     keyboard: ['Teclado', 'Una octava: cada tecla es la fundamental del acorde. Podés deslizar el dedo entre teclas. En Bass Solo, toca el bajo.', 'Atajos: A W S E D F T G Y H U J K. Un teclado MIDI conectado hace lo mismo.'],
     midi: ['MIDI', 'Entrada: las teclas del controlador son las mismas de la pantalla (el Do del teclado es la primera tecla, en cualquier octava); rueda de modulación = voicing; pedal de sustain = latch. Salida: acorde en canal 1, bajo en canal 2.', 'Funciona en Chrome y Edge; aceptá el permiso MIDI.'],
@@ -1086,11 +1198,13 @@ body.mobile .helpcard { left: 10px !important; right: 10px; top: auto !important
     keyModeState: 'off', keymode: false, minor: false,
     sound: 'keys', perform: 'chord', fx: 'room', fxAmt: .6, bass: 'root', bassSound: 'finger', bassLevel: .8, loopBars: 2, bpm: 96, beat: 'off',
     quant: 6, secret: true, extRetrig: false, velocity: true, latch: false, arp16: true, swing: 0, metro: false, volume: .8,
-    type2: null, split: false, splitPoint: 5, prog: 'off',
+    type2: null, split: false, splitPoint: 5, prog: 'off', scale: 'major', loopKey: true, clockOut: false, clockIn: true,
+    mCut: 1, mRes: 0, mAtk: 1, mRel: 1,
   };
   const QUANTS = [[0, 'Q off'], [24, 'Q 1/4'], [12, 'Q 1/8'], [8, 'Q 1/8T'], [6, 'Q 1/16'], [4, 'Q 1/16T'], [3, 'Q 1/32']];
   let keyPick = false;
   const progState = { step: -1, active: false };
+  let lastKey = 0;
   let current = null, shown = null, chordActive = false, powered = false, pending = null;
   const held = new Set();
   const midiNotes = new Map();
@@ -1115,8 +1229,19 @@ body.mobile .helpcard { left: 10px !important; right: 10px; top: auto !important
   let midiFlashT = null;
   function midiStatus(cls, text) { const el = $('#midiStatus'); el.className = 'midi-status ' + cls; el.lastChild.textContent = text; }
   function midiActivity() { const el = $('#midiStatus'); el.classList.add('act'); clearTimeout(midiFlashT); midiFlashT = setTimeout(() => el.classList.remove('act'), 120); }
+  const clockIn = { times: [] };
   function onMidiMessage(e) {
-    const [st, d1, d2] = e.data, type = st & 0xf0;
+    const [st, d1, d2] = e.data;
+    if (st >= 0xf8) {                                                  // mensajes de tiempo real
+      if (!S.clockIn) return;
+      if (st === 0xf8) {
+        const now = performance.now(); clockIn.times.push(now); if (clockIn.times.length > 48) clockIn.times.shift();
+        if (clockIn.times.length >= 24) { const span = now - clockIn.times[clockIn.times.length - 24]; const bpm = Math.round(60000 / span); if (bpm >= 50 && bpm <= 180 && Math.abs(bpm - S.bpm) >= 1) setKnob('bpm', bpm); }
+      } else if (st === 0xfa || st === 0xfb) { ensureAudio(); if (!transport.playing) setPlaying(true); }
+      else if (st === 0xfc) { if (transport.playing) setPlaying(false); }
+      return;
+    }
+    const type = st & 0xf0;
     midiActivity();
     if (type === 0x90 && d2 > 0) { const i = d1 % 12; midiNotes.set(d1, i); keyDown(i, d2 / 127); }
     else if (type === 0x80 || (type === 0x90 && d2 === 0)) { const i = midiNotes.get(d1); if (i == null) return; midiNotes.delete(d1); if (![...midiNotes.values()].includes(i)) keyUp(i); }
@@ -1127,6 +1252,7 @@ body.mobile .helpcard { left: 10px !important; right: 10px; top: auto !important
       else if (d1 === 123 || d1 === 120) { midiNotes.clear(); held.clear(); pending = null; releaseChord(); keyEls.forEach((b) => b.classList.remove('on')); }
     } else if (type === 0xe0) { const v = ((d2 << 7) | d1) - 8192; engine.bend((v / 8192) * 2); }
   }
+  function midiClock(time, msg) { if (midi.out && S.clockOut) midi.out.send([msg], midiTime(time)); }
   function bindInput(input) { if (midi.in) midi.in.onmidimessage = null; midi.in = input || null; if (input) input.onmidimessage = onMidiMessage; }
   function setupMidi() {
     const inSel = $('#midiIn'), outSel = $('#midiOut');
@@ -1173,7 +1299,8 @@ body.mobile .helpcard { left: 10px !important; right: 10px; top: auto !important
     perform: (v) => { $('#sPerform').textContent = label('perform', v); if (chordActive) retrigger(); },
     fx: (v) => { engine.setFx(v, S.fxAmt); $('#sFx').textContent = label('fx', v); },
     fxAmt: (v) => engine.setFx(S.fx, v),
-    key: () => { buildKeyboardLabels(); renderKey(); refreshChord(); },
+    key: (v) => { buildKeyboardLabels(); renderKey(); refreshChord(); if (S.loopKey && lastKey !== v) transposeLoop(((v - lastKey) % 12 + 18) % 12 - 6); lastKey = v; },
+    mCut: (v) => engine.setMacro('cut', v), mRes: (v) => engine.setMacro('res', v), mAtk: (v) => engine.setMacro('atk', v), mRel: (v) => engine.setMacro('rel', v),
     octave: () => refreshChord(),
     loopBars: () => { buildLoopSegs(); renderLoop(); },
     beat: (v) => { $('#sBeat').textContent = label('beat', v); },
@@ -1196,7 +1323,7 @@ body.mobile .helpcard { left: 10px !important; right: 10px; top: auto !important
 
   /* ------------------------------------------------------------ widgets */
   const RING = (r) => { const C = 2 * Math.PI * r; return { C, svg: `<svg viewBox="0 0 ${r * 2 + 6} ${r * 2 + 6}"><circle class="track" cx="${r + 3}" cy="${r + 3}" r="${r}" stroke-dasharray="${C * .75} ${C}"/><circle class="arc" cx="${r + 3}" cy="${r + 3}" r="${r}"/></svg>` }; };
-  const fmt = (path, v) => (path === 'bpm' ? v + '' : path === 'octave' || path === 'voicing' ? (v > 0 ? '+' + v : '' + v) : Math.round(v * 100) + '');
+  const fmt = (path, v) => (path === 'bpm' ? v + '' : path === 'octave' || path === 'voicing' ? (v > 0 ? '+' + v : '' + v) : /^m(Cut|Atk|Rel)$/.test(path) ? v.toFixed(2) + '×' : Math.round(v * 100) + '');
   function buildKnob(el) {
     const path = el.dataset.knob, min = +(el.dataset.min || 0), max = +(el.dataset.max || 1), step = +(el.dataset.step || 0);
     let v = +el.dataset.value; const def = v;
@@ -1273,16 +1400,17 @@ body.mobile .helpcard { left: 10px !important; right: 10px; top: auto !important
   }
 
   // key mode: off → major → minor
-  const KEY_MODES = ['off', 'major', 'minor'];
+  const KEY_MODES = ['off', 'major', 'minor', 'dorian', 'mixolydian', 'lydian', 'phrygian', 'harmonic'];
+  const KEY_MODE_LABEL = { off: 'key mode', major: 'major', minor: 'minor', dorian: 'dorian', mixolydian: 'mixolyd.', lydian: 'lydian', phrygian: 'phrygian', harmonic: 'harm. min' };
   function setKeyMode(m) {
-    S.keyModeState = m; S.keymode = m !== 'off'; S.minor = m === 'minor';
-    const b = $('#keyMode'); b.classList.toggle('on', S.keymode); b.classList.toggle('minor', S.minor);
-    b.lastChild.textContent = m === 'off' ? 'key mode' : m;
+    S.keyModeState = m; S.keymode = m !== 'off'; S.minor = m === 'minor' || m === 'harmonic' || m === 'dorian' || m === 'phrygian'; S.scale = S.keymode ? m : 'major';
+    const b = $('#keyMode'); b.classList.toggle('on', S.keymode); b.classList.toggle('minor', S.keymode && m !== 'major');
+    b.lastChild.textContent = KEY_MODE_LABEL[m];
     $('#cgrid').classList.toggle('keymode', S.keymode);
     renderKey(); refreshChord();
   }
-  $('#keyMode').addEventListener('click', () => { if (!helpOn) setKeyMode(KEY_MODES[(KEY_MODES.indexOf(S.keyModeState) + 1) % 3]); });
-  function renderKey() { const k = $('#sKey'); k.textContent = label('key', S.key) + (S.keymode ? (S.minor ? ' minor' : ' major') : ''); k.classList.toggle('hot', S.keymode); }
+  $('#keyMode').addEventListener('click', () => { if (!helpOn) setKeyMode(KEY_MODES[(KEY_MODES.indexOf(S.keyModeState) + 1) % KEY_MODES.length]); });
+  function renderKey() { const k = $('#sKey'); k.textContent = label('key', S.key) + (S.keymode ? ' ' + KEY_MODE_LABEL[S.keyModeState] : ''); k.classList.toggle('hot', S.keymode); }
 
   /* ------------------------------------------------------------ botones de acorde */
   function bindChordButtons() {
@@ -1343,7 +1471,7 @@ body.mobile .helpcard { left: 10px !important; right: 10px; top: auto !important
   kb.addEventListener('pointerup', endPointer); kb.addEventListener('pointercancel', endPointer);
 
   /* ------------------------------------------------------------ acordes */
-  const chordFor = () => Theory.buildChord({ root: S.root, type: effectiveType(), mods: S.mods, voicing: S.voicing, octave: S.octave, keyMode: S.keymode, key: S.key, minor: S.minor });
+  const chordFor = () => Theory.buildChord({ root: S.root, type: effectiveType(), mods: S.mods, voicing: S.voicing, octave: S.octave, keyMode: S.keymode, key: S.key, minor: S.minor, scale: S.scale });
   /** ¿Hay un grid al que alinear el cambio? (beat, loop, arpegio o patrón) */
   const gridActive = () => S.quant > 0 && (CLOCKED.has(S.perform) || (transport.playing && S.beat !== 'off') || loop.state === 'play' || loop.state === 'overdub' || loop.state === 'rec');
   function keyDown(i, vel = .85) {
@@ -1411,7 +1539,7 @@ body.mobile .helpcard { left: 10px !important; right: 10px; top: auto !important
       }
     }
     if (bassAuto(tr.bass) && bassOwner() === tr && !(transport.playing && tr.bass !== 'root')) playBass(t, 1, tr);
-    if (tr === live && !opts.fromLoop) loopRecord({ type: 'on', chord, keyIndex: S.keyIndex, sound: tr.sound, perform: tr.perform, bass: tr.bass, bassSound: tr.bassSound }, opts.tick);
+    if (tr === live && !opts.fromLoop) loopRecord({ type: 'on', chord, keyIndex: S.keyIndex, sound: tr.sound, perform: tr.perform, bass: tr.bass, bassSound: tr.bassSound, voicing: S.voicing, octave: S.octave }, opts.tick);
     shown = chord; if (tr === live) { current = chord; chordActive = true; }
     render();
   }
@@ -1510,6 +1638,7 @@ body.mobile .helpcard { left: 10px !important; right: 10px; top: auto !important
   function setPlaying(p, atTick) {
     ensureAudio();
     transport.playing = p; $('#play').classList.toggle('on', p);
+    midiClock(null, p ? 0xfa : 0xfc);
     if (p) {
       transport.startTick = atTick ?? Math.ceil(clock.nowTick() / 6) * 6;
       if (loop.hasContent && loop.state === 'idle') { loop.state = 'play'; loop.startTick = transport.startTick; }
@@ -1597,9 +1726,133 @@ body.mobile .helpcard { left: 10px !important; right: 10px; top: auto !important
     if (!loop.hasContent) { loop.hasContent = true; renderLoop(); }
   }
 
+  /* ------------------------------------------------------------ tap tempo */
+  const taps = [];
+  $('#tap').addEventListener('click', () => {
+    if (helpOn) return;
+    const now = performance.now(); if (taps.length && now - taps[taps.length - 1] > 2000) taps.length = 0;
+    taps.push(now); if (taps.length > 6) taps.shift();
+    if (taps.length >= 2) { const avg = (taps[taps.length - 1] - taps[0]) / (taps.length - 1); setKnob('bpm', clamp(Math.round(60000 / avg), 50, 180)); }
+  });
+
+  /* ------------------------------------------------------------ chord pads + dado */
+  const PADS_KEY = 'armonia.pads';
+  let pads = []; try { pads = JSON.parse(localStorage.getItem(PADS_KEY) || '[]'); } catch (e) { pads = []; }
+  function buildPads() {
+    const box = $('#cpads'); box.innerHTML = '';
+    for (let i = 0; i < 8; i++) {
+      const b = document.createElement('button'); b.type = 'button'; b.dataset.i = i; box.appendChild(b);
+      let pressT = null, stored = false;
+      b.addEventListener('pointerdown', (e) => {
+        if (helpOn) return; e.preventDefault(); ensureAudio(); stored = false;
+        pressT = setTimeout(() => { storePad(i); stored = true; b.classList.add('storing'); setTimeout(() => b.classList.remove('storing'), 900); }, 500);
+        if (pads[i]) recallPad(i);
+      });
+      const up = () => { clearTimeout(pressT); if (pads[i] && !stored && !S.latch) { held.delete(100 + i); b.classList.remove('on'); if (held.size === 0) releaseChord(); } else b.classList.remove('on'); };
+      b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up); b.addEventListener('pointerleave', up);
+    }
+    renderPads();
+  }
+  function renderPads() { $$('#cpads button').forEach((b, i) => { const p = pads[i]; b.textContent = p ? p.name : (i + 1); b.classList.toggle('filled', !!p); }); }
+  function storePad(i) {
+    const c = current || chordFor();
+    pads[i] = { name: c.name, root: S.root, type: S.type, type2: S.type2, mods: { ...S.mods }, voicing: S.voicing, octave: S.octave };
+    try { localStorage.setItem(PADS_KEY, JSON.stringify(pads)); } catch (e) { /* noop */ }
+    renderPads();
+  }
+  function recallPad(i) {
+    const p = pads[i]; if (!p) return;
+    S.root = p.root; S.type = p.type; S.type2 = p.type2 || null; S.mods = { ...p.mods }; S.keyIndex = ((p.root - S.key) % 12 + 12) % 12;
+    if (p.voicing !== S.voicing) { S.voicing = p.voicing; const d = $('[data-dial="voicing"]'); if (d && d._render) d._render(); }
+    if (p.octave !== S.octave) setKnob('octave', p.octave);
+    held.add(100 + i); $$('#cpads button')[i].classList.add('on');
+    const chord = Theory.buildChord({ root: S.root, type: effectiveType(), mods: S.mods, voicing: S.voicing, octave: S.octave });
+    if (gridActive()) { pending = { chord, vel: .85, keyIndex: S.keyIndex }; renderPending(); } else triggerChord(chord, { vel: .85 });
+  }
+  $('#dice').addEventListener('pointerdown', (e) => {
+    if (helpOn) return; e.preventDefault(); ensureAudio();
+    const pick = (a) => a[Math.floor(Math.random() * a.length)];
+    if (S.keymode) { const sc = Theory.SCALES[S.scale] || Theory.SCALES.major; S.keyIndex = pick(sc); S.root = (S.key + S.keyIndex) % 12; }
+    else { S.keyIndex = Math.floor(Math.random() * 12); S.root = (S.key + S.keyIndex) % 12; S.type = pick(['maj', 'maj', 'min', 'min', 'sus', 'dim']); S.type2 = null; }
+    S.mods = { 6: Math.random() < .15, m7: Math.random() < .35, M7: Math.random() < .25, 9: Math.random() < .3 }; if (S.mods.m7 && S.mods.M7) S.mods.M7 = false;
+    held.add(200); keyEls[S.keyIndex].classList.add('on');
+    const chord = chordFor();
+    if (gridActive()) { pending = { chord, vel: .85, keyIndex: S.keyIndex }; renderPending(); } else triggerChord(chord, { vel: .85 });
+  });
+  const diceUp = () => { if (!held.has(200)) return; held.delete(200); keyEls.forEach((k) => k.classList.remove('on')); if (!S.latch && held.size === 0) releaseChord(); };
+  $('#dice').addEventListener('pointerup', diceUp); $('#dice').addEventListener('pointerleave', diceUp);
+
+  /* ------------------------------------------------------------ strum plate */
+  const plate = $('#strumplate'); let plateIdx = -1;
+  function plateNotes() { const c = chordActive ? current : shown; if (!c) return []; return [...c.notes, ...c.notes.map((n) => n + 12).filter((n) => n <= 108)]; }
+  function plateAt(e) {
+    const ns = plateNotes(); if (!ns.length) return;
+    const r = plate.getBoundingClientRect(), f = clamp((e.clientX - r.left) / r.width, 0, .999), idx = Math.floor(f * ns.length);
+    if (idx === plateIdx) return; plateIdx = idx;
+    const t = engine.now(); engine.noteOn(ns[idx], .8, t, { gate: .35, preset: live.sound, track: 'plate' }); noteOn(CH.chord, ns[idx], 100, t); noteOff(CH.chord, ns[idx], t + .35);
+    const bar = plate.querySelector('i') || plate.appendChild(document.createElement('i'));
+    bar.style.left = (f * 100) + '%'; bar.classList.add('hit'); clearTimeout(bar._t); bar._t = setTimeout(() => bar.classList.remove('hit'), 80);
+  }
+  plate.addEventListener('pointerdown', (e) => { if (helpOn) return; ensureAudio(); plate.setPointerCapture(e.pointerId); plateIdx = -1; plateAt(e); });
+  plate.addEventListener('pointermove', (e) => { if (plate.hasPointerCapture(e.pointerId)) plateAt(e); });
+  plate.addEventListener('pointerup', () => { plateIdx = -1; });
+
+  /* ------------------------------------------------------------ exportar MIDI · grabar audio · transponer loop */
+  function download(name, blob) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000); }
+  function exportMidi() {
+    if (!loop.hasContent) { flashLoopLabel('no hay loop para exportar'); return; }
+    const vlq = (n) => { const b = [n & 127]; while ((n >>= 7) > 0) b.unshift((n & 127) | 128); return b; };
+    const str = (s) => [...s].map((c) => c.charCodeAt(0));
+    const u32 = (n) => [(n >>> 24) & 255, (n >>> 16) & 255, (n >>> 8) & 255, n & 255];
+    const trackBytes = (events) => { // events: [tick, bytes]
+      events.sort((a, b) => a[0] - b[0]); let last = 0; const out = [];
+      for (const [t, bytes] of events) { out.push(...vlq(t - last), ...bytes); last = t; }
+      out.push(0, 0xff, 0x2f, 0); return [...str('MTrk'), ...u32(out.length), ...out];
+    };
+    const len = loopLen(), tempo = Math.round(60000000 / S.bpm);
+    const tracks = [trackBytes([[0, [0xff, 0x51, 3, (tempo >> 16) & 255, (tempo >> 8) & 255, tempo & 255]], [0, [0xff, 0x03, ...vlq(7), ...str('Armonía')]]])];
+    const layers = [...new Set(loop.events.map((e) => e.layer))].sort((a, b) => a - b);
+    for (const L of layers) {
+      const evs = loop.events.filter((e) => e.layer === L && e.type !== 'bass').sort((a, b) => a.tick - b.tick), out = [];
+      evs.forEach((e, i) => {
+        if (e.type !== 'on') return;
+        const next = evs.slice(i + 1).find((x) => x.type === 'on' || x.type === 'off'); const end = next ? next.tick : len;
+        for (const n of e.chord.notes) { out.push([e.tick, [0x90, n, 96]]); out.push([Math.max(e.tick + 1, end - 1), [0x80, n, 0]]); }
+      });
+      tracks.push(trackBytes(out));
+    }
+    const bass = loop.events.filter((e) => e.type === 'bass'), bout = [];
+    for (const e of bass) { bout.push([e.tick, [0x91, e.note, Math.round((e.vel || .8) * 127)]]); bout.push([e.tick + 20, [0x81, e.note, 0]]); }
+    if (bout.length) tracks.push(trackBytes(bout));
+    const head = [...str('MThd'), ...u32(6), 0, 1, (tracks.length >> 8) & 255, tracks.length & 255, 0, 24];
+    download(`armonia-loop-${S.bpm}bpm.mid`, new Blob([new Uint8Array([...head, ...tracks.flat()])], { type: 'audio/midi' }));
+    flashLoopLabel('midi exportado');
+  }
+  $('#loopMidi').addEventListener('click', () => { if (!helpOn) exportMidi(); });
+  let recorder = null;
+  $('#recAudio').addEventListener('click', () => {
+    if (helpOn) return; ensureAudio();
+    if (recorder) { recorder.stop(); return; }
+    if (!window.MediaRecorder) { flashLoopLabel('este navegador no graba audio'); return; }
+    const chunks = [];
+    recorder = new MediaRecorder(engine.streamDest.stream);
+    recorder.ondataavailable = (e) => chunks.push(e.data);
+    recorder.onstop = () => { download(`armonia-${Date.now()}.webm`, new Blob(chunks, { type: 'audio/webm' })); recorder = null; $('#recAudio').classList.remove('on'); flashLoopLabel('audio descargado'); };
+    recorder.start(); $('#recAudio').classList.add('on'); flashLoopLabel('grabando audio…');
+  });
+  function transposeLoop(delta) {
+    if (!delta || !loop.events.length) return;
+    for (const e of loop.events) {
+      if (e.type === 'on' && e.chord) { const c = e.chord; e.chord = Theory.buildChord({ root: c.rootPc + delta, type: c.type, mods: c.mods, voicing: e.voicing || 0, octave: e.octave || 0 }); }
+      else if (e.type === 'bass') e.note = clamp(e.note + delta, 24, 72);
+    }
+    for (const k in layerTracks) { const tr = layerTracks[k]; if (tr.chord) tr.chord = Theory.buildChord({ root: tr.chord.rootPc + delta, type: tr.chord.type, mods: tr.chord.mods, voicing: 0, octave: 0 }); }
+  }
+
   /* ------------------------------------------------------------ reloj */
   const swingOffset = (tick) => (tick % 12 === 6 ? S.swing * clock.tickSec * 6 * .9 : 0);
   clock.on((tick, time) => {
+    if (transport.playing && tick >= transport.startTick) midiClock(time, 0xf8);
     const step16 = tick % 6 === 0;
     const rel = transport.playing ? tick - transport.startTick : tick;     // grid relativo al transporte
     const beat = rel % 24 === 0, step = ((Math.floor(rel / 6) % 16) + 16) % 16;
@@ -1741,7 +1994,7 @@ body.mobile .helpcard { left: 10px !important; right: 10px; top: auto !important
   $$('[data-knob]').forEach(buildKnob);
   $$('[data-enc]').forEach(buildEnc);
   $$('[data-dial]').forEach(buildDial);
-  setKeyMode('off'); buildLoopSegs(); renderSplit();
+  setKeyMode('off'); buildLoopSegs(); renderSplit(); buildPads(); lastKey = S.key;
   render(); renderLoop(); setupMidi();
 })();
 

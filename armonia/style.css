@@ -95,7 +95,8 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .deck { display: grid; grid-template-columns: minmax(300px, 5fr) minmax(360px, 7fr); gap: 22px; align-items: start; }
 .side { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 .encs { display: flex; gap: 10px; align-items: flex-start; flex-wrap: wrap; }
-.encs > .ctl { flex: 1 1 86px; min-width: 86px; }
+.encs > .ctl { flex: 1 1 78px; min-width: 78px; }
+.ctl .sub.macros { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 8px; margin-top: 4px; }
 .encs > .ctl[data-enc="loopBars"] { flex-basis: 200px; }
 
 /* ---------------- controles */
@@ -196,6 +197,21 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .cgrid { padding-top: 12px; }
 
 .voicing { display: flex; align-items: flex-end; gap: 14px; }
+.cgcol { display: flex; flex-direction: column; gap: 10px; }
+.cpads { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; width: 240px; }
+.cpads button { height: 26px; border: 1px solid #1b1b1e; border-radius: 6px; background: linear-gradient(#3b3c42, #2e2f34); color: var(--muted); font: 500 8px var(--mono); padding: 0 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; box-shadow: 0 2px 0 #1b1b1e; transition: .08s; }
+.cpads button.filled { color: var(--ink); border-color: #4a4b52; }
+.cpads button.on { background: var(--cap-y); color: var(--panel); transform: translateY(1px); box-shadow: 0 0 10px rgba(242,182,54,.6); }
+.cpads button.storing { animation: blink .4s 2; }
+.dice { width: 34px; height: 34px; border-radius: 8px; border: 1px solid #1b1b1e; background: linear-gradient(#3f4046, #2f3035); color: var(--ink); font-size: 18px; line-height: 1; box-shadow: 0 2px 0 #1b1b1e; align-self: center; margin-bottom: 26px; }
+.dice:active { transform: translateY(2px); box-shadow: none; }
+.strumplate { position: relative; height: 26px; margin-bottom: 8px; border-radius: 8px; cursor: crosshair; touch-action: none; overflow: hidden;
+  background: repeating-linear-gradient(90deg, #35363b 0 6px, #2b2c30 6px 12px); box-shadow: inset 0 0 0 1px #1d1d20, inset 0 2px 6px rgba(0,0,0,.5); }
+.strumplate span { position: absolute; right: 10px; top: 0; line-height: 26px; font: 500 8px var(--sans); letter-spacing: .2em; text-transform: uppercase; color: var(--dim); pointer-events: none; }
+.strumplate i { position: absolute; top: 0; bottom: 0; width: 3px; background: var(--cap-y); box-shadow: 0 0 10px var(--cap-y); opacity: 0; transition: opacity .25s; }
+.strumplate i.hit { opacity: 1; transition: none; }
+.row2 { display: flex; gap: 4px; }
+.tog.rec.on i { animation: none; }
 
 /* ---------------- teclado */
 .keyboard { position: relative; height: 200px; }
@@ -266,15 +282,23 @@ body.mobile .ctl .sub.wrap { max-width: none; }
 body.mobile .tog { padding: 7px 10px 7px 8px; font-size: 10px; }
 body.mobile .enc-val b { min-width: 48px; font-size: 10px; }
 body.mobile .enc-val button { padding: 4px 6px; font-size: 14px; }
+body.mobile .strumplate { order: 4; position: sticky; bottom: 166px; z-index: 6; margin: 0 -8px; padding: 0; height: 30px; border-radius: 0; box-shadow: inset 0 0 0 1px #1d1d20; }
 body.mobile .chordarea {
-  order: 3; position: sticky; bottom: 166px; z-index: 5; gap: 12px; justify-content: space-between; flex-wrap: nowrap;
+  order: 3; position: sticky; bottom: 196px; z-index: 5; gap: 6px; justify-content: space-between; flex-wrap: nowrap;
   padding: 12px 6px 6px; margin: 0 -8px; background: linear-gradient(180deg, rgba(42,43,47,0) 0%, var(--panel) 22%);
 }
-body.mobile .cgrid { grid-template-columns: repeat(4, 44px); grid-auto-rows: 44px; gap: 6px; padding: 12px 0 14px; margin: 0; }
+body.mobile .cgrid { grid-template-columns: repeat(4, 38px); grid-auto-rows: 38px; gap: 5px; padding: 12px 0 14px; margin: 0; }
+body.mobile .cpads { width: 167px; gap: 3px; }
+body.mobile .cpads button { height: 22px; font-size: 7px; }
+body.mobile .dice { margin-bottom: 20px; }
 body.mobile .cbtn { border-radius: 8px; }
 body.mobile .cbtn i { width: 22px; height: 22px; }
 body.mobile .voicing { gap: 8px; }
-body.mobile .knob.big { width: 72px; height: 72px; }
+body.mobile .knob.big { width: 60px; height: 60px; }
+body.mobile .voicing { gap: 4px; }
+body.mobile .dice { width: 28px; height: 28px; font-size: 14px; margin-bottom: 22px; }
+body.mobile .cbtn i { width: 20px; height: 20px; }
+body.mobile .cgcol { gap: 6px; }
 body.mobile .keyboard {
   order: 4; position: sticky; bottom: 0; z-index: 6; height: 150px; margin: 0 -8px; padding: 6px 8px 10px;
   background: var(--panel); box-shadow: 0 -8px 16px -10px rgba(0,0,0,.6);
