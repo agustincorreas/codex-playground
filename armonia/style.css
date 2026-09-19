@@ -211,6 +211,10 @@ button { font: inherit; color: inherit; cursor: pointer; }
   display: flex; align-items: flex-end; justify-content: center; padding-bottom: 10px; color: #7b7c82; font: 10px var(--mono);
 }
 .keyboard .b:hover { background: linear-gradient(180deg, #3a3a40, #1b1b1e); }
+.keyboard .splitmark { position: absolute; top: -6px; bottom: -4px; width: 0; border-left: 2px dashed var(--cap-y); z-index: 3; pointer-events: none; }
+.keyboard .splitmark::before { content: 'split'; position: absolute; top: -12px; left: -14px; font: 500 7px var(--sans); letter-spacing: .14em; text-transform: uppercase; color: var(--cap-y); }
+.ctl.keypick .knob .cap { box-shadow: 0 0 0 2px var(--cap-y), 0 0 14px var(--cap-y); }
+.cbtn.secret i { background: radial-gradient(circle at 40% 35%, #fff2c8, var(--cap-y)); box-shadow: 0 0 14px rgba(242, 182, 54, .8); }
 .keyboard .b.on { background: linear-gradient(180deg, #5a5a62, #2f2f35); color: #fff; transform: translateY(2px); box-shadow: 0 2px 4px rgba(0,0,0,.6), inset 0 -2px 0 #050506, 0 0 14px rgba(255,255,255,.3); }
 
 /* ---------------- footer */
@@ -249,6 +253,7 @@ body.mobile .right-side .encs { order: 2; }
 body.mobile .encs { gap: 6px 4px; justify-content: space-between; }
 body.mobile .encs > .ctl { flex: 1 1 20%; min-width: 0; }
 body.mobile .encs > .ctl[data-enc="loopBars"] { flex-basis: 100%; }
+.encs > .ctl[data-enc="loopBars"] { flex-basis: 260px; }
 body.mobile .encs > .ctl.options { flex-basis: 100%; order: 5; }
 body.mobile .encs > .ctl[data-enc="loopBars"] { order: 4; }
 body.mobile .encs > .ctl[data-knob="bassLevel"] { order: 1; }

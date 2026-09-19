@@ -15,7 +15,16 @@
     min: { iv: [0, 3, 7], sym: 'm',    name: 'Minor' },
     sus: { iv: [0, 5, 7], sym: 'sus4', name: 'Sus' },
     dim: { iv: [0, 3, 6], sym: '°',    name: 'Dim' },
+    // acordes secretos: combinaciones de dos botones de tipo
+    aug:   { iv: [0, 4, 8],    sym: '+',     name: 'Aug',      combo: ['maj', 'min'] },
+    sus2:  { iv: [0, 2, 7],    sym: 'sus2',  name: 'Sus2',     combo: ['maj', 'sus'] },
+    flat5: { iv: [0, 4, 6],    sym: '(♭5)',  name: 'Maj ♭5',   combo: ['maj', 'dim'] },
+    five:  { iv: [0, 7, 12],   sym: '5',     name: 'Power',    combo: ['min', 'sus'] },
+    mb6:   { iv: [0, 3, 7, 8], sym: 'm♭6',   name: 'Min ♭6',   combo: ['min', 'dim'] },
+    q7sus: { iv: [0, 5, 10],   sym: '7sus4', name: 'Quartal',  combo: ['sus', 'dim'] },
   };
+  const SUS_TYPES = new Set(['sus', 'sus2', 'q7sus']);
+  function comboType(a, b) { for (const k in TYPES) { const c = TYPES[k].combo; if (c && c.includes(a) && c.includes(b) && a !== b) return k; } return null; }
   const MODS = { '6': 9, 'm7': 10, 'M7': 11, '9': 14 };
   const mod = (n, m) => ((n % m) + m) % m;
 
@@ -53,7 +62,8 @@
       if (seventh) seventh = seventh.replace(/9$/, '13').replace(/7$/, '7(13)');
       else ext = '6' + ext;
     }
-    if (type === 'sus') return root + seventh + ext + 'sus4';
+    if (type === 'q7sus') return root + (M7 ? 'maj7' : '7') + (has9 ? '(9)' : '') + (has6 ? '(13)' : '') + 'sus4';
+    if (SUS_TYPES.has(type)) return root + seventh + ext + core;
     return root + core + seventh + ext;
   }
 
@@ -105,5 +115,5 @@
   }
   function midiName(m, useFlats) { return (useFlats ? FLAT : SHARP)[mod(m, 12)] + (Math.floor(m / 12) - 1); }
 
-  global.Theory = { SHARP, FLAT, TYPES, MODS, SCALES, buildChord, keyChord, bassNote, midiName, mod };
+  global.Theory = { SHARP, FLAT, TYPES, MODS, SCALES, comboType, buildChord, keyChord, bassNote, midiName, mod };
 })(window);

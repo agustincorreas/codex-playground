@@ -73,7 +73,7 @@
             </div>
             <div class="voicing">
               <div class="ctl" data-dial="voicing" data-label="Voicing" data-help="voicing"></div>
-              <div class="ctl" data-knob="octave" data-min="-2" data-max="2" data-step="1" data-value="0" data-label="Octave" data-cap="k" data-small="1" data-help="octave"></div>
+              <div class="ctl" data-knob="octave" data-min="-2" data-max="2" data-step="1" data-value="0" data-label="Octave" data-cap="k" data-small="1" data-help="octave"><div class="sub"><button class="tog" id="splitBtn" type="button" data-help="split"><i></i>split</button></div></div>
             </div>
           </div>
         </div>
@@ -81,12 +81,12 @@
         <div class="side right-side">
           <div class="encs">
             <div class="ctl" data-knob="bassLevel" data-value="0.8" data-cap="r" data-label="Bass" data-help="bass"><div class="sub"><button class="tog" id="bassOn" type="button" data-help="bassMode"><i></i>on</button></div></div>
-            <div class="ctl" data-enc="loopBars" data-cap="k" data-label="Loop" data-help="loop"><div class="sub row"><button class="tog rec" id="rec" type="button" data-help="rec"><i></i>rec</button><button class="tog" id="loopPlay" type="button" data-help="loopPlay"><i></i>play</button><button class="tog ghost" id="loopUndo" type="button" data-help="undo">undo</button><button class="tog ghost" id="loopClear" type="button" data-help="clear">clr</button></div></div>
+            <div class="ctl" data-enc="loopBars" data-cap="k" data-label="Loop" data-help="loop"><div class="sub row"><button class="tog rec" id="rec" type="button" data-help="rec"><i></i>rec</button><button class="tog" id="loopPlay" type="button" data-help="loopPlay"><i></i>play</button><button class="tog ghost" id="loopUndo" type="button" data-help="undo">undo</button><button class="tog ghost" id="loopClear" type="button" data-help="clear">clr</button><button class="tog ghost" id="loopSave" type="button" data-help="save">save</button><button class="tog ghost" id="loopLoad" type="button" data-help="load">load</button></div></div>
             <div class="ctl" data-knob="bpm" data-min="50" data-max="180" data-step="1" data-value="96" data-cap="k" data-label="BPM" data-help="bpm"><div class="sub"><div class="ctl" data-enc="beat" data-list="1" data-label="" data-help="beat"></div><button class="tog play" id="play" type="button" data-help="play"><i></i>play</button></div></div>
             <div class="ctl options" data-label="Options" data-help="options"><label>Options</label><div class="sub row wrap" id="options"></div></div>
             <div class="ctl" data-knob="volume" data-value="0.8" data-cap="k" data-label="Volume" data-help="volume"></div>
           </div>
-          <div class="keyboard" id="keyboard" data-help="keyboard"></div>
+          <div class="keyboard" id="keyboard" data-help="keyboard"><i class="splitmark" id="splitMark" hidden></i></div>
         </div>
       </section>
       <div class="model">ORC · armonía</div>
