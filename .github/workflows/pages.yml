@@ -1,11 +1,12 @@
-# Publica la carpeta armonia/ en GitHub Pages cada vez que se actualiza main.
-# URL resultante: https://agustincorreas.github.io/codex-playground/
-name: Publicar Armonía en GitHub Pages
+# Publica las apps web del repo en GitHub Pages cada vez que se actualiza main:
+#   - armonia/  →  https://agustincorreas.github.io/codex-playground/
+#   - ensayo/   →  https://agustincorreas.github.io/codex-playground/ensayo/
+name: Publicar apps web en GitHub Pages
 
 on:
   push:
     branches: [main]
-    paths: ['armonia/**', '.github/workflows/pages.yml']
+    paths: ['armonia/**', 'ensayo/**', '.github/workflows/pages.yml']
   workflow_dispatch:
 
 permissions:
@@ -25,11 +26,16 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      - name: Armar el sitio (Armonía en la raíz, Ensayo en /ensayo/)
+        run: |
+          mkdir -p _site/ensayo
+          cp -r armonia/. _site/
+          cp -r ensayo/. _site/ensayo/
       - uses: actions/configure-pages@v5
         with:
           enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: armonia
+          path: _site
       - id: deployment
         uses: actions/deploy-pages@v4

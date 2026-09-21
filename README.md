@@ -17,6 +17,18 @@ Son útiles para jugar, mejorar código y experimentar.
   en cascada, modos de performance (strum, arp, patterns, harp), beats, looper y MIDI in/out.
   Sin dependencias: abrí `armonia/armonia.html`.
 
+## Proyecto: Ensayo — practicá los temas de tu banda sin tu banda
+
+- [`ensayo/`](ensayo/README.md): app web para músicos (guitarra, bajo, batería, voz, teclado) que
+  necesitan ensayar un repertorio. Elegís tu instrumento, armás la setlist, cada tema tiene un
+  backing track sin tu instrumento (YouTube, archivo propio o metrónomo) y la app te muestra la
+  **letra y los acordes sincronizados**, con loop A-B, cambio de velocidad, transposición, count-in,
+  modo "Sincronizar" para marcar los tiempos y grabación de audio/video de tus tomas. Sin
+  dependencias ni build: abrí `ensayo/index.html` desde un servidor local o en
+  https://agustincorreas.github.io/codex-playground/ensayo/. El README incluye la investigación de
+  mercado (Moises, Chordify, Ultimate Guitar, Songsterr, Jamzone, Chord ai…), los límites técnicos y
+  legales de usar YouTube, y el roadmap.
+
 ## Proyecto: Sillage — Recomendador de perfumes
 
 - [`sillage/`](sillage/README.md): app React Native (Expo) con tier gratuito y membresía PRO.
