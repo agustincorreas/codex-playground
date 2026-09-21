@@ -160,9 +160,10 @@
   // está sincronizado por BPM. Genera un click con acento en el primer tiempo.
   // --------------------------------------------------------------------------
   class MetronomeAdapter {
-    constructor(container) {
+    constructor(container, opts = {}) {
       this.kind = 'metronome';
       this.container = container;
+      this.getCtx = opts.getCtx || null; // AudioContext compartido, desbloqueado en un gesto del usuario
       this.state = 'idle';
       this.listeners = [];
       this.bpm = 100;
@@ -184,6 +185,7 @@
       this._emit('ready');
     }
     _ensureCtx() {
+      if (this.getCtx) this.ctx = this.getCtx();
       if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
       if (this.ctx.state === 'suspended') this.ctx.resume();
     }
