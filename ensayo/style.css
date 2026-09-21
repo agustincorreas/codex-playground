@@ -37,6 +37,13 @@ a { color: var(--accent-2); }
 .topbar nav { display: flex; gap: 4px; margin-left: auto; }
 .topbar nav a { color: var(--fg-2); text-decoration: none; padding: 8px 12px; border-radius: 10px; font-weight: 600; font-size: 14px; }
 .topbar nav a.active, .topbar nav a:hover { color: var(--fg); background: var(--bg-3); }
+@media (max-width: 520px) {
+  .topbar { padding: 10px 12px; gap: 8px; }
+  .brand span:not(.logo) { display: none; }
+  .topbar nav { gap: 0; }
+  .topbar nav a { padding: 8px 8px; font-size: 13px; }
+  .chip { font-size: 12px; padding: 5px 8px; }
+}
 .chip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 999px; background: var(--bg-3); border: 1px solid var(--line); font-size: 13px; font-weight: 600; color: var(--fg-2); white-space: nowrap; }
 .chip.accent { background: rgba(245,165,36,.15); border-color: rgba(245,165,36,.4); color: var(--accent-2); }
 .chip.ok { color: var(--ok); border-color: rgba(86,216,139,.4); }
@@ -260,3 +267,11 @@ details summary { cursor: pointer; font-weight: 600; color: var(--fg-2); margin-
 .base-panel .bp-paste input { flex: 1; min-width: 0; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; color: var(--fg); outline: none; font-size: 14px; }
 .base-panel .bp-paste input:focus { border-color: var(--accent); }
 .linkbtn { color: var(--accent-2); text-decoration: underline; font-size: 11px; }
+
+/* ---------- modal ---------- */
+.modal { position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 200; display: flex; align-items: center; justify-content: center; padding: 12px; }
+.modal-card { background: var(--bg-2); border: 1px solid var(--line); border-radius: 16px; padding: 18px; width: 100%; max-width: 720px; max-height: 92vh; display: flex; flex-direction: column; }
+.modal-card textarea { flex: 1; min-height: 40vh; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; color: var(--fg); font-family: var(--mono); font-size: 13px; line-height: 1.5; white-space: pre; outline: none; resize: vertical; }
+.modal-card textarea:focus { border-color: var(--accent); }
+.chart .nosync.soft { background: var(--bg-2); border-color: var(--line); color: var(--fg-2); }
+.chart .nosync .btn { margin-left: 4px; }
