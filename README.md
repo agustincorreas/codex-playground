@@ -17,6 +17,13 @@ Son útiles para jugar, mejorar código y experimentar.
   en cascada, modos de performance (strum, arp, patterns, harp), beats, looper y MIDI in/out.
   Sin dependencias: abrí `armonia/armonia.html`.
 
+## Proyecto: Pulso — práctica musical gamificada (tipo Melodics)
+
+- [`pulso/`](pulso/README.md): PWA multiplataforma (escritorio y celular) para aprender teclado, pads y batería.
+  Lecciones por pasos con feedback de timing en tiempo real, estrellas, récords, XP y nivel, modo práctica
+  (loop, BPM, Wait Mode, Auto BPM), meta diaria, rachas, trofeos, cursos, canciones y ejercicios.
+  Entrada por MIDI, teclado de PC o pantalla táctil. `cd pulso && npm install && npm run dev`.
+
 ## Proyecto: Sillage — Recomendador de perfumes
 
 - [`sillage/`](sillage/README.md): app React Native (Expo) con tier gratuito y membresía PRO.

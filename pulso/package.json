@@ -1,0 +1,26 @@
+{
+  "name": "pulso",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Pulso — práctica musical gamificada para teclado, pads y batería (inspirada en Melodics).",
+  "scripts": {
+    "dev": "vite --host",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "zustand": "^5.0.5"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "@vitejs/plugin-react": "^4.5.0",
+    "typescript": "^5.8.0",
+    "vite": "^6.3.0",
+    "vite-plugin-pwa": "^1.0.0"
+  }
+}

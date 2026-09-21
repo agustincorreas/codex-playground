@@ -1,0 +1,7 @@
+{
+  "appId": "com.pulso.app",
+  "appName": "Pulso",
+  "webDir": "dist",
+  "server": { "androidScheme": "https" },
+  "ios": { "contentInset": "always" }
+}

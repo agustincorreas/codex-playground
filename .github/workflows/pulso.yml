@@ -1,0 +1,29 @@
+# Compila y verifica la app Pulso en cada cambio.
+name: Pulso CI
+
+on:
+  push:
+    paths: ['pulso/**', '.github/workflows/pulso.yml']
+  pull_request:
+    paths: ['pulso/**']
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: pulso
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: pulso/package-lock.json
+      - run: npm ci
+      - run: npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pulso-dist
+          path: pulso/dist
