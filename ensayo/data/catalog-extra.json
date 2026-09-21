@@ -1,0 +1,466 @@
+{
+ "de-musica-ligera": {
+  "guitarra": "mfVahKW_qWc",
+  "bajo": "DK1p8Z8IRLk",
+  "_default": "fwE06UTJ3fU",
+  "voz": "U5oCuKJQbLc"
+ },
+ "persiana-americana": {
+  "voz": "mpQqszqKRrY"
+ },
+ "cuando-pase-el-temblor": {
+  "voz": "4j-iWc49cIU"
+ },
+ "tratame-suavemente": {
+  "voz": "dPHx4HfPtO0"
+ },
+ "demoliendo-hoteles": {
+  "guitarra": "eQhz-OeMKt0",
+  "voz": "_VsCfqqVh8I"
+ },
+ "rezo-por-vos": {
+  "voz": "7qNgtbE7TIA"
+ },
+ "los-dinosaurios": {
+  "voz": "yaGwN9rZTds",
+  "_default": "yaGwN9rZTds"
+ },
+ "yo-no-quiero-volverme-tan-loco": {
+  "voz": "iJox6G4LCEc",
+  "_default": "iJox6G4LCEc"
+ },
+ "muchacha-ojos-de-papel": {
+  "voz": "WHvCKD6VN4M",
+  "_default": "WHvCKD6VN4M"
+ },
+ "ji-ji-ji": {
+  "voz": "RPvcBer133I"
+ },
+ "todo-un-palo": {
+  "voz": "4fUr52ir35M"
+ },
+ "el-amor-despues-del-amor": {
+  "voz": "mRqi2-yLFOc"
+ },
+ "mariposa-tecknicolor": {
+  "voz": "-6cTOVJ0g9A",
+  "_default": "-6cTOVJ0g9A"
+ },
+ "11-y-6": {
+  "voz": "ewfqmamSrzk"
+ },
+ "mil-horas": {
+  "voz": "Jurpfdmjpdw",
+  "_default": "Jurpfdmjpdw"
+ },
+ "costumbres-argentinas": {
+  "voz": "k5KmFFY-OEE",
+  "_default": "k5KmFFY-OEE"
+ },
+ "la-rubia-tarada": {
+  "voz": "Ma3SWkm1-4M",
+  "_default": "Ma3SWkm1-4M"
+ },
+ "luna-de-miel-en-la-mano": {
+  "voz": "pn6-cqRNhy8",
+  "_default": "pn6-cqRNhy8"
+ },
+ "crimen": {
+  "guitarra": "qwMzGrAORwQ",
+  "voz": "klXm5lJ2izU"
+ },
+ "solo-le-pido-a-dios": {
+  "guitarra": "da7o-DvlIO4"
+ },
+ "zona-de-promesas": {
+  "voz": "HYLniAMnR1U",
+  "_default": "Z7UuJUGG1tI"
+ },
+ "matador": {
+  "guitarra": "-HYous-alKA",
+  "bajo": "XelBhXLj3IM",
+  "voz": "85Q2pB2wIlk",
+  "_default": "-HYous-alKA"
+ },
+ "vasos-vacios": {
+  "voz": "7a63LEwHYXI",
+  "_default": "7a63LEwHYXI"
+ },
+ "mal-bicho": {
+  "voz": "swyxrgUSXh4",
+  "_default": "swyxrgUSXh4"
+ },
+ "que-ves": {
+  "guitarra": "9rXfLp89bHs",
+  "voz": "IFMvpSbQz9Y",
+  "_default": "9rXfLp89bHs"
+ },
+ "el-revelde": {
+  "voz": "EqASEbjJFhw",
+  "_default": "EqASEbjJFhw"
+ },
+ "la-balada-del-diablo-y-la-muerte": {
+  "guitarra": "9rleInoX52o",
+  "voz": "USNnG8OMdro",
+  "_default": "QxG6Gf3iKN8"
+ },
+ "tan-solo": {
+  "guitarra": "zWKMD1Onago",
+  "bateria": "Pzp914kZ2_w",
+  "voz": "vO5Q_F2lS5U",
+  "_default": "fIeAMOdwmAo"
+ },
+ "el-farolito": {
+  "voz": "rMCNhuoUFu0",
+  "_default": "rMCNhuoUFu0"
+ },
+ "loco-tu-forma-de-ser": {
+  "guitarra": "EHNmPfwv1n4",
+  "voz": "VBqMw1BbFxM",
+  "_default": "EHNmPfwv1n4"
+ },
+ "la-guitarra": {
+  "voz": "YRuEDlIIxH0",
+  "_default": "YRuEDlIIxH0"
+ },
+ "el-tiempo-no-para": {
+  "voz": "vt9_O-1wlfc",
+  "_default": "vt9_O-1wlfc"
+ },
+ "irresponsables": {
+  "voz": "Az-3km4si4A",
+  "_default": "Az-3km4si4A"
+ },
+ "paisaje": {
+  "voz": "inUyu-F51fs",
+  "_default": "inUyu-F51fs"
+ },
+ "lamento-boliviano": {
+  "guitarra": "cWDQTlOPPKk",
+  "bajo": "MRBahs4mKZU",
+  "voz": "sFzhyhIsFhk",
+  "_default": "BCAB1IU-h_0"
+ },
+ "la-muralla-verde": {
+  "guitarra": "wvKjtdu9yco",
+  "voz": "thuddMp8sJ8",
+  "_default": "wvKjtdu9yco"
+ },
+ "rock-del-gato": {
+  "guitarra": "oeBAG8FH0NE",
+  "voz": "Hg7gqiX8GT0",
+  "_default": "Hg7gqiX8GT0"
+ },
+ "fuego": {
+  "voz": "8V9D3JzxRgI",
+  "_default": "8V9D3JzxRgI"
+ },
+ "ciudad-magica": {
+  "voz": "UoPUBPAbpaE",
+  "_default": "UoPUBPAbpaE"
+ },
+ "don": {
+  "voz": "ZIwa3gtRRPE",
+  "_default": "ZIwa3gtRRPE"
+ },
+ "hacelo-por-mi": {
+  "voz": "q8qYZsfOGbc",
+  "_default": "q8qYZsfOGbc"
+ },
+ "runaway": {
+  "bajo": "2D0L4XV3iP8",
+  "voz": "LuswFGJAt3k",
+  "_default": "LuswFGJAt3k"
+ },
+ "loco-en-el-desierto": {
+  "voz": "0uxoVpXOMCg",
+  "_default": "0uxoVpXOMCg"
+ },
+ "vamonos-de-viaje": {
+  "voz": "y5HEKIP21-A",
+  "_default": "y5HEKIP21-A"
+ },
+ "rayando-el-sol": {
+  "guitarra": "vKFOXp1ze9M",
+  "bateria": "P5nihH4aXx8",
+  "voz": "-_hvwEKZ8iY",
+  "_default": "zG0tcHGZpXs"
+ },
+ "oye-mi-amor": {
+  "guitarra": "cA2-nREcmSs",
+  "bajo": "ojUrhwrE4PI",
+  "bateria": "gwpW7D0dUx8",
+  "voz": "vOt8gWL_2PM",
+  "_default": "DKVgkdoswOo"
+ },
+ "mariposa-traicionera": {
+  "guitarra": "aro4YU51op0",
+  "bajo": "wsimNw5rrBQ",
+  "bateria": "dpfx1NOcLXc",
+  "voz": "182V8Jt9S-M",
+  "_default": "aro4YU51op0"
+ },
+ "entre-dos-tierras": {
+  "guitarra": "_m-Ep79nS80",
+  "bajo": "6fDqoq63tU0",
+  "bateria": "xKcJCEa0ddc",
+  "voz": "cIphHyNCUuA",
+  "_default": "HdNKaH7g_h4"
+ },
+ "la-flaca": {
+  "guitarra": "l6mRYkbnyfM",
+  "bateria": "Eapd3_I2fIw",
+  "voz": "ZNos9cznEwI",
+  "_default": "RqCnAhFvLC4"
+ },
+ "devuelveme-a-mi-chica": {
+  "guitarra": "2li8NqZSCHY",
+  "voz": "SHVQZTpTTog",
+  "_default": "SHVQZTpTTog"
+ },
+ "eres": {
+  "voz": "-PKWgw3R2Rc",
+  "_default": "-PKWgw3R2Rc"
+ },
+ "a-dios-le-pido": {
+  "guitarra": "8CZS6DAxZmI",
+  "bajo": "_-SDdDq0zm0",
+  "bateria": "b8jM8IR_Y9w",
+  "voz": "qeHapNkTxzk",
+  "_default": "qeHapNkTxzk"
+ },
+ "sin-documentos": {
+  "bateria": "gvrcSEHzJ7Q",
+  "voz": "NSeMjxBcXY4",
+  "_default": "NSeMjxBcXY4"
+ },
+ "antologia": {
+  "voz": "oOfPAHYAVi8",
+  "_default": "oOfPAHYAVi8"
+ },
+ "ojos-marrones": {
+  "bajo": "F4vrOLJ0ruo",
+  "voz": "Pdgnz2m2LUc",
+  "_default": "Pdgnz2m2LUc"
+ },
+ "knockin-on-heavens-door": {
+  "bajo": "cbp4EaQGsQs"
+ },
+ "sweet-child-o-mine": {
+  "voz": "rSQujEShesU"
+ },
+ "let-it-be": {
+  "bateria": "pn7MwmLMWXo"
+ },
+ "come-together": {
+  "voz": "D9gA8erVrcY"
+ },
+ "satisfaction": {
+  "voz": "uj4-_JL7-Tk"
+ },
+ "rock-and-roll": {
+  "voz": "hbBfdRDCkcA"
+ },
+ "wish-you-were-here": {
+  "bajo": "7aZvwLvBMHc"
+ },
+ "another-brick-in-the-wall-part-2": {
+  "voz": "xnTRKM7-jGM"
+ },
+ "highway-to-hell": {
+  "bateria": "g4Qxcbg3BWY",
+  "voz": "cnDxLTmaomc"
+ },
+ "back-in-black": {
+  "bajo": "48mq5SMb-YE",
+  "voz": "s-dMoiDQ_II"
+ },
+ "smells-like-teen-spirit": {
+  "voz": "JF0t9HQUb54"
+ },
+ "dont-look-back-in-anger": {
+  "bajo": "gFqfOmzqfMk"
+ },
+ "creep": {
+  "voz": "3WLy3AblvmQ"
+ },
+ "californication": {
+  "voz": "YpzKqIiP8CE"
+ },
+ "with-or-without-you": {
+  "voz": "baxtt8PEqsE"
+ },
+ "basket-case": {
+  "bateria": "mKUUfpw4fbU"
+ },
+ "livin-on-a-prayer": {
+  "bateria": "QN7DJnIzOek",
+  "voz": "Ep6G3P2v5ZA"
+ },
+ "hotel-california": {
+  "bajo": "q4RTSvf2jGI",
+  "bateria": "XDcVNrvRQU4",
+  "voz": "-IPbfnlmMqk"
+ },
+ "wonderful-tonight": {
+  "bajo": "UEmTanDOV7I"
+ },
+ "have-you-ever-seen-the-rain": {
+  "bajo": "nTiR1WPg16Y",
+  "voz": "tR16kDryrJ0"
+ },
+ "smoke-on-the-water": {
+  "bateria": "s_utd-eaV3E"
+ },
+ "sultans-of-swing": {
+  "bajo": "KCMMiMJSw2Q",
+  "bateria": "2K3ISzI2HEA"
+ },
+ "every-breath-you-take": {
+  "voz": "5clOtV_LRgs"
+ },
+ "dont-stop-believin": {
+  "bateria": "iiQThVDcS_Y"
+ },
+ "aint-no-sunshine": {
+  "bajo": "Qh7tCvRiR_k",
+  "bateria": "01IgFZXQ7R4"
+ },
+ "superstition": {
+  "guitarra": "rIKQY9tQAXI",
+  "bajo": "iqEP5O_iGbk",
+  "bateria": "C-OSxQUTSkw",
+  "voz": "YwLQViNOwlY",
+  "_default": "UG5Jq1I7ZF8"
+ },
+ "valerie": {
+  "guitarra": "kqS-dHz69Ho",
+  "bajo": "ZM3ycOId5h0",
+  "bateria": "cOMhfoBf_po",
+  "voz": "QM2bJTREMTI",
+  "_default": "p06KAl3ZeQg"
+ },
+ "zombie": {
+  "guitarra": "5nXP9D_Aoto",
+  "bajo": "AudjfuRKIo8",
+  "bateria": "LqQD1-8cqUg",
+  "voz": "L039nNflfn0",
+  "_default": "aOmNzoATgsw"
+ },
+ "losing-my-religion": {
+  "guitarra": "lI3x2TXWGvE",
+  "bajo": "oJCq0Bt9c-E",
+  "bateria": "rLk8gfiYlZ0",
+  "voz": "gCrqBZlxSyA",
+  "_default": "NYfJ9D5kD78"
+ },
+ "seven-nation-army": {
+  "guitarra": "mRkV9XWvTgY",
+  "bajo": "BH6kEvSkwTQ",
+  "bateria": "AKzpkhmEKaU",
+  "voz": "Jv8IKTf8tGE",
+  "_default": "9WkBBouqt8g"
+ },
+ "mr-brightside": {
+  "guitarra": "8apxzT0oKn4",
+  "bateria": "rAzDdGnpHAg",
+  "voz": "c1X3Lg7RVkk",
+  "_default": "YaMv3Zhf5fw"
+ },
+ "blinding-lights": {
+  "guitarra": "xXiPqHsXVL4",
+  "bajo": "5YuKXp4nSB8",
+  "bateria": "8wzjKGA4TpA",
+  "voz": "r9vRG2G0Wes",
+  "_default": "fYDH5CX6CNg"
+ },
+ "as-it-was": {
+  "guitarra": "yk-G0yPap0s",
+  "bateria": "N7ZGsmXzT-w",
+  "voz": "JyKfmLkq3BU",
+  "_default": "01v21K8m9Uo"
+ },
+ "shape-of-you": {
+  "bateria": "tKXemPJdsNc",
+  "voz": "cSdJTloNVlE",
+  "_default": "rhuPWim5Yoo"
+ },
+ "perfect": {
+  "guitarra": "c3SsTuVjueo",
+  "bateria": "bjXkMBrBGqQ",
+  "voz": "sPMA1tqWuf4",
+  "_default": "T2Q8EK7fMjQ"
+ },
+ "uptown-funk": {
+  "bajo": "SoZIMORedVk",
+  "bateria": "vOTWh4MyfRc",
+  "voz": "vJLREpl88No",
+  "_default": "nE2hMDCuAkM"
+ },
+ "die-with-a-smile": {
+  "guitarra": "l2Inw5EJp1c",
+  "bajo": "6jSTLeohYZ0",
+  "voz": "PT-6Xw84uMs",
+  "_default": "mGtoCGCfBoY"
+ },
+ "flowers": {
+  "guitarra": "hU22Qbvn8oI",
+  "bajo": "MdyX7XPHn1Y",
+  "bateria": "ZqJ5icQkiJ0",
+  "voz": "TaOb8n_R4Ik",
+  "_default": "Bw2VoNYxNpE"
+ },
+ "levitating": {
+  "bajo": "AM7F84Ep468",
+  "bateria": "zWbxstjBRVI",
+  "voz": "hGqVE0WoNgE",
+  "_default": "Snw141KzDWw"
+ },
+ "birds-of-a-feather": {
+  "guitarra": "1_u4xIAGJiI",
+  "bateria": "sd2hnHGb0XU",
+  "voz": "RvGbovhmItM",
+  "_default": "pLKsgK6sn9A"
+ },
+ "beautiful-things": {
+  "guitarra": "-WUR_-LXCmY",
+  "bateria": "suiDsTkp8wc",
+  "voz": "yPaHm9w-EEw",
+  "_default": "bUEShJJJkWw"
+ },
+ "espresso": {
+  "bajo": "w0ZJ9VqBxuQ",
+  "bateria": "njUViQjGnuo",
+  "voz": "LetkR4lliUQ",
+  "_default": "Qnf6LWuNguw"
+ },
+ "watermelon-sugar": {
+  "guitarra": "XQ-mc7-krC8",
+  "voz": "vmZtV22JXuE",
+  "_default": "GgSEZ-KUaII"
+ },
+ "rolling-in-the-deep": {
+  "guitarra": "re40enzQ2Nc",
+  "bajo": "hkFj5L1dnyg",
+  "bateria": "_R5oiIkPp40",
+  "voz": "ksX10XqsQkE",
+  "_default": "-iUbpCINsb0"
+ },
+ "someone-like-you": {
+  "guitarra": "9yHv4MkYM2U",
+  "voz": "QZJHyVMwm0I",
+  "_default": "alcm3FsX5LA"
+ },
+ "chasing-cars": {
+  "guitarra": "VjSM64-4lFE",
+  "voz": "wGJCB8nd5Bw",
+  "_default": "TVUejchV-bc"
+ },
+ "use-somebody": {
+  "guitarra": "fyOBisJ3Xbc",
+  "bajo": "wccTlhW06X0",
+  "bateria": "o5CWjzSorXo",
+  "voz": "66YWpxa9LkE",
+  "_default": "WQq2F322IOA"
+ }
+}

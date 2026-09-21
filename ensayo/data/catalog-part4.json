@@ -1,0 +1,898 @@
+[
+ {
+  "id": "smoke-on-the-water",
+  "title": "Smoke on the Water",
+  "artist": "Deep Purple",
+  "key": "Gm",
+  "bpm": 114,
+  "beats": 4,
+  "tags": [
+   "rock",
+   "clásico"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "G Bb C"
+   },
+   {
+    "name": "Verso",
+    "chords": "G F"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "C Ab G"
+   },
+   {
+    "name": "Solo",
+    "chords": "G Bb C"
+   }
+  ],
+  "chordsConfidence": "low",
+  "yt": {
+   "guitarra": "PlewFI2a2qo",
+   "bajo": "sX6989luDx8",
+   "voz": "4YI3im_TtxA",
+   "_default": "nvDhoHLeEZw"
+  }
+ },
+ {
+  "id": "sultans-of-swing",
+  "title": "Sultans of Swing",
+  "artist": "Dire Straits",
+  "key": "Dm",
+  "bpm": 148,
+  "beats": 4,
+  "tags": [
+   "rock",
+   "clásico"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "Dm C Bb A"
+   },
+   {
+    "name": "Verso",
+    "chords": "Dm C Bb A"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "F C Bb C Dm"
+   },
+   {
+    "name": "Solo",
+    "chords": "Dm C Bb A"
+   }
+  ],
+  "chordsConfidence": "high",
+  "yt": {
+   "guitarra": "esXNBi06FXY",
+   "voz": "MTmCG3MdcFw",
+   "_default": "ZT4bMLjCvCM"
+  }
+ },
+ {
+  "id": "every-breath-you-take",
+  "title": "Every Breath You Take",
+  "artist": "The Police",
+  "key": "Ab",
+  "bpm": 117,
+  "beats": 4,
+  "tags": [
+   "pop rock",
+   "clásico"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "Ab Fm Db Eb"
+   },
+   {
+    "name": "Verso",
+    "chords": "Ab Fm Db Eb Ab"
+   },
+   {
+    "name": "Pre-estribillo",
+    "chords": "Db Eb Ab Fm Db Eb Ab"
+   },
+   {
+    "name": "Puente",
+    "chords": "F Db"
+   }
+  ],
+  "chordsConfidence": "high",
+  "yt": {
+   "guitarra": "b5pdz9334Pg",
+   "bajo": "hL3PQ_xKr1w",
+   "bateria": "jZ9ThEmAQ6o",
+   "_default": "n386WdxCwMY"
+  }
+ },
+ {
+  "id": "africa",
+  "title": "Africa",
+  "artist": "Toto",
+  "key": "A",
+  "bpm": 92,
+  "beats": 4,
+  "tags": [
+   "pop rock",
+   "clásico"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "A F#m"
+   },
+   {
+    "name": "Verso",
+    "chords": "A E F#m D"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "F#m D A E"
+   }
+  ],
+  "chordsConfidence": "low",
+  "yt": {
+   "guitarra": "3uuFTwLZsVU",
+   "bajo": "H6cEplxEXQM",
+   "bateria": "oVN2K4f95go",
+   "voz": "CRrZlEF7-SU",
+   "_default": "aJmHZFpp45s"
+  }
+ },
+ {
+  "id": "dont-stop-believin",
+  "title": "Don't Stop Believin'",
+  "artist": "Journey",
+  "key": "E",
+  "bpm": 119,
+  "beats": 4,
+  "tags": [
+   "rock",
+   "clásico"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "E B C#m A"
+   },
+   {
+    "name": "Verso",
+    "chords": "E B C#m A E B G#m A"
+   },
+   {
+    "name": "Pre-estribillo",
+    "chords": "E B C#m A"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "E B C#m A"
+   },
+   {
+    "name": "Solo",
+    "chords": "E B C#m A E B G#m A"
+   }
+  ],
+  "chordsConfidence": "high",
+  "yt": {
+   "guitarra": "1DiBZLVb0_A",
+   "voz": "yvA6BlbdrJk",
+   "_default": "85_G_Sc5QjQ"
+  }
+ },
+ {
+  "id": "aint-no-sunshine",
+  "title": "Ain't No Sunshine",
+  "artist": "Bill Withers",
+  "key": "Am",
+  "bpm": 79,
+  "beats": 4,
+  "tags": [
+   "soul",
+   "clásico"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "Am Em G Am"
+   },
+   {
+    "name": "Verso",
+    "chords": "Am Em G Am Dm Am Em"
+   },
+   {
+    "name": "Puente",
+    "chords": "Am"
+   }
+  ],
+  "chordsConfidence": "high",
+  "yt": {
+   "guitarra": "u1-mLm37UoA",
+   "voz": "zvjhSC9_tjA",
+   "_default": "M4kd55kEyD0"
+  }
+ },
+ {
+  "id": "superstition",
+  "title": "Superstition",
+  "artist": "Stevie Wonder",
+  "key": "Ebm",
+  "bpm": 101,
+  "beats": 4,
+  "tags": [
+   "funk",
+   "soul",
+   "clásico"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "Ebm7"
+   },
+   {
+    "name": "Verso",
+    "chords": "Ebm7"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "Bb7 B7 Bb7 A7 Ab7 Bb7"
+   }
+  ],
+  "chordsConfidence": "high",
+  "yt": {}
+ },
+ {
+  "id": "valerie",
+  "title": "Valerie",
+  "artist": "Amy Winehouse",
+  "key": "Eb",
+  "bpm": 105,
+  "beats": 4,
+  "tags": [
+   "soul",
+   "pop"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "Eb Fm"
+   },
+   {
+    "name": "Verso",
+    "chords": "Eb Fm"
+   },
+   {
+    "name": "Pre-estribillo",
+    "chords": "Ab Bb"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "Ab Gm Fm Eb"
+   }
+  ],
+  "chordsConfidence": "low",
+  "yt": {}
+ },
+ {
+  "id": "zombie",
+  "title": "Zombie",
+  "artist": "The Cranberries",
+  "key": "Em",
+  "bpm": 84,
+  "beats": 4,
+  "tags": [
+   "rock",
+   "90s"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "Em C G D"
+   },
+   {
+    "name": "Verso",
+    "chords": "Em C G D"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "Em C G D"
+   },
+   {
+    "name": "Solo",
+    "chords": "Em C G D"
+   }
+  ],
+  "chordsConfidence": "high",
+  "yt": {}
+ },
+ {
+  "id": "losing-my-religion",
+  "title": "Losing My Religion",
+  "artist": "R.E.M.",
+  "key": "Am",
+  "bpm": 126,
+  "beats": 4,
+  "tags": [
+   "rock",
+   "90s"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "F Dm G Am"
+   },
+   {
+    "name": "Verso",
+    "chords": "Am Em Am Em Dm G"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "Am Em Am Em Dm G"
+   },
+   {
+    "name": "Puente",
+    "chords": "C Dm C Dm G"
+   }
+  ],
+  "chordsConfidence": "high",
+  "yt": {}
+ },
+ {
+  "id": "seven-nation-army",
+  "title": "Seven Nation Army",
+  "artist": "The White Stripes",
+  "key": "Em",
+  "bpm": 124,
+  "beats": 4,
+  "tags": [
+   "rock",
+   "2000s"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "Em"
+   },
+   {
+    "name": "Verso",
+    "chords": "Em"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "Em G Em D C B"
+   },
+   {
+    "name": "Solo",
+    "chords": "Em G Em D C B"
+   }
+  ],
+  "chordsConfidence": "high",
+  "yt": {}
+ },
+ {
+  "id": "mr-brightside",
+  "title": "Mr. Brightside",
+  "artist": "The Killers",
+  "key": "Db",
+  "bpm": 148,
+  "beats": 4,
+  "tags": [
+   "rock",
+   "2000s"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "Db Gb Db Gb"
+   },
+   {
+    "name": "Verso",
+    "chords": "Db Gb Db Gb"
+   },
+   {
+    "name": "Pre-estribillo",
+    "chords": "Db Gb Ab Gb"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "Db Ab Bbm Gb"
+   }
+  ],
+  "chordsConfidence": "low",
+  "yt": {}
+ },
+ {
+  "id": "blinding-lights",
+  "title": "Blinding Lights",
+  "artist": "The Weeknd",
+  "key": "Fm",
+  "bpm": 171,
+  "beats": 4,
+  "tags": [
+   "pop",
+   "actual"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "Fm Db Ab Eb"
+   },
+   {
+    "name": "Verso",
+    "chords": "Fm Db Ab Eb"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "Fm Db Ab Eb"
+   }
+  ],
+  "chordsConfidence": "high",
+  "yt": {}
+ },
+ {
+  "id": "as-it-was",
+  "title": "As It Was",
+  "artist": "Harry Styles",
+  "key": "A",
+  "bpm": 174,
+  "beats": 4,
+  "tags": [
+   "pop",
+   "actual"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "A Bm D E"
+   },
+   {
+    "name": "Verso",
+    "chords": "A Bm D E"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "A Bm D E"
+   }
+  ],
+  "chordsConfidence": "low",
+  "yt": {}
+ },
+ {
+  "id": "shape-of-you",
+  "title": "Shape of You",
+  "artist": "Ed Sheeran",
+  "key": "C#m",
+  "bpm": 96,
+  "beats": 4,
+  "tags": [
+   "pop",
+   "actual"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "C#m F#m A B"
+   },
+   {
+    "name": "Verso",
+    "chords": "C#m F#m A B"
+   },
+   {
+    "name": "Pre-estribillo",
+    "chords": "C#m F#m A B"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "C#m F#m A B"
+   }
+  ],
+  "chordsConfidence": "high",
+  "yt": {}
+ },
+ {
+  "id": "perfect",
+  "title": "Perfect",
+  "artist": "Ed Sheeran",
+  "key": "Ab",
+  "bpm": 95,
+  "beats": 4,
+  "tags": [
+   "pop",
+   "balada"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "Ab"
+   },
+   {
+    "name": "Verso",
+    "chords": "Ab Fm Db Eb"
+   },
+   {
+    "name": "Pre-estribillo",
+    "chords": "Fm Db Ab Eb"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "Fm Db Ab Eb"
+   },
+   {
+    "name": "Final",
+    "chords": "Db Eb Ab"
+   }
+  ],
+  "chordsConfidence": "high",
+  "yt": {}
+ },
+ {
+  "id": "uptown-funk",
+  "title": "Uptown Funk",
+  "artist": "Mark Ronson ft. Bruno Mars",
+  "key": "Dm",
+  "bpm": 115,
+  "beats": 4,
+  "tags": [
+   "funk",
+   "pop"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "Dm7 G7"
+   },
+   {
+    "name": "Verso",
+    "chords": "Dm7 G7"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "Dm7 G7"
+   },
+   {
+    "name": "Puente",
+    "chords": "Dm7 G7"
+   }
+  ],
+  "chordsConfidence": "high",
+  "yt": {}
+ },
+ {
+  "id": "die-with-a-smile",
+  "title": "Die With a Smile",
+  "artist": "Lady Gaga & Bruno Mars",
+  "key": "D",
+  "bpm": 158,
+  "beats": 4,
+  "tags": [
+   "pop",
+   "actual",
+   "balada"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "D"
+   },
+   {
+    "name": "Verso",
+    "chords": "D Bm G A"
+   },
+   {
+    "name": "Pre-estribillo",
+    "chords": "Bm A G"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "G A D Bm G A D"
+   }
+  ],
+  "chordsConfidence": "low",
+  "yt": {}
+ },
+ {
+  "id": "flowers",
+  "title": "Flowers",
+  "artist": "Miley Cyrus",
+  "key": "Am",
+  "bpm": 118,
+  "beats": 4,
+  "tags": [
+   "pop",
+   "actual"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "Am Dm G C"
+   },
+   {
+    "name": "Verso",
+    "chords": "Am Dm G C"
+   },
+   {
+    "name": "Pre-estribillo",
+    "chords": "Dm E"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "Am Dm G C"
+   }
+  ],
+  "chordsConfidence": "high",
+  "yt": {}
+ },
+ {
+  "id": "levitating",
+  "title": "Levitating",
+  "artist": "Dua Lipa",
+  "key": "Bm",
+  "bpm": 103,
+  "beats": 4,
+  "tags": [
+   "pop",
+   "disco",
+   "actual"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "Bm F#m Em"
+   },
+   {
+    "name": "Verso",
+    "chords": "Bm F#m Em"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "Bm F#m Em"
+   }
+  ],
+  "chordsConfidence": "low",
+  "yt": {}
+ },
+ {
+  "id": "birds-of-a-feather",
+  "title": "Birds of a Feather",
+  "artist": "Billie Eilish",
+  "key": "Db",
+  "bpm": 105,
+  "beats": 4,
+  "tags": [
+   "pop",
+   "actual"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "Db Ebm Fm Gb"
+   },
+   {
+    "name": "Verso",
+    "chords": "Db Ebm Fm Gb"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "Db Ebm Fm Gb"
+   }
+  ],
+  "chordsConfidence": "low",
+  "yt": {}
+ },
+ {
+  "id": "beautiful-things",
+  "title": "Beautiful Things",
+  "artist": "Benson Boone",
+  "key": "C",
+  "bpm": 105,
+  "beats": 4,
+  "tags": [
+   "pop",
+   "actual"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "C Em Am F"
+   },
+   {
+    "name": "Verso",
+    "chords": "C Em Am F"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "Am F C G"
+   }
+  ],
+  "chordsConfidence": "low",
+  "yt": {}
+ },
+ {
+  "id": "espresso",
+  "title": "Espresso",
+  "artist": "Sabrina Carpenter",
+  "key": "C",
+  "bpm": 104,
+  "beats": 4,
+  "tags": [
+   "pop",
+   "actual"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "F Em Dm C"
+   },
+   {
+    "name": "Verso",
+    "chords": "F Em Dm C"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "F Em Dm C"
+   }
+  ],
+  "chordsConfidence": "low",
+  "yt": {}
+ },
+ {
+  "id": "watermelon-sugar",
+  "title": "Watermelon Sugar",
+  "artist": "Harry Styles",
+  "key": "C",
+  "bpm": 95,
+  "beats": 4,
+  "tags": [
+   "pop",
+   "actual"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "Dm Am C G"
+   },
+   {
+    "name": "Verso",
+    "chords": "Dm Am C G"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "Dm Am C G"
+   }
+  ],
+  "chordsConfidence": "low",
+  "yt": {}
+ },
+ {
+  "id": "rolling-in-the-deep",
+  "title": "Rolling in the Deep",
+  "artist": "Adele",
+  "key": "Cm",
+  "bpm": 105,
+  "beats": 4,
+  "tags": [
+   "pop",
+   "soul"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "Cm"
+   },
+   {
+    "name": "Verso",
+    "chords": "Cm G"
+   },
+   {
+    "name": "Pre-estribillo",
+    "chords": "Ab Bb Cm"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "Cm Bb Ab Bb"
+   }
+  ],
+  "chordsConfidence": "high",
+  "yt": {}
+ },
+ {
+  "id": "someone-like-you",
+  "title": "Someone Like You",
+  "artist": "Adele",
+  "key": "A",
+  "bpm": 135,
+  "beats": 4,
+  "tags": [
+   "pop",
+   "balada"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "A C#m F#m D"
+   },
+   {
+    "name": "Verso",
+    "chords": "A C#m F#m D"
+   },
+   {
+    "name": "Pre-estribillo",
+    "chords": "E F#m D"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "A E F#m D"
+   }
+  ],
+  "chordsConfidence": "high",
+  "yt": {}
+ },
+ {
+  "id": "chasing-cars",
+  "title": "Chasing Cars",
+  "artist": "Snow Patrol",
+  "key": "A",
+  "bpm": 104,
+  "beats": 4,
+  "tags": [
+   "rock",
+   "balada",
+   "2000s"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "A E D"
+   },
+   {
+    "name": "Verso",
+    "chords": "A E D"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "A E D"
+   },
+   {
+    "name": "Puente",
+    "chords": "A E D"
+   }
+  ],
+  "chordsConfidence": "high",
+  "yt": {}
+ },
+ {
+  "id": "use-somebody",
+  "title": "Use Somebody",
+  "artist": "Kings of Leon",
+  "key": "C",
+  "bpm": 136,
+  "beats": 4,
+  "tags": [
+   "rock",
+   "2000s"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "C Em F"
+   },
+   {
+    "name": "Verso",
+    "chords": "C Em F"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "Am C F"
+   },
+   {
+    "name": "Puente",
+    "chords": "Am C F G"
+   }
+  ],
+  "chordsConfidence": "low",
+  "yt": {}
+ }
+]

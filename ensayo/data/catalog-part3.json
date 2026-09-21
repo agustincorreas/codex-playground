@@ -1,0 +1,1043 @@
+[
+ {
+  "id": "knockin-on-heavens-door",
+  "title": "Knockin' on Heaven's Door",
+  "artist": "Guns N' Roses",
+  "key": "G",
+  "bpm": 66,
+  "beats": 4,
+  "tags": [
+   "hard rock",
+   "ballad",
+   "80s"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "G D Am7 G D C"
+   },
+   {
+    "name": "Verso",
+    "chords": "G D Am7 G D C"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "G D Am7 G D C"
+   },
+   {
+    "name": "Solo",
+    "chords": "G D Am7 G D C"
+   }
+  ],
+  "chordsConfidence": "high",
+  "yt": {
+   "guitarra": "Lnbh9qNdyvk",
+   "bateria": "KDVsDh2qP4o",
+   "voz": "udGPDz2s3Eg",
+   "_default": "fcpMT0zKF4M"
+  }
+ },
+ {
+  "id": "sweet-child-o-mine",
+  "title": "Sweet Child o' Mine",
+  "artist": "Guns N' Roses",
+  "key": "Db",
+  "bpm": 125,
+  "beats": 4,
+  "tags": [
+   "hard rock",
+   "80s"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "D C G D"
+   },
+   {
+    "name": "Verso",
+    "chords": "D C G D"
+   },
+   {
+    "name": "Pre-estribillo",
+    "chords": "A C D"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "A C D A C D G"
+   },
+   {
+    "name": "Puente",
+    "chords": "Em C B7"
+   },
+   {
+    "name": "Solo",
+    "chords": "Em C B7 Em Bm C"
+   }
+  ],
+  "chordsConfidence": "high",
+  "yt": {
+   "guitarra": "kkZI8Lma8UA",
+   "bajo": "x7RLLYbuho8",
+   "bateria": "Eh7WJhhN9SM",
+   "_default": "idKv3iqKoXg"
+  }
+ },
+ {
+  "id": "let-it-be",
+  "title": "Let It Be",
+  "artist": "The Beatles",
+  "key": "C",
+  "bpm": 73,
+  "beats": 4,
+  "tags": [
+   "classic rock",
+   "60s",
+   "ballad"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "C G Am F C G F C"
+   },
+   {
+    "name": "Verso",
+    "chords": "C G Am F C G F C"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "Am G F C C G F C"
+   },
+   {
+    "name": "Solo",
+    "chords": "C G Am F C G F C"
+   }
+  ],
+  "chordsConfidence": "high",
+  "yt": {
+   "guitarra": "uwXLUfUMPlI",
+   "bajo": "IHBv6xgQ_mo",
+   "voz": "OhRUYf_yn_s",
+   "_default": "lFEiJbJPnkc"
+  }
+ },
+ {
+  "id": "come-together",
+  "title": "Come Together",
+  "artist": "The Beatles",
+  "key": "Dm",
+  "bpm": 83,
+  "beats": 4,
+  "tags": [
+   "classic rock",
+   "60s",
+   "blues rock"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "Dm"
+   },
+   {
+    "name": "Verso",
+    "chords": "Dm A7 G7"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "Bm A G A"
+   },
+   {
+    "name": "Solo",
+    "chords": "Dm"
+   }
+  ],
+  "chordsConfidence": "high",
+  "yt": {
+   "guitarra": "uR3mNYKBbWI",
+   "bajo": "a0ZoY6eAjms",
+   "bateria": "j4DeZtjzip8",
+   "_default": "oFiuYK17HVM"
+  }
+ },
+ {
+  "id": "hey-jude",
+  "title": "Hey Jude",
+  "artist": "The Beatles",
+  "key": "F",
+  "bpm": 74,
+  "beats": 4,
+  "tags": [
+   "classic rock",
+   "60s",
+   "ballad"
+  ],
+  "sections": [
+   {
+    "name": "Verso",
+    "chords": "F C C7 F Bb F C F"
+   },
+   {
+    "name": "Puente",
+    "chords": "F7 Bb Gm7 C7 F"
+   },
+   {
+    "name": "Final",
+    "chords": "F Eb Bb F"
+   }
+  ],
+  "chordsConfidence": "high",
+  "yt": {
+   "guitarra": "X-ER_J4LSlc",
+   "bajo": "rBAQMQVr7tk",
+   "voz": "xvy3ihETw0M",
+   "_default": "PRH0Zl2FmMs"
+  }
+ },
+ {
+  "id": "satisfaction",
+  "title": "(I Can't Get No) Satisfaction",
+  "artist": "The Rolling Stones",
+  "key": "E",
+  "bpm": 136,
+  "beats": 4,
+  "tags": [
+   "classic rock",
+   "60s"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "E"
+   },
+   {
+    "name": "Verso",
+    "chords": "E A E A"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "E D A E"
+   },
+   {
+    "name": "Puente",
+    "chords": "E B7 E"
+   }
+  ],
+  "chordsConfidence": "low",
+  "yt": {
+   "guitarra": "5GeGTxyiW0A",
+   "bajo": "dBg_LT0td-A",
+   "_default": "djUGQPY2k6c"
+  }
+ },
+ {
+  "id": "rock-and-roll",
+  "title": "Rock and Roll",
+  "artist": "Led Zeppelin",
+  "key": "A",
+  "bpm": 170,
+  "beats": 4,
+  "tags": [
+   "hard rock",
+   "70s",
+   "blues rock"
+  ],
+  "sections": [
+   {
+    "name": "Verso",
+    "chords": "A A A A D D A A E D A A"
+   },
+   {
+    "name": "Solo",
+    "chords": "A A A A D D A A E D A A"
+   }
+  ],
+  "chordsConfidence": "high",
+  "yt": {
+   "guitarra": "GS6vJZ3-ttU",
+   "bajo": "qmSx1CfvNNA",
+   "bateria": "csrN-OYz-3U",
+   "_default": "NcT9tbjuMnk"
+  }
+ },
+ {
+  "id": "wish-you-were-here",
+  "title": "Wish You Were Here",
+  "artist": "Pink Floyd",
+  "key": "G",
+  "bpm": 62,
+  "beats": 4,
+  "tags": [
+   "classic rock",
+   "70s",
+   "acoustic"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "Em7 G Em7 G Em7 A7sus4 Em7 A7sus4 G"
+   },
+   {
+    "name": "Verso",
+    "chords": "C D Am G D C Am G"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "C D Am G D C Am G"
+   },
+   {
+    "name": "Solo",
+    "chords": "Em7 G Em7 G Em7 A7sus4 Em7 A7sus4 G"
+   }
+  ],
+  "chordsConfidence": "high",
+  "yt": {
+   "guitarra": "Yz9RaPpp_1c",
+   "bateria": "O6EQnEXmlT4",
+   "voz": "zYynrjLq0jY",
+   "_default": "Sz3dY15nn68"
+  }
+ },
+ {
+  "id": "another-brick-in-the-wall-part-2",
+  "title": "Another Brick in the Wall, Part 2",
+  "artist": "Pink Floyd",
+  "key": "Dm",
+  "bpm": 104,
+  "beats": 4,
+  "tags": [
+   "classic rock",
+   "70s",
+   "disco rock"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "Dm"
+   },
+   {
+    "name": "Verso",
+    "chords": "Dm"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "G Dm"
+   },
+   {
+    "name": "Solo",
+    "chords": "Dm G Dm"
+   }
+  ],
+  "chordsConfidence": "high",
+  "yt": {
+   "guitarra": "PZEHhYJrUQU",
+   "bajo": "zbeYJSw57kM",
+   "bateria": "ZAIzSk7yxos",
+   "_default": "iEIHWe0UHXs"
+  }
+ },
+ {
+  "id": "dont-stop-me-now",
+  "title": "Don't Stop Me Now",
+  "artist": "Queen",
+  "key": "F",
+  "bpm": 156,
+  "beats": 4,
+  "tags": [
+   "classic rock",
+   "70s",
+   "piano"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "F Am Dm Gm C7"
+   },
+   {
+    "name": "Verso",
+    "chords": "F Am7 Dm7 Gm7 C7"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "F Am Dm Gm C7 F"
+   },
+   {
+    "name": "Puente",
+    "chords": "Bb F Gm C7"
+   }
+  ],
+  "chordsConfidence": "low",
+  "yt": {
+   "guitarra": "znC5QLvcfoo",
+   "bajo": "oEumEhKOlDA",
+   "bateria": "xuOq63bdxrQ",
+   "voz": "nMSyLXRLl6s",
+   "teclado": "1yZ_bsGyeUw",
+   "_default": "mkYM0ygXahU"
+  }
+ },
+ {
+  "id": "highway-to-hell",
+  "title": "Highway to Hell",
+  "artist": "AC/DC",
+  "key": "A",
+  "bpm": 116,
+  "beats": 4,
+  "tags": [
+   "hard rock",
+   "70s"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "A D G D"
+   },
+   {
+    "name": "Verso",
+    "chords": "A D G D"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "A D A D A D G"
+   },
+   {
+    "name": "Solo",
+    "chords": "A D G D"
+   }
+  ],
+  "chordsConfidence": "high",
+  "yt": {
+   "guitarra": "DpW-dpIZY6w",
+   "bajo": "mx4Zvm2waEs",
+   "_default": "xGSpjaSZQOo"
+  }
+ },
+ {
+  "id": "back-in-black",
+  "title": "Back in Black",
+  "artist": "AC/DC",
+  "key": "E",
+  "bpm": 94,
+  "beats": 4,
+  "tags": [
+   "hard rock",
+   "80s"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "E D A"
+   },
+   {
+    "name": "Verso",
+    "chords": "E D A"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "E B A"
+   },
+   {
+    "name": "Solo",
+    "chords": "E D A"
+   }
+  ],
+  "chordsConfidence": "high",
+  "yt": {
+   "guitarra": "l-EnZjYKOBM",
+   "bateria": "dNCkVAGe7yc",
+   "_default": "EZ78ako1OJM"
+  }
+ },
+ {
+  "id": "smells-like-teen-spirit",
+  "title": "Smells Like Teen Spirit",
+  "artist": "Nirvana",
+  "key": "Fm",
+  "bpm": 117,
+  "beats": 4,
+  "tags": [
+   "grunge",
+   "90s"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "F Bb Ab Db"
+   },
+   {
+    "name": "Verso",
+    "chords": "F Bb Ab Db"
+   },
+   {
+    "name": "Pre-estribillo",
+    "chords": "F Bb Ab Db"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "F Bb Ab Db"
+   },
+   {
+    "name": "Solo",
+    "chords": "F Bb Ab Db"
+   }
+  ],
+  "chordsConfidence": "high",
+  "yt": {
+   "guitarra": "1x6HA7ioeUM",
+   "bajo": "Qo0INO9ymRY",
+   "bateria": "u0lpF8FsyuA",
+   "_default": "ft_DaIxrbLk"
+  }
+ },
+ {
+  "id": "come-as-you-are",
+  "title": "Come As You Are",
+  "artist": "Nirvana",
+  "key": "D",
+  "bpm": 120,
+  "beats": 4,
+  "tags": [
+   "grunge",
+   "90s"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "E"
+   },
+   {
+    "name": "Verso",
+    "chords": "E"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "F# B"
+   },
+   {
+    "name": "Solo",
+    "chords": "F# B"
+   }
+  ],
+  "chordsConfidence": "low",
+  "yt": {
+   "guitarra": "nFDPvgCeduI",
+   "bajo": "xZxDdIWlbgk",
+   "bateria": "9KfB9un64uk",
+   "voz": "pMF9lPLoEzk",
+   "_default": "IlSfkJfWOOs"
+  }
+ },
+ {
+  "id": "wonderwall",
+  "title": "Wonderwall",
+  "artist": "Oasis",
+  "key": "F#m",
+  "bpm": 87,
+  "beats": 4,
+  "tags": [
+   "britpop",
+   "90s"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "Em7 G Dsus4 A7sus4"
+   },
+   {
+    "name": "Verso",
+    "chords": "Em7 G Dsus4 A7sus4"
+   },
+   {
+    "name": "Pre-estribillo",
+    "chords": "C D Em C D Em C D G A7sus4"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "C Em G Em"
+   }
+  ],
+  "chordsConfidence": "high",
+  "yt": {
+   "guitarra": "sq7zPhOF3J8",
+   "bajo": "u6M9enP76Nw",
+   "bateria": "KnTX4t_nRoQ",
+   "voz": "B1gP0Yt1um8",
+   "_default": "B1gP0Yt1um8"
+  }
+ },
+ {
+  "id": "dont-look-back-in-anger",
+  "title": "Don't Look Back in Anger",
+  "artist": "Oasis",
+  "key": "C",
+  "bpm": 84,
+  "beats": 4,
+  "tags": [
+   "britpop",
+   "90s"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "C F C F"
+   },
+   {
+    "name": "Verso",
+    "chords": "C G Am E F G C Am G"
+   },
+   {
+    "name": "Pre-estribillo",
+    "chords": "F Fm C F Fm C G"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "C G Am E F G C Am G"
+   },
+   {
+    "name": "Solo",
+    "chords": "C G Am E F G C Am G"
+   }
+  ],
+  "chordsConfidence": "high",
+  "yt": {
+   "guitarra": "YnWoOEX8M6M",
+   "bateria": "IQmNm5_QVvU",
+   "voz": "Ky24jhOvz24",
+   "_default": "vnO8nrJzQyw"
+  }
+ },
+ {
+  "id": "creep",
+  "title": "Creep",
+  "artist": "Radiohead",
+  "key": "G",
+  "bpm": 92,
+  "beats": 4,
+  "tags": [
+   "alternative",
+   "90s"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "G B C Cm"
+   },
+   {
+    "name": "Verso",
+    "chords": "G B C Cm"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "G B C Cm"
+   },
+   {
+    "name": "Solo",
+    "chords": "G B C Cm"
+   }
+  ],
+  "chordsConfidence": "high",
+  "yt": {
+   "guitarra": "SkBFkWtBM1c",
+   "bajo": "49QrdzE-pzk",
+   "bateria": "4wLKL127AOw",
+   "_default": "6KmkeEL-PZM"
+  }
+ },
+ {
+  "id": "californication",
+  "title": "Californication",
+  "artist": "Red Hot Chili Peppers",
+  "key": "Am",
+  "bpm": 96,
+  "beats": 4,
+  "tags": [
+   "alternative rock",
+   "90s"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "Am F"
+   },
+   {
+    "name": "Verso",
+    "chords": "Am F"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "C G Dm Am C G Dm Am F Dm"
+   },
+   {
+    "name": "Solo",
+    "chords": "Am F"
+   }
+  ],
+  "chordsConfidence": "high",
+  "yt": {
+   "guitarra": "-h6bJMt413k",
+   "bajo": "lQw8pEXU2fs",
+   "bateria": "v_-8Vls2mLk",
+   "_default": "CCVeC7HuaSQ"
+  }
+ },
+ {
+  "id": "under-the-bridge",
+  "title": "Under the Bridge",
+  "artist": "Red Hot Chili Peppers",
+  "key": "E",
+  "bpm": 84,
+  "beats": 4,
+  "tags": [
+   "alternative rock",
+   "90s",
+   "ballad"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "D F# D F#"
+   },
+   {
+    "name": "Verso",
+    "chords": "E B C#m G#m A"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "F#m E B F#m E B"
+   },
+   {
+    "name": "Final",
+    "chords": "A C G F"
+   }
+  ],
+  "chordsConfidence": "high",
+  "yt": {
+   "guitarra": "shZ4vLM479E",
+   "bajo": "-lpq47lSiJ8",
+   "bateria": "f65te7VZ0os",
+   "voz": "-0eMBII6JC0",
+   "_default": "qhNqPaDMabk"
+  }
+ },
+ {
+  "id": "with-or-without-you",
+  "title": "With or Without You",
+  "artist": "U2",
+  "key": "D",
+  "bpm": 110,
+  "beats": 4,
+  "tags": [
+   "rock",
+   "80s"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "D A Bm G"
+   },
+   {
+    "name": "Verso",
+    "chords": "D A Bm G"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "D A Bm G"
+   },
+   {
+    "name": "Puente",
+    "chords": "D A Bm G"
+   }
+  ],
+  "chordsConfidence": "high",
+  "yt": {
+   "guitarra": "CXHBIvCke20",
+   "bajo": "fasjHFnkMwE",
+   "bateria": "M2BhfUoQTso",
+   "_default": "DD5YTjdqKEo"
+  }
+ },
+ {
+  "id": "yellow",
+  "title": "Yellow",
+  "artist": "Coldplay",
+  "key": "B",
+  "bpm": 173,
+  "beats": 4,
+  "tags": [
+   "britpop",
+   "2000s"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "B F# E"
+   },
+   {
+    "name": "Verso",
+    "chords": "B F# E B"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "E B F#"
+   },
+   {
+    "name": "Puente",
+    "chords": "E B F#"
+   }
+  ],
+  "chordsConfidence": "high",
+  "yt": {
+   "guitarra": "uWdg-vtxSpM",
+   "bajo": "FvVIgNiYB2Y",
+   "bateria": "dHqDkAvl2R4",
+   "voz": "vzeiNK1VLxU",
+   "_default": "fIQZjlNv7oM"
+  }
+ },
+ {
+  "id": "viva-la-vida",
+  "title": "Viva la Vida",
+  "artist": "Coldplay",
+  "key": "Ab",
+  "bpm": 138,
+  "beats": 4,
+  "tags": [
+   "pop rock",
+   "2000s"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "Db Eb Ab Fm"
+   },
+   {
+    "name": "Verso",
+    "chords": "Db Eb Ab Fm"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "Db Eb Ab Fm"
+   },
+   {
+    "name": "Puente",
+    "chords": "Db Eb Ab Fm"
+   }
+  ],
+  "chordsConfidence": "high",
+  "yt": {
+   "guitarra": "vBdoQKG5qN0",
+   "bateria": "npuySjXYRnk",
+   "voz": "FSll_OC0L64",
+   "_default": "Uc4hIpJJKtQ"
+  }
+ },
+ {
+  "id": "basket-case",
+  "title": "Basket Case",
+  "artist": "Green Day",
+  "key": "Eb",
+  "bpm": 170,
+  "beats": 4,
+  "tags": [
+   "punk rock",
+   "90s"
+  ],
+  "sections": [
+   {
+    "name": "Verso",
+    "chords": "E B C#m G# A E B"
+   },
+   {
+    "name": "Pre-estribillo",
+    "chords": "A B"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "E B A B"
+   }
+  ],
+  "chordsConfidence": "high",
+  "yt": {
+   "guitarra": "uE9VuqnOR4A",
+   "bajo": "CLrdHDaWK9w",
+   "voz": "v1E0bVAIixI",
+   "_default": "kcsnvZBLVng"
+  }
+ },
+ {
+  "id": "livin-on-a-prayer",
+  "title": "Livin' on a Prayer",
+  "artist": "Bon Jovi",
+  "key": "Em",
+  "bpm": 123,
+  "beats": 4,
+  "tags": [
+   "hard rock",
+   "80s"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "Em"
+   },
+   {
+    "name": "Verso",
+    "chords": "Em C D"
+   },
+   {
+    "name": "Pre-estribillo",
+    "chords": "C D Em C D Em C D G"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "Em C D Em C D G"
+   },
+   {
+    "name": "Final",
+    "chords": "Gm Eb F"
+   }
+  ],
+  "chordsConfidence": "high",
+  "yt": {
+   "guitarra": "33CoANi3k_o",
+   "bajo": "JgBW9Djx4Ag",
+   "_default": "8LHH3nBHb30"
+  }
+ },
+ {
+  "id": "hotel-california",
+  "title": "Hotel California",
+  "artist": "Eagles",
+  "key": "Bm",
+  "bpm": 74,
+  "beats": 4,
+  "tags": [
+   "classic rock",
+   "70s"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "Bm F# A E G D Em F#"
+   },
+   {
+    "name": "Verso",
+    "chords": "Bm F# A E G D Em F#"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "G D Em Bm G D Em F#"
+   },
+   {
+    "name": "Solo",
+    "chords": "Bm F# A E G D Em F#"
+   }
+  ],
+  "chordsConfidence": "high",
+  "yt": {
+   "guitarra": "Yprs6IweaBc",
+   "_default": "UiMQRqSPOzs"
+  }
+ },
+ {
+  "id": "wonderful-tonight",
+  "title": "Wonderful Tonight",
+  "artist": "Eric Clapton",
+  "key": "G",
+  "bpm": 96,
+  "beats": 4,
+  "tags": [
+   "soft rock",
+   "70s",
+   "ballad"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "G D C D"
+   },
+   {
+    "name": "Verso",
+    "chords": "G D C D G D C D"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "C D G Em C D G"
+   },
+   {
+    "name": "Solo",
+    "chords": "G D C D"
+   }
+  ],
+  "chordsConfidence": "high",
+  "yt": {
+   "guitarra": "4yN25IGwOxw",
+   "bateria": "p43g7hdfb7A",
+   "voz": "f8fybo1qhjk",
+   "_default": "8CDL_RGkceY"
+  }
+ },
+ {
+  "id": "no-woman-no-cry",
+  "title": "No Woman, No Cry",
+  "artist": "Bob Marley",
+  "key": "C",
+  "bpm": 78,
+  "beats": 4,
+  "tags": [
+   "reggae",
+   "70s"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "C G Am F C F C G"
+   },
+   {
+    "name": "Verso",
+    "chords": "C G Am F C F C G"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "C G Am F C F C G"
+   }
+  ],
+  "chordsConfidence": "high",
+  "yt": {
+   "guitarra": "8UWVjIshWRs",
+   "bajo": "bpm-_YFmi0g",
+   "voz": "5SArBiLSdRQ",
+   "_default": "HWOREuVKHg4"
+  }
+ },
+ {
+  "id": "have-you-ever-seen-the-rain",
+  "title": "Have You Ever Seen the Rain",
+  "artist": "Creedence Clearwater Revival",
+  "key": "C",
+  "bpm": 116,
+  "beats": 4,
+  "tags": [
+   "classic rock",
+   "70s"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "Am F C G C"
+   },
+   {
+    "name": "Verso",
+    "chords": "C G C"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "F G C Am F G C"
+   }
+  ],
+  "chordsConfidence": "high",
+  "yt": {
+   "guitarra": "o26wmsfwwPE",
+   "bateria": "pHfHnjU_zTc",
+   "_default": "HysFz49RbA8"
+  }
+ }
+]
