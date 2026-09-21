@@ -24,22 +24,28 @@ Corre 100 % en el navegador, sin dependencias ni build (misma filosofía que
 | Área | Qué hay |
 | --- | --- |
 | **Onboarding** | Elegís instrumento (guitarra, bajo, batería, voz, teclado, otro) y nivel. Cambia qué base se usa y qué se muestra (voz = solo letra). |
-| **Setlist** | Varias setlists, orden con ▲▼, biblioteca de temas, estado por tema: base para tu instrumento (YouTube / archivo / metrónomo / falta) y cuántas líneas están sincronizadas. Exportar/importar JSON para pasarlo a la banda. |
-| **Tema** | Título, artista, tonalidad, BPM, compás, notas de ensayo. **Una base por instrumento** (el guitarrista y el baterista abren el mismo tema y cada uno escucha su backing) más una base "Cualquiera" de fallback. Fuentes: link de YouTube, archivo de audio propio (mp3/wav/m4a, queda en IndexedDB) o metrónomo. Desfase por base. |
-| **Cifrado** | ChordPro con acordes inline (`There [Am]is a [C]house`), secciones estilo Ultimate Guitar (`[Verso 1]`), comentarios, tablaturas, y **tiempos por línea** `[1:23.45]` (estilo LRC). Botón para **convertir "acordes arriba de la letra"** (lo que pegás de Ultimate Guitar / LaCuerda) a inline. |
-| **Ensayar** | Letra + acordes en tipografía grande, línea activa resaltada, auto-scroll, secciones clicables para saltar, **loop A-B**, **velocidad** (mantiene la afinación), **transposición** y **capo** (de la pantalla; el audio de YouTube no cambia, ver §4), **count-in** de un compás, tamaño de letra, acordes/letra on-off, tema anterior/siguiente de la setlist, atajos de teclado. |
-| **Sincronizar** | Dale play y marcá cada línea con un botón (o Enter) cuando empieza. Deshacer, correr todo ±0,25 s, borrar. Queda guardado en el cifrado. Es el "valor agregado" sobre YouTube: cualquier backing pasa a tener letra y acordes que lo siguen. |
-| **Grabar** | Audio (mic sin cancelación de eco ni AGC) o cámara + mic con MediaRecorder. Cada toma guarda desde qué punto de la base se grabó; en "Tomas" la escuchás, la bajás o la reproducís **junto con la base** desde ese punto. |
-| **Búsqueda de bases** | "Buscar backing en YouTube" arma la consulta según el instrumento (`<tema> <artista> guitar backing track`, `drumless`, `bassless`, `karaoke`, `no piano`…) y abre YouTube; pegás el link. Con una API key de YouTube Data v3 (Ajustes) buscás dentro de la app. |
-| **Demo** | Tres temas de dominio público / letra original, sincronizados por BPM con metrónomo, para probar todo sin internet. |
+| **Catálogo precargado** | `catalog.js`: ~115 temas (rock argentino, latino, clásicos internacionales y hits actuales) con tonalidad, BPM, **acordes básicos por sección** y **bases de YouTube por instrumento** encontradas por título ("guitar backing track", "bassless", "drumless", "karaoke"…). Se busca por título o artista y se agrega con un toque. Si un tema no está, se agrega igual y la app busca letra y base. |
+| **Letra automática** | Al agregar un tema, `lyrics.js` pide la letra **sincronizada** a [LRCLIB](https://lrclib.net) (API abierta, sin key) y la convierte al formato del cifrado. Si solo hay letra plana, queda para sincronizar a mano. |
+| **Setlist** | Varias setlists, orden con ▲▼, biblioteca, estado por tema (base para tu instrumento, letra sincronizada). Exportar/importar JSON para pasarlo a la banda. |
+| **Base por instrumento** | Cada tema guarda una base por instrumento (YouTube, archivo propio o metrónomo) con su desfase. Si falta la de tu instrumento, el panel **"Falta la base"** arma la búsqueda de YouTube según el instrumento, abrís YouTube, copiás el link y lo pegás (o usás metrónomo mientras). Si YouTube no permite reproducir un video embebido, el panel vuelve a aparecer para elegir otro. |
+| **Ensayar** | Panel de **acordes por sección** (transpuesto) fijo arriba + letra sincronizada abajo con la línea activa resaltada y auto-scroll. Loop A-B, velocidad sin cambiar el tono, transposición y capo (de la pantalla), **desfase** ±0,5 s entre letra y base, count-in, tamaño de letra, acordes/letra on-off, anterior/siguiente de la setlist, atajos de teclado. En el celu todos los controles están en filas deslizables. |
+| **Sincronizar** | Para letras sin tiempos o para ajustar: dale play y marcá cada línea con un botón (o Enter). Deshacer, correr todo ±0,25 s, borrar. Queda guardado en el cifrado. |
+| **Grabar** | Audio (mic sin cancelación de eco ni AGC) o cámara + mic con MediaRecorder. Cada toma guarda desde qué punto de la base se grabó; en "Tomas" la escuchás, la bajás o la reproducís junto con la base desde ese punto. |
+| **Editar a mano** | Título, artista, tono, BPM, compás, notas, acordes por sección, base por instrumento, y el cifrado completo en ChordPro con timestamps `[m:ss.xx]`. Botón para convertir "acordes arriba de la letra" (Ultimate Guitar / LaCuerda). |
 
 Atajos en Ensayar: `espacio` play/pausa · `←/→` ±5 s · `[` `]` loop A/B · `L` quitar loop ·
 `+/-` transponer · `Enter` marcar línea (en Sincronizar).
 
 Archivos: `index.html`, `style.css`, `chart.js` (parser ChordPro + LRC, transposición, conversión
 acordes-arriba), `player.js` (adaptadores YouTube / archivo local / metrónomo con interfaz común),
-`store.js` (localStorage + IndexedDB), `recorder.js` (MediaRecorder), `songs-demo.js`, `app.js`
-(vistas y transporte).
+`lyrics.js` (LRCLIB), `catalog.js` (catálogo generado), `store.js` (localStorage + IndexedDB),
+`recorder.js` (MediaRecorder), `app.js` (vistas y transporte).
+
+Sobre el catálogo: las bases son videos públicos de YouTube elegidos por su título; pueden estar en
+otro tono o con otra intro que la letra (para eso está el **desfase** y la transposición de
+pantalla), y algún video puede no permitir reproducción embebida (la app avisa y ofrece buscar
+otro). Los acordes marcados "aprox." salieron de fuentes poco claras: corregilos desde Editar.
+Las letras vienen de LRCLIB, una base comunitaria: si no aparece, se puede pegar a mano.
 
 ---
 

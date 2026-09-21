@@ -19,22 +19,57 @@
 
   // ------------------------------------------------------------------ estado
   let S = Store.load();
-  if (!S) { S = Store.defaultState(); seedDemo(); }
-  if (!S.songs.length) seedDemo();
+  if (!S) S = Store.defaultState();
   function persist() { Store.save(S); }
-  function seedDemo() {
-    const ids = [];
-    for (const d of window.DemoSongs) {
-      const id = Store.uid();
-      ids.push(id);
-      S.songs.push({ id, title: d.title, artist: d.artist, key: d.key, bpm: d.bpm, beats: d.beats || 4, genre: d.genre || '', notes: d.notes || '', chart: d.chart,
-        tracks: { _default: { type: 'metronome' } }, transpose: 0, capo: 0, createdAt: Date.now(), demo: true });
+
+  const CATALOG = window.Catalog || [];
+  const catalogById = (id) => CATALOG.find(c => c.id === id);
+  function norm(str) { return (str || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim(); }
+
+  /** Crea un tema a partir de una entrada del catálogo (bases de YouTube por instrumento incluidas). */
+  function songFromCatalog(c) {
+    const tracks = {};
+    for (const [k, vid] of Object.entries(c.yt || {})) if (vid) tracks[k] = { type: 'youtube', videoId: vid, offset: 0 };
+    return { id: Store.uid(), catalogId: c.id, title: c.title, artist: c.artist, key: c.key || '', bpm: c.bpm || null, beats: c.beats || 4,
+      tags: c.tags || [], sections: c.sections || [], chordsConfidence: c.chordsConfidence || 'high', notes: '', chart: '',
+      lyricsStatus: 'pending', tracks, transpose: 0, capo: 0, createdAt: Date.now() };
+  }
+  const STARTER = ['de-musica-ligera', 'knockin-on-heavens-door', 'wonderwall', 'flaca', 'creep', 'seminare', 'mil-horas', 'persiana-americana', 'let-it-be', 'sweet-child-o-mine', 'californication', 'ji-ji-ji', 'highway-to-hell', 'zombie'];
+  function seedStarter(name = 'Ensayo con la banda') {
+    const sl = { id: Store.uid(), name, songIds: [] };
+    // Temas conocidos que ya traen base de YouTube, para que el primer Play suene de verdad.
+    const picks = STARTER.map(catalogById).filter(c => c && c.yt && (c.yt._default || c.yt.guitarra)).slice(0, 8);
+    for (const c of picks) { const song = songFromCatalog(c); S.songs.push(song); sl.songIds.push(song.id); }
+    S.setlists.push(sl); S.currentSetlistId = sl.id; persist();
+    return sl;
+  }
+  function migrate() {
+    if ((S.version || 1) < 2) {
+      // v1 traía 3 temas de ejemplo con metrónomo; si el usuario no cargó nada propio, arrancamos con el catálogo.
+      if (!S.songs.length || S.songs.every(x => x.demo)) { S.songs = []; S.setlists = []; S.currentSetlistId = null; }
+      S.version = 2;
     }
-    const sl = { id: Store.uid(), name: 'Ensayo con la banda', songIds: ids };
-    S.setlists.push(sl);
-    S.currentSetlistId = sl.id;
+    if (!S.setlists.length) { if (CATALOG.length) seedStarter(); else { const sl = { id: Store.uid(), name: 'Ensayo con la banda', songIds: [] }; S.setlists.push(sl); S.currentSetlistId = sl.id; } }
     persist();
   }
+
+  // Letra automática (LRCLIB). Una búsqueda en curso por tema.
+  const lyricsInflight = {};
+  function ensureLyrics(song, force) {
+    if (!window.Lyrics) return Promise.resolve();
+    if (!force && song.lyricsStatus && song.lyricsStatus !== 'pending') return Promise.resolve();
+    if (lyricsInflight[song.id]) return lyricsInflight[song.id];
+    song.lyricsStatus = 'pending';
+    const c = song.catalogId ? catalogById(song.catalogId) : null;
+    const artist = song.artist || (c && c.artist) || '';
+    lyricsInflight[song.id] = window.Lyrics.fetchLyrics(song.title, artist).then((r) => {
+      if (r.status === 'synced' || r.status === 'plain') { if (!(song.chart || '').trim()) song.chart = r.chart; song.lyricsStatus = r.status; if (r.duration && !song.duration) song.duration = r.duration; }
+      else song.lyricsStatus = 'notfound';
+    }).catch(() => { song.lyricsStatus = 'notfound'; }).then(() => { delete lyricsInflight[song.id]; persist(); });
+    return lyricsInflight[song.id];
+  }
+  migrate();
+
   const songById = (id) => S.songs.find(s => s.id === id);
   const currentSetlist = () => S.setlists.find(s => s.id === S.currentSetlistId) || S.setlists[0];
   const myInstrument = () => S.profile.instrument || 'otro';
@@ -109,6 +144,7 @@
     if (!S.profile.instrument) return renderOnboarding();
     switch (view) {
       case 'practice': return renderPractice(arg, arg2);
+      case 'add': return renderAdd(decodeURIComponent(arg || ''));
       case 'edit': return renderEdit(arg);
       case 'takes': return renderTakes();
       case 'settings': return renderSettings();
@@ -176,7 +212,7 @@
         <button class="btn sm" id="slnew">+ Nueva setlist</button>
         <button class="btn sm ghost" id="slren">Renombrar</button>
         <span class="grow"></span>
-        <button class="btn primary" id="songnew">+ Nuevo tema</button>
+        <button class="btn primary" id="songnew">+ Agregar tema</button>
       </div>
       <div class="songs" id="songs"></div>
       <h2>Biblioteca</h2>
@@ -187,11 +223,11 @@
     sel.onchange = () => { S.currentSetlistId = sel.value; persist(); route(); };
     $('#slnew', inner).onclick = () => { const name = prompt('Nombre de la setlist', 'Show ' + new Date().toLocaleDateString('es-AR')); if (!name) return; const n = { id: Store.uid(), name, songIds: [] }; S.setlists.push(n); S.currentSetlistId = n.id; persist(); route(); };
     $('#slren', inner).onclick = () => { const name = prompt('Nuevo nombre', sl.name); if (!name) return; sl.name = name; persist(); route(); };
-    $('#songnew', inner).onclick = () => go('edit/new');
+    $('#songnew', inner).onclick = () => go('add');
 
     const list = $('#songs', inner);
     const songs = sl.songIds.map(songById).filter(Boolean);
-    if (!songs.length) list.appendChild(h('<div class="empty">La setlist está vacía. Agregá temas de la biblioteca o creá uno nuevo.</div>'));
+    if (!songs.length) list.appendChild(h('<div class="empty">La setlist está vacía. Tocá <b>+ Agregar tema</b> y buscá los temas que ensaya tu banda.</div>'));
     songs.forEach((song, i) => {
       const tr = trackFor(song, inst);
       const parsed = C.parse(song.chart || '');
@@ -205,7 +241,7 @@
             ${song.key ? `<span class="keybadge">${esc(song.key)}${song.transpose ? ' → <b>' + esc(C.transposeKey(song.key, song.transpose)) + '</b>' : ''}</span>` : ''}
             ${song.bpm ? `<span class="muted">${song.bpm} bpm</span>` : ''}
             ${trChip}
-            <span class="chip">${synced ? '⏱ ' + synced + ' líneas sync' : 'sin sincronizar'}</span>
+            <span class="chip">${synced ? '🎤 letra sync' : song.lyricsStatus === 'pending' ? '⏳ letra…' : song.lyricsStatus === 'plain' ? 'letra sin tiempos' : 'sin letra'}</span>
           </div>
         </div>
         <div class="actions">
@@ -238,10 +274,67 @@
     shell('setlist', inner);
   }
 
+  // ------------------------------------------------------------------ agregar tema (catálogo)
+  function renderAdd(initialQuery) {
+    const inst = myInstrument();
+    const sl = currentSetlist();
+    const inner = h(`<div>
+      <div class="row" style="margin-bottom:12px"><a class="btn ghost" href="#setlist">← Volver</a><h1 style="margin:0">Agregar tema</h1></div>
+      <input class="search" id="q" placeholder="Buscá por título o artista…" autocomplete="off" value="${esc(initialQuery)}">
+      <p class="small muted" id="hint">${CATALOG.length} temas con base lista para ${INSTRUMENTS[inst].label.toLowerCase()} y otros instrumentos. Si no está, lo agregás igual y buscamos la base en YouTube.</p>
+      <div class="results" id="results"></div>
+      <div class="row" style="margin-top:20px"><button class="btn ghost" id="manual">✏️ Crear a mano (pegar letra y acordes)</button></div>
+    </div>`);
+    const qEl = $('#q', inner), res = $('#results', inner);
+    const inSetlist = new Set(sl ? sl.songIds.map(id => (songById(id) || {}).catalogId).filter(Boolean) : []);
+    function render() {
+      const query = norm(qEl.value);
+      const words = query.split(' ').filter(Boolean);
+      let items = CATALOG.filter(c => { const hay = norm(c.title + ' ' + c.artist + ' ' + (c.tags || []).join(' ')); return words.every(w => hay.includes(w)); });
+      if (!query) items = items.slice(0, 40);
+      res.innerHTML = '';
+      for (const c of items.slice(0, 60)) {
+        const yt = c.yt || {};
+        const base = yt[inst] ? `<span class="chip ok">▶ base para ${INSTRUMENTS[inst].label.toLowerCase()}</span>` : yt._default || Object.keys(yt).length ? '<span class="chip">▶ base genérica</span>' : '<span class="chip warn">sin base (la buscamos)</span>';
+        const added = inSetlist.has(c.id);
+        const card = h(`<button class="result ${added ? 'added' : ''}"><div><div class="title">${esc(c.title)}</div><div class="sub">${esc(c.artist)} ${c.key ? '· ' + esc(c.key) : ''} ${c.bpm ? '· ' + c.bpm + ' bpm' : ''}</div></div><div class="right">${added ? '<span class="chip accent">en la setlist</span>' : base}</div></button>`);
+        card.onclick = () => addFromCatalog(c);
+        res.appendChild(card);
+      }
+      if (qEl.value.trim() && items.length < 3) {
+        const raw = qEl.value.trim();
+        const card = h(`<button class="result manual"><div><div class="title">Agregar "${esc(raw)}" igual</div><div class="sub">No está en el catálogo. Buscamos la letra y la base en YouTube.</div></div><div class="right"><span class="chip">＋</span></div></button>`);
+        card.onclick = () => addCustom(raw);
+        res.appendChild(card);
+      }
+      if (!items.length && !qEl.value.trim()) res.appendChild(h('<div class="empty">El catálogo no cargó. Probá recargar la página.</div>'));
+    }
+    function addFromCatalog(c) {
+      const song = songFromCatalog(c);
+      S.songs.push(song); if (sl) sl.songIds.push(song.id); persist();
+      ensureLyrics(song);
+      toast(`"${c.title}" agregado a la setlist`);
+      go('practice/' + song.id);
+    }
+    function addCustom(raw) {
+      let title = raw, artist = '';
+      const m = /^(.+?)\s+[-–—]\s+(.+)$/.exec(raw); if (m) { title = m[1].trim(); artist = m[2].trim(); }
+      const song = { id: Store.uid(), title, artist, key: '', bpm: null, beats: 4, tags: [], sections: [], notes: '', chart: '', lyricsStatus: 'pending', tracks: {}, transpose: 0, capo: 0, createdAt: Date.now() };
+      S.songs.push(song); if (sl) sl.songIds.push(song.id); persist();
+      ensureLyrics(song);
+      go('practice/' + song.id);
+    }
+    qEl.oninput = render;
+    $('#manual', inner).onclick = () => go('edit/new');
+    render();
+    shell('setlist', inner);
+    setTimeout(() => { if (!initialQuery) qEl.focus(); }, 50);
+  }
+
   // ------------------------------------------------------------------ editor de tema
   function renderEdit(id) {
     const isNew = !id || id === 'new';
-    const song = isNew ? { id: Store.uid(), title: '', artist: '', key: '', bpm: '', beats: 4, genre: '', notes: '', chart: '', tracks: {}, transpose: 0, capo: 0, createdAt: Date.now() } : songById(id);
+    const song = isNew ? { id: Store.uid(), title: '', artist: '', key: '', bpm: '', beats: 4, tags: [], sections: [], notes: '', chart: '', lyricsStatus: null, tracks: {}, transpose: 0, capo: 0, createdAt: Date.now() } : songById(id);
     if (!song) return go('setlist');
     const inst = myInstrument();
     const inner = h(`<div>
@@ -257,6 +350,7 @@
           <div class="field"><label>Tiempos por compás</label><select id="f-beats">${[2, 3, 4, 6].map(b => `<option ${b === (song.beats || 4) ? 'selected' : ''}>${b}</option>`).join('')}</select></div>
         </div>
         <div class="field"><label>Notas para el ensayo</label><input id="f-notes" value="${esc(song.notes)}" placeholder="Ej: la intro la hace el teclado, entrar en el 2do compás"></div>
+        <div class="field"><label>Acordes por sección <span class="muted">— una por línea, "Sección: acordes"</span></label><textarea id="f-sections" style="min-height:90px;white-space:pre-wrap" placeholder="Intro: Am F C G\nVerso: Am F C G\nEstribillo: F G Am">${esc((song.sections || []).map(x => x.name + ': ' + x.chords).join('\n'))}</textarea></div>
       </div>
 
       <h2>Backing track por instrumento</h2>
@@ -342,7 +436,9 @@
       song.bpm = parseFloat($('#f-bpm', inner).value) || null;
       song.beats = parseInt($('#f-beats', inner).value, 10) || 4;
       song.notes = $('#f-notes', inner).value.trim();
+      song.sections = $('#f-sections', inner).value.split('\n').map(l => { const m = /^\s*([^:]+):\s*(.+)$/.exec(l); return m ? { name: m[1].trim(), chords: m[2].trim() } : null; }).filter(Boolean);
       song.chart = ta.value;
+      if (song.chart.trim()) song.lyricsStatus = C.parse(song.chart).timed.length ? 'synced' : 'plain';
       const meta = C.parse(song.chart).meta;
       if (!song.key && meta.key) song.key = meta.key;
       if (!song.bpm && meta.bpm) song.bpm = meta.bpm;
@@ -405,10 +501,10 @@
     const sl = currentSetlist();
     const idx = sl ? sl.songIds.indexOf(song.id) : -1;
     const prevId = idx > 0 ? sl.songIds[idx - 1] : null, nextId = idx >= 0 && idx < sl.songIds.length - 1 ? sl.songIds[idx + 1] : null;
-    const track = trackFor(song, inst);
-    const parsed = C.parse(song.chart || '');
+    let track = trackFor(song, inst);
+    let parsed = C.parse(song.chart || '');
     const show = { chords: instDef.show !== 'lyrics' && S.settings.showChords, lyrics: S.settings.showLyrics };
-    const st = { transpose: song.transpose || 0, capo: song.capo || 0, loopA: null, loopB: null, rate: 1, sync: false, syncTarget: -1, syncUndo: [], countdown: 0, reviewTake: null };
+    const st = { transpose: song.transpose || 0, capo: song.capo || 0, loopA: null, loopB: null, rate: 1, sync: false, syncTarget: -1, syncUndo: [], countdown: 0, chordsOpen: true };
     const recorder = new window.Recorder();
     document.body.classList.add('in-practice');
 
@@ -417,7 +513,7 @@
       <div class="phead">
         <a class="btn icon ghost" href="#setlist" title="Volver a la setlist">←</a>
         <button class="btn icon ghost" id="prev" ${prevId ? '' : 'disabled'} title="Tema anterior">⏮</button>
-        <div><div class="ttl">${esc(song.title)}</div><div class="art">${esc(song.artist || '')}${song.notes ? '<i> · ' + esc(song.notes) + '</i>' : ''}</div></div>
+        <div class="grow" style="min-width:0"><div class="ttl">${esc(song.title)}</div><div class="art">${esc(song.artist || '')}${song.notes ? '<i> · ' + esc(song.notes) + '</i>' : ''}</div></div>
         <button class="btn icon ghost" id="next" ${nextId ? '' : 'disabled'} title="Tema siguiente">⏭</button>
         <div class="meta">
           <span class="keybadge" id="keybadge"></span>
@@ -425,36 +521,36 @@
           <button class="btn sm ghost" id="edit">Editar</button>
         </div>
       </div>
-      <div class="chart-wrap" id="chartwrap"><div class="chart" id="chart"></div></div>
+      <div class="chart-wrap" id="chartwrap">
+        <div class="chordpanel hidden" id="chordpanel"></div>
+        <div class="chart" id="chart"></div>
+      </div>
       <aside class="dock">
         <div class="player-box"><div id="playerbox"></div><div class="countin hidden" id="countin"></div></div>
         <video class="rec-preview" id="recpreview" playsinline muted></video>
-        <div class="player-note" id="playernote"></div>
+        <div class="player-note" id="playernote"><span id="notetext"></span> <button class="linkbtn" id="changebase">Cambiar base</button></div>
         <div class="transport">
           <div class="main">
             <button class="play" id="play" title="Play/Pausa (espacio)">▶</button>
             <div class="grow"><input type="range" id="seek" min="0" max="1000" value="0"><div class="time"><span id="tcur">0:00</span> / <span id="tdur">0:00</span></div></div>
           </div>
           <div class="ctl">
-            <button class="btn" id="rate" title="Velocidad (tono igual)"><span>Velocidad</span><span class="v" id="ratev">1×</span></button>
-            <div class="btn stepper" title="Transponer acordes (solo la pantalla; el audio de YouTube no cambia)"><button id="transpm">−</button><span><span>Tono</span><span class="v" id="transpv">0</span></span><button id="transpp">+</button></div>
+            <button class="btn" id="rate" title="Velocidad (el tono no cambia)"><span>Velocidad</span><span class="v" id="ratev">1×</span></button>
+            <div class="btn stepper" title="Transponer acordes (solo la pantalla; el audio no cambia)"><button id="transpm">−</button><span><span>Tono</span><span class="v" id="transpv">0</span></span><button id="transpp">+</button></div>
             <div class="btn stepper" title="Capo: muestra las posiciones con capotraste"><button id="capom">−</button><span><span>Capo</span><span class="v" id="capov">0</span></span><button id="capop">+</button></div>
+            <div class="btn stepper" title="Si la letra va adelantada o atrasada respecto a la base"><button id="offm">−</button><span><span>Desfase</span><span class="v" id="offv">0s</span></span><button id="offp">+</button></div>
             <button class="btn" id="font" title="Tamaño de letra"><span>Letra</span><span class="v">Aa</span></button>
           </div>
-          <div class="loopbar">
-            <button class="btn" id="loopA" title="Marcar inicio del loop ([)">A: —</button>
-            <button class="btn" id="loopB" title="Marcar fin del loop (])">B: —</button>
-            <button class="btn ghost" id="loopX" title="Quitar loop (L)">✕</button>
-          </div>
           <div class="ctl">
+            <button class="btn" id="loopA" title="Marcar inicio del loop ([)"><span>Loop A</span><span class="v" id="loopAv">—</span></button>
+            <button class="btn" id="loopB" title="Marcar fin del loop (])"><span>Loop B</span><span class="v" id="loopBv">—</span></button>
+            <button class="btn ghost" id="loopX" title="Quitar loop (L)"><span>✕ loop</span></button>
             <button class="btn ${show.chords ? 'active' : ''}" id="tchords" ${instDef.show === 'lyrics' ? 'disabled' : ''}><span>Acordes</span></button>
             <button class="btn ${show.lyrics ? 'active' : ''}" id="tlyrics"><span>Letra</span></button>
             <button class="btn ${S.settings.countIn ? 'active' : ''}" id="tcount" title="Un compás de clicks antes de arrancar"><span>Count-in</span></button>
             <button class="btn" id="tsync" title="Marcar el tiempo de cada línea mientras suena"><span>Sincronizar</span></button>
-          </div>
-          <div class="ctl" style="grid-template-columns:1fr 1fr">
-            <button class="btn rec" id="recA" title="Grabar audio del micrófono">● Grabar audio</button>
-            <button class="btn rec" id="recV" title="Grabar cámara + micrófono">● Grabar video</button>
+            <button class="btn rec" id="recA" title="Grabar audio del micrófono">● Audio</button>
+            <button class="btn rec" id="recV" title="Grabar cámara + micrófono">● Video</button>
           </div>
         </div>
         <div class="sections-bar" id="sections"></div>
@@ -479,6 +575,22 @@
     q('#next').onclick = () => nextId && go('practice/' + nextId);
     q('#edit').onclick = () => go('edit/' + song.id);
 
+    // ---- panel de acordes por sección (cifrado básico del catálogo)
+    function renderChordPanel() {
+      const cp = q('#chordpanel');
+      const secs = (song.sections || []).filter(s => s.chords);
+      if (!show.chords || !secs.length) { cp.classList.add('hidden'); return; }
+      cp.classList.remove('hidden');
+      const semis = st.transpose - st.capo;
+      const flats = C.useFlats(C.transposeKey(song.key, semis));
+      cp.innerHTML = `<div class="cp-head"><span>Acordes${song.chordsConfidence === 'low' ? ' <span class="muted">(aprox.)</span>' : ''}</span><span class="muted">${st.chordsOpen ? 'ocultar ▴' : 'mostrar ▾'}</span></div>`;
+      if (st.chordsOpen) for (const s of secs) {
+        const chords = s.chords.split(/\s+/).filter(Boolean).map(c => C.isChord(c) ? C.transposeChord(c, semis, flats) : c);
+        cp.appendChild(h(`<div class="cp-row"><span class="cp-name">${esc(s.name)}</span><span class="cp-chords">${chords.map(c => `<b>${esc(c)}</b>`).join(' ')}</span></div>`));
+      }
+      $('.cp-head', cp).onclick = () => { st.chordsOpen = !st.chordsOpen; renderChordPanel(); };
+    }
+
     // ---- render chart
     let lineEls = [];
     function renderChart() {
@@ -489,8 +601,11 @@
       const semis = st.transpose - st.capo;
       const targetKey = C.transposeKey(song.key, st.transpose);
       const flats = C.useFlats(C.transposeKey(song.key, semis));
-      if (!parsed.timed.length) chartEl.appendChild(h(`<div class="nosync">Este cifrado todavía no tiene tiempos: no va a seguir la base solo. Apretá <b>Sincronizar</b>, dale play y marcá cada línea cuando empiece. Lo hacés una vez y queda guardado.</div>`));
-      if (!parsed.lines.some(l => l.type === 'line')) chartEl.appendChild(h(`<div class="nosync">Este tema no tiene letra ni acordes cargados. Tocá <b>Editar</b> para pegarlos.</div>`));
+      const hasLines = parsed.lines.some(l => l.type === 'line');
+      if (song.lyricsStatus === 'pending') chartEl.appendChild(h(`<div class="nosync">⏳ Buscando la letra sincronizada…</div>`));
+      else if (!hasLines) chartEl.appendChild(h(`<div class="nosync">No encontré la letra de este tema. Podés seguir con los acordes de arriba, o tocar <b>Editar</b> y pegar la letra. <button class="btn sm" id="retrylyrics">Buscar de nuevo</button></div>`));
+      else if (!parsed.timed.length) chartEl.appendChild(h(`<div class="nosync">La letra no tiene tiempos: no se va a mover sola con la base. Apretá <b>Sincronizar</b>, dale play y marcá cada línea cuando empiece. Se hace una vez y queda.</div>`));
+      const rl = $('#retrylyrics', chartEl); if (rl) rl.onclick = () => { song.lyricsStatus = 'pending'; persist(); renderChart(); ensureLyrics(song, true); };
       parsed.lines.forEach((l, i) => {
         let node;
         if (l.type === 'section') {
@@ -515,61 +630,94 @@
       q('#keybadge').innerHTML = song.key ? `${st.transpose ? '<s>' + esc(song.key) + '</s>' : ''}<b>${esc(targetKey)}</b>${st.capo ? ' <span class="muted">capo ' + st.capo + '</span>' : ''}` : '<span class="muted">sin tono</span>';
       q('#transpv').textContent = (st.transpose > 0 ? '+' : '') + st.transpose;
       q('#capov').textContent = st.capo;
-      // secciones
       const sb = q('#sections'); sb.innerHTML = '';
       for (const sec of parsed.sections) { if (sec.time == null) continue; const b = h(`<button class="btn">${esc(sec.label)}</button>`); b.onclick = () => seekTo(sec.time); sb.appendChild(b); }
+      renderChordPanel();
       markSync();
+      lastActive = -2;
     }
     function markSync() { lineEls.forEach(n => n && n.classList.remove('sync-target')); if (st.sync && lineEls[st.syncTarget]) lineEls[st.syncTarget].classList.add('sync-target'); }
 
+    // ---- letra automática
+    if (song.lyricsStatus === 'pending' || (song.lyricsStatus == null && !(song.chart || '').trim() && song.catalogId)) {
+      song.lyricsStatus = 'pending';
+      ensureLyrics(song).then(() => { if (practice && practice.songId === song.id) { parsed = C.parse(song.chart || ''); renderChart(); } });
+    }
+
     // ---- reproductor
     let player = null;
-    const offset = (track && track.offset) || 0;
+    let offset = (track && track.offset) || 0;
     const chartTime = (t) => t - offset;      // tiempo de la base → tiempo del cifrado
     const trackTime = (t) => t + offset;      // tiempo del cifrado → tiempo de la base
-    const note = q('#playernote'), status = q('#status');
+    const noteText = q('#notetext'), status = q('#status');
     function setStatus(msg, err) { status.textContent = msg || ''; status.classList.toggle('err', !!err); }
+    const updateOffset = () => { q('#offv').textContent = (offset > 0 ? '+' : '') + (Math.round(offset * 10) / 10) + 's'; };
+
+    function showBasePanel(msg) {
+      const box = q('#playerbox');
+      if (player) { player.destroy(); player = null; }
+      box.innerHTML = '';
+      const query = `${song.title} ${song.artist || ''} ${instDef.queries[0]}`.trim();
+      const panel = h(`<div class="base-panel">
+        <div class="bp-title">${msg ? esc(msg) : `Falta la base para ${instDef.label.toLowerCase()}`}</div>
+        <button class="btn primary" id="bp-search">🔎 Buscar en YouTube</button>
+        <div class="bp-paste"><input id="bp-url" placeholder="Pegá acá el link del video" inputmode="url"><button class="btn" id="bp-paste">Pegar</button></div>
+        <div class="row" style="gap:6px;justify-content:center"><button class="btn sm ghost" id="bp-metro">Usar metrónomo por ahora</button>${S.settings.ytApiKey ? '<button class="btn sm ghost" id="bp-inapp">Buscar acá</button>' : ''}</div>
+        <div class="yt-results" id="bp-results"></div>
+      </div>`);
+      box.appendChild(panel);
+      const useUrl = (url) => {
+        const vid = Players.parseYouTubeId(url);
+        if (!vid) return toast('Ese link no parece de YouTube', 3000, true);
+        song.tracks = song.tracks || {}; song.tracks[inst] = { type: 'youtube', videoId: vid, url, offset: 0 };
+        persist(); track = song.tracks[inst]; offset = 0; updateOffset(); setupPlayer(); toast('Base cargada');
+      };
+      $('#bp-search', panel).onclick = () => { window.open('https://www.youtube.com/results?search_query=' + encodeURIComponent(query), '_blank'); toast('Elegí un video, tocá Compartir → Copiar enlace, volvé y apretá Pegar.', 5000); };
+      $('#bp-paste', panel).onclick = async () => {
+        const inp = $('#bp-url', panel);
+        if (inp.value.trim()) return useUrl(inp.value.trim());
+        try { const t = await navigator.clipboard.readText(); if (t && Players.parseYouTubeId(t)) useUrl(t); else { inp.value = t || ''; inp.focus(); toast('Pegá el link en el campo y tocá Pegar'); } }
+        catch (e) { inp.focus(); toast('Mantené apretado el campo y elegí "Pegar"'); }
+      };
+      $('#bp-url', panel).addEventListener('change', (e) => { if (Players.parseYouTubeId(e.target.value)) useUrl(e.target.value.trim()); });
+      $('#bp-url', panel).addEventListener('paste', () => setTimeout(() => { const v = $('#bp-url', panel).value.trim(); if (Players.parseYouTubeId(v)) useUrl(v); }, 50));
+      $('#bp-metro', panel).onclick = () => { song.tracks = song.tracks || {}; song.tracks[inst] = { type: 'metronome', offset: 0 }; persist(); track = song.tracks[inst]; offset = 0; updateOffset(); setupPlayer(); };
+      const inapp = $('#bp-inapp', panel); if (inapp) inapp.onclick = () => ytSearchInApp(query, $('#bp-results', panel), (vid) => useUrl('https://www.youtube.com/watch?v=' + vid));
+      noteText.textContent = '';
+    }
 
     async function setupPlayer() {
       const box = q('#playerbox');
+      if (player) { player.destroy(); player = null; }
       box.innerHTML = '';
-      if (!track) {
-        box.appendChild(h(`<div class="local-dock"><div><div style="font-size:26px">${instDef.emoji}</div>No hay base para ${instDef.label.toLowerCase()} en este tema.<br><button class="btn sm primary" style="margin-top:8px" id="addtrack">Agregar base</button></div></div>`));
-        $('#addtrack', box).onclick = () => go('edit/' + song.id);
-        note.textContent = 'Sin base: podés leer el cifrado igual.';
-        return;
-      }
-      if (track.type === 'youtube') { player = new Players.YouTubeAdapter(box); note.textContent = 'Base de YouTube. El video queda visible (lo exigen sus términos); el foco está en la letra y los acordes de al lado.'; }
-      else if (track.type === 'local') { player = new Players.LocalAudioAdapter(box); note.textContent = 'Archivo local: el cambio de velocidad mantiene la afinación.'; }
-      else { player = new Players.MetronomeAdapter(box, { getCtx: () => AudioEngine.unlock() }); note.textContent = 'Metrónomo: los tiempos del cifrado se calculan con el BPM del tema.'; }
+      if (!track) return showBasePanel();
+      if (track.type === 'youtube') { player = new Players.YouTubeAdapter(box); noteText.textContent = 'Base de YouTube (el video queda visible, lo exigen sus términos).'; }
+      else if (track.type === 'local') { player = new Players.LocalAudioAdapter(box); noteText.textContent = 'Archivo local: la velocidad no cambia la afinación.'; }
+      else { player = new Players.MetronomeAdapter(box, { getCtx: () => AudioEngine.unlock() }); noteText.textContent = 'Metrónomo al BPM del tema. Cargá una base real para practicar con la banda.'; }
       player.onState((s) => {
         q('#play').textContent = s === 'playing' ? '❚❚' : '▶';
         if (s === 'ended' && st.loopB == null) { if (recorder.recording) stopRec(); }
-        if (s === 'error') setStatus(player.lastError, true);
+        if (s === 'error') { showBasePanel('Este video no se puede reproducir acá. Buscá otra base.'); }
         if (s === 'ready') refreshRates();
       });
       try {
-        await player.load(Object.assign({}, track, { bpm: song.bpm || 100, beats: song.beats || 4, length: (parsed.timed.length ? parsed.timed[parsed.timed.length - 1].time + 20 : 240) }));
+        const dur = parsed.timed.length ? parsed.timed[parsed.timed.length - 1].time + 20 : 240;
+        await player.load(Object.assign({}, track, { bpm: song.bpm || 100, beats: song.beats || 4, length: dur }));
         setStatus('');
-      } catch (e) { setStatus(e.message, true); }
+      } catch (e) { showBasePanel(e.message); }
     }
     function refreshRates() {
       const rates = player ? player.rates() : [1];
-      const btn = q('#rate');
-      btn.onclick = () => {
-        const i = rates.indexOf(st.rate);
-        st.rate = rates[(i + 1) % rates.length];
-        player.setRate(st.rate);
-        q('#ratev').textContent = st.rate + '×';
-      };
+      q('#rate').onclick = () => { if (!player) return; const i = rates.indexOf(st.rate); st.rate = rates[(i + 1) % rates.length]; player.setRate(st.rate); q('#ratev').textContent = st.rate + '×'; };
     }
     function seekTo(chartT) { if (!player) return; const t = Math.max(0, trackTime(chartT)); player.seek(t); clock.report(t, true); }
+    q('#changebase').onclick = () => showBasePanel('Elegí otra base para ' + instDef.label.toLowerCase());
 
     // ---- reloj interpolado (YouTube reporta cada ~250 ms)
     const clock = {
-      last: 0, at: 0, val: 0,
+      last: 0, at: 0,
       report(t, force) { if (force || Math.abs(t - this.last) > 0.001) { this.last = t; this.at = performance.now(); } },
-      now() { if (!player) return 0; const t = player.time(); this.report(t); const playing = player.state === 'playing'; return playing ? this.last + (performance.now() - this.at) / 1000 * (player.rate ? player.rate() : 1) : t; },
+      now() { if (!player) return 0; const t = player.time(); this.report(t); return player.state === 'playing' ? this.last + (performance.now() - this.at) / 1000 * (player.rate ? player.rate() : 1) : t; },
     };
 
     // ---- loop de UI
@@ -584,25 +732,19 @@
       q('#tcur').textContent = C.formatClock(t);
       q('#tdur').textContent = C.formatClock(dur);
       if (dur && document.activeElement !== q('#seek')) q('#seek').value = Math.round(t / dur * 1000);
-      // loop A-B
       if (st.loopA != null && st.loopB != null && player.state === 'playing' && t >= st.loopB) { player.seek(st.loopA); clock.report(st.loopA, true); }
-      // línea activa
-      const ct = chartTime(t);
-      const ai = C.activeLineIndex(parsed, ct + 0.05);
+      const ai = C.activeLineIndex(parsed, chartTime(t) + 0.05);
       if (ai !== lastActive) {
         lastActive = ai;
-        let seenActive = false;
         lineEls.forEach((n, i) => {
           if (!n || !n.classList.contains('line')) return;
-          n.classList.remove('active', 'past', 'next');
-          if (i === ai) { n.classList.add('active'); seenActive = true; }
-          else if (ai >= 0 && i < ai && parsed.lines[i].time != null) n.classList.add('past');
-          else if (ai >= 0 && i < ai && !seenActive) n.classList.add('past');
+          n.classList.remove('active', 'past');
+          if (i === ai) n.classList.add('active');
+          else if (ai >= 0 && i < ai) n.classList.add('past');
         });
         if (ai >= 0 && S.settings.autoScroll && performance.now() - userScrolling > 3000) {
           const n = lineEls[ai];
-          const top = n.offsetTop - wrap.clientHeight * 0.3;
-          wrap.scrollTo({ top, behavior: 'smooth' });
+          wrap.scrollTo({ top: n.offsetTop - wrap.clientHeight * 0.35, behavior: 'smooth' });
         }
       }
     }
@@ -611,12 +753,11 @@
     // ---- transporte
     q('#play').onclick = togglePlay;
     function togglePlay() {
-      if (!player) return toast('Este tema no tiene base para tu instrumento');
+      if (!player) return toast('Primero cargá una base (buscala en YouTube o usá el metrónomo).', 3500);
       if (st.countdown > 0) return;
-      // Desbloquear el audio DENTRO del toque (requisito de iOS/Safari).
       const ctx = AudioEngine.unlock();
       if (player.kind === 'metronome') {
-        if (!ctx) { setStatus('Este navegador no permite generar audio. Probá con Safari o Chrome actualizados.', true); return; }
+        if (!ctx) { setStatus('Este navegador no permite generar audio.', true); return; }
         AudioEngine.keepAlive(true);
       }
       if (player.state === 'playing') { player.pause(); return; }
@@ -624,7 +765,7 @@
         if (S.settings.countIn && song.bpm && ctx) countIn(ctx).then(() => player.play());
         else player.play();
       } catch (e) { setStatus('No se pudo arrancar: ' + e.message, true); }
-      if (player.kind === 'metronome' && /iPhone|iPad/.test(navigator.userAgent)) setStatus('Si no escuchás el click: sacá el modo silencio (interruptor del costado) y subí el volumen.');
+      if (player.kind === 'metronome' && /iPhone|iPad/.test(navigator.userAgent)) setStatus('Si no escuchás el click: sacá el modo silencio y subí el volumen.');
     }
     function countIn(audioCtx) {
       return new Promise((resolve) => {
@@ -644,13 +785,16 @@
     q('#seek').oninput = (e) => { if (!player) return; const t = e.target.value / 1000 * player.duration(); player.seek(t); clock.report(t, true); };
     const setTransp = (d) => { st.transpose = Math.max(-6, Math.min(6, st.transpose + d)); song.transpose = st.transpose; persist(); renderChart(); };
     const setCapo = (d) => { st.capo = Math.max(0, Math.min(9, st.capo + d)); song.capo = st.capo; persist(); renderChart(); };
+    const setOffset = (d) => { offset = Math.round((offset + d) * 10) / 10; if (track) { track.offset = offset; persist(); } updateOffset(); lastActive = -2; };
     q('#transpp').onclick = () => setTransp(1); q('#transpm').onclick = () => setTransp(-1);
     q('#capop').onclick = () => setCapo(1); q('#capom').onclick = () => setCapo(-1);
+    q('#offp').onclick = () => setOffset(0.5); q('#offm').onclick = () => setOffset(-0.5);
+    updateOffset();
     q('#font').onclick = () => { const sizes = [85, 100, 120, 140, 165]; const i = sizes.indexOf(S.settings.fontSize); S.settings.fontSize = sizes[(i + 1) % sizes.length]; persist(); chartEl.style.setProperty('--chart-scale', S.settings.fontSize / 100); };
     q('#tchords').onclick = () => { show.chords = !show.chords; S.settings.showChords = show.chords; persist(); q('#tchords').classList.toggle('active', show.chords); renderChart(); };
     q('#tlyrics').onclick = () => { show.lyrics = !show.lyrics; S.settings.showLyrics = show.lyrics; persist(); q('#tlyrics').classList.toggle('active', show.lyrics); renderChart(); };
     q('#tcount').onclick = () => { S.settings.countIn = !S.settings.countIn; persist(); q('#tcount').classList.toggle('active', S.settings.countIn); };
-    const setLoop = () => { q('#loopA').textContent = 'A: ' + (st.loopA != null ? C.formatClock(st.loopA) : '—'); q('#loopB').textContent = 'B: ' + (st.loopB != null ? C.formatClock(st.loopB) : '—'); q('#loopA').classList.toggle('active', st.loopA != null); q('#loopB').classList.toggle('active', st.loopB != null); };
+    const setLoop = () => { q('#loopAv').textContent = st.loopA != null ? C.formatClock(st.loopA) : '—'; q('#loopBv').textContent = st.loopB != null ? C.formatClock(st.loopB) : '—'; q('#loopA').classList.toggle('active', st.loopA != null); q('#loopB').classList.toggle('active', st.loopB != null); };
     q('#loopA').onclick = () => { if (!player) return; st.loopA = clock.now(); if (st.loopB != null && st.loopB <= st.loopA) st.loopB = null; setLoop(); };
     q('#loopB').onclick = () => { if (!player) return; const t = clock.now(); if (st.loopA == null) st.loopA = 0; if (t > st.loopA) { st.loopB = t; setLoop(); toast('Loop A-B activo'); } };
     q('#loopX').onclick = () => { st.loopA = st.loopB = null; setLoop(); };
@@ -670,7 +814,7 @@
     }
     async function stopRec() {
       const r = await recorder.stop();
-      recA.classList.remove('on'); recV.classList.remove('on'); recA.textContent = '● Grabar audio'; recV.textContent = '● Grabar video'; preview.classList.remove('on');
+      recA.classList.remove('on'); recV.classList.remove('on'); recA.textContent = '● Audio'; recV.textContent = '● Video'; preview.classList.remove('on');
       if (!r) return;
       const fileId = Store.uid();
       await Store.putFile(fileId, r.blob);
@@ -691,7 +835,7 @@
       const box = h(`<div style="padding:12px;border-top:1px solid var(--line)"><div class="small muted" style="margin-bottom:6px">Revisando toma del ${new Date(take.date).toLocaleString('es-AR')}. Play arranca la base en el mismo punto.</div></div>`);
       box.appendChild(media);
       const b = h('<button class="btn sm primary" style="margin-top:8px">▶ Toma + base</button>');
-      b.onclick = () => { if (!player) return; player.seek(take.trackTime); clock.report(take.trackTime, true); player.setRate(take.rate || 1); media.currentTime = 0; media.play(); player.play(); };
+      b.onclick = () => { if (!player) return; AudioEngine.unlock(); player.seek(take.trackTime); clock.report(take.trackTime, true); player.setRate(take.rate || 1); media.currentTime = 0; media.play(); player.play(); };
       box.appendChild(b);
       q('.dock').appendChild(box);
     }
@@ -700,25 +844,17 @@
     const syncpanel = q('#syncpanel');
     function nextUnstamped(from) { for (let i = from; i < parsed.lines.length; i++) if (parsed.lines[i].type === 'line') return i; return -1; }
     function enterSync() {
+      if (!parsed.lines.some(l => l.type === 'line')) return toast('Primero hace falta la letra (Editar → pegar letra).', 3500);
       st.sync = true; syncpanel.classList.remove('hidden'); q('#tsync').classList.add('active');
-      st.syncTarget = nextUnstamped(0);
-      // Si ya hay tiempos, arrancar en la primera línea sin tiempo.
       const firstEmpty = parsed.lines.findIndex(l => l.type === 'line' && l.time == null);
-      if (firstEmpty >= 0) st.syncTarget = firstEmpty;
+      st.syncTarget = firstEmpty >= 0 ? firstEmpty : nextUnstamped(0);
       st.syncUndo = [];
-      S.settings.countIn && toast('Tip: el count-in sigue activo; los tiempos se marcan sobre la base, no sobre los clicks.', 3500);
       renderChart();
     }
     function exitSync(save) {
-      if (save) {
-        song.chart = C.serialize(parsed, song.chart);
-        persist();
-        toast('Sincronización guardada');
-        go('practice/' + song.id); return;
-      }
+      if (save) { song.chart = C.serialize(parsed, song.chart); persist(); toast('Sincronización guardada'); go('practice/' + song.id); return; }
       st.sync = false; syncpanel.classList.add('hidden'); q('#tsync').classList.remove('active');
-      // descartar: recargar el cifrado original
-      const fresh = C.parse(song.chart); parsed.lines = fresh.lines; parsed.timed = fresh.timed; parsed.sections = fresh.sections;
+      parsed = C.parse(song.chart || '');
       renderChart();
     }
     function stamp() {
@@ -727,12 +863,11 @@
       const l = parsed.lines[i];
       st.syncUndo.push({ i, prev: l.time });
       l.time = Math.max(0, Math.round(chartTime(clock.now()) * 100) / 100);
-      if (l.section && (l.section.time == null || l.section.time > l.time)) l.section.time = l.time;
       recomputeTimed();
       st.syncTarget = nextUnstamped(i + 1);
       renderChart();
-      q('#syncinfo').textContent = `"${(l.text || "acordes").slice(0, 40)}" → ${C.formatTime(l.time)}. ${st.syncTarget >= 0 ? 'Siguiente: "' + (parsed.lines[st.syncTarget].text || 'acordes') + '"' : 'Listo, guardá.'}`;
-      const n = lineEls[st.syncTarget]; if (n) wrap.scrollTo({ top: n.offsetTop - wrap.clientHeight * 0.3, behavior: 'smooth' });
+      q('#syncinfo').textContent = `"${(l.text || 'acordes').slice(0, 40)}" → ${C.formatTime(l.time)}. ${st.syncTarget >= 0 ? 'Siguiente: "' + (parsed.lines[st.syncTarget].text || 'acordes') + '"' : 'Listo, guardá.'}`;
+      const n = lineEls[st.syncTarget]; if (n) wrap.scrollTo({ top: n.offsetTop - wrap.clientHeight * 0.35, behavior: 'smooth' });
     }
     function recomputeTimed() {
       parsed.timed = [];
@@ -755,8 +890,8 @@
       if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) return;
       if (e.code === 'Space') { e.preventDefault(); togglePlay(); }
       else if (e.key === 'Enter' && st.sync) { e.preventDefault(); stamp(); }
-      else if (e.key === 'ArrowLeft' && player) { player.seek(Math.max(0, clock.now() - 5)); clock.report(Math.max(0, clock.now() - 5), true); }
-      else if (e.key === 'ArrowRight' && player) { player.seek(clock.now() + 5); clock.report(clock.now() + 5, true); }
+      else if (e.key === 'ArrowLeft' && player) { const t = Math.max(0, clock.now() - 5); player.seek(t); clock.report(t, true); }
+      else if (e.key === 'ArrowRight' && player) { const t = clock.now() + 5; player.seek(t); clock.report(t, true); }
       else if (e.key === '[') q('#loopA').click();
       else if (e.key === ']') q('#loopB').click();
       else if (e.key.toLowerCase() === 'l') q('#loopX').click();
@@ -769,6 +904,7 @@
     setupPlayer().then(() => { if (takeId) reviewTake(takeId); });
 
     practice = {
+      songId: song.id,
       destroy() {
         cancelAnimationFrame(raf);
         document.removeEventListener('keydown', onKey);
@@ -823,7 +959,7 @@
       </div>
       <div class="card" style="margin-top:14px">
         <h2 style="margin-top:0">Tus datos</h2>
-        <div class="row"><button class="btn" id="exp">⬇ Exportar setlists y temas (JSON)</button><label class="btn">⬆ Importar JSON <input type="file" id="imp" accept="application/json" class="hidden"></label><button class="btn ghost" id="demo">Volver a cargar los temas de ejemplo</button><button class="btn ghost danger" id="wipe">Borrar todo</button></div>
+        <div class="row"><button class="btn" id="exp">⬇ Exportar setlists y temas (JSON)</button><label class="btn">⬆ Importar JSON <input type="file" id="imp" accept="application/json" class="hidden"></label><button class="btn ghost" id="demo">Cargar setlist de ejemplo</button><button class="btn ghost danger" id="wipe">Borrar todo</button></div>
         <p class="small muted">Todo se guarda en este navegador (setlists, cifrados, grabaciones). Exportá para pasarlo a otro dispositivo o compartirlo con la banda.</p>
       </div>
       <div class="row" style="margin-top:16px"><button class="btn primary" id="save">Guardar</button></div>
@@ -840,7 +976,7 @@
         persist(); toast(`Importados ${n} temas`); route();
       } catch (err) { toast('Archivo inválido'); }
     };
-    $('#demo', inner).onclick = () => { seedDemo(); toast('Temas de ejemplo cargados'); route(); };
+    $('#demo', inner).onclick = () => { seedStarter('Setlist de ejemplo'); toast('Setlist de ejemplo cargada'); go('setlist'); };
     $('#wipe', inner).onclick = async () => { if (!confirm('¿Borrar TODO (temas, setlists, tomas)? No se puede deshacer.')) return; await Store.clearFiles(); localStorage.clear(); location.hash = ''; location.reload(); };
     shell('settings', inner);
   }
