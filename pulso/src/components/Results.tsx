@@ -4,6 +4,7 @@ import { Stars } from './ui';
 import { JUDGEMENT_COLORS, STAR_THRESHOLDS } from '../engine/scoring';
 import { TROPHY_DEFS } from '../store/useStore';
 import type { HitResult } from '../engine/types';
+import { Icon } from './Icon';
 
 interface Props {
   lesson: Lesson;
@@ -31,14 +32,14 @@ export function Results(p: Props) {
     <div className="results">
       <div className="results-card fade-up">
         <div className="tiny" style={{ textTransform: 'uppercase', letterSpacing: '.1em' }}>{t('results.title')} · {p.lesson.title}</div>
-        <div className="stars-big">{[1, 2, 3].map((i) => <span key={i} className={i <= result.stars ? '' : 'off'}>⭐</span>)}</div>
+        <div className="stars-big">{[1, 2, 3].map((i) => <span key={i} className={i <= result.stars ? '' : 'off'}><Icon name="star" size={38} /></span>)}</div>
         <div className="score-big">{result.score}</div>
         <div style={{ fontWeight: 800, fontSize: 18, color: passed ? 'var(--green)' : 'var(--orange)' }}>{passed ? t('results.pass') : t('results.fail')}</div>
         <div className="row wrap" style={{ justifyContent: 'center', gap: 6 }}>
-          {p.isNewBest && <span className="chip gold">🏅 {t('results.newBest')}</span>}
-          {p.isRecord && <span className="chip gold">💿 {t('results.record')}</span>}
-          {p.leveledUp && <span className="chip active">⬆️ {t('results.levelUp')}</span>}
-          {p.goalJustHit && <span className="chip active">🎯 {t('results.goalHit')}</span>}
+          {p.isNewBest && <span className="chip gold"><Icon name="sparkle" size={13} /> {t('results.newBest')}</span>}
+          {p.isRecord && <span className="chip gold"><Icon name="disc" size={13} /> {t('results.record')}</span>}
+          {p.leveledUp && <span className="chip accent"><Icon name="bolt" size={13} /> {t('results.levelUp')}</span>}
+          {p.goalJustHit && <span className="chip accent"><Icon name="target" size={13} /> {t('results.goalHit')}</span>}
           <span className="chip">+{result.xp} {t('results.xp')}</span>
           <span className="chip">{result.bpm} BPM</span>
         </div>
@@ -68,15 +69,17 @@ export function Results(p: Props) {
         </div>
         <p className="muted">{tip}</p>
         <div className="col" style={{ width: '100%' }}>
-          {p.next && <button className="btn primary block" onClick={p.onNext}>{t('results.next')}: {p.next.title} →</button>}
+          {p.next && <button className="btn primary lg block" onClick={p.onNext}>{t('results.next')}: {p.next.title} <Icon name="forward" size={16} /></button>}
           <div className="row">
-            <button className="btn block" onClick={p.onRetry}>🔄 {t('results.retry')}</button>
-            <button className="btn block" onClick={p.onPractice}>🔁 {t('results.practice')}</button>
+            <button className="btn block" onClick={p.onRetry}><Icon name="restart" size={16} /> {t('results.retry')}</button>
+            <button className="btn block" onClick={p.onPractice}><Icon name="loop" size={16} /> {t('results.practice')}</button>
           </div>
           <button className="btn ghost block" onClick={p.onHome}>{t('results.home')}</button>
         </div>
-        <div className="tiny">
-          <Stars n={1} /> {STAR_THRESHOLDS[0]} · <Stars n={2} /> {STAR_THRESHOLDS[1]} · <Stars n={3} /> {STAR_THRESHOLDS[2]}
+        <div className="tiny row" style={{ gap: 10 }}>
+          <span className="row" style={{ gap: 4 }}><Stars n={1} size={11} /> {STAR_THRESHOLDS[0]}</span>
+          <span className="row" style={{ gap: 4 }}><Stars n={2} size={11} /> {STAR_THRESHOLDS[1]}</span>
+          <span className="row" style={{ gap: 4 }}><Stars n={3} size={11} /> {STAR_THRESHOLDS[2]}</span>
         </div>
       </div>
     </div>

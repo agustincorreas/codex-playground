@@ -4,7 +4,8 @@ import { useStore, freePlaysLeft, FREE_PLAYS_PER_DAY } from '../store/useStore';
 import { navigate, back } from '../router';
 import { useT } from '../i18n';
 import { INSTRUMENT_META } from '../engine/instruments';
-import { Stars, Waveform, fmtDuration, Modal } from '../components/ui';
+import { Stars, Art, fmtDuration, Modal, InstrumentIcon } from '../components/ui';
+import { Icon } from '../components/Icon';
 
 export function Paywall({ onClose, limit }: { onClose: () => void; limit?: boolean }) {
   const t = useT();
@@ -12,7 +13,7 @@ export function Paywall({ onClose, limit }: { onClose: () => void; limit?: boole
   return (
     <Modal onClose={onClose}>
       <div className="col" style={{ textAlign: 'center', alignItems: 'center' }}>
-        <div style={{ fontSize: 48 }}>⭐</div>
+        <div className="icon-circle" style={{ width: 64, height: 64, borderRadius: 20, color: 'var(--gold)', background: 'rgba(255,214,10,.12)' }}><Icon name="sparkle" size={30} /></div>
         <h2>{t('paywall.title')}</h2>
         <p className="muted">{limit ? t('paywall.limit', { n: FREE_PLAYS_PER_DAY }) : t('paywall.body')}</p>
         <button className="btn primary block" onClick={() => { setPremium(true); onClose(); }}>{t('paywall.cta')}</button>
@@ -44,17 +45,17 @@ export function LessonDetail({ id }: { id: string }) {
     <div className="fade-up col" style={{ gap: 16 }}>
       {paywall && <Paywall onClose={() => setPaywall(null)} limit={paywall === 'limit'} />}
       <div className="row between">
-        <button className="btn ghost sm" onClick={back}>← {t('nav.lessons')}</button>
-        <button className="iconbtn" onClick={() => s.toggleFavorite(id)} aria-label="favorito">{fav ? '❤️' : '🤍'}</button>
+        <button className="btn ghost sm" style={{ marginLeft: -12 }} onClick={back}><Icon name="back" size={16} /> {t('nav.lessons')}</button>
+        <button className="icon-circle" onClick={() => s.toggleFavorite(id)} aria-label="favorito" style={{ color: fav ? 'var(--red)' : 'var(--text-2)' }}><Icon name="heart" size={20} style={fav ? { fill: 'currentColor' } : undefined} /></button>
       </div>
-      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-        <div className="lesson-art" style={{ height: 160, background: `linear-gradient(135deg, ${lesson.art}, ${meta.accent})` }}>
-          <div className="art-badge"><Waveform seed={lesson.id} n={40} /></div>
-          {locked && <span className="lock">🔒 {t('common.premium')}</span>}
+      <div className="card elev" style={{ padding: 0, overflow: 'hidden', borderRadius: 'var(--radius-xl)' }}>
+        <div className="lesson-art" style={{ height: 190 }}>
+          <Art seed={lesson.id} color={lesson.art} accent={meta.accent} />
+          {locked && <span className="lock"><Icon name="lock" size={12} /> {t('common.premium')}</span>}
         </div>
-        <div style={{ padding: 18 }} className="col">
+        <div style={{ padding: 22 }} className="col">
           <div className="row wrap" style={{ gap: 6 }}>
-            <span className="chip">{meta.emoji} {meta.label}</span>
+            <span className="chip"><InstrumentIcon instrument={lesson.instrument} size={13} /> {meta.label}</span>
             <span className="chip">{t('common.grade', { n: lesson.grade })}</span>
             <span className="chip">{lesson.genre}</span>
             <span className="chip">{t(`kind.${lesson.kind}`)}</span>
@@ -69,7 +70,7 @@ export function LessonDetail({ id }: { id: string }) {
             <div className="stat"><div className="v">{lesson.steps.length}</div><div className="l">{t('detail.steps')}</div></div>
             <div className="stat"><div className="v">{lessonNoteCount(lesson)}</div><div className="l">{t('detail.notes')}</div></div>
           </div>
-          <div className="row between wrap card" style={{ background: 'var(--bg-3)' }}>
+          <div className="row between wrap card" style={{ background: 'var(--surface-2)', border: 0 }}>
             <div>
               <div className="tiny">{t('detail.best')}</div>
               <div className="row"><b style={{ fontSize: 22 }}>{p?.bestScore ?? '—'}</b><Stars n={p?.bestStars ?? 0} size={18} /></div>
@@ -77,8 +78,8 @@ export function LessonDetail({ id }: { id: string }) {
             <div className="tiny">{t('detail.attempts')}: {p?.attempts ?? 0}</div>
           </div>
           <div className="row wrap">
-            <button className="btn primary" style={{ flex: 1 }} onClick={() => go(false)}>▶ {t('detail.playLesson')}</button>
-            <button className="btn" style={{ flex: 1 }} onClick={() => go(true)}>🔁 {t('detail.practice')}</button>
+            <button className="btn primary lg" style={{ flex: 1 }} onClick={() => go(false)}><Icon name="play" size={16} /> {t('detail.playLesson')}</button>
+            <button className="btn lg" style={{ flex: 1 }} onClick={() => go(true)}><Icon name="loop" size={16} /> {t('detail.practice')}</button>
           </div>
         </div>
       </div>
@@ -87,9 +88,9 @@ export function LessonDetail({ id }: { id: string }) {
         {lesson.steps.map((st, i) => (
           <div key={st.id} className="row between" style={{ padding: '8px 0', borderBottom: i < lesson.steps.length - 1 ? '1px solid var(--border)' : 0 }}>
             <div className="row">
-              <span className="chip">{i + 1}</span>
+              <span className="chip num" style={{ width: 30, padding: 0, justifyContent: 'center' }}>{i + 1}</span>
               <div>
-                <div style={{ fontWeight: 700 }}>{st.title}</div>
+                <div style={{ fontWeight: 600 }}>{st.title}</div>
                 {st.tip && <div className="tiny">{st.tip}</div>}
               </div>
             </div>

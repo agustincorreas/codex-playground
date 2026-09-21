@@ -43,8 +43,8 @@ export interface PlayerState {
 
 export type PlayerListener = (s: PlayerState) => void;
 
-const LOOKAHEAD = 0.12; // s
-const TICK_MS = 25;
+const LOOKAHEAD = 0.25; // s
+const TICK_MS = 30;
 
 export class LessonPlayer {
   opts: PlayerOptions;
@@ -254,8 +254,12 @@ export class LessonPlayer {
       }
     }
 
-    // Programación de audio con anticipación.
-    const horizon = nowT + LOOKAHEAD;
+    // Programación de audio con anticipación. En Wait Mode no pasamos de la próxima nota pendiente.
+    let horizon = nowT + LOOKAHEAD;
+    if (this.opts.waitMode) {
+      const pending = this.sortedNotes.find((n) => this.state.noteStates[n.idx] === null && n.beat >= this.rangeStart - 1e-6 && n.beat < this.rangeEnd - 1e-6);
+      if (pending) horizon = Math.min(horizon, this.beatToTime(pending.beat) - 0.001);
+    }
     // Guía (notas de la lección)
     if (this.opts.guide) {
       while (this.nextSchedIndex < this.sortedNotes.length) {
@@ -365,6 +369,9 @@ export class LessonPlayer {
           this.state.status = 'playing';
           this.startTime = getAudioContext().currentTime - (waitingBeat - this.rangeStart) * spb + 0.0;
           this.waitingIndex = null;
+          // No repetir la guía de las notas que el usuario acaba de tocar.
+          const nextIdx = this.sortedNotes.findIndex((n) => n.beat > waitingBeat + 1e-6);
+          this.nextSchedIndex = nextIdx < 0 ? this.sortedNotes.length : Math.max(this.nextSchedIndex, nextIdx);
         }
       } else {
         this.state.hits.push({ noteIndex: null, lane: e.lane, judgement: 'extra', deltaMs: 0, time: e.time });

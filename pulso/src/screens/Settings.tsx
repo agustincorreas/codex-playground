@@ -6,6 +6,7 @@ import { inputManager, type MidiDeviceInfo } from '../input/inputManager';
 import { INSTRUMENT_META } from '../engine/instruments';
 import type { InputMethod, Instrument } from '../engine/types';
 import { click, getAudioContext, unlockAudio } from '../audio/engine';
+import { Icon, INSTRUMENT_ICON } from '../components/Icon';
 
 let deferredInstall: (Event & { prompt: () => Promise<void> }) | null = null;
 if (typeof window !== 'undefined') {
@@ -56,7 +57,7 @@ function Calibration({ onDone }: { onDone: (ms: number | null) => void }) {
         <div style={{ fontSize: 40, fontWeight: 900 }}>{t('calib.hits', { n: hits.length })}</div>
         <div className="row" style={{ gap: 6 }}>
           {[0, 1, 2, 3].map((r) => ['p12', 'p13', 'p14', 'p15'][r]).map((lane) => (
-            <button key={lane} className="pad" style={{ width: 64, height: 64, background: 'var(--accent)' }} onPointerDown={() => inputManager.touch(lane)} />
+            <button key={lane} className="pad" style={{ width: 64, height: 64, ['--c' as string]: 'var(--accent-2)' }} onPointerDown={() => inputManager.touch(lane)} />
           ))}
         </div>
         {hits.length >= 8 && <p><b>{t('calib.result', { n: avg })}</b></p>}
@@ -112,7 +113,7 @@ export function Settings() {
         <Row label={t('settings.name')}><input type="text" value={s.name} onChange={(e) => useStore.setState({ name: e.target.value })} style={{ width: 160 }} /></Row>
         <Row label={t('settings.instrument')}>
           <div className="segmented">
-            {(Object.keys(INSTRUMENT_META) as Instrument[]).map((i) => <button key={i} className={s.instrument === i ? 'active' : ''} onClick={() => s.setInstrument(i)}>{INSTRUMENT_META[i].emoji}</button>)}
+            {(Object.keys(INSTRUMENT_META) as Instrument[]).map((i) => <button key={i} className={s.instrument === i ? 'active' : ''} onClick={() => s.setInstrument(i)} title={INSTRUMENT_META[i].label}><Icon name={INSTRUMENT_ICON[i]} size={16} /></button>)}
           </div>
         </Row>
         <Row label={t('settings.language')}>
@@ -188,7 +189,7 @@ export function Settings() {
       <div className="card">
         <h3>{t('settings.plan')}</h3>
         <p className="muted" style={{ margin: '8px 0 12px' }}>{s.premium ? t('settings.planPremium') : t('settings.planFree', { n: FREE_PLAYS_PER_DAY })}</p>
-        {s.premium ? <button className="btn" onClick={() => s.setPremium(false)}>{t('settings.cancelPremium')}</button> : <button className="btn primary" onClick={() => s.setPremium(true)}>⭐ {t('settings.goPremium')}</button>}
+        {s.premium ? <button className="btn" onClick={() => s.setPremium(false)}>{t('settings.cancelPremium')}</button> : <button className="btn primary" onClick={() => s.setPremium(true)}><Icon name="sparkle" size={16} /> {t('settings.goPremium')}</button>}
       </div>
 
       <div className="card">

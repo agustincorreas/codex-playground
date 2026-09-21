@@ -13,19 +13,19 @@ export interface LaneDef {
 }
 
 export const DRUM_LANES: LaneDef[] = [
-  { id: 'crash', label: 'Crash', shortLabel: 'CR', color: '#f6c343', midi: [49, 57, 55, 52], key: 'KeyR', keyLabel: 'R' },
-  { id: 'ride', label: 'Ride', shortLabel: 'RD', color: '#f59e0b', midi: [51, 59, 53], key: 'KeyU', keyLabel: 'U' },
-  { id: 'hihat', label: 'Hi-hat', shortLabel: 'HH', color: '#22d3ee', midi: [42, 44, 46], key: 'KeyE', keyLabel: 'E' },
-  { id: 'tom1', label: 'Tom alto', shortLabel: 'T1', color: '#a78bfa', midi: [48, 50], key: 'KeyI', keyLabel: 'I' },
-  { id: 'tom2', label: 'Tom medio', shortLabel: 'T2', color: '#c084fc', midi: [45, 47], key: 'KeyO', keyLabel: 'O' },
-  { id: 'snare', label: 'Redoblante', shortLabel: 'SN', color: '#fb7185', midi: [38, 40, 37], key: 'KeyF', keyLabel: 'F' },
-  { id: 'floor', label: 'Tom de piso', shortLabel: 'FT', color: '#e879f9', midi: [41, 43], key: 'KeyK', keyLabel: 'K' },
-  { id: 'kick', label: 'Bombo', shortLabel: 'BD', color: '#34d399', midi: [36, 35], key: 'Space', keyLabel: '␣' },
+  { id: 'crash', label: 'Crash', shortLabel: 'CR', color: '#ffd60a', midi: [49, 57, 55, 52], key: 'KeyR', keyLabel: 'R' },
+  { id: 'ride', label: 'Ride', shortLabel: 'RD', color: '#ff9f0a', midi: [51, 59, 53], key: 'KeyU', keyLabel: 'U' },
+  { id: 'hihat', label: 'Hi-hat', shortLabel: 'HH', color: '#64d2ff', midi: [42, 44, 46], key: 'KeyE', keyLabel: 'E' },
+  { id: 'tom1', label: 'Tom alto', shortLabel: 'T1', color: '#bf5af2', midi: [48, 50], key: 'KeyI', keyLabel: 'I' },
+  { id: 'tom2', label: 'Tom medio', shortLabel: 'T2', color: '#da8fff', midi: [45, 47], key: 'KeyO', keyLabel: 'O' },
+  { id: 'snare', label: 'Redoblante', shortLabel: 'SN', color: '#ff6b6b', midi: [38, 40, 37], key: 'KeyF', keyLabel: 'F' },
+  { id: 'floor', label: 'Tom de piso', shortLabel: 'FT', color: '#ff8fab', midi: [41, 43], key: 'KeyK', keyLabel: 'K' },
+  { id: 'kick', label: 'Bombo', shortLabel: 'BD', color: '#30d158', midi: [36, 35], key: 'Space', keyLabel: '␣' },
 ];
 
 const PAD_KEYS = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'KeyQ', 'KeyW', 'KeyE', 'KeyR', 'KeyA', 'KeyS', 'KeyD', 'KeyF', 'KeyZ', 'KeyX', 'KeyC', 'KeyV'];
 const PAD_KEY_LABELS = ['1', '2', '3', '4', 'Q', 'W', 'E', 'R', 'A', 'S', 'D', 'F', 'Z', 'X', 'C', 'V'];
-const PAD_COLORS = ['#fb7185', '#f97316', '#f6c343', '#a3e635', '#34d399', '#22d3ee', '#60a5fa', '#a78bfa', '#e879f9', '#f472b6', '#fb7185', '#f97316', '#f6c343', '#a3e635', '#34d399', '#22d3ee'];
+const PAD_COLORS = ['#ff6b6b', '#ff9f0a', '#ffd60a', '#a5e26b', '#30d158', '#64d2ff', '#5ac8fa', '#bf5af2', '#da8fff', '#ff8fab', '#ff6b6b', '#ff9f0a', '#ffd60a', '#a5e26b', '#30d158', '#64d2ff'];
 export const PAD_SOUNDS = ['kick', 'snare', 'clap', 'hihat', 'openhat', 'tom1', 'tom2', 'rim', 'shaker', 'cowbell', 'perc1', 'perc2', 'bass', 'stab', 'chord', 'vox'];
 
 /** Pads 4x4: fila superior p0..p3 (MIDI 48–51), fila inferior p12..p15 (MIDI 36–39), como en un controlador estándar. */
@@ -84,7 +84,7 @@ export const KEY_LANES: LaneDef[] = Array.from({ length: KEYS_HIGH - KEYS_LOW + 
     id: String(midi),
     label: noteName(midi),
     shortLabel: noteName(midi),
-    color: isBlackKey(midi) ? '#a78bfa' : '#7c5cff',
+    color: isBlackKey(midi) ? '#8f8dff' : '#6e6cff',
     midi: [midi],
     key: '',
     keyLabel: '',
@@ -112,7 +112,7 @@ export function laneForKey(instrument: Instrument, code: string, octaveShift: nu
 }
 
 export const INSTRUMENT_META: Record<Instrument, { label: string; emoji: string; accent: string; description: string }> = {
-  keys: { label: 'Teclado', emoji: '🎹', accent: '#7c5cff', description: 'Piano, sintes y controladores MIDI.' },
-  pads: { label: 'Pads', emoji: '🎛️', accent: '#22d3ee', description: 'Finger drumming en controladores de pads.' },
-  drums: { label: 'Batería', emoji: '🥁', accent: '#fb7185', description: 'Batería electrónica o acústica.' },
+  keys: { label: 'Teclado', emoji: '🎹', accent: '#8f8dff', description: 'Piano, sintes y controladores MIDI.' },
+  pads: { label: 'Pads', emoji: '🎛️', accent: '#64d2ff', description: 'Finger drumming en controladores de pads.' },
+  drums: { label: 'Batería', emoji: '🥁', accent: '#ff6b6b', description: 'Batería electrónica o acústica.' },
 };

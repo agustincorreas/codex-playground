@@ -5,6 +5,7 @@ import { Ring } from '../components/ui';
 import { getLesson } from '../content';
 import { INSTRUMENT_META } from '../engine/instruments';
 import type { Instrument } from '../engine/types';
+import { Icon, INSTRUMENT_ICON } from '../components/Icon';
 
 function fmtTotal(sec: number) {
   const h = Math.floor(sec / 3600);
@@ -43,12 +44,12 @@ export function Progress() {
         </div>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10 }}>
-        <div className="stat"><div className="v">★ {stars}</div><div className="l">{t('progress.stars')}</div></div>
-        <div className="stat"><div className="v">💿 {records}</div><div className="l">{t('progress.records')}</div></div>
+        <div className="stat"><div className="v"><Icon name="star" size={20} style={{ color: 'var(--gold)' }} /> {stars}</div><div className="l">{t('progress.stars')}</div></div>
+        <div className="stat"><div className="v"><Icon name="disc" size={20} style={{ color: 'var(--teal)' }} /> {records}</div><div className="l">{t('progress.records')}</div></div>
         <div className="stat"><div className="v">{Object.keys(s.progress).length}</div><div className="l">{t('progress.lessons')}</div></div>
-        <div className="stat"><div className="v">🔥 {computeStreak(s.practice)}</div><div className="l">{t('progress.streak')}</div></div>
+        <div className="stat"><div className="v"><Icon name="flame" size={20} style={{ color: 'var(--orange)' }} /> {computeStreak(s.practice)}</div><div className="l">{t('progress.streak')}</div></div>
         <div className="stat"><div className="v">{bestStreak(s.practice)}</div><div className="l">{t('progress.bestStreak')}</div></div>
-        <div className="stat"><div className="v">🎯 {s.goalsHit.length}</div><div className="l">{t('progress.goals')}</div></div>
+        <div className="stat"><div className="v"><Icon name="target" size={20} style={{ color: 'var(--green)' }} /> {s.goalsHit.length}</div><div className="l">{t('progress.goals')}</div></div>
         <div className="stat"><div className="v">{fmtTotal(total)}</div><div className="l">{t('progress.time')}</div></div>
         <div className="stat"><div className="v">{fmtTotal(weekSec)}</div><div className="l">{t('progress.week')}</div></div>
       </div>
@@ -63,7 +64,7 @@ export function Progress() {
             return (
               <div key={d} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, height: '100%', justifyContent: 'flex-end' }}>
                 <div className="tiny">{Math.round(v / 60)}m</div>
-                <div style={{ width: '100%', height: `${Math.max(4, pct * 0.7)}%`, background: v >= goalSec ? 'var(--green)' : 'var(--accent)', borderRadius: 6, opacity: v ? 1 : 0.3 }} />
+                <div style={{ width: '100%', maxWidth: 28, height: `${Math.max(4, pct * 0.7)}%`, background: v >= goalSec ? 'var(--green)' : 'var(--accent)', borderRadius: 6, opacity: v ? 1 : 0.25 }} />
                 <div className="tiny">{Number(dd)}</div>
               </div>
             );
@@ -86,7 +87,7 @@ export function Progress() {
         <h3>{t('progress.byInstrument')}</h3>
         {byInstrument.map((b) => (
           <div key={b.i} className="row between" style={{ padding: '6px 0' }}>
-            <span>{INSTRUMENT_META[b.i].emoji} {INSTRUMENT_META[b.i].label}</span>
+            <span className="row" style={{ gap: 8 }}><Icon name={INSTRUMENT_ICON[b.i]} size={16} style={{ color: 'var(--text-2)' }} /> {INSTRUMENT_META[b.i].label}</span>
             <span className="tiny">{b.lessons} {t('progress.lessons').toLowerCase()} · ★ {b.stars}</span>
           </div>
         ))}
@@ -98,9 +99,9 @@ export function Progress() {
           {TROPHY_DEFS.map((td) => {
             const u = s.trophies.find((x) => x.id === td.id);
             return (
-              <div key={td.id} className="stat" style={{ opacity: u ? 1 : 0.45, textAlign: 'center' }}>
-                <div style={{ fontSize: 30, filter: u ? 'none' : 'grayscale(1)' }}>{td.emoji}</div>
-                <div style={{ fontWeight: 700, fontSize: 13 }}>{td.title}</div>
+              <div key={td.id} className="stat" style={{ opacity: u ? 1 : 0.4, textAlign: 'center', alignItems: 'center' }}>
+                <div className="icon-circle" style={{ width: 52, height: 52, borderRadius: 16, fontSize: 24, filter: u ? 'none' : 'grayscale(1)' }}>{td.emoji}</div>
+                <div style={{ fontWeight: 600, fontSize: 13 }}>{td.title}</div>
                 <div className="tiny">{u ? td.description : t('progress.locked')}</div>
               </div>
             );

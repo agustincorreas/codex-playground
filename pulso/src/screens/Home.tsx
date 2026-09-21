@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
 import { useStore, computeStreak, todayKey, freePlaysLeft } from '../store/useStore';
 import { COURSES, getLesson, LESSONS } from '../content';
-import { LessonCard, Ring } from '../components/ui';
+import { LessonCard, Ring, Art } from '../components/ui';
+import { Icon, INSTRUMENT_ICON } from '../components/Icon';
 import { navigate } from '../router';
 import { useT } from '../i18n';
 import { levelFromXp } from '../engine/scoring';
@@ -30,70 +31,78 @@ export function Home() {
   const songs = LESSONS.filter((l) => l.instrument === s.instrument && l.kind === 'song').slice(0, 6);
   const warmups = LESSONS.filter((l) => l.instrument === s.instrument && (l.kind === 'warmup' || l.kind === 'exercise')).slice(0, 6);
   const recent = s.recentLessonIds.map(getLesson).filter(Boolean).slice(0, 6);
+  const hero = continueLesson ?? recommended[0];
+  const stars = Object.values(s.progress).reduce((a, p) => a + p.bestStars, 0);
+  const records = Object.values(s.progress).filter((p) => p.bestStars >= 2).length;
 
   return (
     <div className="fade-up">
-      <div className="row between wrap">
-        <div>
+      <div className="row between wrap" style={{ gap: 16 }}>
+        <div className="col" style={{ gap: 10 }}>
+          <div className="eyebrow">{new Date().toLocaleDateString(s.settings.lang === 'es' ? 'es-AR' : 'en-US', { weekday: 'long', day: 'numeric', month: 'long' })}</div>
           <h1>{t('home.greeting', { name: s.name })}</h1>
-          <div className="row" style={{ marginTop: 6 }}>
-            <div className="segmented">
-              {(Object.keys(INSTRUMENT_META) as Instrument[]).map((i) => (
-                <button key={i} className={s.instrument === i ? 'active' : ''} onClick={() => s.setInstrument(i)}>
-                  {INSTRUMENT_META[i].emoji} {INSTRUMENT_META[i].label}
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
-        {!s.premium ? (
-          <span className="chip gold">{t('home.freeLeft', { n: free })}</span>
-        ) : (
-          <span className="chip gold">★ {t('home.premium')}</span>
-        )}
-      </div>
-
-      <div className="section" style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
-        <div className="card row" style={{ gap: 16 }}>
-          <Ring value={doneSec / goalSec} size={84} color="var(--accent-2)">
-            <b style={{ fontSize: 14 }}>{Math.floor(doneSec / 60)}</b>
-            <div className="tiny">min</div>
-          </Ring>
-          <div>
-            <div className="tiny" style={{ textTransform: 'uppercase', fontWeight: 700 }}>{t('home.dailyGoal')}</div>
-            <div style={{ fontWeight: 800, fontSize: 18 }}>{doneSec >= goalSec ? t('home.goalDone') : t('home.minutesOf', { done: Math.floor(doneSec / 60), goal: s.settings.dailyGoalMin })}</div>
+        <div className="row wrap" style={{ gap: 10 }}>
+          <div className="segmented">
+            {(Object.keys(INSTRUMENT_META) as Instrument[]).map((i) => (
+              <button key={i} className={s.instrument === i ? 'active' : ''} onClick={() => s.setInstrument(i)}>
+                <Icon name={INSTRUMENT_ICON[i]} size={16} /> {INSTRUMENT_META[i].label}
+              </button>
+            ))}
           </div>
-        </div>
-        <div className="card row" style={{ gap: 16 }}>
-          <div style={{ fontSize: 44 }}>{streak > 0 ? '🔥' : '🧊'}</div>
-          <div>
-            <div className="tiny" style={{ textTransform: 'uppercase', fontWeight: 700 }}>{t('home.streak')}</div>
-            <div style={{ fontWeight: 800, fontSize: 18 }}>{streak} {t('home.days')}</div>
-          </div>
-        </div>
-        <div className="card">
-          <div className="row between">
-            <div className="tiny" style={{ textTransform: 'uppercase', fontWeight: 700 }}>{t('home.level')} {lvl.level}</div>
-            <div className="tiny">{lvl.into}/{lvl.needed} XP</div>
-          </div>
-          <div className="progress-bar" style={{ marginTop: 10 }}><i style={{ width: `${(lvl.into / lvl.needed) * 100}%` }} /></div>
-          <div className="tiny" style={{ marginTop: 8 }}>{Object.values(s.progress).reduce((a, p) => a + p.bestStars, 0)} ★ · {Object.values(s.progress).filter((p) => p.bestStars >= 2).length} 💿</div>
+          {!s.premium ? <span className="chip gold"><Icon name="sparkle" size={13} /> {t('home.freeLeft', { n: free })}</span> : <span className="chip gold"><Icon name="sparkle" size={13} /> {t('home.premium')}</span>}
         </div>
       </div>
 
-      {continueLesson && (
-        <div className="section">
-          <div className="section-head"><h2>{t('home.continue')}</h2></div>
-          <div className="card row between wrap" style={{ background: `linear-gradient(120deg, ${continueLesson.art}33, var(--card))` }}>
-            <div>
-              <div className="tiny">{INSTRUMENT_META[continueLesson.instrument].emoji} {t('common.grade', { n: continueLesson.grade })} · {continueLesson.genre}</div>
-              <h3 style={{ fontSize: 20 }}>{continueLesson.title}</h3>
-              <div className="muted">{continueLesson.artist}</div>
+      {hero && (
+        <div className="section" style={{ marginTop: 28 }}>
+          <button className="card elev" style={{ width: '100%', textAlign: 'left', padding: 0, overflow: 'hidden', borderRadius: 'var(--radius-xl)', display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', position: 'relative' }} onClick={() => navigate({ name: 'play', id: hero.id })}>
+            <div style={{ position: 'absolute', inset: 0, opacity: 0.9 }}><Art seed={hero.id} color={hero.art} accent={INSTRUMENT_META[hero.instrument].accent} /></div>
+            <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(90deg, rgba(8,8,11,.92) 0%, rgba(8,8,11,.75) 55%, rgba(8,8,11,.3) 100%)' }} />
+            <div style={{ position: 'relative', padding: '30px 28px', display: 'flex', flexDirection: 'column', gap: 14, minHeight: 210, justifyContent: 'flex-end', color: '#f5f5f7' }}>
+              <div className="eyebrow" style={{ color: 'rgba(245,245,247,.6)' }}>{continueLesson ? t('home.continue') : t('home.recommended')}</div>
+              <div>
+                <h2 style={{ fontSize: 30, letterSpacing: '-0.03em' }}>{hero.title}</h2>
+                <div style={{ color: 'rgba(245,245,247,.65)', marginTop: 4 }}>{hero.artist} · {t('common.grade', { n: hero.grade })} · {hero.bpm} BPM</div>
+              </div>
+              <div className="row">
+                <span className="btn primary"><Icon name="play" size={16} /> {t('home.play')}</span>
+                <span className="tiny" style={{ color: 'rgba(245,245,247,.55)' }}>{hero.steps.length} {t('detail.steps').toLowerCase()}</span>
+              </div>
             </div>
-            <button className="btn primary" onClick={() => navigate({ name: 'play', id: continueLesson.id })}>▶ {t('home.play')}</button>
-          </div>
+          </button>
         </div>
       )}
+
+      <div className="section" style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', marginTop: 16 }}>
+        <div className="card row" style={{ gap: 18 }}>
+          <Ring value={doneSec / goalSec} size={72} stroke={7} color="var(--teal)">
+            <b className="num" style={{ fontSize: 15 }}>{Math.floor(doneSec / 60)}</b>
+          </Ring>
+          <div>
+            <div className="eyebrow">{t('home.dailyGoal')}</div>
+            <div style={{ fontWeight: 600, fontSize: 17, marginTop: 4, letterSpacing: '-0.01em' }}>{doneSec >= goalSec ? t('home.goalDone') : t('home.minutesOf', { done: Math.floor(doneSec / 60), goal: s.settings.dailyGoalMin })}</div>
+          </div>
+        </div>
+        <div className="card row" style={{ gap: 18 }}>
+          <div className="icon-circle" style={{ width: 72, height: 72, borderRadius: 22, color: streak > 0 ? 'var(--orange)' : 'var(--text-3)' }}><Icon name="flame" size={30} /></div>
+          <div>
+            <div className="eyebrow">{t('home.streak')}</div>
+            <div style={{ fontWeight: 600, fontSize: 17, marginTop: 4 }}><span className="num">{streak}</span> {t('home.days')}</div>
+          </div>
+        </div>
+        <div className="card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 10 }}>
+          <div className="row between">
+            <div className="eyebrow">{t('home.level')} {lvl.level}</div>
+            <div className="tiny num">{lvl.into}/{lvl.needed} XP</div>
+          </div>
+          <div className="progress-bar"><i style={{ width: `${(lvl.into / lvl.needed) * 100}%` }} /></div>
+          <div className="row" style={{ gap: 14 }}>
+            <span className="tiny row" style={{ gap: 4 }}><Icon name="star" size={12} style={{ color: 'var(--gold)' }} /> {stars}</span>
+            <span className="tiny row" style={{ gap: 4 }}><Icon name="disc" size={12} /> {records}</span>
+          </div>
+        </div>
+      </div>
 
       <div className="section">
         <div className="section-head"><h2>{t('home.recommended')}</h2><a href="#/lessons">{t('home.seeAll')}</a></div>

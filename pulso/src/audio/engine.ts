@@ -37,8 +37,18 @@ export function setMasterVolume(v: number) {
   userVolume = v;
   if (master) master.gain.value = v;
 }
+let backingBus: GainNode | null = null;
+function getBackingBus(): GainNode {
+  if (!backingBus) {
+    backingBus = getAudioContext().createGain();
+    backingBus.gain.value = backingVolume;
+    backingBus.connect(master!);
+  }
+  return backingBus;
+}
 export function setBackingVolume(v: number) {
   backingVolume = v;
+  if (backingBus) backingBus.gain.value = v;
 }
 export function now(): number {
   return getAudioContext().currentTime;
@@ -175,11 +185,10 @@ export function keyNoteOn(midi: number, t?: number, vel = 0.8, dest?: AudioNode,
   const d = dest ?? master!;
   const time = t ?? c.currentTime;
   const f = 440 * 2 ** ((midi - 69) / 12);
+  const peak = 0.5 * vel;
   const g = c.createGain();
   g.gain.setValueAtTime(0.0001, time);
-  g.gain.linearRampToValueAtTime(0.5 * vel, time + 0.005);
-  g.gain.exponentialRampToValueAtTime(0.18 * vel, time + 0.5);
-  g.gain.exponentialRampToValueAtTime(0.06 * vel, time + 2.5);
+  g.gain.linearRampToValueAtTime(peak, time + 0.005);
   const filt = c.createBiquadFilter();
   filt.type = 'lowpass';
   filt.frequency.setValueAtTime(Math.min(12000, f * 8), time);
@@ -197,26 +206,37 @@ export function keyNoteOn(midi: number, t?: number, vel = 0.8, dest?: AudioNode,
   filt.connect(g).connect(d);
   o1.start(time);
   o2.start(time);
-  const stop = () => {
-    const tt = Math.max(c.currentTime, time);
-    g.gain.cancelScheduledValues(tt);
-    g.gain.setValueAtTime(Math.max(g.gain.value, 0.0001), tt);
-    g.gain.exponentialRampToValueAtTime(0.0001, tt + 0.12);
-    o1.stop(tt + 0.15);
-    o2.stop(tt + 0.15);
-  };
   if (holdSec != null) {
+    // Envolvente completa conocida de antemano: sin lecturas de .value que produzcan cortes.
     const tEnd = time + holdSec;
-    g.gain.setValueAtTime(g.gain.value, tEnd);
-    g.gain.exponentialRampToValueAtTime(0.0001, tEnd + 0.12);
-    o1.stop(tEnd + 0.15);
-    o2.stop(tEnd + 0.15);
+    const sustainT = Math.min(time + 0.5, tEnd);
+    g.gain.exponentialRampToValueAtTime(peak * 0.4, sustainT);
+    if (tEnd > sustainT) g.gain.setValueAtTime(peak * 0.4, tEnd);
+    g.gain.setTargetAtTime(0.0001, tEnd, 0.04);
+    o1.stop(tEnd + 0.3);
+    o2.stop(tEnd + 0.3);
     return;
   }
+  g.gain.exponentialRampToValueAtTime(peak * 0.36, time + 0.5);
+  g.gain.exponentialRampToValueAtTime(peak * 0.12, time + 2.5);
+  const stop = () => {
+    const tt = Math.max(c.currentTime, time + 0.01);
+    const param = g.gain as AudioParam & { cancelAndHoldAtTime?: (t: number) => void };
+    if (param.cancelAndHoldAtTime) param.cancelAndHoldAtTime(tt);
+    else {
+      const v = Math.max(0.0001, g.gain.value);
+      g.gain.cancelScheduledValues(tt);
+      g.gain.setValueAtTime(v, tt);
+    }
+    g.gain.setTargetAtTime(0.0001, tt, 0.05);
+    o1.stop(tt + 0.4);
+    o2.stop(tt + 0.4);
+  };
   const prev = activeKeys.get(midi);
   if (prev) prev.stop();
   activeKeys.set(midi, { g, stop });
   // Seguridad: apagar a los 6 s.
+  g.gain.setTargetAtTime(0.0001, time + 5.5, 0.1);
   o1.stop(time + 6);
   o2.stop(time + 6);
 }
@@ -233,13 +253,7 @@ export function keyNoteOff(midi: number) {
 export function playLane(instrument: Instrument, lane: string, t?: number, vel = 1, backing = false) {
   const c = getAudioContext();
   const time = t ?? c.currentTime;
-  let dest: AudioNode = master!;
-  if (backing) {
-    const g = c.createGain();
-    g.gain.value = backingVolume;
-    g.connect(master!);
-    dest = g;
-  }
+  const dest: AudioNode = backing ? getBackingBus() : master!;
   if (instrument === 'drums') drumSound(lane, time, vel, dest);
   else if (instrument === 'pads') drumSound(PAD_SOUNDS[Number(lane.slice(1))] ?? 'perc1', time, vel, dest);
   else keyNoteOn(Number(lane), time, vel * 0.9, dest, backing ? 0.4 : undefined);

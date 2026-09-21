@@ -5,6 +5,7 @@ import { INSTRUMENT_META } from '../engine/instruments';
 import { useT } from '../i18n';
 import { inputManager } from '../input/inputManager';
 import { unlockAudio } from '../audio/engine';
+import { Icon, INSTRUMENT_ICON } from '../components/Icon';
 
 export function Onboarding() {
   const t = useT();
@@ -28,10 +29,10 @@ export function Onboarding() {
 
   return (
     <div className="onb">
-      <div className="onb-card card fade-up" key={step}>
+      <div className="onb-card card elev fade-up" key={step} style={{ padding: 28, borderRadius: 'var(--radius-xl)' }}>
         <div className="row between" style={{ marginBottom: 18 }}>
           <div className="brand" style={{ padding: 0 }}>
-            <div className="brand-logo">〰️</div>Pulso
+            <div className="brand-logo"><Icon name="waveform" size={18} strokeWidth={2.2} /></div>Pulso
           </div>
           <div className="segmented">
             <button className={lang === 'es' ? 'active' : ''} onClick={() => setSettings({ lang: 'es' })}>ES</button>
@@ -52,7 +53,7 @@ export function Onboarding() {
             <div className="choice-grid">
               {(Object.keys(INSTRUMENT_META) as Instrument[]).map((i) => (
                 <button key={i} className={`choice ${instrument === i ? 'active' : ''}`} onClick={() => setInstrument(i)}>
-                  <span className="big">{INSTRUMENT_META[i].emoji}</span>
+                  <span className="big"><Icon name={INSTRUMENT_ICON[i]} size={28} /></span>
                   <span className="t">{INSTRUMENT_META[i].label}</span>
                   <span className="d">{INSTRUMENT_META[i].description}</span>
                 </button>
@@ -66,7 +67,7 @@ export function Onboarding() {
             <div className="choice-grid" style={{ gridTemplateColumns: '1fr' }}>
               {(['midi', 'keyboard', 'touch'] as InputMethod[]).map((m) => (
                 <button key={m} className={`choice ${input === m ? 'active' : ''}`} onClick={() => setInput(m)}>
-                  <span className="t">{m === 'midi' ? '🎛️ ' : m === 'keyboard' ? '⌨️ ' : '👆 '}{t(`onb.input.${m}`)}</span>
+                  <span className="t row" style={{ gap: 8 }}><Icon name={m === 'midi' ? 'midi' : m === 'keyboard' ? 'keyboard' : 'hand'} size={18} style={{ color: 'var(--accent-2)' }} /> {t(`onb.input.${m}`)}</span>
                   <span className="d">{t(`onb.input.${m}Help`)}</span>
                 </button>
               ))}
@@ -80,7 +81,7 @@ export function Onboarding() {
             <div className="choice-grid">
               {(['new', 'some', 'pro'] as const).map((e) => (
                 <button key={e} className={`choice ${exp === e ? 'active' : ''}`} onClick={() => setExp(e)}>
-                  <span className="big">{e === 'new' ? '🌱' : e === 'some' ? '🎵' : '🔥'}</span>
+                  <span className="big"><Icon name={e === 'new' ? 'sparkle' : e === 'some' ? 'note' : 'flame'} size={26} /></span>
                   <span className="t">{t(`onb.exp.${e}`)}</span>
                 </button>
               ))}

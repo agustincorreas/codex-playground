@@ -11,7 +11,7 @@ import { Results } from '../components/Results';
 import { inputManager } from '../input/inputManager';
 import { playLane, releaseLane, setBackingVolume, setMasterVolume, unlockAudio } from '../audio/engine';
 import { starsFor, xpFor, JUDGEMENT_COLORS } from '../engine/scoring';
-import { INSTRUMENT_META } from '../engine/instruments';
+import { Icon } from '../components/Icon';
 
 interface Ui {
   status: LessonPlayer['state']['status'];
@@ -246,7 +246,6 @@ export function Player({ id, practice: initialPractice }: { id: string; practice
     );
   }
 
-  const meta = INSTRUMENT_META[lesson.instrument];
   const cues = new Set(ui.cues ? ui.cues.split(',') : []);
   const judgeText = ui.lastJudgement && Date.now() / 1000 - 0 ? ui.lastJudgement : null;
   const bars = step.bars;
@@ -269,19 +268,19 @@ export function Player({ id, practice: initialPractice }: { id: string; practice
   return (
     <div className="player">
       <div className="player-top">
-        <button className="iconbtn" onClick={exit} aria-label={t('player.exit')}>✕</button>
+        <button className="iconbtn" onClick={exit} aria-label={t('player.exit')}><Icon name="close" size={18} /></button>
         <div className="titlebox" style={{ flex: 1, minWidth: 0 }}>
-          <div className="title">{lesson.title} <span className="tiny">· {meta.emoji} {lesson.artist}</span></div>
+          <div className="title">{lesson.title} <span className="tiny" style={{ color: 'rgba(245,245,247,.45)' }}>· {lesson.artist}</span></div>
           <div className="step-row">
             <div className="step-bar">{lesson.steps.map((s, i) => <i key={s.id} className={i < stepIndex ? 'done' : i === stepIndex ? 'cur' : ''} />)}</div>
             <span className="sub">{t('player.step', { n: stepIndex + 1, total: lesson.steps.length })} · {step.title}</span>
           </div>
         </div>
         <div className="tools">
-          <button className={`iconbtn ${metronome ? 'active' : ''}`} title={t('player.metronome')} onClick={() => setMetronome(!metronome)}>🎚️</button>
-          <button className={`iconbtn ${guide ? 'active' : ''}`} title={t('player.guide')} onClick={() => setGuide(!guide)}>🎧</button>
-          <button className={`iconbtn ${backing ? 'active' : ''}`} title={t('player.backing')} onClick={() => setBacking(!backing)}>🎼</button>
-          <button className={`iconbtn ${practice ? 'active' : ''}`} title={t('player.practice')} onClick={() => { setPractice(!practice); if (!practice) setLoopEnabled(true); restart(); }}>🔁</button>
+          <button className={`iconbtn ${metronome ? 'active' : ''}`} title={t('player.metronome')} onClick={() => setMetronome(!metronome)}><Icon name="metronome" size={18} /></button>
+          <button className={`iconbtn ${guide ? 'active' : ''}`} title={t('player.guide')} onClick={() => setGuide(!guide)}><Icon name="headphones" size={18} /></button>
+          <button className={`iconbtn ${backing ? 'active' : ''}`} title={t('player.backing')} onClick={() => setBacking(!backing)}><Icon name="layers" size={18} /></button>
+          <button className={`iconbtn ${practice ? 'active' : ''}`} title={t('player.practice')} onClick={() => { setPractice(!practice); if (!practice) setLoopEnabled(true); restart(); }}><Icon name="loop" size={18} /></button>
         </div>
       </div>
       <div className="landscape-hint">{t('landscape.hint')}</div>
@@ -289,7 +288,7 @@ export function Player({ id, practice: initialPractice }: { id: string; practice
       <div className="player-highway">
         <Highway instrument={lesson.instrument} step={step} player={player} noteSpeed={settings.noteSpeed} latinNames={settings.latinNames} showHands={settings.showHands} keyLayout={keyLayout} loop={loop} loopEnabled={practice && loopEnabled} />
         <div className="hud-score">{ui.score}%</div>
-        {ui.streak >= 3 && <div className="hud-streak">🔥 {ui.streak}</div>}
+        {ui.streak >= 3 && <div className="hud-streak"><Icon name="flame" size={14} /> {ui.streak}</div>}
         <div className="player-hud">
           {judgeText && ui.status !== 'idle' && ui.status !== 'finished' && (
             <div key={judgeText.at} className="hud-judge" style={{ color: JUDGEMENT_COLORS[judgeText.j] }}>{t(`player.${judgeText.j}`)}</div>
@@ -301,16 +300,16 @@ export function Player({ id, practice: initialPractice }: { id: string; practice
           <div className="overlay" onClick={start}>
             <div className="panel">
               {step.tip && <p className="muted" style={{ maxWidth: 360 }}>{step.tip}</p>}
-              <button className="btn primary" style={{ fontSize: 18, padding: '16px 32px' }}>▶ {t('player.play')}</button>
-              <span className="tiny">{t('player.tapToStart')} · {store.inputMethod === 'keyboard' ? '⌨️' : store.inputMethod === 'midi' ? '🎛️' : '👆'}</span>
+              <button className="btn primary lg"><Icon name="play" size={18} /> {t('player.play')}</button>
+              <span className="tiny row" style={{ gap: 6, color: 'rgba(245,245,247,.5)' }}>{t('player.tapToStart')} · <Icon name={store.inputMethod === 'keyboard' ? 'keyboard' : store.inputMethod === 'midi' ? 'midi' : 'hand'} size={14} /></span>
             </div>
           </div>
         )}
         {ui.status === 'paused' && (
           <div className="overlay">
             <div className="panel">
-              <button className="btn primary" onClick={() => player.resume()}>▶ {t('player.resume')}</button>
-              <button className="btn" onClick={restart}>{t('player.restart')}</button>
+              <button className="btn primary lg" onClick={() => player.resume()}><Icon name="play" size={16} /> {t('player.resume')}</button>
+              <button className="btn" onClick={restart}><Icon name="restart" size={16} /> {t('player.restart')}</button>
             </div>
           </div>
         )}
@@ -318,7 +317,7 @@ export function Player({ id, practice: initialPractice }: { id: string; practice
           <div className="overlay">
             <div className="panel card fade-up">
               <div className="tiny">{step.title}</div>
-              <div style={{ fontSize: 56, fontWeight: 900, lineHeight: 1 }}>{stepDone.score}</div>
+              <div className="num" style={{ fontSize: 64, fontWeight: 700, lineHeight: 1, letterSpacing: '-0.05em' }}>{stepDone.score}</div>
               <div className="row" style={{ gap: 10, fontSize: 13 }}>
                 <span style={{ color: JUDGEMENT_COLORS.perfect }}>● {stepDone.perfect}</span>
                 <span style={{ color: JUDGEMENT_COLORS.early }}>● {stepDone.early}</span>
@@ -326,12 +325,12 @@ export function Player({ id, practice: initialPractice }: { id: string; practice
                 <span style={{ color: JUDGEMENT_COLORS.miss }}>● {stepDone.miss}</span>
               </div>
               <div className="row">
-                <button className="btn" onClick={restart}>🔄 {t('player.retry')}</button>
+                <button className="btn" onClick={restart}><Icon name="restart" size={16} /> {t('player.retry')}</button>
                 {isPerf ? (
-                  practice ? <button className="btn primary" onClick={() => { setPractice(false); setBpm(lesson.bpm); setStepIndex(lesson.steps.length - 1); restart(); }}>{t('player.perform')} →</button>
-                  : <button className="btn primary" onClick={finishLesson}>{t('player.finish')} →</button>
+                  practice ? <button className="btn primary" onClick={() => { setPractice(false); setBpm(lesson.bpm); setStepIndex(lesson.steps.length - 1); restart(); }}>{t('player.perform')} <Icon name="forward" size={16} /></button>
+                  : <button className="btn primary" onClick={finishLesson}>{t('player.finish')} <Icon name="forward" size={16} /></button>
                 ) : (
-                  <button className="btn primary" onClick={goNext}>{t('player.next')} →</button>
+                  <button className="btn primary" onClick={goNext}>{t('player.next')} <Icon name="forward" size={16} /></button>
                 )}
               </div>
             </div>
@@ -342,28 +341,28 @@ export function Player({ id, practice: initialPractice }: { id: string; practice
       {practice && (
         <div className="practice-bar">
           <div className="bpm">
-            <button onClick={() => setBpm((b) => Math.max(30, b - 5))}>−</button>
+            <button onClick={() => setBpm((b) => Math.max(30, b - 5))}><Icon name="minus" size={14} strokeWidth={2.4} /></button>
             <b>{ui.status === 'idle' ? bpm : ui.bpm} BPM</b>
-            <button onClick={() => setBpm((b) => Math.min(240, b + 5))}>+</button>
+            <button onClick={() => setBpm((b) => Math.min(240, b + 5))}><Icon name="plus" size={14} strokeWidth={2.4} /></button>
             <span className="tiny">{bpmPct}%</span>
           </div>
-          <button className={`pill ${loopEnabled ? 'on' : ''}`} onClick={() => setLoopEnabled(!loopEnabled)}>🔁 {t('player.loop')}{loop && loopEnabled ? ` ${loop[0] + 1}–${loop[1]}` : ''}</button>
+          <button className={`pill ${loopEnabled ? 'on' : ''}`} onClick={() => setLoopEnabled(!loopEnabled)}><Icon name="loop" size={14} /> {t('player.loop')}{loop && loopEnabled ? ` ${loop[0] + 1}–${loop[1]}` : ''}</button>
           <div className="loop-bars">
             {Array.from({ length: bars }, (_, b) => (
               <button key={b} className={loopEnabled && loop && b >= loop[0] && b < loop[1] ? 'in' : ''} onClick={() => pickBar(b)}>{b + 1}</button>
             ))}
-            {loop && <button onClick={() => { setLoop(null); setLoopPick(null); }}>✕</button>}
+            {loop && <button onClick={() => { setLoop(null); setLoopPick(null); }}><Icon name="close" size={12} /></button>}
           </div>
-          <button className={`pill ${waitMode ? 'on' : ''}`} onClick={() => setWaitMode(!waitMode)}>⏸ {t('player.wait')}</button>
-          <button className={`pill gold ${autoBpm ? 'on' : ''}`} onClick={() => setAutoBpm(!autoBpm)}>⚡ {t('player.autoBpm')}</button>
-          {(ui.status === 'playing' || ui.status === 'waiting' || ui.status === 'countin') && <button className="pill" onClick={() => player.pause()}>⏸ {t('player.pause')}</button>}
+          <button className={`pill ${waitMode ? 'on' : ''}`} onClick={() => setWaitMode(!waitMode)}><Icon name="hand" size={14} /> {t('player.wait')}</button>
+          <button className={`pill gold ${autoBpm ? 'on' : ''}`} onClick={() => setAutoBpm(!autoBpm)}><Icon name="bolt" size={14} /> {t('player.autoBpm')}</button>
+          {(ui.status === 'playing' || ui.status === 'waiting' || ui.status === 'countin') && <button className="pill" onClick={() => player.pause()}><Icon name="pause" size={14} /> {t('player.pause')}</button>}
           {ui.loopPass > 0 && <span className="tiny">×{ui.loopPass}</span>}
         </div>
       )}
       {!practice && (ui.status === 'playing' || ui.status === 'waiting' || ui.status === 'countin') && (
         <div className="player-controls">
-          <button className="pill" onClick={() => player.pause()}>⏸ {t('player.pause')}</button>
-          <button className="pill" onClick={restart}>🔄 {t('player.restart')}</button>
+          <button className="pill" onClick={() => player.pause()}><Icon name="pause" size={14} /> {t('player.pause')}</button>
+          <button className="pill" onClick={restart}><Icon name="restart" size={14} /> {t('player.restart')}</button>
         </div>
       )}
 

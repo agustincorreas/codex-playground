@@ -45,7 +45,7 @@ function Pad({ lane, label, color, keyLabel, hit, cue, style }: { lane: string; 
   const press = usePress(lane);
   const showKeys = useStore((s) => s.settings.showKeyLabels);
   return (
-    <button className={`pad ${hit ? 'hit' : ''} ${cue ? 'cue' : ''}`} style={{ background: `linear-gradient(180deg, ${color}cc, ${color}77)`, ...style }} {...press} aria-label={label}>
+    <button className={`pad ${hit ? 'hit' : ''} ${cue ? 'cue' : ''}`} style={{ ['--c' as string]: color, ...style }} {...press} aria-label={label}>
       {label}
       {showKeys && keyLabel && <span className="kl">{keyLabel}</span>}
     </button>

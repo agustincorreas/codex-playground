@@ -5,6 +5,7 @@ import { Empty, LessonCard } from '../components/ui';
 import { useT } from '../i18n';
 import { INSTRUMENT_META } from '../engine/instruments';
 import type { Instrument } from '../engine/types';
+import { Icon, INSTRUMENT_ICON } from '../components/Icon';
 
 type Status = 'all' | 'new' | 'progress' | 'done' | 'fav';
 
@@ -46,7 +47,7 @@ export function Lessons({ kind }: { kind?: 'lesson' | 'song' | 'exercise' }) {
         <h1>{title}</h1>
         <div className="segmented">
           {(Object.keys(INSTRUMENT_META) as Instrument[]).map((i) => (
-            <button key={i} className={instrument === i ? 'active' : ''} onClick={() => setInstrument(i)}>{INSTRUMENT_META[i].emoji}</button>
+            <button key={i} className={instrument === i ? 'active' : ''} onClick={() => setInstrument(i)} title={INSTRUMENT_META[i].label}><Icon name={INSTRUMENT_ICON[i]} size={16} /></button>
           ))}
         </div>
       </div>

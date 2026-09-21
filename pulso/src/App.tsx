@@ -12,15 +12,16 @@ import { Player } from './screens/Player';
 import { useT } from './i18n';
 import { inputManager } from './input/inputManager';
 import { setBackingVolume, setMasterVolume } from './audio/engine';
+import { Icon } from './components/Icon';
 
 const NAV: { route: Route; key: 'nav.home' | 'nav.lessons' | 'nav.courses' | 'nav.songs' | 'nav.exercises' | 'nav.progress' | 'nav.settings'; ico: string; match: (r: Route) => boolean }[] = [
-  { route: { name: 'home' }, key: 'nav.home', ico: '🏠', match: (r) => r.name === 'home' },
-  { route: { name: 'lessons' }, key: 'nav.lessons', ico: '🎵', match: (r) => (r.name === 'lessons' && !r.kind) || r.name === 'lesson' },
-  { route: { name: 'courses' }, key: 'nav.courses', ico: '📚', match: (r) => r.name === 'courses' || r.name === 'course' },
-  { route: { name: 'lessons', kind: 'song' }, key: 'nav.songs', ico: '🎤', match: (r) => r.name === 'lessons' && r.kind === 'song' },
-  { route: { name: 'lessons', kind: 'exercise' }, key: 'nav.exercises', ico: '🏋️', match: (r) => r.name === 'lessons' && r.kind === 'exercise' },
-  { route: { name: 'progress' }, key: 'nav.progress', ico: '📈', match: (r) => r.name === 'progress' },
-  { route: { name: 'settings' }, key: 'nav.settings', ico: '⚙️', match: (r) => r.name === 'settings' },
+  { route: { name: 'home' }, key: 'nav.home', ico: 'home', match: (r) => r.name === 'home' },
+  { route: { name: 'lessons' }, key: 'nav.lessons', ico: 'note', match: (r) => (r.name === 'lessons' && !r.kind) || r.name === 'lesson' },
+  { route: { name: 'courses' }, key: 'nav.courses', ico: 'book', match: (r) => r.name === 'courses' || r.name === 'course' },
+  { route: { name: 'lessons', kind: 'song' }, key: 'nav.songs', ico: 'mic', match: (r) => r.name === 'lessons' && r.kind === 'song' },
+  { route: { name: 'lessons', kind: 'exercise' }, key: 'nav.exercises', ico: 'dumbbell', match: (r) => r.name === 'lessons' && r.kind === 'exercise' },
+  { route: { name: 'progress' }, key: 'nav.progress', ico: 'chart', match: (r) => r.name === 'progress' },
+  { route: { name: 'settings' }, key: 'nav.settings', ico: 'gear', match: (r) => r.name === 'settings' },
 ];
 const MOBILE_NAV = NAV.filter((n) => n.key !== 'nav.songs' && n.key !== 'nav.exercises');
 
@@ -35,7 +36,7 @@ export default function App() {
     const apply = () => {
       const dark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
       document.documentElement.dataset.theme = dark ? 'dark' : 'light';
-      document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#0f1020' : '#f3f4fb');
+      document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#08080b' : '#f5f5f7');
     };
     apply();
     const mq = window.matchMedia('(prefers-color-scheme: dark)');
@@ -70,10 +71,10 @@ export default function App() {
   return (
     <div className="shell">
       <aside className="sidebar">
-        <div className="brand"><div className="brand-logo">〰️</div>Pulso</div>
+        <div className="brand"><div className="brand-logo"><Icon name="waveform" size={18} strokeWidth={2.2} /></div>Pulso</div>
         {NAV.map((n) => (
           <button key={n.key} className={`nav-item ${n.match(route) ? 'active' : ''}`} onClick={() => navigate(n.route)}>
-            <span className="ico">{n.ico}</span>{t(n.key)}
+            <Icon name={n.ico} size={20} />{t(n.key)}
           </button>
         ))}
         <div className="sidebar-foot">Pulso · v1.0</div>
@@ -82,7 +83,7 @@ export default function App() {
       <nav className="tabbar">
         {MOBILE_NAV.map((n) => (
           <button key={n.key} className={n.match(route) ? 'active' : ''} onClick={() => navigate(n.route)}>
-            <span className="ico">{n.ico}</span>{t(n.key)}
+            <Icon name={n.ico} size={22} />{t(n.key)}
           </button>
         ))}
       </nav>

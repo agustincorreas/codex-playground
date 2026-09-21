@@ -4,7 +4,8 @@ import { navigate, back } from '../router';
 import { useT } from '../i18n';
 import type { Course } from '../engine/types';
 import { INSTRUMENT_META } from '../engine/instruments';
-import { Stars, Waveform, fmtDuration } from '../components/ui';
+import { Stars, Art, fmtDuration } from '../components/ui';
+import { Icon, INSTRUMENT_ICON } from '../components/Icon';
 import { lessonDurationSec } from '../content';
 
 export function CourseCard({ course }: { course: Course }) {
@@ -13,8 +14,9 @@ export function CourseCard({ course }: { course: Course }) {
   const done = course.lessonIds.filter((id) => (progress[id]?.bestStars ?? 0) >= 2).length;
   return (
     <button className="lesson-card" onClick={() => navigate({ name: 'course', id: course.id })}>
-      <div className="lesson-art" style={{ background: `linear-gradient(135deg, ${course.art}, ${INSTRUMENT_META[course.instrument].accent})` }}>
-        <div className="art-badge"><Waveform seed={course.id} n={18} /></div>
+      <div className="lesson-art">
+        <Art seed={course.id} color={course.art} accent={INSTRUMENT_META[course.instrument].accent} />
+        <span className="grade">{t('course.lessons', { n: course.lessonIds.length }).toUpperCase()}</span>
       </div>
       <div className="lesson-body">
         <div className="lesson-title">{course.title}</div>
@@ -37,7 +39,7 @@ export function Courses() {
         <h1>{t('nav.courses')}</h1>
         <div className="segmented">
           {(['keys', 'pads', 'drums'] as const).map((i) => (
-            <button key={i} className={instrument === i ? 'active' : ''} onClick={() => setInstrument(i)}>{INSTRUMENT_META[i].emoji}</button>
+            <button key={i} className={instrument === i ? 'active' : ''} onClick={() => setInstrument(i)} title={INSTRUMENT_META[i].label}><Icon name={INSTRUMENT_ICON[i]} size={16} /></button>
           ))}
         </div>
       </div>
@@ -57,15 +59,19 @@ export function CourseDetail({ id }: { id: string }) {
   const next = lessons.find((l) => (progress[l!.id]?.bestStars ?? 0) < 2) ?? lessons[0];
   return (
     <div className="fade-up col" style={{ gap: 16 }}>
-      <button className="btn ghost sm" style={{ alignSelf: 'flex-start' }} onClick={back}>← {t('nav.courses')}</button>
-      <div className="card" style={{ background: `linear-gradient(120deg, ${course.art}44, var(--card))` }}>
-        <div className="tiny">{INSTRUMENT_META[course.instrument].emoji} {INSTRUMENT_META[course.instrument].label} · {t('course.lessons', { n: lessons.length })}</div>
+      <button className="btn ghost sm" style={{ alignSelf: 'flex-start', marginLeft: -12 }} onClick={back}><Icon name="back" size={16} /> {t('nav.courses')}</button>
+      <div className="card elev" style={{ position: 'relative', overflow: 'hidden', borderRadius: 'var(--radius-xl)', padding: 26 }}>
+        <div style={{ position: 'absolute', inset: 0, opacity: .55 }}><Art seed={course.id} color={course.art} accent={INSTRUMENT_META[course.instrument].accent} /></div>
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(90deg, var(--bg-elev) 30%, transparent)' }} />
+        <div style={{ position: 'relative' }}>
+        <div className="eyebrow row" style={{ gap: 6 }}><Icon name={INSTRUMENT_ICON[course.instrument]} size={14} /> {INSTRUMENT_META[course.instrument].label} · {t('course.lessons', { n: lessons.length })}</div>
         <h1>{course.title}</h1>
         <p className="muted" style={{ marginTop: 6 }}>{course.description}</p>
         <div className="progress-bar" style={{ marginTop: 14 }}><i style={{ width: `${(done / lessons.length) * 100}%` }} /></div>
         <div className="row between" style={{ marginTop: 12 }}>
           <span className="tiny">{t('course.progress', { done, total: lessons.length })}</span>
           {next && <button className="btn primary" onClick={() => navigate({ name: 'lesson', id: next.id })}>{done ? t('course.continue') : t('course.start')}</button>}
+        </div>
         </div>
       </div>
       <div className="col" style={{ gap: 8 }}>
@@ -75,9 +81,9 @@ export function CourseDetail({ id }: { id: string }) {
           return (
             <button key={l!.id} className="card row between" style={{ padding: 14, textAlign: 'left' }} onClick={() => navigate({ name: 'lesson', id: l!.id })}>
               <div className="row">
-                <div style={{ width: 36, height: 36, borderRadius: 10, background: p && p.bestStars >= 2 ? 'var(--green)' : 'var(--bg-3)', display: 'grid', placeItems: 'center', fontWeight: 800, color: p && p.bestStars >= 2 ? '#04261a' : 'inherit' }}>{p && p.bestStars >= 2 ? '✓' : i + 1}</div>
+                <div className="num" style={{ width: 38, height: 38, borderRadius: 12, background: p && p.bestStars >= 2 ? 'var(--green)' : 'var(--surface-2)', display: 'grid', placeItems: 'center', fontWeight: 600, color: p && p.bestStars >= 2 ? '#04261a' : 'inherit' }}>{p && p.bestStars >= 2 ? <Icon name="check" size={18} strokeWidth={2.4} /> : i + 1}</div>
                 <div>
-                  <div style={{ fontWeight: 700 }}>{l!.title} {locked && '🔒'}</div>
+                  <div className="row" style={{ fontWeight: 600, gap: 6 }}>{l!.title} {locked && <Icon name="lock" size={13} style={{ color: 'var(--text-3)' }} />}</div>
                   <div className="tiny">{t('common.grade', { n: l!.grade })} · {l!.bpm} BPM · {fmtDuration(lessonDurationSec(l!))}</div>
                 </div>
               </div>

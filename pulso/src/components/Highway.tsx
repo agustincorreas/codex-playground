@@ -86,9 +86,9 @@ export function Highway({ instrument, step, player, noteSpeed, latinNames, showH
 
     const draw = () => {
       raf = requestAnimationFrame(draw);
-      const dpr = Math.min(2, window.devicePixelRatio || 1);
       const W = canvas.clientWidth;
       const H = canvas.clientHeight;
+      const dpr = Math.min(W < 700 ? 1.5 : 2, window.devicePixelRatio || 1);
       if (W === 0 || H === 0) return;
       if (canvas.width !== W * dpr || canvas.height !== H * dpr) {
         canvas.width = W * dpr;
@@ -149,18 +149,17 @@ export function Highway({ instrument, step, player, noteSpeed, latinNames, showH
             ctx.fillText(String(b / beatsPerBar + 1), x + 4, 4);
           }
         }
-        // línea de golpe
-        ctx.strokeStyle = 'rgba(255,255,255,0.85)';
-        ctx.lineWidth = 3;
-        ctx.shadowColor = '#fff';
-        ctx.shadowBlur = 12;
-        ctx.beginPath();
-        ctx.moveTo(hitX, 0);
-        ctx.lineTo(hitX, H);
-        ctx.stroke();
-        ctx.shadowBlur = 0;
+        // línea de golpe con halo (gradiente, sin shadowBlur)
+        const halo = ctx.createLinearGradient(hitX - 22, 0, hitX + 22, 0);
+        halo.addColorStop(0, 'rgba(255,255,255,0)');
+        halo.addColorStop(0.5, 'rgba(255,255,255,0.10)');
+        halo.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = halo;
+        ctx.fillRect(hitX - 22, 0, 44, H);
+        ctx.fillStyle = 'rgba(255,255,255,0.9)';
+        ctx.fillRect(hitX - 1, 0, 2, H);
         // notas
-        const r = Math.min(rowH * 0.34, 16);
+        const r = Math.min(rowH * 0.32, 15);
         for (const n of sorted) {
           const x = xOf(n.beat);
           if (x < labelW - r || x > W + r) continue;
@@ -219,15 +218,13 @@ export function Highway({ instrument, step, player, noteSpeed, latinNames, showH
             ctx.fillText(String(b / beatsPerBar + 1), W - 6, y - 3);
           }
         }
-        ctx.strokeStyle = 'rgba(255,255,255,0.85)';
-        ctx.lineWidth = 3;
-        ctx.shadowColor = '#fff';
-        ctx.shadowBlur = 12;
-        ctx.beginPath();
-        ctx.moveTo(0, hitY);
-        ctx.lineTo(W, hitY);
-        ctx.stroke();
-        ctx.shadowBlur = 0;
+        const haloV = ctx.createLinearGradient(0, hitY - 26, 0, hitY + 6);
+        haloV.addColorStop(0, 'rgba(255,255,255,0)');
+        haloV.addColorStop(1, 'rgba(255,255,255,0.12)');
+        ctx.fillStyle = haloV;
+        ctx.fillRect(0, hitY - 26, W, 32);
+        ctx.fillStyle = 'rgba(255,255,255,0.9)';
+        ctx.fillRect(0, hitY - 1, W, 2);
         for (const n of sorted) {
           const p = kl.pos.get(Number(n.lane));
           if (!p) continue;
@@ -241,12 +238,22 @@ export function Highway({ instrument, step, player, noteSpeed, latinNames, showH
           const col = j ? JUDGEMENT_COLORS[j] : base;
           const isWaiting = st.status === 'waiting' && Math.abs(n.beat - beat) < 1e-6 && j == null;
           ctx.globalAlpha = yBottom > hitY + 4 && !j ? 0.35 : 1;
-          ctx.fillStyle = col;
-          ctx.shadowColor = col;
-          ctx.shadowBlur = isWaiting ? 10 + pulse * 14 : 4;
+          if (isWaiting) {
+            ctx.fillStyle = col;
+            ctx.globalAlpha = 0.18 + pulse * 0.2;
+            roundRect(ctx, p.x - 4, Math.max(-len, yTop) - 4, p.w + 5, len + 8, 8);
+            ctx.fill();
+            ctx.globalAlpha = 1;
+          }
+          const grad = ctx.createLinearGradient(p.x, 0, p.x + p.w, 0);
+          grad.addColorStop(0, col);
+          grad.addColorStop(1, shade(col, -18));
+          ctx.fillStyle = grad;
           roundRect(ctx, p.x + 1.5, Math.max(-len, yTop), p.w - 3, len, 5);
           ctx.fill();
-          ctx.shadowBlur = 0;
+          ctx.fillStyle = 'rgba(255,255,255,0.28)';
+          roundRect(ctx, p.x + 3, Math.max(-len, yTop) + 1.5, Math.max(2, p.w - 6), 2, 1);
+          ctx.fill();
           if (j === 'miss') {
             ctx.strokeStyle = '#fff';
             ctx.lineWidth = 2;
@@ -290,37 +297,64 @@ function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
 
 function drawNote(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, laneCol: string, j: HitJudgement | null, passed: boolean, pulse: number) {
   const col = j ? JUDGEMENT_COLORS[j] : laneCol;
-  ctx.globalAlpha = passed && !j ? 0.3 : passed ? 0.75 : 1;
-  ctx.fillStyle = col;
-  ctx.shadowColor = col;
-  ctx.shadowBlur = pulse ? 8 + pulse * 16 : 6;
-  ctx.beginPath();
-  ctx.arc(x, y, r + pulse * 3, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.shadowBlur = 0;
-  if (!j) {
-    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+  ctx.globalAlpha = passed && !j ? 0.3 : passed ? 0.8 : 1;
+  if (pulse) {
+    ctx.fillStyle = col;
+    ctx.globalAlpha = 0.15 + pulse * 0.2;
     ctx.beginPath();
-    ctx.arc(x - r * 0.3, y - r * 0.3, r * 0.35, 0, Math.PI * 2);
+    ctx.arc(x, y, r * 1.9, 0, Math.PI * 2);
     ctx.fill();
+    ctx.globalAlpha = 1;
   }
+  // halo suave
+  const g = ctx.createRadialGradient(x, y, r * 0.6, x, y, r * 1.6);
+  g.addColorStop(0, col + (j ? '55' : '40'));
+  g.addColorStop(1, col + '00');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(x, y, r * 1.6, 0, Math.PI * 2);
+  ctx.fill();
+  // cuerpo con leve gradiente
+  const body = ctx.createLinearGradient(x, y - r, x, y + r);
+  body.addColorStop(0, shade(col, 22));
+  body.addColorStop(1, shade(col, -14));
+  ctx.fillStyle = body;
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
   if (j === 'miss') {
     ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 2.5;
+    ctx.lineWidth = 2.2;
     ctx.beginPath();
-    ctx.moveTo(x - r * 0.5, y - r * 0.5);
-    ctx.lineTo(x + r * 0.5, y + r * 0.5);
-    ctx.moveTo(x + r * 0.5, y - r * 0.5);
-    ctx.lineTo(x - r * 0.5, y + r * 0.5);
+    ctx.moveTo(x - r * 0.45, y - r * 0.45);
+    ctx.lineTo(x + r * 0.45, y + r * 0.45);
+    ctx.moveTo(x + r * 0.45, y - r * 0.45);
+    ctx.lineTo(x - r * 0.45, y + r * 0.45);
     ctx.stroke();
   } else if (j === 'perfect') {
     ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 2.5;
+    ctx.lineWidth = 2.2;
     ctx.beginPath();
     ctx.moveTo(x - r * 0.45, y);
-    ctx.lineTo(x - r * 0.1, y + r * 0.4);
-    ctx.lineTo(x + r * 0.5, y - r * 0.4);
+    ctx.lineTo(x - r * 0.1, y + r * 0.38);
+    ctx.lineTo(x + r * 0.5, y - r * 0.38);
     ctx.stroke();
   }
   ctx.globalAlpha = 1;
+}
+
+/** Aclara (>0) u oscurece (<0) un color hex en porcentaje. */
+function shade(hex: string, pct: number): string {
+  const m = /^#([0-9a-f]{6})/i.exec(hex);
+  if (!m) return hex;
+  const n = parseInt(m[1], 16);
+  const f = pct / 100;
+  const ch = (v: number) => Math.max(0, Math.min(255, Math.round(f > 0 ? v + (255 - v) * f : v * (1 + f))));
+  const r = ch((n >> 16) & 255);
+  const g = ch((n >> 8) & 255);
+  const b = ch(n & 255);
+  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`;
 }
