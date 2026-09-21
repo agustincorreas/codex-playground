@@ -1,0 +1,881 @@
+[
+ {
+  "id": "de-musica-ligera",
+  "title": "De música ligera",
+  "artist": "Soda Stereo",
+  "key": "Bm",
+  "bpm": 124,
+  "beats": 4,
+  "tags": [
+   "rock argentino",
+   "90s"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "Bm G D A"
+   },
+   {
+    "name": "Verso",
+    "chords": "Bm G D A"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "Bm G D A"
+   },
+   {
+    "name": "Solo",
+    "chords": "Bm G D A"
+   }
+  ],
+  "chordsConfidence": "high",
+  "yt": {
+   "guitarra": "mfVahKW_qWc",
+   "bajo": "DK1p8Z8IRLk",
+   "_default": "fwE06UTJ3fU"
+  }
+ },
+ {
+  "id": "persiana-americana",
+  "title": "Persiana americana",
+  "artist": "Soda Stereo",
+  "key": "Em",
+  "bpm": 101,
+  "beats": 4,
+  "tags": [
+   "rock argentino",
+   "80s"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "Em"
+   },
+   {
+    "name": "Verso",
+    "chords": "Em C D Em"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "C D Em"
+   },
+   {
+    "name": "Puente",
+    "chords": "F Em"
+   }
+  ],
+  "chordsConfidence": "low",
+  "yt": {
+   "guitarra": "UYoPgfRxvJA",
+   "teclado": "WXbVWMO5zb4",
+   "_default": "rYGOZ0ZsdVM"
+  }
+ },
+ {
+  "id": "cuando-pase-el-temblor",
+  "title": "Cuando pase el temblor",
+  "artist": "Soda Stereo",
+  "key": "Am",
+  "bpm": 94,
+  "beats": 4,
+  "tags": [
+   "rock argentino",
+   "80s"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "Am G F Em"
+   },
+   {
+    "name": "Verso",
+    "chords": "Am G F Em"
+   },
+   {
+    "name": "Pre-estribillo",
+    "chords": "C F C Gm"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "C7 Gm D7 F Bb"
+   }
+  ],
+  "chordsConfidence": "low",
+  "yt": {
+   "guitarra": "xpgGEueXcok",
+   "_default": "dMlwSPT2w-o"
+  }
+ },
+ {
+  "id": "tratame-suavemente",
+  "title": "Trátame suavemente",
+  "artist": "Soda Stereo",
+  "key": "D",
+  "bpm": 123,
+  "beats": 4,
+  "tags": [
+   "rock argentino",
+   "80s"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "D"
+   },
+   {
+    "name": "Verso",
+    "chords": "D C Bm7 A"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "D C Bm7 A"
+   }
+  ],
+  "chordsConfidence": "low",
+  "yt": {
+   "guitarra": "8lW0X5w0iGY",
+   "_default": "azHMireOSHM"
+  }
+ },
+ {
+  "id": "profugos",
+  "title": "Prófugos",
+  "artist": "Soda Stereo",
+  "key": "Em",
+  "bpm": 127,
+  "beats": 4,
+  "tags": [
+   "rock argentino",
+   "80s"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "E A"
+   },
+   {
+    "name": "Verso",
+    "chords": "Em Bm Am D"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "G D A"
+   }
+  ],
+  "chordsConfidence": "low",
+  "yt": {
+   "guitarra": "8M1Db5DOSS0",
+   "bateria": "vbyWtmZCPp0",
+   "_default": "28be1tx9-_w"
+  }
+ },
+ {
+  "id": "seminare",
+  "title": "Seminare",
+  "artist": "Serú Girán",
+  "key": "G",
+  "bpm": 125,
+  "beats": 4,
+  "tags": [
+   "rock argentino",
+   "70s"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "G D/F# Em B7 C D"
+   },
+   {
+    "name": "Verso",
+    "chords": "G D/F# Em B7 C Dsus4 D"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "C D G Em C D G"
+   }
+  ],
+  "chordsConfidence": "low",
+  "yt": {
+   "voz": "Yhjoc9t7Mnw",
+   "_default": "Yhjoc9t7Mnw"
+  }
+ },
+ {
+  "id": "demoliendo-hoteles",
+  "title": "Demoliendo hoteles",
+  "artist": "Charly García",
+  "key": "C",
+  "bpm": 158,
+  "beats": 4,
+  "tags": [
+   "rock argentino",
+   "80s"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "C F G"
+   },
+   {
+    "name": "Verso",
+    "chords": "C F C G"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "Bb F C Dm"
+   }
+  ],
+  "chordsConfidence": "low",
+  "yt": {
+   "_default": "eQhz-OeMKt0"
+  }
+ },
+ {
+  "id": "rezo-por-vos",
+  "title": "Rezo por vos",
+  "artist": "Charly García",
+  "key": "D",
+  "bpm": 121,
+  "beats": 4,
+  "tags": [
+   "rock argentino",
+   "80s"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "D Gsus4 D Gsus4"
+   },
+   {
+    "name": "Verso",
+    "chords": "D G D G Bm Em A"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "A G D"
+   }
+  ],
+  "chordsConfidence": "low",
+  "yt": {
+   "bateria": "hpQOMpKPVcc",
+   "_default": "_t8sBb-SL9E"
+  }
+ },
+ {
+  "id": "los-dinosaurios",
+  "title": "Los dinosaurios",
+  "artist": "Charly García",
+  "key": "F",
+  "bpm": 84,
+  "beats": 4,
+  "tags": [
+   "rock argentino",
+   "80s"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "F"
+   },
+   {
+    "name": "Verso",
+    "chords": "C9 Gm7 Bb9 C9"
+   },
+   {
+    "name": "Puente",
+    "chords": "Am Em Fmaj7"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "Bm F#m Gmaj7 D A"
+   }
+  ],
+  "chordsConfidence": "low",
+  "yt": {}
+ },
+ {
+  "id": "no-voy-en-tren",
+  "title": "No voy en tren",
+  "artist": "Charly García",
+  "key": "A",
+  "bpm": 124,
+  "beats": 4,
+  "tags": [
+   "rock argentino",
+   "80s"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "A D"
+   },
+   {
+    "name": "Verso",
+    "chords": "A D A D"
+   },
+   {
+    "name": "Puente",
+    "chords": "F G A E7"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "A D A D"
+   }
+  ],
+  "chordsConfidence": "high",
+  "yt": {
+   "voz": "fqgEq4b4MQ0",
+   "_default": "JumOSRIZGEY"
+  }
+ },
+ {
+  "id": "yo-no-quiero-volverme-tan-loco",
+  "title": "Yo no quiero volverme tan loco",
+  "artist": "Charly García",
+  "key": "D",
+  "bpm": 119,
+  "beats": 4,
+  "tags": [
+   "rock argentino",
+   "80s"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "D A G D"
+   },
+   {
+    "name": "Verso",
+    "chords": "D A G D Asus4"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "D A G D Asus4"
+   }
+  ],
+  "chordsConfidence": "high",
+  "yt": {}
+ },
+ {
+  "id": "muchacha-ojos-de-papel",
+  "title": "Muchacha (ojos de papel)",
+  "artist": "Almendra",
+  "key": "G",
+  "bpm": 89,
+  "beats": 4,
+  "tags": [
+   "rock argentino",
+   "60s",
+   "balada"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "G D/F# Em7 Am7 D"
+   },
+   {
+    "name": "Verso",
+    "chords": "G D/F# Em7 Am7 D"
+   },
+   {
+    "name": "Puente",
+    "chords": "Em Em/maj7 Em7 Em6"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "C G C G/B Bb G"
+   }
+  ],
+  "chordsConfidence": "high",
+  "yt": {}
+ },
+ {
+  "id": "ji-ji-ji",
+  "title": "Ji ji ji",
+  "artist": "Patricio Rey y sus Redonditos de Ricota",
+  "key": "Bm",
+  "bpm": 169,
+  "beats": 4,
+  "tags": [
+   "rock argentino",
+   "80s"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "Bm F#7"
+   },
+   {
+    "name": "Verso",
+    "chords": "Bm F#7 Bm F#7"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "G A Bm G A F#"
+   }
+  ],
+  "chordsConfidence": "low",
+  "yt": {
+   "guitarra": "kYXMGSBw944",
+   "bajo": "3v7t5oGtpbU",
+   "_default": "Fw9dk1caQDM"
+  }
+ },
+ {
+  "id": "todo-un-palo",
+  "title": "Todo un palo",
+  "artist": "Patricio Rey y sus Redonditos de Ricota",
+  "key": "Dm",
+  "bpm": 120,
+  "beats": 4,
+  "tags": [
+   "rock argentino",
+   "80s"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "Dm7 Gm/D"
+   },
+   {
+    "name": "Verso",
+    "chords": "Dm Gm Dm Gm"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "Bb F C Dm"
+   }
+  ],
+  "chordsConfidence": "low",
+  "yt": {
+   "guitarra": "x3N3mvE_p38",
+   "_default": "9k49JlO4Cj4"
+  }
+ },
+ {
+  "id": "el-amor-despues-del-amor",
+  "title": "El amor después del amor",
+  "artist": "Fito Páez",
+  "key": "G",
+  "bpm": 95,
+  "beats": 4,
+  "tags": [
+   "rock argentino",
+   "90s"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "G C G D"
+   },
+   {
+    "name": "Verso",
+    "chords": "G C D Em"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "C D G Em A7sus4 D"
+   }
+  ],
+  "chordsConfidence": "low",
+  "yt": {
+   "guitarra": "kFooZTRaP24",
+   "_default": "kFooZTRaP24"
+  }
+ },
+ {
+  "id": "mariposa-tecknicolor",
+  "title": "Mariposa Tecknicolor",
+  "artist": "Fito Páez",
+  "key": "B",
+  "bpm": 144,
+  "beats": 4,
+  "tags": [
+   "rock argentino",
+   "90s"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "B E"
+   },
+   {
+    "name": "Verso",
+    "chords": "B F# E B"
+   },
+   {
+    "name": "Pre-estribillo",
+    "chords": "C#m7 F#"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "E F# B G#m E F# B"
+   }
+  ],
+  "chordsConfidence": "low",
+  "yt": {}
+ },
+ {
+  "id": "11-y-6",
+  "title": "11 y 6",
+  "artist": "Fito Páez",
+  "key": "G",
+  "bpm": 101,
+  "beats": 4,
+  "tags": [
+   "rock argentino",
+   "80s",
+   "balada"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "G F#m7b5 B7 Em A7 Cm7 G Am7 D"
+   },
+   {
+    "name": "Verso",
+    "chords": "G F#m7b5 B7 Em A7 Cm7 G Am7 D"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "C Bm7 Em7 G7 C Bm7 Am7 D"
+   }
+  ],
+  "chordsConfidence": "high",
+  "yt": {
+   "guitarra": "n47u66kgfvM",
+   "_default": "n47u66kgfvM"
+  }
+ },
+ {
+  "id": "flaca",
+  "title": "Flaca",
+  "artist": "Andrés Calamaro",
+  "key": "G",
+  "bpm": 109,
+  "beats": 4,
+  "tags": [
+   "rock argentino",
+   "90s"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "G B7 Em C G D7 G D7"
+   },
+   {
+    "name": "Verso",
+    "chords": "G B7 Em C G D7 G"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "G B7 Em C G D G"
+   }
+  ],
+  "chordsConfidence": "high",
+  "yt": {
+   "guitarra": "uHWsGUES1Kc",
+   "bateria": "hAD4FqvqYKY",
+   "voz": "SqE2jaONKZs",
+   "_default": "7Vp2Ki3fUAY"
+  }
+ },
+ {
+  "id": "loco",
+  "title": "Loco",
+  "artist": "Andrés Calamaro",
+  "key": "Em",
+  "bpm": 109,
+  "beats": 4,
+  "tags": [
+   "rock argentino",
+   "90s"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "Em"
+   },
+   {
+    "name": "Verso",
+    "chords": "Am Bm Em Em"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "Am Bm Em Em"
+   }
+  ],
+  "chordsConfidence": "high",
+  "yt": {
+   "bajo": "eniO4fJMmKQ",
+   "voz": "g1vYsfB03dU",
+   "_default": "aywAdrFX0gI"
+  }
+ },
+ {
+  "id": "mil-horas",
+  "title": "Mil horas",
+  "artist": "Los Abuelos de la Nada",
+  "key": "Gm",
+  "bpm": 99,
+  "beats": 4,
+  "tags": [
+   "rock argentino",
+   "80s"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "Gm7 Cm7"
+   },
+   {
+    "name": "Verso",
+    "chords": "Gm7 Cm7 Gm7 Cm7"
+   },
+   {
+    "name": "Pre-estribillo",
+    "chords": "Ebmaj7 Dm7"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "Eb Dm7 Cm7 C7"
+   }
+  ],
+  "chordsConfidence": "low",
+  "yt": {
+   "bajo": "GTxodVXBD8c",
+   "bateria": "TGk0OH-FJFY"
+  }
+ },
+ {
+  "id": "costumbres-argentinas",
+  "title": "Costumbres argentinas",
+  "artist": "Los Abuelos de la Nada",
+  "key": "Em",
+  "beats": 4,
+  "tags": [
+   "rock argentino",
+   "80s"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "Em A Em A"
+   },
+   {
+    "name": "Verso",
+    "chords": "Em A Em A D G B7"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "C D G B7 C D Em A"
+   }
+  ],
+  "chordsConfidence": "high",
+  "yt": {}
+ },
+ {
+  "id": "la-rubia-tarada",
+  "title": "La rubia tarada",
+  "artist": "Sumo",
+  "key": "E",
+  "bpm": 122,
+  "beats": 4,
+  "tags": [
+   "rock argentino",
+   "80s"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "E7"
+   },
+   {
+    "name": "Verso",
+    "chords": "E7"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "E7"
+   },
+   {
+    "name": "Puente",
+    "chords": "A7 G D A"
+   }
+  ],
+  "chordsConfidence": "low",
+  "yt": {}
+ },
+ {
+  "id": "manana-en-el-abasto",
+  "title": "Mañana en el Abasto",
+  "artist": "Sumo",
+  "key": "E",
+  "bpm": 187,
+  "beats": 4,
+  "tags": [
+   "rock argentino",
+   "80s"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "E A E A"
+   },
+   {
+    "name": "Verso",
+    "chords": "E A"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "E A"
+   }
+  ],
+  "chordsConfidence": "high",
+  "yt": {}
+ },
+ {
+  "id": "luna-de-miel-en-la-mano",
+  "title": "Luna de miel en la mano",
+  "artist": "Virus",
+  "key": "Am",
+  "bpm": 177,
+  "beats": 4,
+  "tags": [
+   "rock argentino",
+   "80s",
+   "new wave"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "Am Dm"
+   },
+   {
+    "name": "Verso",
+    "chords": "Am Dm Am Dm"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "F G Am"
+   }
+  ],
+  "chordsConfidence": "high",
+  "yt": {
+   "bateria": "cYCg4Vgn68k",
+   "teclado": "mgfYapJL00Q"
+  }
+ },
+ {
+  "id": "crimen",
+  "title": "Crimen",
+  "artist": "Gustavo Cerati",
+  "key": "E",
+  "bpm": 81,
+  "beats": 4,
+  "tags": [
+   "rock argentino",
+   "2000s"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "E"
+   },
+   {
+    "name": "Verso",
+    "chords": "E C/G D G#m A F#m7 B"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "F#m B C#m Am G#m F#m G#m F#m E"
+   }
+  ],
+  "chordsConfidence": "high",
+  "yt": {
+   "teclado": "Vb4CuoZtmZU",
+   "_default": "qwMzGrAORwQ"
+  }
+ },
+ {
+  "id": "solo-le-pido-a-dios",
+  "title": "Sólo le pido a Dios",
+  "artist": "León Gieco",
+  "key": "G",
+  "bpm": 86,
+  "beats": 4,
+  "tags": [
+   "rock argentino",
+   "folk",
+   "70s"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "G C9 G D"
+   },
+   {
+    "name": "Verso",
+    "chords": "G C9 Bm Am D G"
+   },
+   {
+    "name": "Puente",
+    "chords": "B7 Em Am D"
+   }
+  ],
+  "chordsConfidence": "low",
+  "yt": {
+   "voz": "LVmgguOEePI",
+   "_default": "da7o-DvlIO4"
+  }
+ },
+ {
+  "id": "zona-de-promesas",
+  "title": "Zona de promesas",
+  "artist": "Gustavo Cerati",
+  "key": "G",
+  "bpm": 103,
+  "beats": 4,
+  "tags": [
+   "rock argentino",
+   "90s"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "G D/F# G D/F# C D C D"
+   },
+   {
+    "name": "Verso",
+    "chords": "G D/F# G D/F# C D C D"
+   },
+   {
+    "name": "Puente",
+    "chords": "Am Fmaj7 Am B7 Em D A7"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "G C9 G C9 Em7 D Fmaj7"
+   },
+   {
+    "name": "Final",
+    "chords": "C7 B7 Em"
+   }
+  ],
+  "chordsConfidence": "high",
+  "yt": {}
+ },
+ {
+  "id": "adios-sui-generis",
+  "title": "Adiós Sui Generis",
+  "artist": "Sui Generis",
+  "beats": 4,
+  "tags": [
+   "rock argentino",
+   "70s"
+  ],
+  "sections": [],
+  "chordsConfidence": "low",
+  "yt": {}
+ }
+]

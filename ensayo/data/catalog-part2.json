@@ -1,0 +1,947 @@
+[
+ {
+  "id": "matador",
+  "title": "Matador",
+  "artist": "Los Fabulosos Cadillacs",
+  "key": "Am",
+  "bpm": 192,
+  "beats": 4,
+  "tags": [
+   "rock argentino",
+   "ska"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "Am Dm E Am"
+   },
+   {
+    "name": "Verso",
+    "chords": "Am Dm E Am"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "Am Dm E Am"
+   }
+  ],
+  "chordsConfidence": "high",
+  "yt": {}
+ },
+ {
+  "id": "vasos-vacios",
+  "title": "Vasos vacíos",
+  "artist": "Los Fabulosos Cadillacs",
+  "key": "G",
+  "bpm": 134,
+  "beats": 4,
+  "tags": [
+   "rock argentino",
+   "ska",
+   "reggae"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "G Em C D"
+   },
+   {
+    "name": "Verso",
+    "chords": "G Em C D"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "C Em G D"
+   }
+  ],
+  "chordsConfidence": "high",
+  "yt": {}
+ },
+ {
+  "id": "mal-bicho",
+  "title": "Mal bicho",
+  "artist": "Los Fabulosos Cadillacs",
+  "key": "Am",
+  "bpm": 103,
+  "beats": 4,
+  "tags": [
+   "rock argentino",
+   "ska"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "Am"
+   },
+   {
+    "name": "Verso",
+    "chords": "Am Dm"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "Am Dm Em"
+   }
+  ],
+  "chordsConfidence": "high",
+  "yt": {}
+ },
+ {
+  "id": "que-ves",
+  "title": "Qué ves?",
+  "artist": "Divididos",
+  "key": "Am",
+  "bpm": 153,
+  "beats": 4,
+  "tags": [
+   "rock argentino"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "Am G D/F# F"
+   },
+   {
+    "name": "Verso",
+    "chords": "Am G D/F# F"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "F G Am"
+   }
+  ],
+  "chordsConfidence": "low",
+  "yt": {}
+ },
+ {
+  "id": "el-revelde",
+  "title": "El revelde",
+  "artist": "La Renga",
+  "key": "E",
+  "bpm": 125,
+  "beats": 4,
+  "tags": [
+   "rock argentino",
+   "blues rock"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "A E"
+   },
+   {
+    "name": "Verso",
+    "chords": "E7 B7 A7"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "A7 E7 B7 A7 E7"
+   }
+  ],
+  "chordsConfidence": "high",
+  "yt": {}
+ },
+ {
+  "id": "la-balada-del-diablo-y-la-muerte",
+  "title": "La balada del diablo y la muerte",
+  "artist": "La Renga",
+  "key": "Em",
+  "bpm": 132,
+  "beats": 4,
+  "tags": [
+   "rock argentino"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "Em G D A"
+   },
+   {
+    "name": "Verso",
+    "chords": "Em G D A7"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "Em G D A"
+   }
+  ],
+  "chordsConfidence": "low",
+  "yt": {}
+ },
+ {
+  "id": "tan-solo",
+  "title": "Tan solo",
+  "artist": "Los Piojos",
+  "key": "C",
+  "bpm": 95,
+  "beats": 4,
+  "tags": [
+   "rock argentino"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "G F C G"
+   },
+   {
+    "name": "Verso",
+    "chords": "F C G"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "G F C G"
+   }
+  ],
+  "chordsConfidence": "high",
+  "yt": {}
+ },
+ {
+  "id": "el-farolito",
+  "title": "El farolito",
+  "artist": "Los Piojos",
+  "key": "Cm",
+  "bpm": 125,
+  "beats": 4,
+  "tags": [
+   "rock argentino"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "Cm Ab Bb"
+   },
+   {
+    "name": "Verso",
+    "chords": "Cm Ab Bb"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "Ab Bb Cm"
+   }
+  ],
+  "chordsConfidence": "high",
+  "yt": {}
+ },
+ {
+  "id": "loco-tu-forma-de-ser",
+  "title": "Loco (tu forma de ser)",
+  "artist": "Los Auténticos Decadentes",
+  "key": "E",
+  "bpm": 115,
+  "beats": 4,
+  "tags": [
+   "rock argentino",
+   "pop"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "E"
+   },
+   {
+    "name": "Verso",
+    "chords": "A C#m Bm7 E"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "A C#m Bm7 E"
+   }
+  ],
+  "chordsConfidence": "low",
+  "yt": {}
+ },
+ {
+  "id": "la-guitarra",
+  "title": "La guitarra",
+  "artist": "Los Auténticos Decadentes",
+  "key": "E",
+  "bpm": 147,
+  "beats": 4,
+  "tags": [
+   "rock argentino",
+   "ska"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "E"
+   },
+   {
+    "name": "Verso",
+    "chords": "E C#m A B7"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "E B A E"
+   }
+  ],
+  "chordsConfidence": "low",
+  "yt": {}
+ },
+ {
+  "id": "el-tiempo-no-para",
+  "title": "El tiempo no para",
+  "artist": "Bersuit Vergarabat",
+  "key": "Em",
+  "bpm": 73,
+  "beats": 4,
+  "tags": [
+   "rock argentino"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "D B7 C"
+   },
+   {
+    "name": "Verso",
+    "chords": "Em Am D Em"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "G Am D B7 C7 Em"
+   }
+  ],
+  "chordsConfidence": "high",
+  "yt": {}
+ },
+ {
+  "id": "irresponsables",
+  "title": "Irresponsables",
+  "artist": "Babasónicos",
+  "key": "Em",
+  "bpm": 94,
+  "beats": 4,
+  "tags": [
+   "rock argentino",
+   "pop rock"
+  ],
+  "sections": [
+   {
+    "name": "Verso",
+    "chords": "Em Am D C Am B7"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "Em D C D"
+   },
+   {
+    "name": "Puente",
+    "chords": "D G Am Bm C"
+   }
+  ],
+  "chordsConfidence": "low",
+  "yt": {}
+ },
+ {
+  "id": "paisaje",
+  "title": "Paisaje",
+  "artist": "Vicentico",
+  "key": "Bbm",
+  "bpm": 80,
+  "beats": 4,
+  "tags": [
+   "rock argentino",
+   "balada"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "Bbm Gb"
+   },
+   {
+    "name": "Verso",
+    "chords": "Bbm Ebm Ab7 Db"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "Bbm Gb Db Ab"
+   }
+  ],
+  "chordsConfidence": "low",
+  "yt": {}
+ },
+ {
+  "id": "lamento-boliviano",
+  "title": "Lamento boliviano",
+  "artist": "Enanitos Verdes",
+  "key": "Em",
+  "bpm": 125,
+  "beats": 4,
+  "tags": [
+   "rock latino",
+   "rock argentino"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "Em"
+   },
+   {
+    "name": "Verso",
+    "chords": "Em Bm Am Em"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "Em D C D"
+   }
+  ],
+  "chordsConfidence": "low",
+  "yt": {}
+ },
+ {
+  "id": "la-muralla-verde",
+  "title": "La muralla verde",
+  "artist": "Enanitos Verdes",
+  "key": "G#m",
+  "bpm": 130,
+  "beats": 4,
+  "tags": [
+   "rock argentino",
+   "new wave"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "G#m F#"
+   },
+   {
+    "name": "Verso",
+    "chords": "G#m C#m F# B"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "C#m D#m G#m"
+   }
+  ],
+  "chordsConfidence": "low",
+  "yt": {}
+ },
+ {
+  "id": "rock-del-gato",
+  "title": "Rock del gato",
+  "artist": "Ratones Paranoicos",
+  "key": "A",
+  "bpm": 111,
+  "beats": 4,
+  "tags": [
+   "rock argentino",
+   "rock and roll"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "A D E"
+   },
+   {
+    "name": "Verso",
+    "chords": "A D A E D A"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "D A E A"
+   }
+  ],
+  "chordsConfidence": "high",
+  "yt": {}
+ },
+ {
+  "id": "fuego",
+  "title": "Fuego",
+  "artist": "Intoxicados",
+  "key": "D",
+  "bpm": 120,
+  "beats": 4,
+  "tags": [
+   "rock argentino"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "D G A"
+   },
+   {
+    "name": "Verso",
+    "chords": "D Bm G A"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "G A D Bm"
+   }
+  ],
+  "chordsConfidence": "low",
+  "yt": {}
+ },
+ {
+  "id": "ciudad-magica",
+  "title": "Ciudad mágica",
+  "artist": "Tan Biónica",
+  "key": "Am",
+  "bpm": 122,
+  "beats": 4,
+  "tags": [
+   "pop rock",
+   "rock argentino"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "Am F C G"
+   },
+   {
+    "name": "Verso",
+    "chords": "Am F C G"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "C G Am F"
+   }
+  ],
+  "chordsConfidence": "low",
+  "yt": {}
+ },
+ {
+  "id": "don",
+  "title": "Don",
+  "artist": "Miranda!",
+  "key": "F#",
+  "bpm": 120,
+  "beats": 4,
+  "tags": [
+   "pop",
+   "electropop"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "F# D#m B C#"
+   },
+   {
+    "name": "Verso",
+    "chords": "F# D#m B C#"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "F# C# D#m B"
+   }
+  ],
+  "chordsConfidence": "low",
+  "yt": {}
+ },
+ {
+  "id": "hacelo-por-mi",
+  "title": "Hacelo por mí",
+  "artist": "Attaque 77",
+  "key": "E",
+  "bpm": 158,
+  "beats": 4,
+  "tags": [
+   "punk rock",
+   "rock argentino"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "E A B"
+   },
+   {
+    "name": "Verso",
+    "chords": "E C#m A B"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "A B E"
+   }
+  ],
+  "chordsConfidence": "low",
+  "yt": {}
+ },
+ {
+  "id": "runaway",
+  "title": "Runaway",
+  "artist": "Los Pericos",
+  "key": "A",
+  "bpm": 148,
+  "beats": 4,
+  "tags": [
+   "reggae",
+   "rock argentino"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "A D"
+   },
+   {
+    "name": "Verso",
+    "chords": "A F#m D E"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "A F#m D E"
+   }
+  ],
+  "chordsConfidence": "low",
+  "yt": {}
+ },
+ {
+  "id": "loco-en-el-desierto",
+  "title": "Loco en el desierto",
+  "artist": "Conociendo Rusia",
+  "key": "F#",
+  "bpm": 105,
+  "beats": 4,
+  "tags": [
+   "indie",
+   "rock argentino"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "F# B"
+   },
+   {
+    "name": "Verso",
+    "chords": "F# D#m B C#"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "B C# F#"
+   }
+  ],
+  "chordsConfidence": "low",
+  "yt": {}
+ },
+ {
+  "id": "vamonos-de-viaje",
+  "title": "Vámonos de viaje",
+  "artist": "Bandalos Chinos",
+  "key": "Cm",
+  "bpm": 129,
+  "beats": 4,
+  "tags": [
+   "indie",
+   "pop"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "Cm Ab"
+   },
+   {
+    "name": "Verso",
+    "chords": "Cm Ab Eb Bb"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "Ab Bb Cm"
+   }
+  ],
+  "chordsConfidence": "low",
+  "yt": {}
+ },
+ {
+  "id": "rayando-el-sol",
+  "title": "Rayando el sol",
+  "artist": "Maná",
+  "key": "G",
+  "bpm": 113,
+  "beats": 4,
+  "tags": [
+   "rock latino",
+   "pop rock"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "G D Em C"
+   },
+   {
+    "name": "Verso",
+    "chords": "G D Em C"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "G D Em C"
+   }
+  ],
+  "chordsConfidence": "low",
+  "yt": {}
+ },
+ {
+  "id": "oye-mi-amor",
+  "title": "Oye mi amor",
+  "artist": "Maná",
+  "key": "Bm",
+  "bpm": 162,
+  "beats": 4,
+  "tags": [
+   "rock latino",
+   "pop rock"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "Bm A G F#"
+   },
+   {
+    "name": "Verso",
+    "chords": "Bm A G F#"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "Bm A G F#"
+   }
+  ],
+  "chordsConfidence": "low",
+  "yt": {}
+ },
+ {
+  "id": "mariposa-traicionera",
+  "title": "Mariposa traicionera",
+  "artist": "Maná",
+  "key": "Fm",
+  "bpm": 101,
+  "beats": 4,
+  "tags": [
+   "rock latino",
+   "bolero"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "Fm C7"
+   },
+   {
+    "name": "Verso",
+    "chords": "Fm Bbm Eb Ab C7"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "Fm Db Eb C7"
+   }
+  ],
+  "chordsConfidence": "low",
+  "yt": {}
+ },
+ {
+  "id": "entre-dos-tierras",
+  "title": "Entre dos tierras",
+  "artist": "Héroes del Silencio",
+  "key": "Em",
+  "bpm": 128,
+  "beats": 4,
+  "tags": [
+   "rock español"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "Em"
+   },
+   {
+    "name": "Verso",
+    "chords": "Em D C"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "C D Em"
+   }
+  ],
+  "chordsConfidence": "low",
+  "yt": {}
+ },
+ {
+  "id": "la-flaca",
+  "title": "La flaca",
+  "artist": "Jarabe de Palo",
+  "key": "Am",
+  "bpm": 88,
+  "beats": 4,
+  "tags": [
+   "rock español",
+   "rumba"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "Am Em"
+   },
+   {
+    "name": "Verso",
+    "chords": "Am Em Am Em"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "F G Am"
+   }
+  ],
+  "chordsConfidence": "low",
+  "yt": {}
+ },
+ {
+  "id": "devuelveme-a-mi-chica",
+  "title": "Devuélveme a mi chica",
+  "artist": "Hombres G",
+  "key": "A",
+  "bpm": 152,
+  "beats": 4,
+  "tags": [
+   "pop español",
+   "rock español"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "A D E"
+   },
+   {
+    "name": "Verso",
+    "chords": "A D E A"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "D E A"
+   }
+  ],
+  "chordsConfidence": "low",
+  "yt": {}
+ },
+ {
+  "id": "eres",
+  "title": "Eres",
+  "artist": "Café Tacvba",
+  "key": "D",
+  "bpm": 78,
+  "beats": 4,
+  "tags": [
+   "rock mexicano",
+   "balada"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "D A Bm G"
+   },
+   {
+    "name": "Verso",
+    "chords": "D A Bm G"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "G A D Bm"
+   }
+  ],
+  "chordsConfidence": "low",
+  "yt": {}
+ },
+ {
+  "id": "a-dios-le-pido",
+  "title": "A Dios le pido",
+  "artist": "Juanes",
+  "key": "Em",
+  "bpm": 110,
+  "beats": 4,
+  "tags": [
+   "rock latino",
+   "pop"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "Em D C"
+   },
+   {
+    "name": "Verso",
+    "chords": "Em D C B7"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "Em C D B7"
+   }
+  ],
+  "chordsConfidence": "low",
+  "yt": {}
+ },
+ {
+  "id": "sin-documentos",
+  "title": "Sin documentos",
+  "artist": "Los Rodríguez",
+  "key": "E",
+  "bpm": 138,
+  "beats": 4,
+  "tags": [
+   "rock español",
+   "rock argentino"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "E B"
+   },
+   {
+    "name": "Verso",
+    "chords": "E B A B"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "A B E"
+   }
+  ],
+  "chordsConfidence": "low",
+  "yt": {}
+ },
+ {
+  "id": "antologia",
+  "title": "Antología",
+  "artist": "Shakira",
+  "key": "F",
+  "bpm": 68,
+  "beats": 4,
+  "tags": [
+   "pop latino",
+   "balada"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "F Dm Bb C"
+   },
+   {
+    "name": "Verso",
+    "chords": "F Dm Bb C"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "Bb C F Dm"
+   }
+  ],
+  "chordsConfidence": "low",
+  "yt": {}
+ },
+ {
+  "id": "ojos-marrones",
+  "title": "Ojos marrones",
+  "artist": "Lasso",
+  "key": "C",
+  "bpm": 98,
+  "beats": 4,
+  "tags": [
+   "pop latino"
+  ],
+  "sections": [
+   {
+    "name": "Intro",
+    "chords": "C G Am F"
+   },
+   {
+    "name": "Verso",
+    "chords": "C G Am F"
+   },
+   {
+    "name": "Estribillo",
+    "chords": "C G Am F"
+   }
+  ],
+  "chordsConfidence": "low",
+  "yt": {}
+ }
+]
