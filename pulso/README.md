@@ -15,7 +15,7 @@ Funciona en la computadora (Chrome, Edge, Firefox, Safari) y en el celular (inst
 | Estrellas y récords | ⭐ 60 · ⭐⭐ 80 · ⭐⭐⭐ 95. Con 2 estrellas ganás el **récord** de la lección. XP y **nivel**. |
 | Modo práctica | **Loop** por compases, **BPM** ajustable (30–240), **Wait Mode** (la reproducción se detiene hasta que tocás la nota correcta), **Auto BPM** (+10 BPM cada pase con ≥ 90 % hasta el tempo original), cuenta de entrada, metrónomo, sonido guía y base de acompañamiento. |
 | Hábitos | **Meta diaria** (5–30 min) con anillo de progreso, **rachas** (días consecutivos con ≥ 5 min), **trofeos** (18), historial por lección, gráfico semanal, mapa de actividad de 12 semanas. |
-| Ajustes | Dispositivo MIDI, **calibración de latencia** (8 golpes contra un clic), volúmenes, velocidad de notas, nombres Do-Re-Mi o C-D-E, manos (L/R) en teclado, idioma ES/EN, tema oscuro/claro/sistema, plan gratis (5 lecciones/día, grados 1–2) o Premium (demo). |
+| Ajustes | Dispositivo MIDI, **modo de audio** (baja latencia o estable, para teléfonos con poca CPU), **calibración de latencia** (8 golpes contra un clic), volúmenes, velocidad de notas, nombres Do-Re-Mi o C-D-E, manos (L/R) en teclado, idioma ES/EN, tema oscuro/claro/sistema, plan gratis (5 lecciones/día, grados 1–2) o Premium (demo). |
 | Plataforma | PWA instalable con service worker (offline), safe areas iOS, barra de pestañas en móvil, barra lateral en escritorio, modo apaisado optimizado en el celular. |
 
 ## Correr en local

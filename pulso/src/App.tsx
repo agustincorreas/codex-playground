@@ -11,7 +11,7 @@ import { Settings } from './screens/Settings';
 import { Player } from './screens/Player';
 import { useT } from './i18n';
 import { inputManager } from './input/inputManager';
-import { setBackingVolume, setMasterVolume } from './audio/engine';
+import { setBackingVolume, setMasterVolume, setLatencyMode } from './audio/engine';
 import { Icon } from './components/Icon';
 
 const NAV: { route: Route; key: 'nav.home' | 'nav.lessons' | 'nav.courses' | 'nav.songs' | 'nav.exercises' | 'nav.progress' | 'nav.settings'; ico: string; match: (r: Route) => boolean }[] = [
@@ -43,6 +43,10 @@ export default function App() {
     mq.addEventListener('change', apply);
     return () => mq.removeEventListener('change', apply);
   }, [theme]);
+
+  useEffect(() => {
+    setLatencyMode(settings.audioMode);
+  }, [settings.audioMode]);
 
   useEffect(() => {
     inputManager.setDevice(settings.midiDevice);

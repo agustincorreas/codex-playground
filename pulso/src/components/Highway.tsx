@@ -98,7 +98,7 @@ export function Highway({ instrument, step, player, noteSpeed, latinNames, showH
       ctx.clearRect(0, 0, W, H);
       const st = stateRef.current;
       const { keyLayout: kl, loop: lp, loopEnabled: lpOn, noteSpeed: spd } = propsRef.current;
-      const beat = st.status === 'idle' ? 0 : st.beat;
+      const beat = st.status === 'idle' ? 0 : player.currentBeat();
       const dark = getComputedStyle(document.documentElement).getPropertyValue('color-scheme').trim() !== 'light';
       const lineCol = dark ? 'rgba(255,255,255,' : 'rgba(0,0,0,';
       const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 150);

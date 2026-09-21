@@ -23,6 +23,7 @@ export interface Settings {
   noteSpeed: 1 | 2 | 3; // 1 lento, 2 normal, 3 rápido
   haptics: boolean;
   theme: 'dark' | 'light' | 'system';
+  audioMode: 'interactive' | 'playback';
 }
 
 export interface LessonProgress {
@@ -150,6 +151,7 @@ const DEFAULT_SETTINGS: Settings = {
   noteSpeed: 2,
   haptics: true,
   theme: 'dark',
+  audioMode: 'interactive',
 };
 
 export const FREE_PLAYS_PER_DAY = 5;

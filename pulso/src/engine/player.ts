@@ -112,6 +112,13 @@ export class LessonPlayer {
     return this.rangeStart + (t - this.startTime) / this.secPerBeat();
   }
 
+  /** Posición actual en negras leída del reloj de audio (suave, para dibujar). */
+  currentBeat(): number {
+    const st = this.state.status;
+    if (st === 'playing' || st === 'countin') return this.timeToBeat(getAudioContext().currentTime);
+    return this.state.beat;
+  }
+
   setOptions(patch: Partial<PlayerOptions>) {
     Object.assign(this.opts, patch);
     if (patch.bpm != null && this.state.status === 'idle') this.state.bpm = patch.bpm;
@@ -267,7 +274,7 @@ export class LessonPlayer {
         if (n.beat >= this.rangeEnd - 1e-6) break;
         const t = this.beatToTime(n.beat);
         if (t > horizon) break;
-        if (t >= nowT - 0.05) playLane(this.opts.instrument, n.lane, Math.max(t, nowT), 0.7, true);
+        if (t >= nowT - 0.15) playLane(this.opts.instrument, n.lane, Math.max(t, nowT), 0.7, true);
         this.nextSchedIndex++;
       }
     }
@@ -275,7 +282,7 @@ export class LessonPlayer {
     while (this.nextClickBeat < this.rangeEnd - 1e-6) {
       const t = this.beatToTime(this.nextClickBeat);
       if (t > horizon) break;
-      if (this.opts.metronome && t >= nowT - 0.02) click(Math.max(t, nowT), this.nextClickBeat % this.beatsPerBar === 0);
+      if (this.opts.metronome && t >= nowT - 0.08) click(Math.max(t, nowT), this.nextClickBeat % this.beatsPerBar === 0);
       this.nextClickBeat++;
     }
     // Acompañamiento

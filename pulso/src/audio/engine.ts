@@ -5,21 +5,54 @@ import { PAD_SOUNDS } from '../engine/instruments';
 let ctx: AudioContext | null = null;
 let master: GainNode | null = null;
 let noiseBuffer: AudioBuffer | null = null;
-let userVolume = 0.9;
+let backingBus: GainNode | null = null;
+let userVolume = 0.85;
 let backingVolume = 0.6;
+export type LatencyMode = 'interactive' | 'playback';
+let latencyMode: LatencyMode = 'interactive';
+const activeKeys = new Map<number, { g: GainNode; stop: () => void }>();
 
 export function getAudioContext(): AudioContext {
   if (!ctx) {
     const AC = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    ctx = new AC({ latencyHint: 'interactive' });
+    ctx = new AC({ latencyHint: latencyMode });
     master = ctx.createGain();
     master.gain.value = userVolume;
-    const comp = ctx.createDynamicsCompressor();
-    comp.threshold.value = -12;
-    comp.ratio.value = 4;
-    master.connect(comp).connect(ctx.destination);
+    // Limitador suave: solo recorta picos, sin bombeo audible.
+    const lim = ctx.createDynamicsCompressor();
+    lim.threshold.value = -4;
+    lim.knee.value = 6;
+    lim.ratio.value = 12;
+    lim.attack.value = 0.002;
+    lim.release.value = 0.06;
+    master.connect(lim).connect(ctx.destination);
   }
   return ctx;
+}
+
+/**
+ * Cambia el modo de latencia del contexto. 'playback' usa búferes más grandes: más latencia
+ * (se compensa con la calibración) pero sin cortes en teléfonos con poca CPU.
+ */
+export async function setLatencyMode(mode: LatencyMode) {
+  if (mode === latencyMode && ctx) return;
+  latencyMode = mode;
+  if (ctx) {
+    const old = ctx;
+    ctx = null;
+    master = null;
+    backingBus = null;
+    noiseBuffer = null;
+    activeKeys.clear();
+    try {
+      await old.close();
+    } catch {
+      /* ignore */
+    }
+  }
+}
+export function getLatencyMode() {
+  return latencyMode;
 }
 
 export async function unlockAudio(): Promise<void> {
@@ -37,7 +70,6 @@ export function setMasterVolume(v: number) {
   userVolume = v;
   if (master) master.gain.value = v;
 }
-let backingBus: GainNode | null = null;
 function getBackingBus(): GainNode {
   if (!backingBus) {
     backingBus = getAudioContext().createGain();
@@ -105,10 +137,10 @@ function tone(c: AudioContext, t: number, type: OscillatorType, f0: number, f1: 
 export function drumSound(id: string, t: number, vel = 1, dest?: AudioNode) {
   const c = getAudioContext();
   const d = dest ?? master!;
-  const v = 0.35 + 0.65 * vel;
+  const v = (0.35 + 0.65 * vel) * 0.8;
   switch (id) {
     case 'kick':
-      tone(c, t, 'sine', 150, 45, 1.1 * v, 0.35, d);
+      tone(c, t, 'sine', 150, 45, 1.0 * v, 0.35, d);
       noiseHit(c, t, 0.25 * v, 0.03, 'lowpass', 1200, d);
       break;
     case 'snare':
@@ -178,7 +210,6 @@ export function drumSound(id: string, t: number, vel = 1, dest?: AudioNode) {
 }
 
 // ---- Teclado (piano eléctrico sintético) ----
-const activeKeys = new Map<number, { g: GainNode; stop: () => void }>();
 
 export function keyNoteOn(midi: number, t?: number, vel = 0.8, dest?: AudioNode, holdSec?: number) {
   const c = getAudioContext();
@@ -267,9 +298,9 @@ export function releaseLane(instrument: Instrument, lane: string) {
 export function click(t: number, accent: boolean) {
   const c = getAudioContext();
   const o = c.createOscillator();
-  o.type = 'square';
+  o.type = 'triangle';
   o.frequency.value = accent ? 1760 : 1175;
-  const g = env(c, t, accent ? 0.35 : 0.22, 0.001, 0.05, master!);
+  const g = env(c, t, accent ? 0.3 : 0.2, 0.001, 0.045, master!);
   o.connect(g);
   o.start(t);
   o.stop(t + 0.08);

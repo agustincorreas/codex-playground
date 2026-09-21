@@ -5,7 +5,7 @@ import { Toggle, Modal } from '../components/ui';
 import { inputManager, type MidiDeviceInfo } from '../input/inputManager';
 import { INSTRUMENT_META } from '../engine/instruments';
 import type { InputMethod, Instrument } from '../engine/types';
-import { click, getAudioContext, unlockAudio } from '../audio/engine';
+import { click, getAudioContext, unlockAudio, setLatencyMode } from '../audio/engine';
 import { Icon, INSTRUMENT_ICON } from '../components/Icon';
 
 let deferredInstall: (Event & { prompt: () => Promise<void> }) | null = null;
@@ -167,6 +167,11 @@ export function Settings() {
 
       <div className="card">
         <h3>{t('settings.audio')}</h3>
+        <Row label={t('settings.audioMode')} help={t('settings.audioModeHelp')}>
+          <div className="segmented">
+            {(['interactive', 'playback'] as const).map((m) => <button key={m} className={s.settings.audioMode === m ? 'active' : ''} onClick={() => { set({ audioMode: m }); setLatencyMode(m); }}>{t(`settings.audioMode.${m}`)}</button>)}
+          </div>
+        </Row>
         <Row label={t('settings.volume')}><input type="range" min={0} max={1} step={0.05} value={s.settings.volume} onChange={(e) => set({ volume: Number(e.target.value) })} /></Row>
         <Row label={t('settings.backingVolume')}><input type="range" min={0} max={1} step={0.05} value={s.settings.backingVolume} onChange={(e) => set({ backingVolume: Number(e.target.value) })} /></Row>
       </div>
