@@ -92,7 +92,10 @@
     return _silentUrl;
   }
 
-  function toast(msg, ms = 2200) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), ms); }
+  function toast(msg, ms = 2200, err) { const t = $('#toast'); t.textContent = msg; t.classList.toggle('err', !!err); t.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), ms); }
+  // Errores inesperados visibles en pantalla (para poder diagnosticar desde una captura).
+  window.addEventListener('error', (e) => toast('Error: ' + (e.message || e.error) + ' (' + String(e.filename || '').split('/').pop() + ':' + e.lineno + ')', 8000, true));
+  window.addEventListener('unhandledrejection', (e) => toast('Error: ' + (e.reason && e.reason.message || e.reason), 8000, true));
 
   // ------------------------------------------------------------------ router
   const app = $('#app');
