@@ -47,6 +47,51 @@
     return tr.type;
   }
 
+  // ------------------------------------------------------------------ audio
+  // iOS/Safari solo deja arrancar audio dentro de un toque del usuario, y el
+  // interruptor de silencio del iPhone apaga Web Audio salvo que haya un <audio>
+  // HTML reproduciendo. AudioEngine.unlock() se llama en el primer toque a Play.
+  const AudioEngine = {
+    ctx: null, silent: null, unlocked: false,
+    unlock() {
+      try {
+        if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+        if (!this.unlocked) {
+          const src = this.ctx.createBufferSource();
+          src.buffer = this.ctx.createBuffer(1, 1, 22050);
+          src.connect(this.ctx.destination); src.start(0);
+          this.unlocked = true;
+        }
+      } catch (e) { console.warn('AudioContext no disponible', e); }
+      return this.ctx;
+    },
+    // <audio> en loop con silencio: hace que iOS trate la página como reproductor
+    // de música (ignora el switch de silencio). Solo se usa con el metrónomo.
+    keepAlive(on) {
+      if (on) {
+        if (!this.silent) {
+          const a = new Audio(silentWavUrl()); a.loop = true; a.volume = 0.01; a.setAttribute('playsinline', '');
+          this.silent = a;
+        }
+        this.silent.play().catch(() => { });
+      } else if (this.silent) { this.silent.pause(); }
+    },
+  };
+  let _silentUrl = null;
+  function silentWavUrl() {
+    if (_silentUrl) return _silentUrl;
+    const rate = 8000, secs = 1, n = rate * secs;
+    const buf = new ArrayBuffer(44 + n), v = new DataView(buf);
+    const str = (o, t) => { for (let i = 0; i < t.length; i++) v.setUint8(o + i, t.charCodeAt(i)); };
+    str(0, 'RIFF'); v.setUint32(4, 36 + n, true); str(8, 'WAVE'); str(12, 'fmt '); v.setUint32(16, 16, true);
+    v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, rate, true); v.setUint32(28, rate, true);
+    v.setUint16(32, 1, true); v.setUint16(34, 8, true); str(36, 'data'); v.setUint32(40, n, true);
+    for (let i = 0; i < n; i++) v.setUint8(44 + i, 128);
+    _silentUrl = URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }));
+    return _silentUrl;
+  }
+
   function toast(msg, ms = 2200) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), ms); }
 
   // ------------------------------------------------------------------ router
@@ -379,7 +424,7 @@
       </div>
       <div class="chart-wrap" id="chartwrap"><div class="chart" id="chart"></div></div>
       <aside class="dock">
-        <div class="player-box" id="playerbox"><div class="countin hidden" id="countin"></div></div>
+        <div class="player-box"><div id="playerbox"></div><div class="countin hidden" id="countin"></div></div>
         <video class="rec-preview" id="recpreview" playsinline muted></video>
         <div class="player-note" id="playernote"></div>
         <div class="transport">
@@ -484,7 +529,7 @@
 
     async function setupPlayer() {
       const box = q('#playerbox');
-      const cnt = q('#countin'); box.innerHTML = ''; box.appendChild(cnt);
+      box.innerHTML = '';
       if (!track) {
         box.appendChild(h(`<div class="local-dock"><div><div style="font-size:26px">${instDef.emoji}</div>No hay base para ${instDef.label.toLowerCase()} en este tema.<br><button class="btn sm primary" style="margin-top:8px" id="addtrack">Agregar base</button></div></div>`));
         $('#addtrack', box).onclick = () => go('edit/' + song.id);
@@ -493,7 +538,7 @@
       }
       if (track.type === 'youtube') { player = new Players.YouTubeAdapter(box); note.textContent = 'Base de YouTube. El video queda visible (lo exigen sus términos); el foco está en la letra y los acordes de al lado.'; }
       else if (track.type === 'local') { player = new Players.LocalAudioAdapter(box); note.textContent = 'Archivo local: el cambio de velocidad mantiene la afinación.'; }
-      else { player = new Players.MetronomeAdapter(box); note.textContent = 'Metrónomo: los tiempos del cifrado se calculan con el BPM del tema.'; }
+      else { player = new Players.MetronomeAdapter(box, { getCtx: () => AudioEngine.unlock() }); note.textContent = 'Metrónomo: los tiempos del cifrado se calculan con el BPM del tema.'; }
       player.onState((s) => {
         q('#play').textContent = s === 'playing' ? '❚❚' : '▶';
         if (s === 'ended' && st.loopB == null) { if (recorder.recording) stopRec(); }
@@ -564,25 +609,33 @@
     q('#play').onclick = togglePlay;
     function togglePlay() {
       if (!player) return toast('Este tema no tiene base para tu instrumento');
+      if (st.countdown > 0) return;
+      // Desbloquear el audio DENTRO del toque (requisito de iOS/Safari).
+      const ctx = AudioEngine.unlock();
+      if (player.kind === 'metronome') {
+        if (!ctx) { setStatus('Este navegador no permite generar audio. Probá con Safari o Chrome actualizados.', true); return; }
+        AudioEngine.keepAlive(true);
+      }
       if (player.state === 'playing') { player.pause(); return; }
-      if (S.settings.countIn && song.bpm && st.countdown === 0) countIn().then(() => player.play());
-      else player.play();
+      try {
+        if (S.settings.countIn && song.bpm && ctx) countIn(ctx).then(() => player.play());
+        else player.play();
+      } catch (e) { setStatus('No se pudo arrancar: ' + e.message, true); }
+      if (player.kind === 'metronome' && /iPhone|iPad/.test(navigator.userAgent)) setStatus('Si no escuchás el click: sacá el modo silencio (interruptor del costado) y subí el volumen.');
     }
-    let audioCtx = null;
-    function countIn() {
+    function countIn(audioCtx) {
       return new Promise((resolve) => {
-        audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
-        if (audioCtx.state === 'suspended') audioCtx.resume();
         const beats = song.beats || 4, spb = 60 / song.bpm / st.rate;
-        const cnt = q('#countin'); cnt.classList.remove('hidden');
+        const cnt = q('#countin'), playBtn = q('#play'); cnt.classList.remove('hidden');
         const t0 = audioCtx.currentTime + 0.05;
         for (let i = 0; i < beats; i++) {
           const o = audioCtx.createOscillator(), g = audioCtx.createGain();
           o.frequency.value = i === 0 ? 1600 : 1000; g.gain.setValueAtTime(0.5, t0 + i * spb); g.gain.exponentialRampToValueAtTime(0.0001, t0 + i * spb + 0.07);
           o.connect(g).connect(audioCtx.destination); o.start(t0 + i * spb); o.stop(t0 + i * spb + 0.1);
-          setTimeout(() => { cnt.textContent = beats - i; st.countdown = beats - i; }, i * spb * 1000);
+          setTimeout(() => { cnt.textContent = beats - i; playBtn.textContent = beats - i; st.countdown = beats - i; }, i * spb * 1000);
         }
-        setTimeout(() => { cnt.classList.add('hidden'); st.countdown = 0; resolve(); }, beats * spb * 1000);
+        st.countdown = beats; playBtn.textContent = beats;
+        setTimeout(() => { cnt.classList.add('hidden'); st.countdown = 0; playBtn.textContent = '▶'; resolve(); }, beats * spb * 1000);
       });
     }
     q('#seek').oninput = (e) => { if (!player) return; const t = e.target.value / 1000 * player.duration(); player.seek(t); clock.report(t, true); };
@@ -718,6 +771,7 @@
         document.removeEventListener('keydown', onKey);
         if (recorder.recording) recorder.stop().catch(() => { });
         if (player) player.destroy();
+        AudioEngine.keepAlive(false);
       },
     };
   }
