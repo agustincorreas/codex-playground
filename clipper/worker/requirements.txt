@@ -1,0 +1,7 @@
+yt-dlp>=2025.1.1
+psycopg[binary]>=3.2
+anthropic>=1.0
+pydantic>=2.6
+requests>=2.32
+opencv-python-headless>=4.10
+numpy>=1.26

@@ -29,6 +29,15 @@ Son útiles para jugar, mejorar código y experimentar.
   mercado (Moises, Chordify, Ultimate Guitar, Songsterr, Jamzone, Chord ai…), los límites técnicos y
   legales de usar YouTube, y el roadmap.
 
+## Proyecto: Clipper — clips verticales con IA
+
+- [`clipper/`](clipper/README.md): app web de "AI clipping": pegás un link de YouTube (o un video
+  de Google Drive, o un archivo) y obtenés candidatos a clip elegidos con Claude a partir de la
+  transcripción, con vista previa, ajuste de inicio/fin, subtítulos editables y render 1080×1920
+  con reencuadre automático en la cara de quien habla. Next.js en Vercel + Supabase + un worker
+  Docker (yt-dlp, ffmpeg, OpenCV) en Railway. El README tiene el despliegue paso a paso y el
+  costo estimado.
+
 ## Proyecto: Sillage — Recomendador de perfumes
 
 - [`sillage/`](sillage/README.md): app React Native (Expo) con tier gratuito y membresía PRO.
