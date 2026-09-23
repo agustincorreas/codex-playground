@@ -6,10 +6,12 @@ from pathlib import Path
 
 from . import db, drive, sources, storage
 from .config import config
-from .corrections import correct_transcript, drop_words_in_ranges
+from .corrections import correct_transcript, drop_words_in_ranges, removal_ranges
+from .retakes import detect_retakes
 from .errors import UserError
 from .log import get_logger
 from .media import duration_of, extract_audio, make_preview, make_thumbnail
+from .mirror import detect_mirrored
 from .presets import load_preset
 from .render import render_clip
 from .select_moments import select_moments
@@ -28,6 +30,25 @@ def _workdir(name: str) -> Path:
     return d
 
 
+def _merge_ranges(ranges: list) -> list[list[float]]:
+    out: list[list[float]] = []
+    for a, b in sorted((float(r[0]), float(r[1])) for r in ranges):
+        if out and a <= out[-1][1] + 0.05:
+            out[-1][1] = max(out[-1][1], b)
+        else:
+            out.append([a, b])
+    return out
+
+
+def should_flip(mirror_setting: str, detected: bool) -> bool:
+    """'auto' usa la detección; 'flip'/'none' son el ajuste manual del usuario."""
+    if mirror_setting == "flip":
+        return True
+    if mirror_setting == "none":
+        return False
+    return detected
+
+
 def process_video(job: dict) -> None:
     video_id = str(job["video_id"])
     video = db.get_video(video_id)
@@ -44,6 +65,14 @@ def process_video(job: dict) -> None:
     db.update_video(video_id, title=title or video.get("title") or source.name, duration_s=duration, status_detail=None)
     if duration > 6 * 3600:
         raise UserError("El video dura más de 6 horas; recortalo antes de procesarlo.")
+    db.update_video(video_id, status_detail="Revisando si la imagen está en espejo")
+    try:
+        mirror = detect_mirrored(source, duration)
+    except Exception as e:  # noqa: BLE001
+        log.warning("detección de espejo falló: %s", e)
+        mirror = {"mirrored": False}
+    db.update_video(video_id, mirror_detected=bool(mirror.get("mirrored")), mirror_info=mirror)
+    hflip = should_flip(video.get("mirror") or "auto", bool(mirror.get("mirrored")))
 
     # 2. Transcripción
     db.set_video_status(video_id, "transcribing", "Extrayendo audio")
@@ -55,7 +84,12 @@ def process_video(job: dict) -> None:
     db.set_video_status(video_id, "transcribing", "Revisando nombres y términos")
     correction = correct_transcript(words, video.get("topics"))
     transcript["corrections"] = correction.get("replacements", [])
-    transcript["remove_ranges"] = correction.get("remove_ranges", [])   # falsos comienzos, repeticiones
+    # Falsos comienzos y repeticiones: los que marca Claude más los que detecta la regla automática.
+    auto = detect_retakes(build_sentences(words))
+    transcript["remove_ranges"] = _merge_ranges(
+        list(correction.get("remove_ranges", [])) + removal_ranges(build_sentences(words), auto)
+    )
+    transcript["retakes_auto"] = auto
     transcript["words_raw"] = list(words)
     words = drop_words_in_ranges(words, transcript["remove_ranges"])
     transcript["words"] = words
@@ -88,9 +122,9 @@ def process_video(job: dict) -> None:
         try:
             p_start = max(0.0, float(clip["start_s"]) - pad)
             p_end = min(duration, float(clip["end_s"]) + pad)
-            thumb = make_thumbnail(source, work / f"{cid}.jpg", float(clip["start_s"]) + 1.0)
+            thumb = make_thumbnail(source, work / f"{cid}.jpg", float(clip["start_s"]) + 1.0, hflip=hflip)
             storage.upload_file(thumb, f"thumbs/{cid}.jpg", "image/jpeg")
-            preview = make_preview(source, work / f"{cid}.mp4", p_start, p_end)
+            preview = make_preview(source, work / f"{cid}.mp4", p_start, p_end, hflip=hflip)
             storage.upload_file(preview, f"previews/{cid}.mp4", "video/mp4")
             db.update_clip(cid, thumb_path=f"thumbs/{cid}.jpg", preview_path=f"previews/{cid}.mp4", preview_offset_s=p_start)
             preview.unlink(missing_ok=True)
@@ -125,6 +159,7 @@ def render_clip_job(job: dict) -> None:
         end=float(clip["end_s"]),
         words=video["transcript"]["words"],
         remove_ranges=video["transcript"].get("remove_ranges") or [],
+        hflip=should_flip(video.get("mirror") or "auto", bool(video.get("mirror_detected"))),
         preset=preset,
         title=clip.get("title") or None,
         subtitle_edits=clip.get("subtitle_edits") or {},

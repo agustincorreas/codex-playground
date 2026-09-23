@@ -11,7 +11,7 @@ export async function GET(_req: Request, { params }: Params) {
   const db = supabase();
   const { data: video, error } = await db
     .from("videos")
-    .select("id, created_at, updated_at, source_type, source_url, source_file_id, source_path, source_name, title, duration_s, status, status_detail, error, topics, min_duration_s, max_duration_s, preset_id, language, candidates_count")
+    .select("id, created_at, updated_at, source_type, source_url, source_file_id, source_path, source_name, title, duration_s, status, status_detail, error, topics, min_duration_s, max_duration_s, preset_id, language, candidates_count, mirror, mirror_detected")
     .eq("id", id)
     .maybeSingle();
   if (error) return fail(error.message, 500);
@@ -27,6 +27,18 @@ export async function GET(_req: Request, { params }: Params) {
     c.render_url = renders[i];
   });
   return json({ video, clips: list });
+}
+
+/** Ajustes del video: por ahora, el espejo (auto / invertir / no invertir). */
+export async function PATCH(req: Request, { params }: Params) {
+  const { id } = await params;
+  const body = await req.json().catch(() => ({}));
+  const update: Record<string, unknown> = {};
+  if (["auto", "flip", "none"].includes(body.mirror)) update.mirror = body.mirror;
+  if (Object.keys(update).length === 0) return fail("Nada para cambiar.");
+  const { data, error } = await supabase().from("videos").update(update).eq("id", id).select("id, mirror, mirror_detected").single();
+  if (error) return fail(error.message, 500);
+  return json({ video: data });
 }
 
 export async function DELETE(_req: Request, { params }: Params) {

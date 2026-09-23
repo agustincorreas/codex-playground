@@ -26,7 +26,10 @@ create table if not exists videos (
   max_duration_s  integer not null default 120,
   preset_id       text not null default 'natural',
   language        text,
-  transcript      jsonb,           -- {"words": [{"t","s","e","spk"}], "provider", "language"}
+  mirror          text not null default 'auto' check (mirror in ('auto', 'flip', 'none')),  -- espejo: auto / invertir / no invertir
+  mirror_detected boolean not null default false,
+  mirror_info     jsonb,
+  transcript      jsonb,           -- {"words": [{"t","s","e","spk"}], "provider", "language", "remove_ranges"}
   sentences       jsonb,           -- oraciones derivadas: [{"i","s","e","spk","text"}]
   candidates_count integer not null default 0
 );
@@ -154,3 +157,8 @@ alter table clips    enable row level security;
 alter table jobs     enable row level security;
 alter table presets  enable row level security;
 alter table settings enable row level security;
+
+-- Migración para bases creadas antes de la detección de espejo (idempotente).
+alter table videos add column if not exists mirror text not null default 'auto';
+alter table videos add column if not exists mirror_detected boolean not null default false;
+alter table videos add column if not exists mirror_info jsonb;

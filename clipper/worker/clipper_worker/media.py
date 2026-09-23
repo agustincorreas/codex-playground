@@ -81,13 +81,17 @@ def extract_audio(src: Path, dst: Path, *, mono16k: bool = True) -> Path:
     return dst
 
 
-def cut_segment(src: Path, dst: Path, start: float, end: float, *, fps: float | None = None) -> Path:
-    """Corta [start, end] re-codificando (corte exacto), CFR, audio AAC."""
+def cut_segment(src: Path, dst: Path, start: float, end: float, *, fps: float | None = None, hflip: bool = False) -> Path:
+    """Corta [start, end] re-codificando (corte exacto), CFR, audio AAC. hflip da vuelta la imagen."""
     dst.parent.mkdir(parents=True, exist_ok=True)
     cmd = [
         "ffmpeg", "-y", "-v", "error",
         "-ss", f"{max(0.0, start):.3f}", "-to", f"{end:.3f}", "-i", str(src),
         "-map", "0:v:0", "-map", "0:a:0?",
+    ]
+    if hflip:
+        cmd += ["-vf", "hflip"]
+    cmd += [
         "-c:v", "libx264", "-preset", "veryfast", "-crf", "16", "-pix_fmt", "yuv420p",
         "-fps_mode", "cfr",
     ]
@@ -98,15 +102,15 @@ def cut_segment(src: Path, dst: Path, start: float, end: float, *, fps: float | 
     return dst
 
 
-def make_preview(src: Path, dst: Path, start: float, end: float, height: int | None = None) -> Path:
-    """Vista previa liviana (horizontal, baja resolución) para la interfaz."""
+def make_preview(src: Path, dst: Path, start: float, end: float, height: int | None = None, hflip: bool = False) -> Path:
+    """Vista previa liviana (baja resolución) para la interfaz."""
     height = height or config.PREVIEW_HEIGHT
     dst.parent.mkdir(parents=True, exist_ok=True)
     run([
         "ffmpeg", "-y", "-v", "error",
         "-ss", f"{max(0.0, start):.3f}", "-to", f"{end:.3f}", "-i", str(src),
         "-map", "0:v:0", "-map", "0:a:0?",
-        "-vf", f"scale=-2:{height}",
+        "-vf", ("hflip," if hflip else "") + f"scale=-2:{height}",
         "-c:v", "libx264", "-preset", "ultrafast", "-crf", "30", "-pix_fmt", "yuv420p",
         "-fps_mode", "cfr", "-r", "24",
         "-c:a", "aac", "-b:a", "80k", "-ac", "1",
@@ -115,11 +119,11 @@ def make_preview(src: Path, dst: Path, start: float, end: float, height: int | N
     return dst
 
 
-def make_thumbnail(src: Path, dst: Path, t: float, width: int = 480) -> Path:
+def make_thumbnail(src: Path, dst: Path, t: float, width: int = 480, hflip: bool = False) -> Path:
     dst.parent.mkdir(parents=True, exist_ok=True)
     run([
         "ffmpeg", "-y", "-v", "error", "-ss", f"{max(0.0, t):.3f}", "-i", str(src),
-        "-frames:v", "1", "-vf", f"scale={width}:-2", "-q:v", "4", str(dst),
+        "-frames:v", "1", "-vf", ("hflip," if hflip else "") + f"scale={width}:-2", "-q:v", "4", str(dst),
     ], timeout=300)
     return dst
 

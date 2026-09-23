@@ -93,6 +93,7 @@ def render_clip(
     workdir: Path,
     progress=None,
     remove_ranges: list | None = None,
+    hflip: bool = False,
 ) -> Path:
     workdir.mkdir(parents=True, exist_ok=True)
     if end - start < 3:
@@ -103,7 +104,7 @@ def render_clip(
     # 1. Corte exacto del rango
     if progress:
         progress("Cortando el segmento")
-    segment = cut_segment(source, workdir / "segment.mp4", start, end, fps=fps)
+    segment = cut_segment(source, workdir / "segment.mp4", start, end, fps=fps, hflip=hflip)
     audio = has_audio(probe(segment))
     duration = end - start
     rel_words = relative_words(words, start, end)

@@ -21,6 +21,8 @@ export interface Video {
   preset_id: string;
   language: string | null;
   candidates_count: number;
+  mirror: "auto" | "flip" | "none";
+  mirror_detected: boolean;
 }
 
 export interface SubtitleCue {

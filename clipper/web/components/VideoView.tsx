@@ -42,6 +42,12 @@ export default function VideoView({ id }: { id: string }) {
     return () => clearInterval(t);
   }, [busy, load]);
 
+  async function setMirror(mirror: "auto" | "flip" | "none") {
+    const res = await fetch(`/api/videos/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mirror }) });
+    if (!res.ok) setError((await res.json()).error);
+    else load();
+  }
+
   async function retry() {
     const res = await fetch(`/api/videos/${id}/retry`, { method: "POST" });
     if (!res.ok) setError((await res.json()).error);
@@ -66,6 +72,18 @@ export default function VideoView({ id }: { id: string }) {
       </div>
 
       <StatusBar status={video.status} detail={video.status_detail} error={video.error} />
+
+      {(video.status === "ready" || video.status === "error") && (
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <span className="muted">Imagen en espejo (cámara frontal):</span>
+          <select value={video.mirror || "auto"} onChange={(e) => setMirror(e.target.value as "auto" | "flip" | "none")} className="w-auto">
+            <option value="auto">Automático ({video.mirror_detected ? "detectada en espejo, se da vuelta" : "no se detectó, se deja como está"})</option>
+            <option value="flip">Dar vuelta</option>
+            <option value="none">Dejar como está</option>
+          </select>
+          <span className="muted text-xs">Aplica a los próximos renders. Las vistas previas se generaron con la detección automática.</span>
+        </div>
+      )}
       {video.status === "error" && (
         <button className="btn" onClick={retry}>Reintentar</button>
       )}

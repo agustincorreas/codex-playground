@@ -48,14 +48,21 @@ Criterio de editor que aplica siempre, en todos los estilos, sin configurar nada
 - **Aire muerto**: el clip arranca un cuarto de segundo antes de la primera palabra y termina
   medio segundo después de la última. Lo que hay antes o después (caminar, acomodarse,
   silencio) se va.
-- **Falsos comienzos y repeticiones**: en la revisión de la transcripción, Claude marca los
-  tramos que un editor cortaría (una frase que se traba y se repite, pruebas de audio,
-  muletillas solas) y se quitan del video, con los bordes del corte en el silencio más
-  cercano para que no se note.
+- **Falsos comienzos y repeticiones**: se detectan de dos maneras y se unen: una regla
+  automática (una oración corta seguida enseguida por otra que repite la mayoría de sus
+  palabras, o cuyo final se vuelve a decir al principio de la siguiente) y la revisión de
+  Claude, que además marca pruebas de audio y tramos de solo muletillas. Se quitan del
+  video con los bordes del corte en el silencio más cercano para que no se note.
 - **Silencios**: se saltean las pausas largas, pero el corte se verifica sobre el audio real
   (nivel de señal) y se deja un margen junto a cada palabra, así nunca se corta una palabra
   aunque los tiempos de la transcripción sean imprecisos. Umbrales por preset.
 - **Subtítulos limpios**: las muletillas sueltas ("eh", "ehm", "este") no se subtitulan.
+- **Espejo**: los videos grabados con la cámara frontal quedan invertidos (las etiquetas y
+  carteles se leen al revés). Al procesar, se leen con OCR (Tesseract) varios cuadros tal cual
+  y dados vuelta, probando también en vertical; si las palabras reales (diccionario más el
+  glosario de perfumería) se leen claramente mejor invertidas, el video se da vuelta en
+  vistas previas y renders. En la página del video se puede forzar "dar vuelta" o "dejar
+  como está".
 - **Transcripción revisada**: antes de elegir momentos, Claude repasa la transcripción con un
   glosario de materias primas, marcas y perfumes (de fábrica más el tuyo, en Configuración)
   y para los nombres dudosos busca en Fragrantica, Parfumo y Wikipedia. Solo corrige lo que
