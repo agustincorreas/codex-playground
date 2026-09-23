@@ -73,8 +73,8 @@ def test_process_video_end_to_end(tmp_path, sample_video, monkeypatch):
     monkeypatch.setattr(pipeline, "transcribe", lambda audio: {"words": words, "language": "es", "provider": "fake"})
     monkeypatch.setattr(pipeline, "correct_transcript", lambda words_, topics=None: {"applied": 0, "replacements": []})
 
-    def fake_select(sentences, words_, *, min_s, max_s, topics):
-        assert topics == "marcas nicho" and min_s == 10 and max_s == 30
+    def fake_select(sentences, words_, *, min_s, max_s, topics, video_duration=None):
+        assert topics == "marcas nicho" and min_s == 10 and max_s == 30 and video_duration
         return [{"start_s": 5.0, "end_s": 25.0, "title": "Uno", "hook": "h", "score": 9, "reason": "r"},
                 {"start_s": 30.0, "end_s": 50.0, "title": "Dos", "hook": "h", "score": 7, "reason": "r"}]
     monkeypatch.setattr(pipeline, "select_moments", fake_select)

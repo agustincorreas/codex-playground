@@ -41,7 +41,8 @@ Reglas de selección:
 - Devolvé entre {min_n} y {max_n} candidatos. Si el material da para más, priorizá calidad y variedad temática (no repitas el mismo momento con distintos recortes). Si el material no da para {min_n} clips completos, devolvé menos: un clip cortado a la mitad no sirve.
 - Cada clip es una unidad completa con principio, desarrollo y fin: plantea un tema o pregunta, lo desarrolla y lo cierra. Nunca cortes una idea a la mitad ni dejes un argumento colgado. Si una idea completa no entra en la duración máxima, descartala en lugar de recortarla.
 - Duración objetivo de cada clip: entre {min_s} y {max_s} segundos. Podés pasarte hasta un 25% si hace falta para cerrar la idea, pero no más.
-- Si el video entero dura menos que la duración máxima (más el 25%), lo mejor suele ser un solo clip con todo el video, arrancando en su primera frase fuerte.
+- Si el video entero dura menos que la duración máxima (más el 25%), el clip es el video completo de principio a fin (con su gancho inicial y su cierre o llamado a la acción). Igual podés proponer, además, 1 o 2 recortes más cortos si tienen sentido solos.
+- Si un momento empieza a pocos segundos del inicio del video o termina a pocos segundos del final, incluí el inicio o el final completos: la apertura y el cierre nunca se cortan.
 - El clip TIENE que arrancar en una frase fuerte, que enganche sola, sin contexto previo. Nunca en muletillas ("bueno, eh", "o sea", "digamos", "a ver", "entonces") ni en respuestas que solo se entienden con la pregunta anterior. Si la frase fuerte está en la mitad de una oración larga, elegí la oración siguiente que arranque bien.
 - El clip tiene que terminar en un cierre de idea, nunca a mitad de una frase.
 - Preferí momentos con contradicción, dato concreto, opinión firme, anécdota, o una afirmación polémica bien argumentada. Evitá saludos, avisos, agradecimientos, lectura de comentarios sin contenido y explicaciones técnicas del stream.
@@ -61,6 +62,24 @@ def _duration_ok(d: float, min_s: float, max_s: float) -> bool:
     return (min_s * MIN_UNDER) <= d <= (max_s * MAX_OVER)
 
 
+EDGE_SNAP_S = 4.0   # si un clip termina/empieza a menos de esto del final/inicio del video, se toma todo
+
+
+def whole_video_candidate(words: list[dict], video_duration: float) -> dict:
+    """Candidato con el video entero: gancho, desarrollo y cierre tal como fueron grabados."""
+    first = words[0]["t"] if words else ""
+    text = " ".join(w["t"] for w in words[:12])
+    return {
+        "start_s": 0.0,
+        "end_s": round(video_duration, 2),
+        "title": (text[:60].rsplit(" ", 1)[0] if len(text) > 60 else text) or "Video completo",
+        "hook": " ".join(w["t"] for w in words[:15]),
+        "score": 10,
+        "reason": "El video entero entra en la duración pedida: se conserva completo, con su apertura, desarrollo y cierre.",
+        "whole": True,
+    }
+
+
 def select_moments(
     sentences: list[dict],
     words: list[dict],
@@ -68,6 +87,7 @@ def select_moments(
     min_s: float,
     max_s: float,
     topics: str | None,
+    video_duration: float | None = None,
 ) -> list[dict]:
     if not sentences:
         raise UserError("La transcripción quedó vacía; no hay oraciones para analizar.")
@@ -81,6 +101,8 @@ def select_moments(
     user_parts.append(
         f"Duración objetivo: {int(min_s)}-{int(max_s)} segundos. Cantidad: entre {config.MIN_CANDIDATES} y {config.MAX_CANDIDATES} candidatos."
     )
+    if video_duration:
+        user_parts.append(f"Duración total del video: {int(video_duration)} segundos.")
     user_parts.append("Transcripción (una oración por línea: [índice] h:mm:ss hablante: texto):\n\n" + sentences_for_prompt(sentences))
     user_text = "\n\n".join(user_parts)
 
@@ -112,7 +134,8 @@ def select_moments(
     if response.stop_reason == "max_tokens" or response.parsed_output is None:
         raise RetryableError("La respuesta de Claude quedó incompleta.")
 
-    return postprocess(response.parsed_output.candidates, sentences, words, min_s=min_s, max_s=max_s)
+    return postprocess(response.parsed_output.candidates, sentences, words, min_s=min_s, max_s=max_s,
+                       video_duration=video_duration)
 
 
 def postprocess(
@@ -122,9 +145,15 @@ def postprocess(
     *,
     min_s: float,
     max_s: float,
+    video_duration: float | None = None,
 ) -> list[dict]:
     n = len(sentences)
     results: list[dict] = []
+    if video_duration is None and words:
+        video_duration = words[-1]["e"]
+    # Video corto: el clip es el video entero, de principio a fin.
+    if video_duration and video_duration <= max_s * MAX_OVER and words:
+        results.append(whole_video_candidate(words, video_duration))
     for c in candidates:
         a, b = c.start_sentence, c.end_sentence
         if not (0 <= a < n and 0 <= b < n and a <= b):
@@ -149,9 +178,16 @@ def postprocess(
         # Un respiro chico antes del corte para no arrancar pegado a la primera palabra.
         start = max(0.0, start - 0.15)
         end = end + 0.35
+        # Cerca de los bordes del video, se toma el principio o el final completos
+        # (la apertura y el llamado a la acción no se cortan).
+        if start < EDGE_SNAP_S:
+            start = 0.0
+        if video_duration and end > video_duration - EDGE_SNAP_S:
+            end = video_duration
         results.append({
             "start_s": round(start, 2),
             "end_s": round(end, 2),
+            "whole": False,
             "title": c.title.strip()[:80],
             "hook": c.hook.strip()[:300],
             "score": int(c.score),
@@ -171,4 +207,6 @@ def postprocess(
                 break
         if not overlap:
             kept.append(r)
+    for r in kept:
+        r.pop("whole", None)
     return kept[: config.MAX_CANDIDATES]

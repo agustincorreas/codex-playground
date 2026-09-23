@@ -66,6 +66,7 @@ def process_video(job: dict) -> None:
         min_s=float(video.get("min_duration_s") or 60),
         max_s=float(video.get("max_duration_s") or 120),
         topics=video.get("topics"),
+        video_duration=duration,
     )
     if not candidates:
         raise UserError(

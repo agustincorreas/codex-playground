@@ -32,8 +32,11 @@ def test_postprocess_snaps_and_strips_fillers():
     titles = [c["title"] for c in out]
     assert "A" in titles and "B (solapado)" not in titles and "D (fuera)" not in titles
     a = next(c for c in out if c["title"] == "A")
-    # la oración 0 arranca con "Bueno," -> el inicio salta esa palabra (menos un respiro de 0.15 s)
-    assert abs(a["start_s"] - (words[1]["s"] - 0.15)) < 1e-6
+    # arranca a menos de 4 s del inicio del video: se toma el principio completo
+    assert a["start_s"] == 0.0
+    # en cambio, un clip que arranca en el medio salta la muletilla inicial ("Bueno,") menos un respiro de 0.15 s
+    e = next(c for c in out if c["title"] == "E (casi corto)")
+    assert abs(e["start_s"] - (words[28 * 8]["s"] - 0.15)) < 1e-6
     # "C" (12 s) es demasiado corto para completarse con 2 oraciones más: se descarta
     assert "C (muy corto)" not in titles
     # "E" (44 s) se extiende hasta 2 oraciones (52 s >= 48 s) y entra
@@ -52,3 +55,20 @@ def test_postprocess_discards_long_instead_of_cutting():
     out = postprocess([Candidate(start_sentence=0, end_sentence=35, title="L2", hook="h", score=5, reason="r")],
                       sents, words, min_s=60, max_s=120)
     assert len(out) == 1
+
+
+def test_short_video_becomes_one_whole_clip_and_edges_snap():
+    words = make_transcript(n_sentences=20)          # 80 s de video
+    sents = build_sentences(words)
+    cands = [Candidate(start_sentence=3, end_sentence=17, title="Recorte", hook="h", score=8, reason="r")]
+    out = postprocess(cands, sents, words, min_s=60, max_s=150, video_duration=80.0)
+    # el video entero (80 s <= 150) es el primer candidato, de 0 al final
+    assert out[0]["start_s"] == 0.0 and out[0]["end_s"] == 80.0 and out[0]["score"] == 10
+    # el recorte 3..17 (56 s) se solapa casi todo con el entero: se descarta
+    assert len(out) == 1
+    # video largo: un clip que termina a menos de 4 s del final se extiende hasta el final
+    words = make_transcript(n_sentences=60)          # 240 s
+    sents = build_sentences(words)
+    out = postprocess([Candidate(start_sentence=40, end_sentence=59, title="Final", hook="h", score=8, reason="r")],
+                      sents, words, min_s=60, max_s=150, video_duration=240.0)
+    assert out[0]["end_s"] == 240.0
