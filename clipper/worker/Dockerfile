@@ -14,6 +14,13 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/* \
  && fc-cache -f
 
+# Deno: motor de JavaScript que yt-dlp necesita para resolver las URLs de YouTube
+# (sin él, las descargas terminan en HTTP 403).
+RUN curl -fsSL -o /tmp/deno.zip https://github.com/denoland/deno/releases/latest/download/deno-x86_64-unknown-linux-gnu.zip \
+ && apt-get update && apt-get install -y --no-install-recommends unzip && rm -rf /var/lib/apt/lists/* \
+ && unzip -q /tmp/deno.zip -d /usr/local/bin && chmod +x /usr/local/bin/deno && rm /tmp/deno.zip \
+ && deno --version
+
 # Modelo de detección de rostros (YuNet, ~230 KB). Si la descarga falla, el
 # worker cae a Haar cascade (incluido en OpenCV), con peor precisión.
 RUN mkdir -p /opt/models \

@@ -145,6 +145,12 @@ Deepgram / AssemblyAI / OpenAI. Google Cloud solo si querés Drive.
   - AssemblyAI: `ASSEMBLYAI_API_KEY`, `TRANSCRIBE_PROVIDER=assemblyai`.
   - OpenAI Whisper: `OPENAI_API_KEY`, `TRANSCRIBE_PROVIDER=openai`. No diariza (el seguimiento
     de hablante se basa solo en la imagen) y el audio se parte en trozos de 25 min.
+  - **Local, sin API**: `TRANSCRIBE_PROVIDER=local`. Whisper corre en el propio worker con
+    sherpa-onnx (`pip install sherpa-onnx`, y los modelos `sherpa-onnx-whisper-small` y
+    `silero_vad.onnx` de los releases de github.com/k2-fsa/sherpa-onnx en `LOCAL_WHISPER_DIR`
+    y `LOCAL_VAD_MODEL`). No diariza, los tiempos por palabra son aproximados y en un
+    contenedor de 2 vCPU tarda más o menos lo que dura el audio. Sirve para probar o para
+    videos cortos sin gastar en APIs.
 
 ### 3. Worker (Railway)
 
@@ -196,17 +202,23 @@ Deepgram / AssemblyAI / OpenAI. Google Cloud solo si querés Drive.
    selector y guardar los clips renderizados en una carpeta (pegá el link de la carpeta en
    Configuración; para carpetas existentes, elegila una vez con el selector para darle acceso).
 
-Links de Drive pegados a mano solo funcionan si el archivo está compartido como "cualquiera
-con el link" o si ya lo elegiste antes con el selector.
+Links de Drive pegados a mano funcionan sin conectar ninguna cuenta si el archivo está
+compartido como "cualquiera con el link" (se baja por el link público); si no, hace falta
+haberlo elegido antes con el selector.
 
 ### 6. YouTube y cookies
 
-yt-dlp descarga videos públicos y no listados sin nada más. Si YouTube responde "Sign in to
-confirm you're not a bot", el video tiene restricción de edad o es solo para miembros, exportá
-tus cookies con la extensión **Get cookies.txt LOCALLY** (formato Netscape) desde una sesión
-logueada y subilas en **Configuración → YouTube: cookies.txt**. Se guardan en el bucket
-privado y el worker las usa en cada descarga. Usá una cuenta secundaria si te preocupa el
-bloqueo de la cuenta.
+Dos cosas que YouTube exige hoy y que ya están contempladas:
+
+- **Motor de JavaScript**: yt-dlp necesita Deno (o Node) para resolver las URLs de descarga;
+  sin él todo termina en "HTTP Error 403". El Dockerfile instala Deno.
+- **Cookies**: desde direcciones IP de centros de datos (Railway, Render, o un entorno de
+  Claude Code) YouTube casi siempre responde "Sign in to confirm you're not a bot", incluso
+  para videos públicos. Lo mismo pasa con videos con restricción de edad o solo para
+  miembros. Exportá tus cookies con la extensión **Get cookies.txt LOCALLY** (formato
+  Netscape) desde una sesión logueada y subilas en **Configuración → YouTube: cookies.txt**.
+  Se guardan en el bucket privado y el worker las usa en cada descarga. Usá una cuenta
+  secundaria si te preocupa el bloqueo de la cuenta. Google Drive no tiene este problema.
 
 ### Desarrollo local
 

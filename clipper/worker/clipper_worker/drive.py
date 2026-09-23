@@ -73,23 +73,53 @@ def _meta(file_id: str, token: str | None) -> dict | None:
     return None
 
 
-def download(file_id: str, dst_dir: Path, progress=None) -> tuple[Path, str]:
-    """Descarga un archivo de Drive. Devuelve (ruta local, nombre)."""
-    token = _access_token()
-    meta = _meta(file_id, token)
-    if meta is None and token:
-        # Puede ser un archivo compartido por link al que la cuenta no tiene acceso directo.
-        meta = _meta(file_id, None)
-    if meta is None:
-        if not token:
+PUBLIC_DOWNLOAD_URL = "https://drive.usercontent.google.com/download"
+
+
+def _download_public(file_id: str, dst_dir: Path, progress=None) -> tuple[Path, str]:
+    """Archivos compartidos como 'cualquiera con el link', sin cuenta conectada."""
+    dst_dir.mkdir(parents=True, exist_ok=True)
+    with requests.get(
+        PUBLIC_DOWNLOAD_URL,
+        params={"id": file_id, "export": "download", "confirm": "t"},
+        stream=True, timeout=600, allow_redirects=True,
+    ) as resp:
+        ctype = resp.headers.get("Content-Type", "")
+        if resp.status_code >= 400 or ctype.startswith("text/html"):
             raise UserError(
-                "No se pudo acceder al archivo de Drive. Conectá tu cuenta de Google en Configuración "
-                "y elegilo con el selector, o compartilo como 'cualquiera con el link'."
+                "No se pudo acceder al archivo de Drive. Compartilo como 'cualquiera con el link', "
+                "o conectá tu cuenta de Google en Configuración y elegilo con el selector."
             )
-        raise UserError(
-            "No encontré ese archivo en Drive con tu cuenta. Elegilo con el selector de Drive "
-            "(la app solo puede leer los archivos que elegís ahí) o compartilo como 'cualquiera con el link'."
-        )
+        name = file_id + ".mp4"
+        disp = resp.headers.get("Content-Disposition", "")
+        m = re.search(r"filename\*?=(?:UTF-8\'\')?\"?([^\";]+)", disp)
+        if m:
+            name = requests.utils.unquote(m.group(1)).strip()
+        if not re.search(r"\.(mp4|mov|m4a|mp3|mkv|webm|m4v|aac|wav)$", name, re.I) and not (
+            ctype.startswith("video/") or ctype.startswith("audio/")
+        ):
+            raise UserError(f"El archivo '{name}' no parece ser un video ni un audio (mp4, mov, m4a, mp3).")
+        dst = dst_dir / re.sub(r"[^\w.-]+", "_", name)[:120]
+        total = int(resp.headers.get("Content-Length") or 0)
+        done = 0
+        with open(dst, "wb") as f:
+            for chunk in resp.iter_content(4 * 1024 * 1024):
+                f.write(chunk)
+                done += len(chunk)
+                if progress and total:
+                    progress(done / total)
+    return dst, name
+
+
+def download(file_id: str, dst_dir: Path, progress=None) -> tuple[Path, str]:
+    """Descarga un archivo de Drive. Devuelve (ruta local, nombre).
+
+    Con cuenta conectada usa la API (archivos elegidos con el selector); si no
+    hay cuenta o la API no lo ve, intenta la descarga pública por link."""
+    token = _access_token()
+    meta = _meta(file_id, token) if token else None
+    if meta is None:
+        return _download_public(file_id, dst_dir, progress)
     name = meta.get("name") or file_id
     mime = meta.get("mimeType", "")
     if mime.startswith("application/vnd.google-apps"):

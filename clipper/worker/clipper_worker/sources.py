@@ -68,6 +68,11 @@ def _classify_ytdlp_error(msg: str) -> str:
         return "El video no está disponible (borrado, bloqueado por región o link incorrecto)."
     if "is not a valid url" in m or "unsupported url" in m:
         return "El link no es válido."
+    if "javascript runtime" in m or ("403" in m and "video data" in m):
+        return (
+            "YouTube rechazó la descarga (403). Suele pasar cuando falta el motor de JavaScript que usa yt-dlp "
+            "(deno o node en el worker) o cuando YouTube pide cookies: subí un cookies.txt en Configuración."
+        )
     if "members-only" in m or "join this channel" in m:
         return "El video es solo para miembros del canal. Subí un archivo cookies.txt en Configuración."
     if "is live" in m or "live event will begin" in m or "premieres in" in m:
@@ -105,6 +110,9 @@ def download_youtube(url: str, dst_dir: Path, progress: Progress | None = None) 
         "retries": 5,
         "fragment_retries": 10,
         "concurrent_fragment_downloads": 4,
+        # YouTube exige resolver un desafío en JavaScript; sin motor JS (deno o node)
+        # las descargas dan 403. Se usa el que esté instalado, en ese orden.
+        "js_runtimes": {"deno": {}, "node": {}},
     }
     if cookies:
         opts["cookiefile"] = str(cookies)
