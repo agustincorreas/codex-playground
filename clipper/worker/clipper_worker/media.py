@@ -187,16 +187,25 @@ def audio_envelope(src: Path, frame_s: float = SILENCE_FRAME_S):
     return np.sqrt(np.mean(frames * frames, axis=1)), frame_s
 
 
-def keep_ranges_from_words(words: list[dict], duration: float, min_pause_s: float, keep_pause_s: float,
-                           min_removed_s: float = 0.15, envelope=None, word_pad_s: float = 0.08) -> list[tuple[float, float]]:
-    """Rangos del segmento que se conservan al saltear pausas.
+LEAD_IN_S = 0.25    # aire que se deja antes de la primera palabra
+TAIL_S = 0.6        # aire que se deja después de la última palabra
 
-    Las pausas candidatas salen de los tiempos de las palabras (huecos más largos que
-    min_pause_s). Si se pasa `envelope` (RMS del audio, ver audio_envelope), cada
-    pausa se achica al tramo que de verdad está en silencio, así nunca se corta una
-    palabra aunque los tiempos de la transcripción sean aproximados. Se deja
-    keep_pause_s de aire repartido a ambos lados del corte, más word_pad_s de margen
-    junto a cada palabra."""
+
+def keep_ranges_from_words(words: list[dict], duration: float, min_pause_s: float, keep_pause_s: float,
+                           min_removed_s: float = 0.15, envelope=None, word_pad_s: float = 0.08,
+                           forced_removals: list[tuple[float, float]] | None = None,
+                           trim_edges: bool = True) -> list[tuple[float, float]]:
+    """Rangos del segmento que se conservan.
+
+    - Pausas: huecos entre palabras más largos que min_pause_s. Si se pasa `envelope`
+      (RMS del audio, ver audio_envelope), cada pausa se achica al tramo que de verdad
+      está en silencio, así nunca se corta una palabra aunque los tiempos de la
+      transcripción sean aproximados. Se deja keep_pause_s de aire repartido a ambos
+      lados del corte, más word_pad_s de margen junto a cada palabra.
+    - Bordes (trim_edges): se quita el aire muerto antes de la primera palabra y después
+      de la última (dejando LEAD_IN_S / TAIL_S).
+    - forced_removals: tramos que se quitan sí o sí (falsos comienzos, repeticiones),
+      con los bordes ajustados al silencio más cercano para que el corte no se note."""
     import numpy as np
 
     rms, frame_s = envelope if envelope else (None, SILENCE_FRAME_S)
@@ -228,8 +237,22 @@ def keep_ranges_from_words(words: list[dict], duration: float, min_pause_s: floa
             return None
         return (a + best[0] * frame_s, a + best[1] * frame_s)
 
-    ranges: list[tuple[float, float]] = []
-    cursor = 0.0
+    def nearest_quiet(t: float, radius: float = 0.35) -> float:
+        """Instante silencioso más cercano a t (o t si no hay audio/silencio cerca)."""
+        if rms is None:
+            return t
+        best, best_d = t, None
+        i_t = int(t / frame_s)
+        r = int(radius / frame_s)
+        for k in range(max(0, i_t - r), min(len(rms), i_t + r + 1)):
+            if rms[k] < threshold:
+                d = abs(k - i_t)
+                if best_d is None or d < best_d:
+                    best, best_d = k * frame_s, d
+        return best
+
+    # 1) Tramos a quitar: pausas entre palabras...
+    removals: list[tuple[float, float]] = []
     half = keep_pause_s / 2.0
     ws = sorted((w for w in words if w["e"] > 0 and w["s"] < duration), key=lambda w: w["s"])
     for prev, nxt in zip(ws, ws[1:]):
@@ -239,10 +262,43 @@ def keep_ranges_from_words(words: list[dict], duration: float, min_pause_s: floa
         if span is None:
             continue
         gap_start, gap_end = span[0] + half, span[1] - half
-        if (span[1] - span[0]) > min_pause_s and (gap_end - gap_start) > min_removed_s and gap_start > cursor:
-            ranges.append((cursor, gap_start))
-            cursor = gap_end
-    ranges.append((cursor, duration))
+        if (span[1] - span[0]) > min_pause_s and (gap_end - gap_start) > min_removed_s:
+            removals.append((gap_start, gap_end))
+    # ...aire muerto al principio y al final...
+    if trim_edges and ws:
+        first_s, last_e = ws[0]["s"], ws[-1]["e"]
+        span = quiet_span(0.0, max(0.0, first_s - word_pad_s))
+        if span is not None:
+            lead_end = span[1] - LEAD_IN_S
+            if lead_end > min_removed_s:
+                removals.append((0.0, lead_end))
+        span = quiet_span(min(duration, last_e + word_pad_s), duration)
+        if span is not None:
+            tail_start = span[0] + TAIL_S
+            if duration - tail_start > min_removed_s:
+                removals.append((tail_start, duration))
+    # ...y tramos forzados (falsos comienzos, repeticiones), con bordes en silencio.
+    for a, b in (forced_removals or []):
+        a2, b2 = nearest_quiet(max(0.0, a)), nearest_quiet(min(duration, b))
+        if b2 - a2 > min_removed_s:
+            removals.append((a2, b2))
+
+    # 2) Unir tramos solapados y convertir a rangos que se conservan.
+    removals.sort()
+    merged: list[list[float]] = []
+    for a, b in removals:
+        if merged and a <= merged[-1][1] + 0.01:
+            merged[-1][1] = max(merged[-1][1], b)
+        else:
+            merged.append([a, b])
+    ranges: list[tuple[float, float]] = []
+    cursor = 0.0
+    for a, b in merged:
+        if a > cursor:
+            ranges.append((cursor, a))
+        cursor = max(cursor, b)
+    if cursor < duration:
+        ranges.append((cursor, duration))
     return [(round(a, 3), round(b, 3)) for a, b in ranges if b - a > 0.02]
 
 

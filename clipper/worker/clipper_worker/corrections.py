@@ -71,11 +71,19 @@ Tu trabajo: detectar las palabras o frases que quedaron mal transcriptas y propo
 - Palabras que no existen o no tienen sentido en contexto ("termendo" → "tremendo", "el red" → "Creed").
 - Números y cifras mal transcriptos.
 
+Además, marcá los tramos que un editor cortaría sí o sí:
+- Falsos comienzos y repeticiones: el hablante arranca una frase, se traba o se equivoca y la vuelve a decir (se corta la primera versión, se deja la buena).
+- Tramos sin contenido: solo muletillas ("eh", "este", "bueno"), pruebas de audio, "¿se escucha?", pedidos de que esperen, o silencio con ruido.
+Cada tramo se indica por número de oración (inicio y fin, inclusive). No marques frases con contenido aunque sean flojas.
+
 Reglas:
 - Usá el glosario como referencia principal. Si un nombre no está en el glosario y no estás seguro, buscalo (Fragrantica y Wikipedia) antes de proponerlo; si igual no lo podés confirmar, no lo inventes: dejalo como está.
 - No cambies el estilo ni la gramática del hablante: solo lo que está mal transcripto. Nada de reescribir frases enteras.
 - Cada reemplazo tiene que ser una frase corta EXACTA de la transcripción ("from") y su corrección ("to"), para poder aplicarla sobre las palabras. Preferí reemplazos de 1 a 4 palabras.
-- Respondé únicamente con un bloque JSON con esta forma: {"replacements": [{"from": "texto tal cual", "to": "texto corregido", "reason": "breve"}]}. Si no hay nada que corregir, {"replacements": []}."""
+- Respondé únicamente con un bloque JSON con esta forma:
+  {"replacements": [{"from": "texto tal cual", "to": "texto corregido", "reason": "breve"}],
+   "remove": [{"start_sentence": 0, "end_sentence": 0, "reason": "falso comienzo, la repite en la 1"}]}
+  Si no hay nada que corregir ni cortar, las listas van vacías."""
 
 
 def _glossary() -> list[str]:
@@ -196,5 +204,32 @@ def correct_transcript(words: list[dict], topics: str | None = None) -> dict:
     data = _parse_json(text) or {}
     reps = [r for r in data.get("replacements", []) if isinstance(r, dict)]
     applied = apply_replacements(words, reps)
-    log.info("corrección de transcripción: %d reemplazos propuestos, %d aplicados", len(reps), applied)
-    return {"applied": applied, "replacements": reps}
+    remove_ranges = removal_ranges(sentences, [r for r in data.get("remove", []) if isinstance(r, dict)])
+    log.info("corrección de transcripción: %d reemplazos propuestos, %d aplicados, %d tramos a cortar",
+             len(reps), applied, len(remove_ranges))
+    return {"applied": applied, "replacements": reps, "remove_ranges": remove_ranges}
+
+
+def removal_ranges(sentences: list[dict], items: list[dict]) -> list[list[float]]:
+    """Convierte tramos por oración en rangos de tiempo absolutos [inicio, fin]."""
+    out: list[list[float]] = []
+    n = len(sentences)
+    for it in items:
+        try:
+            a, b = int(it.get("start_sentence")), int(it.get("end_sentence", it.get("start_sentence")))
+        except (TypeError, ValueError):
+            continue
+        if not (0 <= a < n and 0 <= b < n and a <= b):
+            continue
+        out.append([round(sentences[a]["s"] - 0.05, 3), round(sentences[b]["e"] + 0.05, 3)])
+    return out
+
+
+def drop_words_in_ranges(words: list[dict], ranges: list[list[float]]) -> list[dict]:
+    """Palabras que quedan fuera de los tramos cortados."""
+    if not ranges:
+        return words
+    def inside(w):
+        mid = (w["s"] + w["e"]) / 2
+        return any(a <= mid <= b for a, b in ranges)
+    return [w for w in words if not inside(w)]

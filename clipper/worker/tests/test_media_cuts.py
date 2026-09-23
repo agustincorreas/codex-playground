@@ -31,4 +31,23 @@ def test_envelope_protects_words():
 
 def test_no_cuts_when_pauses_short():
     words = [{"s": 0.2, "e": 0.5}, {"s": 0.8, "e": 1.1}]
-    assert keep_ranges_from_words(words, 2.0, 0.7, 0.2) == [(0.0, 2.0)]
+    assert keep_ranges_from_words(words, 2.0, 0.7, 0.2, trim_edges=False) == [(0.0, 2.0)]
+    # con recorte de bordes: se va la cola muerta después de la última palabra (1.1 + margen + 0.6 s)
+    assert keep_ranges_from_words(words, 4.0, 0.7, 0.2)[-1][1] < 2.0
+
+
+def test_edges_and_forced_removals():
+    import numpy as np
+    frame = 0.02
+    rms = np.full(int(10.0 / frame), 0.001, dtype=np.float32)
+    # voz: 3.0-4.0 (falso comienzo), 4.6-8.0 (la buena)
+    rms[int(3.0 / frame):int(4.0 / frame)] = 0.2
+    rms[int(4.6 / frame):int(8.0 / frame)] = 0.2
+    words = [{"s": 3.0, "e": 4.0}, {"s": 4.6, "e": 8.0}]
+    ranges = keep_ranges_from_words(words, 10.0, 1e9, 0.2, envelope=(rms, frame), word_pad_s=0.0,
+                                    forced_removals=[(3.0, 4.0)])
+    # se va el aire inicial (0-2.75), el falso comienzo (3-4 con bordes en silencio) y la cola (8.6-10)
+    assert ranges[0][0] >= 2.7 and ranges[0][0] <= 2.8
+    assert all(not (a < 3.5 < b) for a, b in ranges)          # el falso comienzo no queda
+    assert ranges[-1][1] <= 8.7
+    assert any(a <= 5.0 and b >= 7.9 for a, b in ranges)      # la frase buena queda entera

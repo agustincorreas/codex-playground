@@ -34,3 +34,13 @@ def test_apply_replacements_different_word_count():
 def test_glossary_has_builtin_terms():
     g = _glossary()
     assert "oud" in g and "Creed" in g and "Baccarat Rouge 540" in g
+
+
+def test_removal_ranges_and_drop_words():
+    from clipper_worker.corrections import drop_words_in_ranges, removal_ranges
+    words = words_of("Hoy es invierno pero ga. Hoy estamos en invierno pero hace calor.")
+    sents = [{"i": 0, "s": 0.0, "e": 1.9}, {"i": 1, "s": 2.0, "e": 4.7}]
+    ranges = removal_ranges(sents, [{"start_sentence": 0, "end_sentence": 0, "reason": "falso comienzo"}, {"start_sentence": 7}])
+    assert ranges == [[-0.05, 1.95]]
+    kept = drop_words_in_ranges(words, ranges)
+    assert kept[0]["t"] == "Hoy" and kept[0]["s"] == 2.0 and len(kept) == 7

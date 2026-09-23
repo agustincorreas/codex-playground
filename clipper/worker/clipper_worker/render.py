@@ -92,6 +92,7 @@ def render_clip(
     subtitle_edits: dict | None,
     workdir: Path,
     progress=None,
+    remove_ranges: list | None = None,
 ) -> Path:
     workdir.mkdir(parents=True, exist_ok=True)
     if end - start < 3:
@@ -107,13 +108,15 @@ def render_clip(
     duration = end - start
     rel_words = relative_words(words, start, end)
 
-    # 2. Jump cuts (saltear pausas largas)
+    # 2. Edición: aire muerto en los bordes, falsos comienzos/repeticiones y pausas largas
     hard_cuts: list[float] = []
     cuts_cfg = preset.get("cuts") or {}
-    if cuts_cfg.get("remove_silences") and rel_words and audio:
+    forced = [(max(0.0, a - start), min(duration, b - start)) for a, b in (remove_ranges or []) if b > start and a < end]
+    if rel_words and audio:
+        min_pause = float(cuts_cfg.get("min_pause_s", 0.7)) if cuts_cfg.get("remove_silences", True) else 1e9
         ranges = keep_ranges_from_words(
-            rel_words, duration, float(cuts_cfg.get("min_pause_s", 0.7)), float(cuts_cfg.get("keep_pause_s", 0.25)),
-            envelope=audio_envelope(segment),
+            rel_words, duration, min_pause, float(cuts_cfg.get("keep_pause_s", 0.25)),
+            envelope=audio_envelope(segment), forced_removals=forced, trim_edges=True,
         )
         removed = duration - sum(b - a for a, b in ranges)
         if len(ranges) > 1 and removed > 0.3:

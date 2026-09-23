@@ -6,7 +6,7 @@ from pathlib import Path
 
 from . import db, drive, sources, storage
 from .config import config
-from .corrections import correct_transcript
+from .corrections import correct_transcript, drop_words_in_ranges
 from .errors import UserError
 from .log import get_logger
 from .media import duration_of, extract_audio, make_preview, make_thumbnail
@@ -55,6 +55,10 @@ def process_video(job: dict) -> None:
     db.set_video_status(video_id, "transcribing", "Revisando nombres y términos")
     correction = correct_transcript(words, video.get("topics"))
     transcript["corrections"] = correction.get("replacements", [])
+    transcript["remove_ranges"] = correction.get("remove_ranges", [])   # falsos comienzos, repeticiones
+    transcript["words_raw"] = list(words)
+    words = drop_words_in_ranges(words, transcript["remove_ranges"])
+    transcript["words"] = words
     sentences = build_sentences(words)
     db.update_video(video_id, transcript=transcript, sentences=sentences, language=transcript.get("language"))
 
@@ -120,6 +124,7 @@ def render_clip_job(job: dict) -> None:
         start=float(clip["start_s"]),
         end=float(clip["end_s"]),
         words=video["transcript"]["words"],
+        remove_ranges=video["transcript"].get("remove_ranges") or [],
         preset=preset,
         title=clip.get("title") or None,
         subtitle_edits=clip.get("subtitle_edits") or {},

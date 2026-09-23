@@ -43,11 +43,19 @@ link / Drive / archivo
 descarga individual / zip en el navegador / guardar en Google Drive
 ```
 
-Tres reglas que aplican a todos los estilos:
+Criterio de editor que aplica siempre, en todos los estilos, sin configurar nada:
 
+- **Aire muerto**: el clip arranca un cuarto de segundo antes de la primera palabra y termina
+  medio segundo después de la última. Lo que hay antes o después (caminar, acomodarse,
+  silencio) se va.
+- **Falsos comienzos y repeticiones**: en la revisión de la transcripción, Claude marca los
+  tramos que un editor cortaría (una frase que se traba y se repite, pruebas de audio,
+  muletillas solas) y se quitan del video, con los bordes del corte en el silencio más
+  cercano para que no se note.
 - **Silencios**: se saltean las pausas largas, pero el corte se verifica sobre el audio real
   (nivel de señal) y se deja un margen junto a cada palabra, así nunca se corta una palabra
   aunque los tiempos de la transcripción sean imprecisos. Umbrales por preset.
+- **Subtítulos limpios**: las muletillas sueltas ("eh", "ehm", "este") no se subtitulan.
 - **Transcripción revisada**: antes de elegir momentos, Claude repasa la transcripción con un
   glosario de materias primas, marcas y perfumes (de fábrica más el tuyo, en Configuración)
   y para los nombres dudosos busca en Fragrantica, Parfumo y Wikipedia. Solo corrige lo que

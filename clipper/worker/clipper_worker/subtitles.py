@@ -36,6 +36,14 @@ def _escape(text: str) -> str:
     return text.replace("\\", "\\\\").replace("{", "(").replace("}", ")")
 
 
+FILLER_SOUNDS = {"eh", "ehh", "ehm", "em", "emm", "mm", "mmm", "ah", "ahh", "este", "esteee", "hmm", "uh", "um"}
+
+
+def _is_filler_sound(token: str) -> bool:
+    """Muletillas sueltas que un editor no subtitula (el audio queda igual)."""
+    return re.sub(r"[^\wáéíóúüñ]", "", token.lower()) in FILLER_SOUNDS
+
+
 def cue_key(abs_start_s: float) -> str:
     """Clave estable de un cue para las ediciones del usuario: el instante absoluto
     (en el video original, en ms) de su primera palabra. No cambia si se mueve el
@@ -52,7 +60,7 @@ def build_cues(words: list[dict], clip_start: float, clip_end: float, preset: di
     sub = preset["subtitles"]
     max_chars = int(sub.get("max_chars_per_line", 26)) * int(sub.get("lines", 1))
     words_per_cue = int(sub.get("words_per_cue") or 0)
-    inside = [w for w in words if w["e"] > clip_start and w["s"] < clip_end]
+    inside = [w for w in words if w["e"] > clip_start and w["s"] < clip_end and not _is_filler_sound(w["t"])]
     cues: list[dict] = []
     current: list[dict] = []
 
