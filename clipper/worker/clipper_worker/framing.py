@@ -221,6 +221,7 @@ class Plan:
     height: int
     fps: float
     n_frames: int
+    cuts: list[float] = field(default_factory=list)   # instantes con corte (cambio de hablante o jump cut)
 
     def rects_at(self, t: float) -> list[tuple[int, int, int, int]]:
         """Rectángulos (x, y, w, h) enteros para el instante t, interpolando
@@ -271,16 +272,24 @@ def _split_crop_size(W: int, H: int) -> tuple[float, float]:
     return cw, ch
 
 
-def build_plan(analysis: Analysis, preset: dict, speaker_changes: list[float] | None = None) -> Plan:
+def build_plan(analysis: Analysis, preset: dict, speaker_changes: list[float] | None = None,
+               hard_cuts: list[float] | None = None) -> Plan:
+    """Arma el plan de recorte. `speaker_changes` son pistas de la diarización;
+    `hard_cuts` son saltos ya hechos en el video (jump cuts), donde el encuadre
+    tiene que saltar sin panear y, si el preset lo pide, hacer punch zoom."""
     W, H = analysis.width, analysis.height
     cam = preset.get("camera", {})
     smoothing = float(cam.get("smoothing", 0.85))
     zoom_on_change = bool(cam.get("zoom_on_speaker_change"))
-    zoom_amount = float(cam.get("zoom_amount", 1.0)) if zoom_on_change else 1.0
+    punch = preset.get("transitions") == "punch"
+    zoom_amount = float(cam.get("zoom_amount", 1.0))
+    if zoom_amount <= 1.0 and punch:
+        zoom_amount = 1.12
     two_mode = preset.get("two_speakers", "switch")
     times = analysis.sample_times
     n = len(times)
     speaker_changes = sorted(speaker_changes or [])
+    hard_cuts = sorted(hard_cuts or [])
 
     # Personas "principales": tracks que aparecen en al menos el 20% de las muestras.
     main = sorted(
@@ -308,7 +317,7 @@ def build_plan(analysis: Analysis, preset: dict, speaker_changes: list[float] | 
                 cur[p] = (cx, cy)
                 rects.append((cx, cy, cw, ch))
             keys.append(CropKey(t, rects))
-        return Plan("split", keys, W, H, analysis.fps, analysis.n_frames)
+        return Plan("split", keys, W, H, analysis.fps, analysis.n_frames, cuts=list(hard_cuts))
 
     cw0, ch0 = _single_crop_size(W, H)
     keys = []
@@ -317,7 +326,7 @@ def build_plan(analysis: Analysis, preset: dict, speaker_changes: list[float] | 
             keys.append(CropKey(t, [(default_center[0], default_center[1], cw0, ch0)]))
         if not keys:
             keys.append(CropKey(0.0, [(default_center[0], default_center[1], cw0, ch0)]))
-        return Plan("single", keys, W, H, analysis.fps, analysis.n_frames)
+        return Plan("single", keys, W, H, analysis.fps, analysis.n_frames, cuts=list(hard_cuts))
 
     active = main[0]
     cur_center: tuple[float, float] | None = None
@@ -325,8 +334,18 @@ def build_plan(analysis: Analysis, preset: dict, speaker_changes: list[float] | 
     pending = 0
     last_cut_t = -1e9
     sc_idx = 0
+    hc_idx = 0
     for si, t in enumerate(times):
         cut = False
+        zoom_this_cut = False
+        hard = False
+        while hc_idx < len(hard_cuts) and hard_cuts[hc_idx] <= t:
+            hard = True
+            hc_idx += 1
+        if hard:
+            cut = True
+            cur_center = None
+            zoom_this_cut = punch
         if len(main) == 2:
             other = main[1] if active is main[0] else main[0]
             a_act = sum(active.activity[max(0, si - ACTIVITY_WINDOW + 1): si + 1])
@@ -349,20 +368,21 @@ def build_plan(analysis: Analysis, preset: dict, speaker_changes: list[float] | 
                 pending = 0
                 cut = True
                 cur_center = None
+                zoom_this_cut = zoom_this_cut or zoom_on_change or punch
         target = active.centers.get(si) or _nearest_center(active, si)
         if target is None:
             target = (cur_center[0], cur_center[1], H) if cur_center else (default_center[0], default_center[1], H)
         cx, cy = _smooth(cur_center, (target[0], target[1]), smoothing, dead_zone)
         cur_center = (cx, cy)
-        if cut:
+        if cut and zoom_this_cut:
             last_cut_t = t
         zoom = 1.0
-        if zoom_on_change and zoom_amount > 1.0 and (t - last_cut_t) < ZOOM_EASE_S:
+        if zoom_amount > 1.0 and (t - last_cut_t) < ZOOM_EASE_S:
             f = (t - last_cut_t) / ZOOM_EASE_S
             zoom = zoom_amount - (zoom_amount - 1.0) * (f * f * (3 - 2 * f))
         cw, ch = _single_crop_size(W, H, zoom)
         keys.append(CropKey(t, [(cx, cy, cw, ch)], cut=cut))
-    return Plan("single", keys, W, H, analysis.fps, analysis.n_frames)
+    return Plan("single", keys, W, H, analysis.fps, analysis.n_frames, cuts=[k.t for k in keys if k.cut])
 
 
 def _mean_cx(tr: Track) -> float:

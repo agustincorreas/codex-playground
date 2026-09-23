@@ -60,3 +60,14 @@ def test_dynamic_zoom_after_cut():
     plan = build_plan(an, BUILTIN_PRESETS["dinamico"])
     cut_key = next(k for k in plan.keys if k.cut)
     assert cut_key.rects[0][2] < 405  # recorte más chico = zoom
+
+
+def test_hard_cuts_force_jump_and_punch():
+    n = 50
+    tr = make_track(0, 900.0, 300.0, n, [0.01] * n)
+    an = Analysis(1280, 720, 30.0, 300, [i / SAMPLE_FPS for i in range(n)], [tr])
+    preset = dict(BUILTIN_PRESETS["natural"], transitions="punch")
+    plan = build_plan(an, preset, hard_cuts=[3.0, 6.0])
+    assert [round(c, 1) for c in plan.cuts] == [3.0, 6.0]
+    cut_key = next(k for k in plan.keys if k.cut)
+    assert cut_key.rects[0][2] < 405  # punch zoom en el corte

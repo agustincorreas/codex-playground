@@ -9,7 +9,8 @@ ENV PYTHONUNBUFFERED=1 \
 
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
-      ffmpeg fonts-inter fonts-liberation fontconfig ca-certificates curl libgl1 libglib2.0-0 \
+      ffmpeg fonts-inter fonts-liberation fonts-montserrat fonts-bebas-neue fonts-roboto fonts-open-sans fonts-lato \
+      fontconfig ca-certificates curl libgl1 libglib2.0-0 \
  && rm -rf /var/lib/apt/lists/* \
  && fc-cache -f
 

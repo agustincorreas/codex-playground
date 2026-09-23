@@ -36,6 +36,13 @@ def _escape(text: str) -> str:
     return text.replace("\\", "\\\\").replace("{", "(").replace("}", ")")
 
 
+def cue_key(abs_start_s: float) -> str:
+    """Clave estable de un cue para las ediciones del usuario: el instante absoluto
+    (en el video original, en ms) de su primera palabra. No cambia si se mueve el
+    inicio del clip ni si se recortan silencios."""
+    return str(int(round(float(abs_start_s) * 1000)))
+
+
 def build_cues(words: list[dict], clip_start: float, clip_end: float, preset: dict) -> list[dict]:
     """Agrupa las palabras del rango del clip en cues (bloques de subtítulo).
 
@@ -44,6 +51,7 @@ def build_cues(words: list[dict], clip_start: float, clip_end: float, preset: di
     """
     sub = preset["subtitles"]
     max_chars = int(sub.get("max_chars_per_line", 26)) * int(sub.get("lines", 1))
+    words_per_cue = int(sub.get("words_per_cue") or 0)
     inside = [w for w in words if w["e"] > clip_start and w["s"] < clip_end]
     cues: list[dict] = []
     current: list[dict] = []
@@ -53,6 +61,7 @@ def build_cues(words: list[dict], clip_start: float, clip_end: float, preset: di
             return
         text = " ".join(w["t"] for w in current)
         cues.append({
+            "k": current[0].get("k") or cue_key(current[0]["s"]),
             "s": round(max(0.0, current[0]["s"] - clip_start), 3),
             "e": round(min(clip_end, current[-1]["e"]) - clip_start, 3),
             "text": text,
@@ -68,28 +77,28 @@ def build_cues(words: list[dict], clip_start: float, clip_end: float, preset: di
             prev = current[-1]
             length = sum(len(x["t"]) + 1 for x in current) + len(w["t"])
             speaker_changed = prev.get("spk") is not None and w.get("spk") is not None and prev["spk"] != w["spk"]
-            if length > max_chars or (w["s"] - prev["e"]) > 0.7 or speaker_changed:
+            full = words_per_cue > 0 and len(current) >= words_per_cue
+            if length > max_chars or full or (w["s"] - prev["e"]) > 0.7 or speaker_changed:
                 flush()
         current.append(w)
-        if re.search(r"[.?!…]$", w["t"]) and sum(len(x["t"]) + 1 for x in current) > max_chars * 0.45:
+        if words_per_cue > 0:
+            if re.search(r"[.?!…,;:]$", w["t"]):
+                flush()
+        elif re.search(r"[.?!…]$", w["t"]) and sum(len(x["t"]) + 1 for x in current) > max_chars * 0.45:
             flush()
     flush()
 
     # Los cues se mantienen en pantalla hasta el siguiente (sin huecos cortos),
     # para que no parpadeen.
+    max_gap = 0.5 if words_per_cue > 0 else 1.2
     for i, c in enumerate(cues):
         if i + 1 < len(cues):
             gap = cues[i + 1]["s"] - c["e"]
-            if 0 < gap < 1.2:
+            if 0 < gap < max_gap:
                 c["e"] = cues[i + 1]["s"]
         else:
             c["e"] = min(clip_end - clip_start, c["e"] + 0.4)
     return cues
-
-
-def cue_key(start_s: float) -> str:
-    """Clave estable de un cue para las ediciones del usuario (ms enteros; igual que en la web)."""
-    return str(int(round(float(start_s) * 1000)))
 
 
 def apply_edits(cues: list[dict], edits: dict | None) -> list[dict]:
@@ -98,7 +107,7 @@ def apply_edits(cues: list[dict], edits: dict | None) -> list[dict]:
         return cues
     out = []
     for c in cues:
-        key = cue_key(c["s"])
+        key = c.get("k") or cue_key(c["s"])
         text = edits.get(key)
         if text is not None and text.strip() != "" and text.strip() != c["text"]:
             new_tokens = text.strip().split()
@@ -148,8 +157,18 @@ def wrap_lines(text: str, lines: int, max_chars: int) -> list[str]:
 
 
 def _style_line(name: str, font: str, size: int, color: str, bold: bool, outline: int, shadow: bool,
-                alignment: int, margin_v: int, margin_l: int, margin_r: int) -> str:
+                alignment: int, margin_v: int, margin_l: int, margin_r: int,
+                box: bool = False, box_color: str = "#000000", box_opacity: float = 0.6) -> str:
     primary = _hex_to_ass(color)
+    if box:
+        # BorderStyle 3: caja opaca detrás del texto; Outline hace de padding.
+        alpha = int(round((1.0 - max(0.0, min(1.0, box_opacity))) * 255))
+        outline_color = _hex_to_ass(box_color, alpha)
+        back = _hex_to_ass(box_color, alpha)
+        return (
+            f"Style: {name},{font},{size},{primary},&H000000FF,{outline_color},{back},"
+            f"{-1 if bold else 0},0,0,0,100,100,0,0,3,{max(outline, 14)},0,{alignment},{margin_l},{margin_r},{margin_v},1"
+        )
     outline_color = _hex_to_ass("#000000", 0x30 if shadow and outline == 0 else 0x00)
     back = _hex_to_ass("#000000", 0x60)
     border = max(outline, 2 if shadow else 0)
@@ -174,7 +193,11 @@ def build_ass(cues: list[dict], preset: dict, title: str | None, duration: float
     hl_color = _inline_color(sub.get("highlight_color", "#FFD400"))
     base_color = _inline_color(sub.get("color", "#FFFFFF"))
     uppercase = bool(sub.get("uppercase"))
-    soft = "{\\blur3}" if sub.get("shadow") and int(sub.get("outline", 0)) == 0 else ""
+    sub_box = bool(sub.get("box"))
+    soft = "{\\blur3}" if sub.get("shadow") and int(sub.get("outline", 0)) == 0 and not sub_box else ""
+    pop = "{\\fscx82\\fscy82\\t(0,90,\\fscx100\\fscy100)}" if sub.get("animation") == "pop" else ""
+    # Alineación: 2 = abajo centro, 5 = centro. En el medio, MarginV no aplica.
+    sub_alignment = 5 if sub.get("position") == "middle" else 2
 
     header = [
         "[Script Info]",
@@ -188,9 +211,11 @@ def build_ass(cues: list[dict], preset: dict, title: str | None, duration: float
         "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
         _style_line("Sub", sub.get("font", "Inter"), int(sub.get("size", 62)), sub.get("color", "#FFFFFF"),
                     bool(sub.get("bold")), int(sub.get("outline", 0)), bool(sub.get("shadow", True)),
-                    2, margin_bottom, margin_l, margin_r),
+                    sub_alignment, margin_bottom, margin_l, margin_r,
+                    box=sub_box, box_color=sub.get("box_color", "#000000"), box_opacity=float(sub.get("box_opacity", 0.6))),
         _style_line("Title", ttl.get("font", "Inter"), int(ttl.get("size", 66)), ttl.get("color", "#FFFFFF"),
-                    bool(ttl.get("bold", True)), 2, True, 8, margin_top, margin_l, margin_r),
+                    bool(ttl.get("bold", True)), 2, True, 8, margin_top, margin_l, margin_r,
+                    box=bool(ttl.get("box")), box_color=ttl.get("box_color", "#000000"), box_opacity=float(ttl.get("box_opacity", 0.7))),
         "",
         "[Events]",
         "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
@@ -208,7 +233,7 @@ def build_ass(cues: list[dict], preset: dict, title: str | None, duration: float
         if not highlight:
             wrapped = wrap_lines(text, lines, max_chars)
             body = "\\N".join(_escape(x) for x in wrapped)
-            events.append(f"Dialogue: 0,{_fmt_time(cue['s'])},{_fmt_time(cue['e'])},Sub,,0,0,0,,{soft}{body}")
+            events.append(f"Dialogue: 0,{_fmt_time(cue['s'])},{_fmt_time(cue['e'])},Sub,,0,0,0,,{pop}{soft}{body}")
             continue
         words = cue.get("words") or []
         if not words:
@@ -238,7 +263,8 @@ def build_ass(cues: list[dict], preset: dict, title: str | None, duration: float
                     parts.append(f"{{\\c{hl_color}}}{_escape(tok)}{{\\c{base_color}}}")
                 else:
                     parts.append(_escape(tok))
-            events.append(f"Dialogue: 0,{_fmt_time(start)},{_fmt_time(end)},Sub,,0,0,0,,{soft}{''.join(parts)}")
+            anim = pop if k == 0 else ""
+            events.append(f"Dialogue: 0,{_fmt_time(start)},{_fmt_time(end)},Sub,,0,0,0,,{anim}{soft}{''.join(parts)}")
 
     return "\n".join(header + events) + "\n"
 

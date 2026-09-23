@@ -17,6 +17,7 @@ export async function GET() {
 interface CreateBody {
   source_type?: "youtube" | "drive" | "upload";
   url?: string;
+  urls?: string[];          // varios links (YouTube o Drive mezclados), uno por video
   drive_file_id?: string;
   drive_file_name?: string;
   upload_path?: string;
@@ -34,8 +35,28 @@ export async function POST(req: Request) {
   const preset_id = (body.preset_id || "natural").slice(0, 60);
   const topics = (body.topics || "").trim().slice(0, 1000) || null;
 
-  const row: Record<string, unknown> = { topics, min_duration_s: minD, max_duration_s: maxD, preset_id, status: "queued" };
+  const base: Record<string, unknown> = { topics, min_duration_s: minD, max_duration_s: maxD, preset_id, status: "queued" };
 
+  // Lote: varios links, uno por línea.
+  if (Array.isArray(body.urls) && body.urls.length > 0) {
+    const urls = body.urls.map((u) => String(u || "").trim()).filter(Boolean);
+    if (urls.length === 0) return fail("No hay links válidos.");
+    if (urls.length > 30) return fail("Máximo 30 links por vez.");
+    const rows: Record<string, unknown>[] = [];
+    const invalid: string[] = [];
+    for (const u of urls) {
+      if (isYoutubeUrl(u)) rows.push({ ...base, source_type: "youtube", source_url: u, title: u });
+      else if (isDriveUrl(u) && parseDriveId(u)) rows.push({ ...base, source_type: "drive", source_url: u, source_file_id: parseDriveId(u), title: `Drive ${parseDriveId(u)}` });
+      else invalid.push(u);
+    }
+    if (invalid.length) return fail(`Estos links no son de YouTube ni de Drive: ${invalid.slice(0, 3).join(", ")}${invalid.length > 3 ? "…" : ""}`);
+    const { data, error } = await supabase().from("videos").insert(rows).select("id");
+    if (error || !data) return fail(error?.message || "No se pudieron crear los videos", 500);
+    for (const v of data) await enqueueJob("process_video", { video_id: v.id });
+    return json({ ids: data.map((v) => v.id), id: data[0].id, count: data.length });
+  }
+
+  const row: Record<string, unknown> = { ...base };
   const url = (body.url || "").trim();
   let source_type = body.source_type;
   if (!source_type) {

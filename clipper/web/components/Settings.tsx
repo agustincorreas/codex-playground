@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import PresetEditor from "./PresetEditor";
-import type { Preset } from "@/lib/types";
+import MusicLibrary from "./MusicLibrary";
+import type { MusicTrack, Preset } from "@/lib/types";
 
 interface SettingsData {
   google_connected: boolean;
@@ -19,6 +20,7 @@ export default function Settings() {
   const [folder, setFolder] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
   const [presets, setPresets] = useState<Preset[]>([]);
+  const [tracks, setTracks] = useState<MusicTrack[]>([]);
 
   async function load() {
     const res = await fetch("/api/settings", { cache: "no-store" });
@@ -27,6 +29,8 @@ export default function Settings() {
     setFolder(d.drive_folder_id || "");
     const p = await fetch("/api/presets").then((r) => r.json());
     setPresets(p.presets || []);
+    const m = await fetch("/api/music").then((r) => r.json()).catch(() => ({ tracks: [] }));
+    setTracks(m.tracks || []);
   }
 
   useEffect(() => {
@@ -109,9 +113,12 @@ export default function Settings() {
         </p>
       </section>
 
+      <MusicLibrary tracks={tracks} onChanged={load} />
+
       <section className="space-y-3">
         <h2 className="font-medium">Estilos (presets)</h2>
-        <PresetEditor presets={presets} onChanged={load} />
+        <p className="muted text-sm">De más sobrio a más cargado: Natural minimalista, Editorial, Podcast a dos, Intermedio, Dinámico y Viral. Cada uno se puede editar o clonar.</p>
+        <PresetEditor presets={presets} tracks={tracks} onChanged={load} />
       </section>
     </div>
   );

@@ -23,6 +23,30 @@ export default function SourceForm() {
   const [error, setError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const linksFileRef = useRef<HTMLInputElement>(null);
+
+  // Al elegir un estilo, se toma su duración objetivo (editable después).
+  function choosePreset(id: string) {
+    setPresetId(id);
+    const p = presets.find((x) => x.id === id);
+    if (p?.config?.target_duration) {
+      setMinD(p.config.target_duration.min);
+      setMaxD(p.config.target_duration.max);
+    }
+  }
+
+  function linksFromText(text: string): string[] {
+    return text.split(/[\n\r,;\s]+/).map((x) => x.trim()).filter((x) => /^https?:\/\//i.test(x));
+  }
+
+  async function importLinksFile(f: File | undefined) {
+    if (!f) return;
+    const text = await f.text();
+    const links = linksFromText(text);
+    if (links.length === 0) return setError("El archivo no tiene links (esperaba uno por línea).");
+    setUrl((prev) => (prev.trim() ? prev.trim() + "\n" : "") + links.join("\n"));
+    setError(null);
+  }
 
   useEffect(() => {
     fetch("/api/presets").then((r) => r.json()).then((d) => setPresets(d.presets || [])).catch(() => {});
@@ -54,9 +78,14 @@ export default function SourceForm() {
     try {
       const body: Record<string, unknown> = { topics, min_duration_s: minD, max_duration_s: maxD, preset_id: presetId };
       if (mode === "link") {
-        if (!url.trim()) throw new Error("Pegá un link.");
-        body.url = url.trim();
-        body.source_type = /drive\.google\.com/.test(url) ? "drive" : "youtube";
+        const links = linksFromText(url);
+        if (links.length === 0) throw new Error("Pegá al menos un link de YouTube o de Drive.");
+        if (links.length === 1) {
+          body.url = links[0];
+          body.source_type = /drive\.google\.com/.test(links[0]) ? "drive" : "youtube";
+        } else {
+          body.urls = links;
+        }
       } else if (mode === "drive") {
         if (driveFile) {
           body.source_type = "drive";
@@ -79,7 +108,8 @@ export default function SourceForm() {
       const res = await fetch("/api/videos", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "No se pudo crear");
-      router.push(`/v/${data.id}`);
+      if (data.count && data.count > 1) router.push("/#historial");
+      else router.push(`/v/${data.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -104,8 +134,13 @@ export default function SourceForm() {
 
       {mode === "link" && (
         <div>
-          <label className="label">Link de YouTube (público o no listado)</label>
-          <input placeholder="https://www.youtube.com/watch?v=..." value={url} onChange={(e) => setUrl(e.target.value)} />
+          <label className="label">Links de YouTube (públicos o no listados) o de Google Drive, uno por línea</label>
+          <textarea rows={url.includes("\n") ? 4 : 2} placeholder={"https://www.youtube.com/watch?v=...\nhttps://drive.google.com/file/d/..."} value={url} onChange={(e) => setUrl(e.target.value)} />
+          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
+            <button type="button" className="btn btn-sm" onClick={() => linksFileRef.current?.click()}>Importar lista de links (.txt / .csv)</button>
+            <input ref={linksFileRef} type="file" accept=".txt,.csv,text/plain" className="hidden" onChange={(e) => importLinksFile(e.target.files?.[0])} />
+            {linksFromText(url).length > 1 && <span className="muted">{linksFromText(url).length} videos: se procesan uno detrás del otro, todos con estos mismos ajustes.</span>}
+          </div>
         </div>
       )}
 
@@ -134,6 +169,10 @@ export default function SourceForm() {
         </div>
       )}
 
+      {presets.find((p) => p.id === presetId)?.config?.description && (
+        <p className="muted text-xs">{presets.find((p) => p.id === presetId)?.config?.description}</p>
+      )}
+
       <div>
         <label className="label">Temas a buscar (opcional)</label>
         <input placeholder="ej. honestidad de los reseñadores, marcas nicho compradas por corporaciones" value={topics} onChange={(e) => setTopics(e.target.value)} />
@@ -150,7 +189,7 @@ export default function SourceForm() {
         </div>
         <div>
           <label className="label">Estilo</label>
-          <select value={presetId} onChange={(e) => setPresetId(e.target.value)}>
+          <select value={presetId} onChange={(e) => choosePreset(e.target.value)}>
             {presets.length === 0 && <option value="natural">Natural minimalista</option>}
             {presets.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>

@@ -28,7 +28,8 @@ def test_build_cues_respects_max_chars_and_relative_times():
 def test_apply_edits_keeps_timing_when_word_count_matches():
     words = words_from_text("uno dos tres cuatro")
     cues = build_cues(words, 10.0, 12.0, BUILTIN_PRESETS["natural"])
-    key = str(int(round(cues[0]["s"] * 1000)))
+    key = cues[0]["k"]
+    assert key == "10000"  # primera palabra en el segundo 10 del video original
     edited = apply_edits(cues, {key: "Uno, dos, tres, cuatro"})
     assert edited[0]["text"] == "Uno, dos, tres, cuatro"
     assert [w["s"] for w in edited[0]["words"]] == [w["s"] for w in cues[0]["words"]]
@@ -70,3 +71,23 @@ def test_normalize_partial_preset():
     assert cfg["subtitles"]["size"] == 80
     assert cfg["subtitles"]["font"] == "Inter"
     assert cfg["safe_area"]["bottom"] == 420
+
+
+def test_words_per_cue_box_pop_and_middle():
+    from clipper_worker.presets import load_preset
+    words = words_from_text("Los reseñadores de perfumes no son honestos, y eso lo sabemos todos.")
+    viral = load_preset("viral")
+    cues = build_cues(words, 10.0, 20.0, viral)
+    assert all(len(c["words"]) <= 3 for c in cues)
+    ass = build_ass(cues, viral, "Hook", 10.0)
+    assert ",5,60,130,420,1" in ass          # subtítulos alineados al centro (5)
+    assert "\\fscx82" in ass                 # animación pop
+    assert "Style: Title,Montserrat,62" in ass and ",3,14,0,8," in ass  # título con caja (BorderStyle 3)
+    assert "LOS" in ass                       # mayúsculas
+
+
+def test_apply_edits_uses_stable_key():
+    words = words_from_text("uno dos tres cuatro")
+    cues = build_cues(words, 10.0, 12.0, BUILTIN_PRESETS["natural"])
+    edited = apply_edits(cues, {"10000": "UNO dos tres cuatro"})
+    assert edited[0]["text"] == "UNO dos tres cuatro"

@@ -24,6 +24,7 @@ export interface Video {
 }
 
 export interface SubtitleCue {
+  k?: string;   // clave estable (ms absolutos de la primera palabra)
   s: number;
   e: number;
   text: string;
@@ -73,6 +74,7 @@ export interface Preset {
 export interface PresetConfig {
   name: string;
   description?: string;
+  target_duration: { min: number; max: number };
   subtitles: {
     font: string;
     bold: boolean;
@@ -82,10 +84,15 @@ export interface PresetConfig {
     outline: number;
     lines: number;
     max_chars_per_line: number;
-    position: "bottom";
+    words_per_cue: number;          // 0 = por largo de línea; 1-3 = palabra por palabra
+    position: "bottom" | "middle";
     highlight: boolean;
     highlight_color: string;
     uppercase: boolean;
+    box: boolean;
+    box_color: string;
+    box_opacity: number;
+    animation: "none" | "pop";
   };
   title: {
     show: boolean;
@@ -96,6 +103,9 @@ export interface PresetConfig {
     size: number;
     color: string;
     lines: number;
+    box: boolean;
+    box_color: string;
+    box_opacity: number;
   };
   camera: {
     zoom_on_speaker_change: boolean;
@@ -103,9 +113,17 @@ export interface PresetConfig {
     smoothing: number;
   };
   two_speakers: "switch" | "split";
+  cuts: { remove_silences: boolean; min_pause_s: number; keep_pause_s: number };
+  transitions: "none" | "punch" | "flash";
+  music: { enabled: boolean; track: string; volume_db: number; duck: boolean; fade_out_s: number };
+  progress_bar: { enabled: boolean; color: string; height: number };
   safe_area: { top: number; bottom: number; left: number; right: number };
-  transitions: "none";
-  progress_bar: boolean;
+}
+
+export interface MusicTrack {
+  name: string;
+  path: string;
+  size: number | null;
 }
 
 export const VIDEO_STATUS_LABEL: Record<VideoStatus, string> = {

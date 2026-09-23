@@ -1,36 +1,41 @@
-"""Render de un clip: recorte, reencuadre, subtítulos quemados, loudness y tamaño máximo."""
+"""Render de un clip: recorte, jump cuts, reencuadre, subtítulos quemados,
+música de fondo, barra de progreso, loudness y tamaño máximo."""
 from __future__ import annotations
 
+import random
 import subprocess
 from pathlib import Path
 
 import cv2
 import numpy as np
 
-from . import framing
+from . import framing, storage
 from .config import config
 from .errors import UserError
 from .log import get_logger
-from .media import cut_segment, fps_of, has_audio, loudnorm_filter, measure_loudness, probe
-from .subtitles import apply_edits, build_ass, build_cues, write_ass
+from .media import (
+    cut_points, cut_ranges, cut_segment, extract_audio, fps_of, has_audio, keep_ranges_from_words,
+    loudnorm_filter, measure_loudness, mix_music, probe, remap_time,
+)
+from .subtitles import apply_edits, build_ass, build_cues, cue_key, write_ass
 
 log = get_logger(__name__)
 
 OUT_W, OUT_H = config.OUTPUT_W, config.OUTPUT_H
 AUDIO_BPS = 128_000
+FLASH_S = 0.12
 
 
-def speaker_change_times(words: list[dict], start: float, end: float) -> list[float]:
+def speaker_change_times(words: list[dict]) -> list[float]:
+    """Instantes (tiempos de las palabras dadas) en que cambia el hablante."""
     out: list[float] = []
     prev = None
     for w in words:
-        if w["e"] <= start or w["s"] >= end:
-            continue
         spk = w.get("spk")
         if spk is None:
             continue
         if prev is not None and spk != prev:
-            out.append(max(0.0, w["s"] - start))
+            out.append(max(0.0, w["s"]))
         prev = spk
     return out
 
@@ -40,6 +45,40 @@ def video_bitrate_budget(duration_s: float) -> int:
     total_bps = (cap_bytes * 8 * 0.92) / max(1.0, duration_s)
     video = int(total_bps - AUDIO_BPS)
     return max(1_200_000, min(10_000_000, video))
+
+
+def relative_words(words: list[dict], start: float, end: float) -> list[dict]:
+    """Palabras del rango con tiempos relativos al clip y clave estable `k`."""
+    out = []
+    for w in words:
+        if w["e"] <= start or w["s"] >= end:
+            continue
+        out.append({
+            "t": w["t"], "spk": w.get("spk"), "k": cue_key(w["s"]),
+            "s": max(0.0, w["s"] - start), "e": min(end, w["e"]) - start,
+        })
+    return out
+
+
+def pick_music(preset: dict, workdir: Path) -> Path | None:
+    music = preset.get("music") or {}
+    if not music.get("enabled"):
+        return None
+    track = music.get("track") or "random"
+    try:
+        files = storage.list_files("music")
+    except Exception as e:  # noqa: BLE001
+        log.warning("no se pudo listar la música: %s", e)
+        return None
+    names = [f["name"] for f in files if f["name"].lower().endswith((".mp3", ".m4a", ".wav", ".aac", ".ogg", ".flac"))]
+    if not names:
+        log.warning("música activada pero la biblioteca (music/) está vacía; se renderiza sin música")
+        return None
+    chosen = track.split("/", 1)[1] if track.startswith("music/") else track
+    if chosen not in names:
+        chosen = random.choice(names)
+    local = storage.download_file(f"music/{chosen}", workdir / "music" / chosen)
+    return local
 
 
 def render_clip(
@@ -60,29 +99,67 @@ def render_clip(
     info = probe(source)
     fps = fps_of(info)
 
+    # 1. Corte exacto del rango
     if progress:
         progress("Cortando el segmento")
     segment = cut_segment(source, workdir / "segment.mp4", start, end, fps=fps)
-    seg_info = probe(segment)
-    audio = has_audio(seg_info)
+    audio = has_audio(probe(segment))
     duration = end - start
+    rel_words = relative_words(words, start, end)
 
+    # 2. Jump cuts (saltear pausas largas)
+    hard_cuts: list[float] = []
+    cuts_cfg = preset.get("cuts") or {}
+    if cuts_cfg.get("remove_silences") and rel_words:
+        ranges = keep_ranges_from_words(
+            rel_words, duration, float(cuts_cfg.get("min_pause_s", 0.7)), float(cuts_cfg.get("keep_pause_s", 0.25))
+        )
+        removed = duration - sum(b - a for a, b in ranges)
+        if len(ranges) > 1 and removed > 0.3:
+            if progress:
+                progress(f"Recortando {len(ranges) - 1} pausas ({removed:.1f} s)")
+            segment = cut_ranges(segment, workdir / "segment_cut.mp4", ranges, fps=fps, audio=audio)
+            for w in rel_words:
+                w["s"] = remap_time(w["s"], ranges)
+                w["e"] = max(w["s"] + 0.05, remap_time(w["e"], ranges))
+            hard_cuts = cut_points(ranges)
+            duration = sum(b - a for a, b in ranges)
+
+    # 3. Subtítulos
     if progress:
         progress("Preparando subtítulos")
-    cues = apply_edits(build_cues(words, start, end, preset), subtitle_edits)
+    cues = apply_edits(build_cues(rel_words, 0.0, duration, preset), subtitle_edits)
     ass_path = write_ass(workdir / "subs.ass", build_ass(cues, preset, title, duration))
 
+    # 4. Encuadre
     if progress:
         progress("Detectando rostros")
     analysis = framing.analyze(segment)
-    plan = framing.build_plan(analysis, preset, speaker_change_times(words, start, end))
-    log.info("encuadre: modo=%s tracks=%d muestras=%d", plan.mode, len(analysis.tracks), len(plan.keys))
+    plan = framing.build_plan(analysis, preset, speaker_change_times(rel_words), hard_cuts)
+    log.info("encuadre: modo=%s tracks=%d muestras=%d cortes=%d", plan.mode, len(analysis.tracks), len(plan.keys), len(plan.cuts))
 
-    measured = measure_loudness(segment) if audio else None
+    # 5. Audio: música de fondo (opcional) y medición de loudness
+    audio_path: Path | None = None
+    if audio:
+        audio_path = extract_audio(segment, workdir / "voice.wav", mono16k=False)
+        music = pick_music(preset, workdir)
+        if music is not None:
+            if progress:
+                progress("Mezclando música")
+            m = preset["music"]
+            audio_path = mix_music(
+                audio_path, music, workdir / "mix.wav", duration=duration,
+                volume_db=float(m.get("volume_db", -20)), duck=bool(m.get("duck", True)),
+                fade_out_s=float(m.get("fade_out_s", 2)),
+            )
+    measured = measure_loudness(audio_path) if audio_path else None
+
+    # 6. Codificación
     out = workdir / "clip.mp4"
     if progress:
         progress("Codificando")
-    _encode(segment, plan, ass_path, out, fps=plan.fps, audio=audio, loudnorm=loudnorm_filter(measured), duration=duration, progress=progress)
+    _encode(segment, plan, ass_path, out, fps=plan.fps, audio_path=audio_path,
+            loudnorm=loudnorm_filter(measured), duration=duration, preset=preset, progress=progress)
 
     cap_bytes = config.MAX_OUTPUT_MB * 1000 * 1000
     if out.stat().st_size > cap_bytes:
@@ -92,8 +169,8 @@ def render_clip(
     return out
 
 
-def _encode(segment: Path, plan: framing.Plan, ass_path: Path, out: Path, *, fps: float, audio: bool,
-            loudnorm: str, duration: float, progress=None) -> None:
+def _encode(segment: Path, plan: framing.Plan, ass_path: Path, out: Path, *, fps: float, audio_path: Path | None,
+            loudnorm: str, duration: float, preset: dict, progress=None) -> None:
     vbps = video_bitrate_budget(duration)
     ass_arg = str(ass_path).replace("\\", "/").replace(":", "\\:")
     filters = [f"[0:v]ass={ass_arg}[v]"]
@@ -101,11 +178,11 @@ def _encode(segment: Path, plan: framing.Plan, ass_path: Path, out: Path, *, fps
         "ffmpeg", "-y", "-v", "error", "-nostats",
         "-f", "rawvideo", "-pix_fmt", "bgr24", "-s", f"{OUT_W}x{OUT_H}", "-framerate", f"{fps:.3f}", "-i", "pipe:0",
     ]
-    if audio:
-        cmd += ["-i", str(segment)]
+    if audio_path:
+        cmd += ["-i", str(audio_path)]
         filters.append(f"[1:a]{loudnorm},aresample=48000[a]")
     cmd += ["-filter_complex", ";".join(filters), "-map", "[v]"]
-    if audio:
+    if audio_path:
         cmd += ["-map", "[a]", "-c:a", "aac", "-b:a", "128k", "-ar", "48000"]
     cmd += [
         "-c:v", "libx264", "-preset", config.X264_PRESET, "-crf", "20",
@@ -117,6 +194,14 @@ def _encode(segment: Path, plan: framing.Plan, ass_path: Path, out: Path, *, fps
         cmd += ["-threads", str(config.FFMPEG_THREADS)]
     cmd += [str(out)]
 
+    pb = preset.get("progress_bar") or {}
+    pb_enabled = bool(pb.get("enabled")) if isinstance(pb, dict) else bool(pb)
+    pb_color = _bgr(pb.get("color", "#FFFFFF")) if isinstance(pb, dict) else (255, 255, 255)
+    pb_h = int(pb.get("height", 10)) if isinstance(pb, dict) else 10
+    flash = preset.get("transitions") == "flash"
+    cuts = sorted(plan.cuts)
+    white = np.full((OUT_H, OUT_W, 3), 255, dtype=np.uint8)
+
     proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
     cap = cv2.VideoCapture(str(segment))
     if not cap.isOpened():
@@ -125,6 +210,7 @@ def _encode(segment: Path, plan: framing.Plan, ass_path: Path, out: Path, *, fps
     total = plan.n_frames or int(duration * fps)
     idx = 0
     last_pct = -1
+    cut_i = 0
     try:
         while True:
             ok, frame = cap.read()
@@ -132,6 +218,15 @@ def _encode(segment: Path, plan: framing.Plan, ass_path: Path, out: Path, *, fps
                 break
             t = idx / fps
             canvas = _compose(frame, plan.rects_at(t), plan.mode)
+            if flash and cuts:
+                while cut_i + 1 < len(cuts) and cuts[cut_i + 1] <= t:
+                    cut_i += 1
+                dt = t - cuts[cut_i]
+                if 0 <= dt < FLASH_S:
+                    a = 0.75 * (1.0 - dt / FLASH_S)
+                    canvas = cv2.addWeighted(canvas, 1.0 - a, white, a, 0)
+            if pb_enabled and total:
+                _draw_progress(canvas, idx / max(1, total - 1), pb_color, pb_h)
             proc.stdin.write(canvas.tobytes())
             idx += 1
             if progress and total:
@@ -153,6 +248,23 @@ def _encode(segment: Path, plan: framing.Plan, ass_path: Path, out: Path, *, fps
         raise RuntimeError("ffmpeg falló al codificar:\n" + (err or b"").decode(errors="replace")[-2000:])
     if idx == 0:
         raise RuntimeError("No se leyó ningún cuadro del segmento")
+
+
+def _bgr(hex_color: str) -> tuple[int, int, int]:
+    c = (hex_color or "#FFFFFF").lstrip("#")
+    if len(c) != 6:
+        c = "FFFFFF"
+    return int(c[4:6], 16), int(c[2:4], 16), int(c[0:2], 16)
+
+
+def _draw_progress(canvas: np.ndarray, frac: float, color: tuple[int, int, int], height: int) -> None:
+    h = max(2, min(40, height))
+    y0 = OUT_H - h
+    track = canvas[y0:OUT_H, :, :]
+    track[:] = (track * 0.55).astype(np.uint8)
+    x1 = int(round(max(0.0, min(1.0, frac)) * OUT_W))
+    if x1 > 0:
+        canvas[y0:OUT_H, :x1, :] = color
 
 
 def _compose(frame: np.ndarray, rects: list[tuple[int, int, int, int]], mode: str) -> np.ndarray:

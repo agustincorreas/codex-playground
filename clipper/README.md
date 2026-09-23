@@ -32,9 +32,11 @@ link / Drive / archivo
                        ► vista previa liviana + miniatura por candidato → Storage
    │
    ▼  (en la UI: revisás, ajustás ±1 s, editás título y subtítulos)
-[jobs] render_clip ────► corte exacto → detección de rostros (YuNet) → hablante activo
-                         por movimiento de boca + diarización → recorte 9:16 suavizado
-                         (o dividido arriba/abajo) → subtítulos ASS → loudnorm 2 pasadas
+[jobs] render_clip ────► corte exacto → jump cuts (saltear pausas, según preset)
+                         → detección de rostros (YuNet) → hablante activo por movimiento
+                         de boca + diarización → recorte 9:16 suavizado (o dividido)
+                         → subtítulos ASS → música de fondo con ducking (según preset)
+                         → loudnorm 2 pasadas → barra de progreso / punch zoom / destello
                          → H.264 con tope de bitrate para no superar 60 MB → Storage
    │
    ▼
@@ -49,18 +51,66 @@ Reintentar.
 
 ## Estilos
 
-Tres presets de fábrica, editables y clonables desde **Configuración → Estilos**:
+Seis presets de fábrica, de más sobrio a más cargado. Todos se editan y se clonan desde
+**Configuración → Estilos**; al elegir un estilo en el formulario se toma su duración
+objetivo (y se puede cambiar a mano).
 
-| Preset | Subtítulos | Título | Cámara |
-|---|---|---|---|
-| **Natural minimalista** (predeterminado) | 1 línea, Inter, blanco con sombra suave, abajo al centro. Sin resaltados. | No | Sin zooms, cortes limpios |
-| **Editorial** | 2 líneas, serif | 2 líneas arriba, primeros 3 s | Sin zooms |
-| **Dinámico** | Palabra activa resaltada, 2 líneas, negrita | Permanente | Leve zoom en cambios de hablante |
+| Preset | Duración | Subtítulos | Título | Ritmo | Extras |
+|---|---|---|---|---|---|
+| **Natural minimalista** (predeterminado) | 60-120 s | 1 línea, Inter, blanco con sombra suave, abajo | No | Cortes limpios, sin zoom | Sin música |
+| **Editorial** | 60-120 s | 2 líneas, serif | 2 líneas arriba, primeros 3 s | Sin zoom | Sin música |
+| **Podcast a dos** | 60-120 s | 2 líneas | Primeros 3 s | Pantalla dividida arriba/abajo con dos personas | Sin música |
+| **Intermedio** | 45-90 s | Más grandes, negrita con contorno, 2 líneas | Con caja, primeros 3 s | Saltea pausas > 1 s | Sin música |
+| **Dinámico** | 45-90 s | Palabra activa resaltada, 2 líneas | Permanente | Saltea pausas > 0.8 s, punch zoom en cortes y cambios de hablante | Sin música |
+| **Viral (cargado)** | 30-60 s | 1-3 palabras por vez, mayúsculas, Montserrat grande al centro, resaltado amarillo, animación pop | Hook con caja, 4 s | Saltea pausas > 0.45 s, punch zoom en cada corte | Música de fondo baja con ducking, barra de progreso |
 
-Cada preset controla tipografía, tamaño, color, posición y líneas de subtítulos;
-mostrar/ocultar título; efectos de cámara; tratamiento de dos hablantes (cambiar según quién
-habla o dividido arriba/abajo) y márgenes seguros para que nada quede tapado por la interfaz
-de Instagram/TikTok. Se guardan como JSON en la tabla `presets`.
+Cada preset controla:
+
+- **Subtítulos**: tipografía, tamaño, color, posición (abajo o centro), líneas, caracteres por
+  línea, modo frase o 1-3 palabras por vez, negrita, mayúsculas, sombra, contorno, caja de
+  fondo, palabra activa resaltada y animación pop.
+- **Título**: mostrar u ocultar, permanente o los primeros N segundos, tipografía, tamaño, color,
+  líneas y caja de fondo.
+- **Ritmo y transiciones**: saltear pausas largas (jump cuts) con umbral configurable, transición
+  en cada corte (ninguna, punch zoom o destello), zoom al cambiar de hablante, suavizado del
+  seguimiento, tratamiento de dos personas (cambiar según quién habla o dividido).
+- **Música**: pista al azar de tu biblioteca o una fija, volumen, ducking (baja cuando hay voz) y
+  fade out. Las pistas se suben en **Configuración → Música de fondo** (usá música libre de
+  derechos; la app no trae ninguna).
+- **Barra de progreso** y **márgenes seguros** para que nada quede tapado por la interfaz de
+  Instagram y TikTok.
+
+### En qué se basan los presets "cargados"
+
+Lo que se repite en las guías de formato corto para 2026 y en los análisis del estilo de
+captions "Hormozi" (fuentes al final):
+
+- **Hook en el primer segundo** y texto en pantalla que refuerce el hook, no un título
+  genérico → título con caja arriba durante los primeros segundos.
+- **Subtítulos obligatorios** (la mayoría mira sin sonido): grandes, en negrita, 1-3 palabras
+  por vez sincronizadas con la voz, palabra activa resaltada en amarillo, tipografía tipo
+  Montserrat en mayúsculas con contorno negro, ubicadas en el medio-bajo del cuadro.
+- **Ritmo**: quitar pausas y muletillas (jump cuts), un cambio visual cada pocos segundos
+  (punch zoom en cortes y cambios de hablante).
+- **Sonido**: música de fondo que aporte energía sin tapar la voz.
+- **Retención**: barra de progreso y clips cortos (30-60 s) para completar el video.
+
+Fuentes: [Storytella – Complete Guide to Short-Form Video (2026)](https://storytellastudios.com/2026/01/12/the-complete-guide-to-short-form-video/),
+[FlowShorts – How to Edit Short-Form Video (2026)](https://flowshorts.app/blog/how-to-edit-short-form-video),
+[ShortSync – How to Make Viral Videos in 2026](https://www.shortsync.app/resources/how-to-make-viral-videos-2026),
+[Jetfuel – How to Optimize Short-Form Video in 2026](https://jetfuel.agency/how-to-optimize-short-form-video-content-for-success/),
+[Miraflow – How to Go Viral in 2026](https://miraflow.ai/blog/how-to-go-viral-2026-what-actually-works-across-platforms),
+[Ascynd – Hormozi Captions: font, color and specs](https://ascynd.io/en/blog/hormozi-captions),
+[Riverside – How to Make Hormozi Style Videos](https://riverside.com/blog/hormozi-style-videos),
+[Joyspace – Hormozi editing style in 2026](https://joyspace.ai/hormozi-editing-style-2026-analysis).
+
+## Entradas
+
+- **Links de YouTube o de Google Drive**, uno o varios (uno por línea) o importados desde un
+  archivo `.txt`/`.csv` con un link por línea. Cada link se procesa como un video con los mismos
+  ajustes (temas, duración y estilo).
+- **Selector de Google Drive** (Google Picker) con tu cuenta conectada.
+- **Subida directa** de un archivo mp4, mov, m4a o mp3 (arrastrar y soltar).
 
 ---
 
@@ -235,3 +285,10 @@ Ver `worker/.env.example` y `web/.env.example`. Las importantes:
   60 MB; si igual se pasa, se re-codifica a bitrate fijo.
 - **Vista previa**: por candidato se genera un proxy 360p de (inicio − 20 s, fin + 20 s), así el
   original no tiene que subir a Storage y el ajuste fino tiene margen a ambos lados.
+- **Jump cuts**: se detectan las pausas entre palabras de la transcripción más largas que el
+  umbral del preset y se quitan con `select`/`aselect` de ffmpeg dejando un poco de aire; los
+  tiempos de las palabras se remapean para que los subtítulos sigan sincronizados, y cada
+  salto es un corte limpio del encuadre (con punch zoom o destello si el preset lo pide).
+- **Música**: la pista se pone en loop, se baja al volumen del preset, se comprime con
+  sidechain usando la voz (ducking), se le hace fade out y recién después se normaliza a
+  −14 LUFS junto con la voz.

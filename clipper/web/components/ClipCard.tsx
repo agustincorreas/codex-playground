@@ -12,8 +12,8 @@ interface Props {
   onChanged: () => void;
 }
 
-function cueKey(s: number) {
-  return String(Math.round(s * 1000));
+function cueKey(c: { k?: string; s: number }, origStart: number) {
+  return c.k || String(Math.round((origStart + c.s) * 1000));
 }
 
 function fmt(t: number) {
@@ -134,7 +134,7 @@ export default function ClipCard({ clip, presets, videoDuration, googleConnected
           ) : (
             <div className="muted flex aspect-video items-center justify-center rounded-lg text-xs" style={{ background: "var(--border)" }}>Generando vista previa…</div>
           )}
-          {activeCue && <p className="muted mt-1 truncate text-center text-xs">{edits[cueKey(activeCue.s)] ?? activeCue.text}</p>}
+          {activeCue && <p className="muted mt-1 truncate text-center text-xs">{edits[cueKey(activeCue, clip.orig_start_s)] ?? activeCue.text}</p>}
           <div className="mt-2 flex items-center justify-between text-xs">
             <button type="button" className="btn btn-sm" onClick={() => playFrom(start)}>▶ Desde el inicio</button>
             <span className="muted">{fmt(current)}</span>
@@ -186,7 +186,7 @@ export default function ClipCard({ clip, presets, videoDuration, googleConnected
             {showSubs && (
               <div className="mt-2 max-h-72 space-y-1 overflow-y-auto pr-1">
                 {cues.map((c) => {
-                  const key = cueKey(c.s);
+                  const key = cueKey(c, clip.orig_start_s);
                   return (
                     <div key={key} className="flex items-center gap-2">
                       <button type="button" className="muted w-12 shrink-0 text-left text-xs hover:underline" onClick={() => seekTo(clip.orig_start_s + c.s)}>{fmt(clip.orig_start_s + c.s)}</button>
@@ -200,7 +200,7 @@ export default function ClipCard({ clip, presets, videoDuration, googleConnected
                   );
                 })}
                 {cues.length === 0 && <p className="muted text-xs">Sin subtítulos generados.</p>}
-                {(start !== clip.orig_start_s || end !== clip.orig_end_s) && <p className="muted text-xs">Si cambiás inicio/fin, las líneas se regeneran al renderizar y se mantienen las ediciones de las líneas que sigan dentro del rango.</p>}
+                {(start !== clip.orig_start_s || end !== clip.orig_end_s) && <p className="muted text-xs">Si cambiás inicio/fin, las líneas se regeneran al renderizar; las ediciones se conservan por línea.</p>}
               </div>
             )}
           </div>

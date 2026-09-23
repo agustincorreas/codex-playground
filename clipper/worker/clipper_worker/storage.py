@@ -69,3 +69,16 @@ def delete_files(paths: list[str]) -> None:
         json={"prefixes": paths},
         timeout=60,
     )
+
+
+def list_files(prefix: str, limit: int = 200) -> list[dict]:
+    """Lista objetos bajo un prefijo (carpeta). Devuelve [{"name", "metadata"...}] sin carpetas."""
+    resp = requests.post(
+        f"{config.SUPABASE_URL}/storage/v1/object/list/{config.STORAGE_BUCKET}",
+        headers=_headers({"Content-Type": "application/json"}),
+        json={"prefix": prefix.strip("/"), "limit": limit, "offset": 0, "sortBy": {"column": "name", "order": "asc"}},
+        timeout=60,
+    )
+    if resp.status_code >= 400:
+        raise RetryableError(f"Error listando {prefix} en Storage: {resp.status_code}")
+    return [f for f in resp.json() if f.get("id")]
