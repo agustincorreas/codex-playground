@@ -66,6 +66,10 @@ def test_short_video_becomes_one_whole_clip_and_edges_snap():
     assert out[0]["start_s"] == 0.0 and out[0]["end_s"] == 80.0 and out[0]["score"] == 10
     # el recorte 3..17 (56 s) se solapa casi todo con el entero: se descarta
     assert len(out) == 1
+    # si Claude propuso un candidato que cubre casi todo el video, se usa su título y pasa a ser el video entero
+    out = postprocess([Candidate(start_sentence=1, end_sentence=19, title="Título de Claude", hook="h", score=8, reason="r")],
+                      sents, words, min_s=60, max_s=150, video_duration=80.0)
+    assert out[0]["title"] == "Título de Claude" and out[0]["start_s"] == 0.0 and out[0]["end_s"] == 80.0 and out[0]["score"] == 9
     # video largo: un clip que termina a menos de 4 s del final se extiende hasta el final
     words = make_transcript(n_sentences=60)          # 240 s
     sents = build_sentences(words)

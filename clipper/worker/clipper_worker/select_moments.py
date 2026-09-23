@@ -151,9 +151,7 @@ def postprocess(
     results: list[dict] = []
     if video_duration is None and words:
         video_duration = words[-1]["e"]
-    # Video corto: el clip es el video entero, de principio a fin.
-    if video_duration and video_duration <= max_s * MAX_OVER and words:
-        results.append(whole_video_candidate(words, video_duration))
+    short_video = bool(video_duration and video_duration <= max_s * MAX_OVER and words)
     for c in candidates:
         a, b = c.start_sentence, c.end_sentence
         if not (0 <= a < n and 0 <= b < n and a <= b):
@@ -184,6 +182,10 @@ def postprocess(
             start = 0.0
         if video_duration and end > video_duration - EDGE_SNAP_S:
             end = video_duration
+        # Video corto: el candidato que cubre casi todo el video pasa a ser el video entero
+        # (con el título y el gancho que propuso Claude).
+        if short_video and (end - start) >= 0.85 * video_duration:
+            start, end = 0.0, video_duration
         results.append({
             "start_s": round(start, 2),
             "end_s": round(end, 2),
@@ -194,8 +196,16 @@ def postprocess(
             "reason": c.reason.strip()[:300],
         })
 
+    # Video corto sin un candidato que lo cubra: se agrega el video entero igual.
+    if short_video and not any(r["start_s"] == 0.0 and r["end_s"] == video_duration for r in results):
+        results.append(whole_video_candidate(words, video_duration))
+    for r in results:
+        if short_video and r["start_s"] == 0.0 and r["end_s"] == video_duration:
+            r["score"] = max(int(r["score"]), 9)
+            r["whole"] = True
+
     # Quitar solapamientos grandes (nos quedamos con el de mayor puntaje).
-    results.sort(key=lambda r: -r["score"])
+    results.sort(key=lambda r: (-int(r.get("whole", False)), -r["score"]))
     kept: list[dict] = []
     for r in results:
         overlap = False
