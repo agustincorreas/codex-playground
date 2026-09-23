@@ -1,6 +1,7 @@
 """Transcripción con timestamps por palabra y diarización.
 
-Proveedor configurable con TRANSCRIBE_PROVIDER: deepgram | assemblyai | openai.
+Proveedor configurable con TRANSCRIBE_PROVIDER: deepgram | assemblyai | openai | local
+(local = Whisper en el propio worker vía sherpa-onnx, sin API; ver local_whisper.py).
 Todos devuelven el mismo formato:
 
     {
@@ -29,6 +30,8 @@ def transcribe(audio_path: Path, language: str | None = None) -> dict:
         from . import assemblyai as impl
     elif provider == "openai":
         from . import openai_whisper as impl
+    elif provider == "local":
+        from . import local_whisper as impl
     else:
         raise UserError(f"Proveedor de transcripción desconocido: {provider}")
     result = impl.transcribe(audio_path, language)

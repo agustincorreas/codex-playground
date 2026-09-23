@@ -26,7 +26,7 @@ class Config:
     SUPABASE_SERVICE_ROLE_KEY = _env("SUPABASE_SERVICE_ROLE_KEY")
     STORAGE_BUCKET = _env("STORAGE_BUCKET", "clipper")
 
-    # Transcripción: deepgram | assemblyai | openai
+    # Transcripción: deepgram | assemblyai | openai | local
     TRANSCRIBE_PROVIDER = (_env("TRANSCRIBE_PROVIDER", "deepgram") or "deepgram").lower()
     DEEPGRAM_API_KEY = _env("DEEPGRAM_API_KEY")
     DEEPGRAM_MODEL = _env("DEEPGRAM_MODEL", "nova-3")
@@ -79,12 +79,14 @@ class Config:
             "deepgram": "DEEPGRAM_API_KEY",
             "assemblyai": "ASSEMBLYAI_API_KEY",
             "openai": "OPENAI_API_KEY",
+            "local": None,
         }
-        key = provider_keys.get(cls.TRANSCRIBE_PROVIDER)
-        if key is None:
-            missing.append(f"TRANSCRIBE_PROVIDER inválido: {cls.TRANSCRIBE_PROVIDER} (deepgram|assemblyai|openai)")
-        elif not getattr(cls, key):
-            missing.append(key)
+        if cls.TRANSCRIBE_PROVIDER not in provider_keys:
+            missing.append(f"TRANSCRIBE_PROVIDER inválido: {cls.TRANSCRIBE_PROVIDER} (deepgram|assemblyai|openai|local)")
+        else:
+            key = provider_keys[cls.TRANSCRIBE_PROVIDER]
+            if key and not getattr(cls, key):
+                missing.append(key)
         return missing
 
 
