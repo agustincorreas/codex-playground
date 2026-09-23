@@ -71,6 +71,7 @@ def test_process_video_end_to_end(tmp_path, sample_video, monkeypatch):
         words.append({"t": tok, "s": round(t, 2), "e": round(t + 0.3, 2), "spk": 0})
         t += 0.4
     monkeypatch.setattr(pipeline, "transcribe", lambda audio: {"words": words, "language": "es", "provider": "fake"})
+    monkeypatch.setattr(pipeline, "correct_transcript", lambda words_, topics=None: {"applied": 0, "replacements": []})
 
     def fake_select(sentences, words_, *, min_s, max_s, topics):
         assert topics == "marcas nicho" and min_s == 10 and max_s == 30

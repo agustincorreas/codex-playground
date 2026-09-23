@@ -179,7 +179,47 @@ def _style_line(name: str, font: str, size: int, color: str, bold: bool, outline
     )
 
 
-def build_ass(cues: list[dict], preset: dict, title: str | None, duration: float) -> str:
+FOLLOW_SLICE_S = 0.25
+
+
+def _anchor_at(anchors: list[tuple[float, float, float]], t: float) -> tuple[float, float]:
+    """Posición (x, y) interpolada de la lista de anclas [(t, x, y)] ordenada por t."""
+    if not anchors:
+        return (OUT_W / 2, OUT_H * 0.62)
+    if t <= anchors[0][0]:
+        return anchors[0][1], anchors[0][2]
+    if t >= anchors[-1][0]:
+        return anchors[-1][1], anchors[-1][2]
+    lo, hi = 0, len(anchors) - 1
+    while lo < hi - 1:
+        mid = (lo + hi) // 2
+        if anchors[mid][0] <= t:
+            lo = mid
+        else:
+            hi = mid
+    a, b = anchors[lo], anchors[hi]
+    f = (t - a[0]) / max(1e-6, b[0] - a[0])
+    return a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f
+
+
+def _follow_events(start: float, end: float, style: str, text: str, anchors) -> list[str]:
+    """Parte un evento en tramos cortos con \\move para que el texto siga al ancla."""
+    out = []
+    t = start
+    while t < end:
+        t2 = min(end, t + FOLLOW_SLICE_S)
+        x1, y1 = _anchor_at(anchors, t)
+        x2, y2 = _anchor_at(anchors, t2)
+        out.append(f"Dialogue: 0,{_fmt_time(t)},{_fmt_time(t2)},{style},,0,0,0,,{{\\move({x1:.0f},{y1:.0f},{x2:.0f},{y2:.0f})}}{text}")
+        t = t2
+    return out
+
+
+def build_ass(cues: list[dict], preset: dict, title: str | None, duration: float,
+              anchors: list[tuple[float, float, float]] | None = None, skip_title: bool = False) -> str:
+    """ASS completo. `anchors` = [(t, x, y)] en coordenadas de salida para que los
+    subtítulos sigan a la persona (position: follow); `skip_title` cuando el título
+    se dibuja por otro lado (por detrás del sujeto)."""
     sub = preset["subtitles"]
     ttl = preset.get("title", {})
     safe = preset.get("safe_area", {})
@@ -196,8 +236,10 @@ def build_ass(cues: list[dict], preset: dict, title: str | None, duration: float
     sub_box = bool(sub.get("box"))
     soft = "{\\blur3}" if sub.get("shadow") and int(sub.get("outline", 0)) == 0 and not sub_box else ""
     pop = "{\\fscx82\\fscy82\\t(0,90,\\fscx100\\fscy100)}" if sub.get("animation") == "pop" else ""
-    # Alineación: 2 = abajo centro, 5 = centro. En el medio, MarginV no aplica.
-    sub_alignment = 5 if sub.get("position") == "middle" else 2
+    # Alineación: 2 = abajo centro, 5 = centro, 8 = arriba centro (para seguir a la persona).
+    position = sub.get("position", "bottom")
+    follow = position == "follow" and bool(anchors)
+    sub_alignment = 8 if follow else (5 if position == "middle" else 2)
 
     header = [
         "[Script Info]",
@@ -222,7 +264,7 @@ def build_ass(cues: list[dict], preset: dict, title: str | None, duration: float
     ]
     events: list[str] = []
 
-    if ttl.get("show") and title:
+    if ttl.get("show") and title and not skip_title:
         t_lines = wrap_lines(title.strip(), int(ttl.get("lines", 2)), 22)
         t_text = "\\N".join(_escape(x) for x in t_lines)
         t_end = duration if ttl.get("permanent") else min(duration, float(ttl.get("duration_s", 3)))
@@ -233,7 +275,10 @@ def build_ass(cues: list[dict], preset: dict, title: str | None, duration: float
         if not highlight:
             wrapped = wrap_lines(text, lines, max_chars)
             body = "\\N".join(_escape(x) for x in wrapped)
-            events.append(f"Dialogue: 0,{_fmt_time(cue['s'])},{_fmt_time(cue['e'])},Sub,,0,0,0,,{pop}{soft}{body}")
+            if follow:
+                events.extend(_follow_events(cue["s"], cue["e"], "Sub", f"{soft}{body}", anchors))
+            else:
+                events.append(f"Dialogue: 0,{_fmt_time(cue['s'])},{_fmt_time(cue['e'])},Sub,,0,0,0,,{pop}{soft}{body}")
             continue
         words = cue.get("words") or []
         if not words:
@@ -264,7 +309,10 @@ def build_ass(cues: list[dict], preset: dict, title: str | None, duration: float
                 else:
                     parts.append(_escape(tok))
             anim = pop if k == 0 else ""
-            events.append(f"Dialogue: 0,{_fmt_time(start)},{_fmt_time(end)},Sub,,0,0,0,,{anim}{soft}{''.join(parts)}")
+            if follow:
+                events.extend(_follow_events(start, end, "Sub", f"{soft}{''.join(parts)}", anchors))
+            else:
+                events.append(f"Dialogue: 0,{_fmt_time(start)},{_fmt_time(end)},Sub,,0,0,0,,{anim}{soft}{''.join(parts)}")
 
     return "\n".join(header + events) + "\n"
 

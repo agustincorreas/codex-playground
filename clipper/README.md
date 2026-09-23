@@ -43,6 +43,21 @@ link / Drive / archivo
 descarga individual / zip en el navegador / guardar en Google Drive
 ```
 
+Tres reglas que aplican a todos los estilos:
+
+- **Silencios**: se saltean las pausas largas, pero el corte se verifica sobre el audio real
+  (nivel de señal) y se deja un margen junto a cada palabra, así nunca se corta una palabra
+  aunque los tiempos de la transcripción sean imprecisos. Umbrales por preset.
+- **Transcripción revisada**: antes de elegir momentos, Claude repasa la transcripción con un
+  glosario de materias primas, marcas y perfumes (de fábrica más el tuyo, en Configuración)
+  y para los nombres dudosos busca en Fragrantica, Parfumo y Wikipedia. Solo corrige lo que
+  está mal oído ("tobacco anilla" → "Tobacco Vanille"), sin reescribir al hablante. Se puede
+  apagar con `CORRECT_TRANSCRIPT=false` o sin búsqueda con `CORRECTION_WEB_SEARCH=false`.
+- **Duración con sentido**: por defecto 60-150 s. Cada clip tiene que ser una unidad completa
+  (principio, desarrollo y fin); se admite hasta 25% más que el máximo para cerrar la idea y,
+  si no entra, se descarta en lugar de cortarlo a la mitad. Si el video entero dura menos que
+  el máximo, el candidato natural es el video completo desde su primera frase fuerte.
+
 El estado del pipeline se ve en la UI: **descargando → transcribiendo → seleccionando →
 listo**, y cada clip: **candidato → en cola → renderizando → renderizado**. Los errores
 esperables (video privado, link inválido, transcripción vacía, cookies requeridas, archivo
@@ -57,20 +72,22 @@ objetivo (y se puede cambiar a mano).
 
 | Preset | Duración | Subtítulos | Título | Ritmo | Extras |
 |---|---|---|---|---|---|
-| **Natural minimalista** (predeterminado) | 60-120 s | 1 línea, Inter, blanco con sombra suave, abajo | No | Cortes limpios, sin zoom | Sin música |
-| **Editorial** | 60-120 s | 2 líneas, serif | 2 líneas arriba, primeros 3 s | Sin zoom | Sin música |
-| **Podcast a dos** | 60-120 s | 2 líneas | Primeros 3 s | Pantalla dividida arriba/abajo con dos personas | Sin música |
-| **Intermedio** | 45-90 s | Más grandes, negrita con contorno, 2 líneas | Con caja, primeros 3 s | Saltea pausas > 1 s | Sin música |
-| **Dinámico** | 45-90 s | Palabra activa resaltada, 2 líneas | Permanente | Saltea pausas > 0.8 s, punch zoom en cortes y cambios de hablante | Sin música |
-| **Viral (cargado)** | 30-60 s | 1-3 palabras por vez, mayúsculas, Montserrat grande al centro, resaltado amarillo, animación pop | Hook con caja, 4 s | Saltea pausas > 0.45 s, punch zoom en cada corte | Música de fondo baja con ducking, barra de progreso |
+| **Natural minimalista** (predeterminado) | 60-150 s | 1 línea, Inter, blanco con sombra suave, abajo | No | Cortes limpios, sin zoom, saltea pausas > 1 s | Sin música |
+| **Editorial** | 60-150 s | 2 líneas, serif | 2 líneas arriba, primeros 3 s | Sin zoom | Sin música |
+| **Podcast a dos** | 60-150 s | 2 líneas | Primeros 3 s | Pantalla dividida arriba/abajo con dos personas | Sin música |
+| **Intermedio** | 60-150 s | Más grandes, negrita con contorno, 2 líneas | Con caja, primeros 3 s | Saltea pausas > 0.8 s | Sin música |
+| **Dinámico** | 60-120 s | Palabra activa resaltada, 2 líneas, **siguen a la persona** | Permanente | Saltea pausas > 0.7 s, punch zoom en cortes y cambios de hablante | Sin música |
+| **Viral (cargado)** | 45-120 s | 1-3 palabras por vez, mayúsculas, Montserrat grande al centro, resaltado amarillo, animación pop | Hook grande **por detrás de la persona**, 4 s | Saltea pausas > 0.45 s, punch zoom en cada corte | Música de fondo baja con ducking, barra de progreso |
 
 Cada preset controla:
 
-- **Subtítulos**: tipografía, tamaño, color, posición (abajo o centro), líneas, caracteres por
-  línea, modo frase o 1-3 palabras por vez, negrita, mayúsculas, sombra, contorno, caja de
-  fondo, palabra activa resaltada y animación pop.
+- **Subtítulos**: tipografía, tamaño, color, posición (abajo, centro, o **siguiendo a la
+  persona** bajo el mentón, con el seguimiento de rostro), líneas, caracteres por línea, modo
+  frase o 1-3 palabras por vez, negrita, mayúsculas, sombra, contorno, caja de fondo, palabra
+  activa resaltada y animación pop.
 - **Título**: mostrar u ocultar, permanente o los primeros N segundos, tipografía, tamaño, color,
-  líneas y caja de fondo.
+  líneas, caja de fondo y **por detrás de la persona** (se segmenta a la persona cuadro a cuadro
+  con U²-Net y el título queda tapado por ella). Con título permanente el render tarda más.
 - **Ritmo y transiciones**: saltear pausas largas (jump cuts) con umbral configurable, transición
   en cada corte (ninguna, punch zoom o destello), zoom al cambiar de hablante, suavizado del
   seguimiento, tratamiento de dos personas (cambiar según quién habla o dividido).
@@ -298,9 +315,19 @@ Ver `worker/.env.example` y `web/.env.example`. Las importantes:
 - **Vista previa**: por candidato se genera un proxy 360p de (inicio − 20 s, fin + 20 s), así el
   original no tiene que subir a Storage y el ajuste fino tiene margen a ambos lados.
 - **Jump cuts**: se detectan las pausas entre palabras de la transcripción más largas que el
-  umbral del preset y se quitan con `select`/`aselect` de ffmpeg dejando un poco de aire; los
-  tiempos de las palabras se remapean para que los subtítulos sigan sincronizados, y cada
-  salto es un corte limpio del encuadre (con punch zoom o destello si el preset lo pide).
+  umbral del preset, se verifica sobre el RMS del audio cuál es el tramo realmente silencioso
+  (con margen junto a cada palabra) y se quita con `select`/`aselect` de ffmpeg dejando un
+  poco de aire; los tiempos de las palabras se remapean para que los subtítulos sigan
+  sincronizados, y cada salto es un corte limpio del encuadre (con punch zoom o destello si
+  el preset lo pide).
+- **Corrección de transcripción**: Claude devuelve reemplazos de frases cortas ("from" →
+  "to") que se aplican sobre las palabras conservando los tiempos; con la herramienta de
+  búsqueda web del modelo restringida a fragrantica.com, parfumo.com y wikipedia.org.
+- **Subtítulos que siguen a la persona**: el ancla es un punto bajo el mentón del rostro más
+  cercano al centro del encuadre, en coordenadas de salida, suavizado y acotado a los
+  márgenes; los eventos ASS se parten en tramos de 0,25 s con `\move`.
+- **Título por detrás**: el título se dibuja con Pillow, se compone sobre el cuadro y la
+  persona (máscara de U²-Net human_seg, suavizada entre cuadros) vuelve a ponerse encima.
 - **Música**: la pista se pone en loop, se baja al volumen del preset, se comprime con
   sidechain usando la voz (ducking), se le hace fade out y recién después se normaliza a
   −14 LUFS junto con la voz.

@@ -98,9 +98,10 @@ export default function PresetEditor({ presets, tracks, onChanged }: { presets: 
             <Row label="Tamaño"><input type="number" min={30} max={140} value={cfg.subtitles.size} onChange={(e) => upd((c) => { c.subtitles.size = Number(e.target.value); })} /></Row>
             <Row label="Color"><input type="color" value={cfg.subtitles.color} onChange={(e) => upd((c) => { c.subtitles.color = e.target.value; })} className="h-9 w-16 p-0" /></Row>
             <Row label="Posición">
-              <select value={cfg.subtitles.position || "bottom"} onChange={(e) => upd((c) => { c.subtitles.position = e.target.value as "bottom" | "middle"; })}>
+              <select value={cfg.subtitles.position || "bottom"} onChange={(e) => upd((c) => { c.subtitles.position = e.target.value as "bottom" | "middle" | "follow"; })}>
                 <option value="bottom">Abajo (sobre el margen seguro)</option>
                 <option value="middle">Centro de la pantalla</option>
+                <option value="follow">Siguen a la persona (bajo el mentón)</option>
               </select>
             </Row>
             <Row label="Modo">
@@ -147,6 +148,8 @@ export default function PresetEditor({ presets, tracks, onChanged }: { presets: 
                   <Row label="Color"><input type="color" value={cfg.title.color} onChange={(e) => upd((c) => { c.title.color = e.target.value; })} className="h-9 w-16 p-0" /></Row>
                   <Row label="Líneas"><select value={cfg.title.lines} onChange={(e) => upd((c) => { c.title.lines = Number(e.target.value); })}><option value={1}>1</option><option value={2}>2</option></select></Row>
                   <Check label="Caja de fondo" checked={!!cfg.title.box} onChange={(v) => upd((c) => { c.title.box = v; })} />
+                  <Check label="Por detrás de la persona (la persona tapa el título)" checked={!!cfg.title.behind_subject} onChange={(v) => upd((c) => { c.title.behind_subject = v; })} />
+                  {cfg.title.behind_subject && cfg.title.permanent && <p className="muted text-xs">Con título permanente, este efecto procesa cada cuadro y el render tarda bastante más.</p>}
                 </>
               )}
             </fieldset>

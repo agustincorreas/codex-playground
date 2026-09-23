@@ -28,7 +28,7 @@ def _base(**over) -> dict:
     cfg = {
         "name": "",
         "description": "",
-        "target_duration": {"min": 60, "max": 120},
+        "target_duration": {"min": 60, "max": 150},
         "subtitles": {
             "font": "Inter",
             "bold": False,
@@ -39,7 +39,7 @@ def _base(**over) -> dict:
             "lines": 1,
             "max_chars_per_line": 26,
             "words_per_cue": 0,          # 0 = por largo de línea; 1-3 = estilo "palabra por palabra"
-            "position": "bottom",        # bottom | middle
+            "position": "bottom",        # bottom | middle | follow (sigue a la persona)
             "highlight": False,
             "highlight_color": "#FFD400",
             "uppercase": False,
@@ -60,6 +60,7 @@ def _base(**over) -> dict:
             "box": False,
             "box_color": "#000000",
             "box_opacity": 0.7,
+            "behind_subject": False,     # el título queda por detrás de la persona
         },
         "camera": {
             "zoom_on_speaker_change": False,
@@ -68,9 +69,9 @@ def _base(**over) -> dict:
         },
         "two_speakers": "switch",
         "cuts": {
-            "remove_silences": False,    # saltar pausas largas (jump cuts)
-            "min_pause_s": 0.7,          # pausa mínima para cortarla
-            "keep_pause_s": 0.25,        # cuánto silencio dejar en cada corte
+            "remove_silences": True,     # saltar pausas largas (verificado sobre el audio; nunca corta palabras)
+            "min_pause_s": 1.0,          # pausa mínima para cortarla
+            "keep_pause_s": 0.35,        # cuánto silencio dejar en cada corte
         },
         "transitions": "none",           # none | punch | flash
         "music": {
@@ -89,7 +90,7 @@ def _base(**over) -> dict:
 BUILTIN_PRESETS: dict[str, dict] = {
     "natural": _base(
         name="Natural minimalista",
-        description="Sin emojis, sin zooms, sin resaltados, sin música. Subtítulos de una línea, Inter, blanco con sombra suave. Cortes limpios.",
+        description="Sin emojis, sin zooms, sin resaltados, sin música. Subtítulos de una línea, Inter, blanco con sombra suave. Cortes limpios; se saltean las pausas largas.",
     ),
     "editorial": _base(
         name="Editorial",
@@ -100,10 +101,9 @@ BUILTIN_PRESETS: dict[str, dict] = {
     "intermedio": _base(
         name="Intermedio",
         description="Subtítulos blancos más grandes con contorno, título los primeros 3 segundos, se saltean las pausas largas. Sin música ni zooms.",
-        target_duration={"min": 45, "max": 90},
         subtitles={"font": "Inter", "bold": True, "size": 70, "outline": 3, "lines": 2, "max_chars_per_line": 24},
         title={"show": True, "size": 64, "box": True},
-        cuts={"remove_silences": True, "min_pause_s": 1.0, "keep_pause_s": 0.3},
+        cuts={"remove_silences": True, "min_pause_s": 0.8, "keep_pause_s": 0.3},
     ),
     "podcast": _base(
         name="Podcast a dos",
@@ -114,24 +114,24 @@ BUILTIN_PRESETS: dict[str, dict] = {
     ),
     "dinamico": _base(
         name="Dinámico",
-        description="Palabra activa resaltada, leve zoom en cambios de hablante y en cada corte, título permanente, pausas recortadas.",
-        target_duration={"min": 45, "max": 90},
-        subtitles={"bold": True, "size": 68, "outline": 3, "lines": 2, "max_chars_per_line": 22, "highlight": True},
+        description="Palabra activa resaltada, subtítulos que siguen a la persona, leve zoom en cambios de hablante y en cada corte, título permanente, pausas recortadas.",
+        target_duration={"min": 60, "max": 120},
+        subtitles={"bold": True, "size": 68, "outline": 3, "lines": 2, "max_chars_per_line": 22, "highlight": True, "position": "follow"},
         title={"show": True, "permanent": True, "size": 64},
         camera={"zoom_on_speaker_change": True, "zoom_amount": 1.12, "smoothing": 0.8},
-        cuts={"remove_silences": True, "min_pause_s": 0.8, "keep_pause_s": 0.25},
+        cuts={"remove_silences": True, "min_pause_s": 0.7, "keep_pause_s": 0.25},
         transitions="punch",
     ),
     "viral": _base(
         name="Viral (cargado)",
-        description="Estilo Hormozi: 1-3 palabras por vez en mayúsculas, grandes, en el centro, resaltado amarillo, animación pop, hook con caja arriba, jump cuts agresivos, punch zoom en cada corte, música de fondo baja, barra de progreso. Clips cortos.",
-        target_duration={"min": 30, "max": 60},
+        description="Estilo Hormozi: 1-3 palabras por vez en mayúsculas, grandes, en el centro, resaltado amarillo, animación pop, hook grande por detrás de la persona, jump cuts agresivos, punch zoom en cada corte, música de fondo baja, barra de progreso.",
+        target_duration={"min": 45, "max": 120},
         subtitles={
             "font": "Montserrat", "bold": True, "size": 92, "outline": 5, "lines": 1, "max_chars_per_line": 18,
             "words_per_cue": 3, "position": "middle", "highlight": True, "highlight_color": "#FFE600",
             "uppercase": True, "animation": "pop",
         },
-        title={"show": True, "permanent": False, "duration_s": 4, "font": "Montserrat", "size": 62, "box": True, "lines": 2},
+        title={"show": True, "permanent": False, "duration_s": 4, "font": "Montserrat", "size": 96, "box": False, "lines": 2, "behind_subject": True},
         camera={"zoom_on_speaker_change": True, "zoom_amount": 1.15, "smoothing": 0.75},
         cuts={"remove_silences": True, "min_pause_s": 0.45, "keep_pause_s": 0.15},
         transitions="punch",

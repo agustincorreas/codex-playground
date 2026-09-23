@@ -39,6 +39,8 @@ class Config:
     ANTHROPIC_API_KEY = _env("ANTHROPIC_API_KEY")
     CLAUDE_MODEL = _env("CLAUDE_MODEL", "claude-opus-5")
     CLAUDE_EFFORT = _env("CLAUDE_EFFORT", "high")
+    CORRECT_TRANSCRIPT = (_env("CORRECT_TRANSCRIPT", "true") or "true").lower() != "false"
+    CORRECTION_WEB_SEARCH = (_env("CORRECTION_WEB_SEARCH", "true") or "true").lower() != "false"
     MIN_CANDIDATES = _int("MIN_CANDIDATES", 6)
     MAX_CANDIDATES = _int("MAX_CANDIDATES", 15)
 
@@ -56,6 +58,7 @@ class Config:
     PREVIEW_PAD_S = _int("PREVIEW_PAD_S", 20)
     PREVIEW_HEIGHT = _int("PREVIEW_HEIGHT", 360)
     FACE_MODEL_PATH = _env("FACE_MODEL_PATH", "/opt/models/face_detection_yunet_2023mar.onnx")
+    SEGMENTATION_MODEL_PATH = _env("SEGMENTATION_MODEL_PATH", "/opt/models/u2net_human_seg.onnx")
     FFMPEG_THREADS = _int("FFMPEG_THREADS", 0)
     X264_PRESET = _env("X264_PRESET", "medium")
 

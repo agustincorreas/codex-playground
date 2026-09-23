@@ -408,3 +408,45 @@ def _smooth(cur: tuple[float, float] | None, target: tuple[float, float], smooth
         return cur
     a = 1.0 - min(0.98, max(0.0, smoothing))
     return cur[0] + dx * a, cur[1] + dy * a
+
+
+def face_anchors(analysis: Analysis, plan: Plan, preset: dict) -> list[tuple[float, float, float]]:
+    """Para cada muestra, un punto bajo el mentón de la persona más cercana al centro
+    del recorte, en coordenadas de salida (1080x1920), suavizado y acotado a los
+    márgenes seguros. Sirve para que los subtítulos sigan a la persona."""
+    safe = preset.get("safe_area", {})
+    x_min, x_max = 200.0, 1080.0 - 200.0
+    y_min, y_max = float(safe.get("top", 260)) + 120.0, 1920.0 - float(safe.get("bottom", 420)) - 260.0
+    main = [tr for tr in analysis.tracks if tr.hits >= max(3, 0.2 * len(analysis.sample_times))]
+    anchors: list[tuple[float, float, float]] = []
+    cur: tuple[float, float] | None = None
+    for si, t in enumerate(analysis.sample_times):
+        rects = plan.rects_at(t)
+        if not rects:
+            continue
+        rx, ry, rw, rh = rects[0]
+        cands = []
+        for tr in main:
+            c = tr.centers.get(si) or _nearest_center(tr, si, 1.0)
+            if c is None:
+                continue
+            cx, cy, h = c
+            if rx <= cx <= rx + rw:
+                cands.append((abs(cx - (rx + rw / 2)), cx, cy, h))
+        if cands:
+            _, cx, cy, h = min(cands)
+            ox = (cx - rx) * 1080.0 / rw
+            oy = (cy + h * 0.85 - ry) * 1920.0 / rh
+            target = (min(max(ox, x_min), x_max), min(max(oy, y_min), y_max))
+        elif cur is not None:
+            target = cur
+        else:
+            target = (540.0, min(max(1920.0 * 0.62, y_min), y_max))
+        if cur is None:
+            cur = target
+        else:
+            dx, dy = target[0] - cur[0], target[1] - cur[1]
+            if math.hypot(dx, dy) > 25:
+                cur = (cur[0] + dx * 0.25, cur[1] + dy * 0.25)
+        anchors.append((t, cur[0], cur[1]))
+    return anchors

@@ -30,8 +30,8 @@ interface CreateBody {
 
 export async function POST(req: Request) {
   const body = (await req.json().catch(() => ({}))) as CreateBody;
-  const minD = Math.max(15, Math.min(180, Math.round(Number(body.min_duration_s) || 60)));
-  const maxD = Math.max(minD + 10, Math.min(180, Math.round(Number(body.max_duration_s) || 120)));
+  const minD = Math.max(15, Math.min(230, Math.round(Number(body.min_duration_s) || 60)));
+  const maxD = Math.max(minD + 10, Math.min(240, Math.round(Number(body.max_duration_s) || 150)));
   const preset_id = (body.preset_id || "natural").slice(0, 60);
   const topics = (body.topics || "").trim().slice(0, 1000) || null;
 

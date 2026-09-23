@@ -21,6 +21,12 @@ RUN curl -fsSL -o /tmp/deno.zip https://github.com/denoland/deno/releases/latest
  && unzip -q /tmp/deno.zip -d /usr/local/bin && chmod +x /usr/local/bin/deno && rm /tmp/deno.zip \
  && deno --version
 
+# Modelo de segmentación de personas (U²-Net human_seg, ~170 MB) para el efecto
+# "título por detrás del sujeto".
+RUN mkdir -p /opt/models && curl -fsSL -o /opt/models/u2net_human_seg.onnx \
+      https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2net_human_seg.onnx \
+    || { echo "aviso: no se pudo bajar u2net_human_seg; el efecto 'título por detrás' no estará disponible"; rm -f /opt/models/u2net_human_seg.onnx; }
+
 # Modelo de detección de rostros (YuNet, ~230 KB). Si la descarga falla, el
 # worker cae a Haar cascade (incluido en OpenCV), con peor precisión.
 RUN mkdir -p /opt/models \

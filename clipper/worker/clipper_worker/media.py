@@ -166,19 +166,81 @@ def loudnorm_filter(measured: dict | None, target_i: float = -14.0, tp: float = 
 # ---------------------------------------------------------------------------
 # Jump cuts: saltear pausas largas
 # ---------------------------------------------------------------------------
+SILENCE_FRAME_S = 0.02
+
+
+def audio_envelope(src: Path, frame_s: float = SILENCE_FRAME_S):
+    """RMS por tramos de `frame_s` del audio (mono 16 kHz). Devuelve (rms, frame_s)."""
+    import numpy as np
+
+    proc = subprocess.run(
+        ["ffmpeg", "-v", "error", "-i", str(src), "-vn", "-ac", "1", "-ar", "16000", "-f", "s16le", "-"],
+        capture_output=True, timeout=1800,
+    )
+    if proc.returncode != 0 or not proc.stdout:
+        return None, frame_s
+    samples = np.frombuffer(proc.stdout, dtype=np.int16).astype(np.float32) / 32768.0
+    n = int(16000 * frame_s)
+    if n <= 0 or len(samples) < n:
+        return None, frame_s
+    frames = samples[: len(samples) // n * n].reshape(-1, n)
+    return np.sqrt(np.mean(frames * frames, axis=1)), frame_s
+
+
 def keep_ranges_from_words(words: list[dict], duration: float, min_pause_s: float, keep_pause_s: float,
-                           min_removed_s: float = 0.15) -> list[tuple[float, float]]:
-    """A partir de palabras con tiempos relativos al segmento, devuelve los rangos
-    que se conservan (se quitan las pausas más largas que min_pause_s, dejando
-    keep_pause_s de aire repartido a ambos lados)."""
+                           min_removed_s: float = 0.15, envelope=None, word_pad_s: float = 0.08) -> list[tuple[float, float]]:
+    """Rangos del segmento que se conservan al saltear pausas.
+
+    Las pausas candidatas salen de los tiempos de las palabras (huecos más largos que
+    min_pause_s). Si se pasa `envelope` (RMS del audio, ver audio_envelope), cada
+    pausa se achica al tramo que de verdad está en silencio, así nunca se corta una
+    palabra aunque los tiempos de la transcripción sean aproximados. Se deja
+    keep_pause_s de aire repartido a ambos lados del corte, más word_pad_s de margen
+    junto a cada palabra."""
+    import numpy as np
+
+    rms, frame_s = envelope if envelope else (None, SILENCE_FRAME_S)
+    threshold = None
+    if rms is not None and len(rms) > 10:
+        noise = float(np.percentile(rms, 10))
+        speech = float(np.percentile(rms, 80))
+        threshold = max(noise * 3.0, speech * 0.12, 1e-4)
+
+    def quiet_span(a: float, b: float) -> tuple[float, float] | None:
+        """Sub-tramo silencioso más largo dentro de [a, b] según el audio."""
+        if rms is None:
+            return (a, b)
+        i0, i1 = int(a / frame_s), int(b / frame_s)
+        if i1 <= i0 or i1 > len(rms):
+            return None
+        quiet = rms[i0:i1] < threshold
+        best, cur_start, best_len = None, None, 0
+        for k, q in enumerate(quiet):
+            if q and cur_start is None:
+                cur_start = k
+            if (not q or k == len(quiet) - 1) and cur_start is not None:
+                end = k + 1 if q else k
+                if end - cur_start > best_len:
+                    best_len = end - cur_start
+                    best = (cur_start, end)
+                cur_start = None
+        if best is None:
+            return None
+        return (a + best[0] * frame_s, a + best[1] * frame_s)
+
     ranges: list[tuple[float, float]] = []
     cursor = 0.0
     half = keep_pause_s / 2.0
     ws = sorted((w for w in words if w["e"] > 0 and w["s"] < duration), key=lambda w: w["s"])
     for prev, nxt in zip(ws, ws[1:]):
-        gap_start, gap_end = prev["e"] + half, nxt["s"] - half
-        if (nxt["s"] - prev["e"]) > min_pause_s and (gap_end - gap_start) > min_removed_s:
-            ranges.append((cursor, max(cursor, gap_start)))
+        if (nxt["s"] - prev["e"]) <= min_pause_s:
+            continue
+        span = quiet_span(prev["e"] + word_pad_s, nxt["s"] - word_pad_s)
+        if span is None:
+            continue
+        gap_start, gap_end = span[0] + half, span[1] - half
+        if (span[1] - span[0]) > min_pause_s and (gap_end - gap_start) > min_removed_s and gap_start > cursor:
+            ranges.append((cursor, gap_start))
             cursor = gap_end
     ranges.append((cursor, duration))
     return [(round(a, 3), round(b, 3)) for a, b in ranges if b - a > 0.02]

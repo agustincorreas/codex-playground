@@ -7,6 +7,7 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const tokens = await getSetting<{ refresh_token?: string; email?: string }>("google_tokens");
   const folder = await getSetting<string>("drive_folder_id");
+  const glossary = await getSetting<string>("glossary");
   const { data: cookies } = await supabase().storage.from(BUCKET).list("settings", { search: "cookies.txt" });
   const cookiesFile = (cookies || []).find((f) => f.name === "cookies.txt");
   const { data: lastJob } = await supabase()
@@ -21,6 +22,7 @@ export async function GET() {
     google_configured: googleConfigured(),
     google_picker_ready: !!process.env.NEXT_PUBLIC_GOOGLE_API_KEY,
     drive_folder_id: folder || "",
+    glossary: glossary || "",
     cookies_uploaded_at: cookiesFile?.updated_at || cookiesFile?.created_at || null,
     worker_last_activity: lastJob?.finished_at || lastJob?.locked_at || null,
   });
@@ -32,6 +34,9 @@ export async function PUT(req: Request) {
     const raw = body.drive_folder_id.trim();
     const m = raw.match(/folders\/([A-Za-z0-9_-]+)/);
     await setSetting("drive_folder_id", m ? m[1] : raw);
+  }
+  if (typeof body.glossary === "string") {
+    await setSetting("glossary", body.glossary.slice(0, 20000));
   }
   return json({ ok: true });
 }

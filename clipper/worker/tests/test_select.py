@@ -18,13 +18,14 @@ def make_transcript(n_sentences=40, words_per=8, word_dur=0.5):
 
 
 def test_postprocess_snaps_and_strips_fillers():
-    words = make_transcript()
+    words = make_transcript(n_sentences=50)
     sents = build_sentences(words)
     # cada oración dura 4 s; 15-30 oraciones = 60-120 s
     cands = [
         Candidate(start_sentence=0, end_sentence=19, title="A", hook="h", score=9, reason="r"),
         Candidate(start_sentence=2, end_sentence=21, title="B (solapado)", hook="h", score=7, reason="r"),
-        Candidate(start_sentence=25, end_sentence=27, title="C (corto)", hook="h", score=8, reason="r"),
+        Candidate(start_sentence=25, end_sentence=27, title="C (muy corto)", hook="h", score=8, reason="r"),
+        Candidate(start_sentence=28, end_sentence=38, title="E (casi corto)", hook="h", score=8, reason="r"),
         Candidate(start_sentence=30, end_sentence=99, title="D (fuera)", hook="h", score=8, reason="r"),
     ]
     out = postprocess(cands, sents, words, min_s=60, max_s=120)
@@ -33,15 +34,21 @@ def test_postprocess_snaps_and_strips_fillers():
     a = next(c for c in out if c["title"] == "A")
     # la oración 0 arranca con "Bueno," -> el inicio salta esa palabra (menos un respiro de 0.15 s)
     assert abs(a["start_s"] - (words[1]["s"] - 0.15)) < 1e-6
-    # "C" se extiende hacia adelante hasta entrar en rango
-    c = next(c for c in out if c["title"] == "C (corto)")
-    assert 60 * 0.85 <= c["end_s"] - c["start_s"] <= 120 * 1.15
+    # "C" (12 s) es demasiado corto para completarse con 2 oraciones más: se descarta
+    assert "C (muy corto)" not in titles
+    # "E" (44 s) se extiende hasta 2 oraciones (52 s >= 48 s) y entra
+    e = next(c for c in out if c["title"] == "E (casi corto)")
+    assert 60 * 0.8 <= e["end_s"] - e["start_s"] <= 120 * 1.25
 
 
-def test_postprocess_trims_long():
+def test_postprocess_discards_long_instead_of_cutting():
+    """Un clip que no entra en el máximo (+25%) se descarta: nunca se corta una idea a la mitad."""
     words = make_transcript(n_sentences=60)
     sents = build_sentences(words)
     out = postprocess([Candidate(start_sentence=0, end_sentence=50, title="L", hook="h", score=5, reason="r")],
                       sents, words, min_s=60, max_s=120)
+    assert out == []
+    # pero hasta un 25% por encima del máximo se acepta (36 oraciones = 144 s <= 150 s)
+    out = postprocess([Candidate(start_sentence=0, end_sentence=35, title="L2", hook="h", score=5, reason="r")],
+                      sents, words, min_s=60, max_s=120)
     assert len(out) == 1
-    assert out[0]["end_s"] - out[0]["start_s"] <= 120 * 1.15 + 0.5

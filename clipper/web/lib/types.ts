@@ -85,7 +85,7 @@ export interface PresetConfig {
     lines: number;
     max_chars_per_line: number;
     words_per_cue: number;          // 0 = por largo de línea; 1-3 = palabra por palabra
-    position: "bottom" | "middle";
+    position: "bottom" | "middle" | "follow";
     highlight: boolean;
     highlight_color: string;
     uppercase: boolean;
@@ -106,6 +106,7 @@ export interface PresetConfig {
     box: boolean;
     box_color: string;
     box_opacity: number;
+    behind_subject: boolean;
   };
   camera: {
     zoom_on_speaker_change: boolean;

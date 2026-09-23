@@ -38,10 +38,12 @@ SYSTEM_PROMPT = """Sos un editor senior de contenido en español rioplatense. Tu
 Recibís la transcripción dividida en oraciones numeradas con su timestamp y, cuando se detectó, el hablante (H0, H1...). Elegís clips indicando la oración de inicio y la de fin (inclusive).
 
 Reglas de selección:
-- Devolvé entre {min_n} y {max_n} candidatos. Si el material da para más, priorizá calidad y variedad temática (no repitas el mismo momento con distintos recortes).
-- Duración objetivo de cada clip: entre {min_s} y {max_s} segundos. Podés desviarte un poco (hasta 15%) si el cierre de idea lo justifica, pero no más.
+- Devolvé entre {min_n} y {max_n} candidatos. Si el material da para más, priorizá calidad y variedad temática (no repitas el mismo momento con distintos recortes). Si el material no da para {min_n} clips completos, devolvé menos: un clip cortado a la mitad no sirve.
+- Cada clip es una unidad completa con principio, desarrollo y fin: plantea un tema o pregunta, lo desarrolla y lo cierra. Nunca cortes una idea a la mitad ni dejes un argumento colgado. Si una idea completa no entra en la duración máxima, descartala en lugar de recortarla.
+- Duración objetivo de cada clip: entre {min_s} y {max_s} segundos. Podés pasarte hasta un 25% si hace falta para cerrar la idea, pero no más.
+- Si el video entero dura menos que la duración máxima (más el 25%), lo mejor suele ser un solo clip con todo el video, arrancando en su primera frase fuerte.
 - El clip TIENE que arrancar en una frase fuerte, que enganche sola, sin contexto previo. Nunca en muletillas ("bueno, eh", "o sea", "digamos", "a ver", "entonces") ni en respuestas que solo se entienden con la pregunta anterior. Si la frase fuerte está en la mitad de una oración larga, elegí la oración siguiente que arranque bien.
-- El clip tiene que terminar en un cierre de idea, nunca a mitad de una frase ni dejando un argumento colgado.
+- El clip tiene que terminar en un cierre de idea, nunca a mitad de una frase.
 - Preferí momentos con contradicción, dato concreto, opinión firme, anécdota, o una afirmación polémica bien argumentada. Evitá saludos, avisos, agradecimientos, lectura de comentarios sin contenido y explicaciones técnicas del stream.
 - Si el usuario indica temas a buscar, priorizá los momentos sobre esos temas, pero no inventes relevancia: si no hay nada bueno sobre un tema, no lo fuerces.
 - El título es corto (máximo 60 caracteres), en español rioplatense, sin emojis, sin clickbait vacío; tiene que decir de qué va el clip.
@@ -51,8 +53,12 @@ Reglas de selección:
 - Los índices tienen que existir en la transcripción y start_sentence <= end_sentence."""
 
 
+MAX_OVER = 1.25   # tolerancia por encima del máximo para cerrar la idea
+MIN_UNDER = 0.8   # tolerancia por debajo del mínimo
+
+
 def _duration_ok(d: float, min_s: float, max_s: float) -> bool:
-    return (min_s * 0.85) <= d <= (max_s * 1.15)
+    return (min_s * MIN_UNDER) <= d <= (max_s * MAX_OVER)
 
 
 def select_moments(
@@ -126,16 +132,19 @@ def postprocess(
         wi = strip_leading_fillers(words, sentences[a]["wi"], sentences[b]["wj"])
         start = words[wi]["s"]
         end = sentences[b]["e"]
-        # Si el clip quedó largo, recortamos oraciones del final hasta entrar en rango.
-        while b > a and (end - start) > max_s * 1.15:
-            b -= 1
-            end = sentences[b]["e"]
-        # Si quedó corto, extendemos oraciones hacia adelante (mismo hablante preferentemente).
-        while b + 1 < n and (end - start) < min_s * 0.85 and (sentences[b + 1]["e"] - start) <= max_s * 1.15:
+        # Un clip largo no se recorta (cortaría la idea a la mitad): se descarta.
+        if (end - start) > max_s * MAX_OVER:
+            log.info("candidato '%s' descartado: %.0f s supera el máximo", c.title, end - start)
+            continue
+        # Si quedó corto, extendemos hasta 2 oraciones hacia adelante para completar el cierre.
+        extended = 0
+        while b + 1 < n and extended < 2 and (end - start) < min_s * MIN_UNDER and (sentences[b + 1]["e"] - start) <= max_s * MAX_OVER:
             b += 1
+            extended += 1
             end = sentences[b]["e"]
         dur = end - start
         if not _duration_ok(dur, min_s, max_s):
+            log.info("candidato '%s' descartado: %.0f s fuera de rango", c.title, dur)
             continue
         # Un respiro chico antes del corte para no arrancar pegado a la primera palabra.
         start = max(0.0, start - 0.15)

@@ -11,6 +11,7 @@ interface SettingsData {
   google_configured: boolean;
   google_picker_ready: boolean;
   drive_folder_id: string;
+  glossary: string;
   cookies_uploaded_at: string | null;
   worker_last_activity: string | null;
 }
@@ -18,6 +19,7 @@ interface SettingsData {
 export default function Settings() {
   const [data, setData] = useState<SettingsData | null>(null);
   const [folder, setFolder] = useState("");
+  const [glossary, setGlossary] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
   const [presets, setPresets] = useState<Preset[]>([]);
   const [tracks, setTracks] = useState<MusicTrack[]>([]);
@@ -27,6 +29,7 @@ export default function Settings() {
     const d = await res.json();
     setData(d);
     setFolder(d.drive_folder_id || "");
+    setGlossary(d.glossary || "");
     const p = await fetch("/api/presets").then((r) => r.json());
     setPresets(p.presets || []);
     const m = await fetch("/api/music").then((r) => r.json()).catch(() => ({ tracks: [] }));
@@ -52,6 +55,11 @@ export default function Settings() {
     await fetch("/api/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ drive_folder_id: folder }) });
     setMsg("Carpeta guardada.");
     load();
+  }
+
+  async function saveGlossary() {
+    await fetch("/api/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ glossary }) });
+    setMsg("Glosario guardado.");
   }
 
   async function disconnect() {
@@ -103,6 +111,16 @@ export default function Settings() {
         ) : (
           <a className="btn" href="/api/google/auth">Conectar cuenta de Google</a>
         )}
+      </section>
+
+      <section className="card space-y-3 p-4">
+        <h2 className="font-medium">Glosario de nombres</h2>
+        <p className="muted text-sm">
+          Marcas, perfumes, materias primas y nombres propios que usás seguido, uno por línea o separados por coma. La transcripción se revisa contra
+          este glosario (más uno de fábrica con las marcas y notas más comunes) y, para los nombres dudosos, se verifica en Fragrantica y Wikipedia.
+        </p>
+        <textarea rows={4} value={glossary} onChange={(e) => setGlossary(e.target.value)} placeholder={"Fueguia 1833\nSummer Hammer\nFaku (showroom Palermo)"} />
+        <button className="btn" onClick={saveGlossary}>Guardar glosario</button>
       </section>
 
       <section className="card space-y-3 p-4">

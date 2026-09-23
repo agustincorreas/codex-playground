@@ -31,7 +31,7 @@ export async function PATCH(req: Request, { params }: Params) {
   end = Math.round(end * 100) / 100;
   if (duration > 0) end = Math.min(duration, end);
   if (end - start < 3) return fail("El clip tiene que durar al menos 3 segundos.");
-  if (end - start > 180) return fail("El clip no puede superar los 180 segundos.");
+  if (end - start > 300) return fail("El clip no puede superar los 5 minutos.");
   update.start_s = start;
   update.end_s = end;
   if (typeof body.title === "string") update.title = body.title.trim().slice(0, 120);

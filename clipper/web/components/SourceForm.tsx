@@ -15,7 +15,7 @@ export default function SourceForm() {
   const [file, setFile] = useState<File | null>(null);
   const [topics, setTopics] = useState("");
   const [minD, setMinD] = useState(60);
-  const [maxD, setMaxD] = useState(120);
+  const [maxD, setMaxD] = useState(150);
   const [presetId, setPresetId] = useState("natural");
   const [presets, setPresets] = useState<Preset[]>([]);
   const [busy, setBusy] = useState(false);
@@ -181,11 +181,11 @@ export default function SourceForm() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div>
           <label className="label">Duración mínima (s)</label>
-          <input type="number" min={15} max={170} value={minD} onChange={(e) => setMinD(Number(e.target.value))} />
+          <input type="number" min={15} max={230} value={minD} onChange={(e) => setMinD(Number(e.target.value))} />
         </div>
         <div>
           <label className="label">Duración máxima (s)</label>
-          <input type="number" min={25} max={180} value={maxD} onChange={(e) => setMaxD(Number(e.target.value))} />
+          <input type="number" min={25} max={240} value={maxD} onChange={(e) => setMaxD(Number(e.target.value))} />
         </div>
         <div>
           <label className="label">Estilo</label>

@@ -82,8 +82,27 @@ def test_words_per_cue_box_pop_and_middle():
     ass = build_ass(cues, viral, "Hook", 10.0)
     assert ",5,60,130,420,1" in ass          # subtítulos alineados al centro (5)
     assert "\\fscx82" in ass                 # animación pop
-    assert "Style: Title,Montserrat,62" in ass and ",3,14,0,8," in ass  # título con caja (BorderStyle 3)
     assert "LOS" in ass                       # mayúsculas
+    # En Viral el título va por detrás de la persona: no aparece en el ASS.
+    ass_skip = build_ass(cues, viral, "Hook", 10.0, skip_title=True)
+    assert "Title,,0,0,0,," not in ass_skip
+    inter = load_preset("intermedio")
+    ass_i = build_ass(build_cues(words, 10.0, 20.0, inter), inter, "Hook", 10.0)
+    assert "Style: Title,Inter,64" in ass_i and ",3,14,0,8," in ass_i  # título con caja (BorderStyle 3)
+
+
+def test_follow_position_uses_move_events():
+    from clipper_worker.presets import load_preset
+    words = words_from_text("hola mundo esto es una prueba larga de subtítulos que siguen.")
+    preset = load_preset("natural")
+    preset["subtitles"]["position"] = "follow"
+    cues = build_cues(words, 10.0, 16.0, preset)
+    anchors = [(0.0, 400.0, 900.0), (3.0, 700.0, 1000.0), (6.0, 500.0, 950.0)]
+    ass = build_ass(cues, preset, None, 6.0, anchors=anchors)
+    assert "\\move(" in ass
+    assert ",8,60,130,420,1" in ass   # alineación 8 (arriba-centro) para el ancla
+    n_events = ass.count("Dialogue: 0,")
+    assert n_events > len(cues)         # varios tramos por cue
 
 
 def test_apply_edits_uses_stable_key():

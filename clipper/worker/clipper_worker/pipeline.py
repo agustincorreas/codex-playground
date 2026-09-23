@@ -6,6 +6,7 @@ from pathlib import Path
 
 from . import db, drive, sources, storage
 from .config import config
+from .corrections import correct_transcript
 from .errors import UserError
 from .log import get_logger
 from .media import duration_of, extract_audio, make_preview, make_thumbnail
@@ -51,6 +52,9 @@ def process_video(job: dict) -> None:
     db.set_video_status(video_id, "transcribing", f"Transcribiendo con {config.TRANSCRIBE_PROVIDER}")
     transcript = transcribe(audio)
     words = transcript["words"]
+    db.set_video_status(video_id, "transcribing", "Revisando nombres y términos")
+    correction = correct_transcript(words, video.get("topics"))
+    transcript["corrections"] = correction.get("replacements", [])
     sentences = build_sentences(words)
     db.update_video(video_id, transcript=transcript, sentences=sentences, language=transcript.get("language"))
 

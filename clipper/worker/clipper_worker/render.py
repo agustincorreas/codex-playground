@@ -14,8 +14,8 @@ from .config import config
 from .errors import UserError
 from .log import get_logger
 from .media import (
-    cut_points, cut_ranges, cut_segment, extract_audio, fps_of, has_audio, keep_ranges_from_words,
-    loudnorm_filter, measure_loudness, mix_music, probe, remap_time,
+    audio_envelope, cut_points, cut_ranges, cut_segment, extract_audio, fps_of, has_audio,
+    keep_ranges_from_words, loudnorm_filter, measure_loudness, mix_music, probe, remap_time,
 )
 from .subtitles import apply_edits, build_ass, build_cues, cue_key, write_ass
 
@@ -110,9 +110,10 @@ def render_clip(
     # 2. Jump cuts (saltear pausas largas)
     hard_cuts: list[float] = []
     cuts_cfg = preset.get("cuts") or {}
-    if cuts_cfg.get("remove_silences") and rel_words:
+    if cuts_cfg.get("remove_silences") and rel_words and audio:
         ranges = keep_ranges_from_words(
-            rel_words, duration, float(cuts_cfg.get("min_pause_s", 0.7)), float(cuts_cfg.get("keep_pause_s", 0.25))
+            rel_words, duration, float(cuts_cfg.get("min_pause_s", 0.7)), float(cuts_cfg.get("keep_pause_s", 0.25)),
+            envelope=audio_envelope(segment),
         )
         removed = duration - sum(b - a for a, b in ranges)
         if len(ranges) > 1 and removed > 0.3:
@@ -125,18 +126,20 @@ def render_clip(
             hard_cuts = cut_points(ranges)
             duration = sum(b - a for a, b in ranges)
 
-    # 3. Subtítulos
-    if progress:
-        progress("Preparando subtítulos")
-    cues = apply_edits(build_cues(rel_words, 0.0, duration, preset), subtitle_edits)
-    ass_path = write_ass(workdir / "subs.ass", build_ass(cues, preset, title, duration))
-
-    # 4. Encuadre
+    # 3. Encuadre
     if progress:
         progress("Detectando rostros")
     analysis = framing.analyze(segment)
     plan = framing.build_plan(analysis, preset, speaker_change_times(rel_words), hard_cuts)
     log.info("encuadre: modo=%s tracks=%d muestras=%d cortes=%d", plan.mode, len(analysis.tracks), len(plan.keys), len(plan.cuts))
+
+    # 4. Subtítulos (y título, salvo que vaya por detrás de la persona)
+    if progress:
+        progress("Preparando subtítulos")
+    cues = apply_edits(build_cues(rel_words, 0.0, duration, preset), subtitle_edits)
+    anchors = framing.face_anchors(analysis, plan, preset) if preset["subtitles"].get("position") == "follow" else None
+    title_behind = bool(preset.get("title", {}).get("show") and preset["title"].get("behind_subject") and title)
+    ass_path = write_ass(workdir / "subs.ass", build_ass(cues, preset, title, duration, anchors=anchors, skip_title=title_behind))
 
     # 5. Audio: música de fondo (opcional) y medición de loudness
     audio_path: Path | None = None
@@ -159,7 +162,8 @@ def render_clip(
     if progress:
         progress("Codificando")
     _encode(segment, plan, ass_path, out, fps=plan.fps, audio_path=audio_path,
-            loudnorm=loudnorm_filter(measured), duration=duration, preset=preset, progress=progress)
+            loudnorm=loudnorm_filter(measured), duration=duration, preset=preset, progress=progress,
+            title=title if title_behind else None)
 
     cap_bytes = config.MAX_OUTPUT_MB * 1000 * 1000
     if out.stat().st_size > cap_bytes:
@@ -170,7 +174,7 @@ def render_clip(
 
 
 def _encode(segment: Path, plan: framing.Plan, ass_path: Path, out: Path, *, fps: float, audio_path: Path | None,
-            loudnorm: str, duration: float, preset: dict, progress=None) -> None:
+            loudnorm: str, duration: float, preset: dict, progress=None, title: str | None = None) -> None:
     vbps = video_bitrate_budget(duration)
     ass_arg = str(ass_path).replace("\\", "/").replace(":", "\\:")
     filters = [f"[0:v]ass={ass_arg}[v]"]
@@ -202,6 +206,17 @@ def _encode(segment: Path, plan: framing.Plan, ass_path: Path, out: Path, *, fps
     cuts = sorted(plan.cuts)
     white = np.full((OUT_H, OUT_W, 3), 255, dtype=np.uint8)
 
+    # Título por detrás de la persona: capa de título + segmentación por cuadro.
+    title_layer = segmenter = None
+    title_end = 0.0
+    if title:
+        from .segmentation import PersonSegmenter
+        from .titlecard import composite_behind, render_title
+        ttl = preset.get("title", {})
+        title_layer = render_title(title, preset)
+        segmenter = PersonSegmenter()
+        title_end = duration if ttl.get("permanent") else min(duration, float(ttl.get("duration_s", 3)))
+
     proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
     cap = cv2.VideoCapture(str(segment))
     if not cap.isOpened():
@@ -225,6 +240,9 @@ def _encode(segment: Path, plan: framing.Plan, ass_path: Path, out: Path, *, fps
                 if 0 <= dt < FLASH_S:
                     a = 0.75 * (1.0 - dt / FLASH_S)
                     canvas = cv2.addWeighted(canvas, 1.0 - a, white, a, 0)
+            if title_layer is not None and t < title_end:
+                fade = min(1.0, t / 0.3) * (min(1.0, (title_end - t) / 0.3) if title_end < duration else 1.0)
+                canvas = composite_behind(canvas, title_layer, segmenter.mask(canvas), alpha=fade)
             if pb_enabled and total:
                 _draw_progress(canvas, idx / max(1, total - 1), pb_color, pb_h)
             proc.stdin.write(canvas.tobytes())
