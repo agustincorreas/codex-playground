@@ -2,6 +2,7 @@ import { Engine, Channel } from './audio/engine.js';
 import { Deck } from './audio/deck.js';
 import { Library } from './library.js';
 import { Midi } from './midi.js';
+import { MIDI_PRESETS, findPreset } from './midi-presets.js';
 import { AutoMix } from './automix.js';
 import { DeckView } from './ui/deckview.js';
 import { MixerView } from './ui/mixerview.js';
@@ -114,6 +115,10 @@ for (const id of ['A', 'B']) {
     [`mix.${id}.cue`]: { label: `Mixer ${id} · Cue (auriculares)`, type: 'button', press: () => { channels[id].setCue(!channels[id].v.cue); c.cue.set(channels[id].v.cue); }, led: () => channels[id].v.cue },
   });
   for (let i = 1; i <= 8; i++) actions[`${id}.hotcue${i}`] = { label: `Deck ${id} · Hot cue ${i}`, type: 'button', press: () => d.hotcue(i - 1), led: () => !!d.hotcues[i - 1] };
+  for (let i = 1; i <= 8; i++) actions[`${id}.hotcueDel${i}`] = { label: `Deck ${id} · Borrar hot cue ${i}`, type: 'button', press: () => d.deleteHotcue(i - 1) };
+  actions[`${id}.jogRing`] = { label: `Deck ${id} · Jog (borde, nudge)`, type: 'rel', turn: (delta) => d.nudge(delta * 0.5) };
+  actions[`${id}.jumpBack`] = { label: `Deck ${id} · Beat jump −4`, type: 'button', press: () => d.beatJump(-4) };
+  actions[`${id}.jumpFwd`] = { label: `Deck ${id} · Beat jump +4`, type: 'button', press: () => d.beatJump(4) };
   for (const n of [1, 2, 4, 8, 16]) actions[`${id}.loop${n}`] = { label: `Deck ${id} · Loop ${n} beats`, type: 'button', press: () => d.loop?.beats === n ? d.exitLoop() : d.loopBeats(n), led: () => d.loop?.beats === n };
 }
 for (let i = 1; i <= 8; i++) actions[`smp.pad${i}`] = { label: `Sampler · Pad ${i}`, type: 'button', press: () => sampler.trigger(i - 1), led: () => !!sampler.pads[i - 1].playing };
@@ -125,6 +130,7 @@ Object.assign(actions, {
   'mix.master': { label: 'Master', type: 'abs', set: (x) => mixer.master.set(x * 1.25) },
   'lib.scroll': { label: 'Biblioteca · Scroll (encoder)', type: 'rel', turn: (delta) => libView.scroll(Math.sign(delta)) },
   'lib.up': { label: 'Biblioteca · Arriba', type: 'button', press: () => libView.scroll(-1) },
+  'lib.loadFree': { label: 'Biblioteca · Cargar en el deck libre', type: 'button', press: () => { const t = libView.selectedTrack(); const d = libView.freeDeck(); if (t && d) loadTrack(t, d); } },
   'lib.down': { label: 'Biblioteca · Abajo', type: 'button', press: () => libView.scroll(1) },
   'automix': { label: 'Automix', type: 'button', press: () => $('#automix-btn').click(), led: () => automix.enabled },
   'rec': { label: 'Grabar', type: 'button', press: () => recBtn.click(), led: () => engine.recording },
@@ -132,7 +138,12 @@ Object.assign(actions, {
 const midi = new Midi(actions);
 const midiBtn = $('#midi-btn');
 midi.init().then(ins => { midiBtn.classList.toggle('on', ins.length > 0); }).catch(() => {});
-midi.addEventListener('devices', (e) => { midiBtn.classList.toggle('on', e.detail.length > 0); renderMidi(); });
+midi.addEventListener('devices', (e) => {
+  midiBtn.classList.toggle('on', e.detail.length > 0); renderMidi();
+  // mapa de fábrica si el controlador es conocido y no hay un mapa propio
+  const preset = e.detail.map(findPreset).find(Boolean);
+  if (preset && (!Object.keys(midi.map).length || (store.get('midipreset') && store.get('midipreset') !== preset.id))) { midi.applyPreset(preset); toast(`Controlador detectado: mapa ${preset.name} cargado`, 'info', 5000); }
+});
 midi.addEventListener('change', renderMidi);
 midi.addEventListener('learned', (e) => { toast(`Mapeado: ${actions[e.detail.id]?.label} ← ${e.detail.key}`); highlightLearn(null); renderMidi(); });
 midi.addEventListener('learning', (e) => highlightLearn(e.detail));
@@ -153,7 +164,8 @@ $('#learn-stop').addEventListener('click', () => setLearnUi(false));
 $('#midi-learn-ui').addEventListener('click', () => { $('#midi-dialog').close(); setLearnUi(true); });
 $('#midi-export').addEventListener('click', () => downloadBlob(new Blob([midi.export()], { type: 'application/json' }), 'mixr-midi-map.json'));
 $('#midi-import').addEventListener('change', async (e) => { try { midi.import(await e.target.files[0].text()); toast('Mapa importado'); } catch (err) { toast('Mapa inválido', 'error'); } });
-$('#midi-clear').addEventListener('click', () => { if (confirm('¿Borrar todos los mapeos MIDI?')) midi.clearAll(); });
+$('#midi-clear').addEventListener('click', () => { if (confirm('¿Borrar todos los mapeos MIDI?')) { midi.clearAll(); store.del('midipreset'); } });
+$('#midi-preset').addEventListener('change', (e) => { const p = MIDI_PRESETS.find(x => x.id === e.target.value); if (p) { midi.applyPreset(p); toast(`Mapa ${p.name} cargado`); } });
 midiBtn.addEventListener('click', async () => {
   if (!midi.access) { try { await midi.init(); } catch (e) { toast(e.message, 'error', 5000); } }
   renderMidi(); $('#midi-dialog').showModal();
@@ -166,8 +178,11 @@ function renderMidi() {
     const learn = el('button', { type: 'button', class: `btn xs ${midi.learning === id ? 'on' : ''}` }, midi.learning === id ? 'Mové el control…' : 'Learn');
     learn.addEventListener('click', () => { midi.learn(id); renderMidi(); });
     const clear = el('button', { type: 'button', class: 'btn xs ghost' }, '✕'); clear.addEventListener('click', () => midi.clear(id));
-    tb.append(el('tr', {}, el('td', {}, a.label), el('td', { class: 'mono' }, m?.key || '—'), el('td', {}, learn, m ? clear : null)));
+    const inv = a.type === 'abs' && m ? el('button', { type: 'button', class: `btn xs ${m.invert ? 'on' : 'ghost'}`, title: 'Invertir sentido' }, '↕') : null;
+    if (inv) inv.addEventListener('click', () => midi.toggleInvert(id));
+    tb.append(el('tr', {}, el('td', {}, a.label), el('td', { class: 'mono' }, m?.key || '—'), el('td', {}, learn, inv, m ? clear : null)));
   }
+  const sel = $('#midi-preset'); sel.innerHTML = '<option value="">— elegir —</option>' + MIDI_PRESETS.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
 }
 setInterval(() => midi.refreshLeds(), 250);
 

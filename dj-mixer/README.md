@@ -70,6 +70,8 @@ Con el bridge activo, al cargar un tema de Spotify la app busca el mismo tema en
 
 ## Controlador MIDI
 
+**Pioneer DDJ-WeGO3**: viene mapeado de fábrica. Al conectarlo, la app carga el mapa sola (play, cue, sync, hot cues y Shift+pad para borrarlos, auto loop, ½ y ×2, jog y borde del jog, pitch, EQ, faders, crossfader, botones de auriculares, load, encoder de navegación con push para cargar en el deck libre, pads del sampler en los 8 pads inferiores, FX1/2/3 = keylock / loop 1 / loop 8, y LEDs). También se puede elegir en MIDI → "Mapa de fábrica". Si el pitch te queda al revés, tocá ↕ en su fila. Para otros controladores:
+
 1. Conectá el controlador y abrí **MIDI** (arriba a la derecha).
 2. **Aprender desde pantalla**: tocá un control en la app (play, un knob, el crossfader…) y mové el control físico. Listo.
 3. O usá **Learn** al lado de cada acción en la tabla (jog relativo, scroll de biblioteca, cargar selección, etc.).

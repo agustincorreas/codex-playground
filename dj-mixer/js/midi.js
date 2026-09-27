@@ -45,15 +45,19 @@ export class Midi extends EventTarget {
         const on = isNote ? value === 1 : value > 63;
         if (on) a.press?.(); else a.release?.();
       } else if (a.type === 'abs') {
-        a.set?.(isNote ? value : (key.startsWith('pb') ? value : value / 127));
+        let v = isNote ? value : (key.startsWith('pb') ? value : value / 127);
+        if (this.map[id]?.invert) v = 1 - v;
+        a.set?.(v);
       } else if (a.type === 'rel') {
-        const delta = isNote ? 0 : (value < 64 ? value : value - 128);
+        const delta = isNote ? 0 : (this.map[id]?.mode === 'center' ? value - 64 : (value < 64 ? value : value - 128));
         a.turn?.(delta / 24);
       }
       if (a.led) this.updateLed(id);
     }
   }
   learn(id) { this.learning = id; this.emit('learning', id); }
+  toggleInvert(id) { if (this.map[id]) { this.map[id].invert = !this.map[id].invert; store.set('midimap', this.map); this.emit('change'); } }
+  applyPreset(preset) { this.map = preset.build(); this.presetId = preset.id; store.set('midimap', this.map); store.set('midipreset', preset.id); this.emit('change'); }
   cancelLearn() { this.learning = null; this.emit('learning', null); }
   clear(id) { delete this.map[id]; store.set('midimap', this.map); this.emit('change'); }
   clearAll() { this.map = {}; store.set('midimap', this.map); this.emit('change'); }
