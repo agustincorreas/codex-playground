@@ -60,6 +60,10 @@
     <label>o archivo cookies.txt (opcional) <input type="text" id="yt-cookies-file" placeholder="/ruta/a/cookies.txt"></label>
     <p class="muted small">Con tu cuenta aparecen en el inicio de YouTube tus recomendaciones, historial, me gusta y ver más tarde. Las cookies las lee yt-dlp en tu máquina y no salen de ahí.<br><b>Mac:</b> al elegir Chrome/Brave/Edge aparece un aviso del llavero ("Chrome Safe Storage"). Pide la <b>contraseña de tu usuario de Mac</b> (la del login, no la de Google); escribila y elegí <b>Always Allow</b> para que no vuelva a preguntar. Safari y Firefox no piden nada. Si falla, exportá un cookies.txt (extensión "Get cookies.txt LOCALLY") y poné la ruta acá.</p>
     <hr>
+    <label>Suno: tu @usuario (temas públicos) <input type="text" id="suno-handle" placeholder="@usuario"></label>
+    <label>Suno: cookie <code>__client</code> (biblioteca personal) <input type="password" id="suno-client" placeholder="pegá el valor de la cookie __client de suno.com" autocomplete="off"></label>
+    <p class="muted small">En Chrome, con sesión iniciada en suno.com: Cmd+Option+I → pestaña <b>Application</b> → Cookies → https://suno.com → copiá el valor de <b>__client</b>. Queda guardada solo en tu servidor local (server/.config.json). Con eso la app lista tu biblioteca y descarga el audio de tus temas.</p>
+    <hr>
     <label>Rango de crossfader <select id="xf-curve"><option value="smooth">Suave (mezcla)</option><option value="sharp">Cortante (scratch)</option></select></label>
     <div class="row end"><button class="btn accent">Cerrar</button></div>
   </form>

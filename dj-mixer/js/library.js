@@ -36,6 +36,11 @@ export class Library extends EventTarget {
       if (track.source === 'local') ab = await track.file.arrayBuffer();
       else if (track.source === 'youtube' || (track.source === 'spotify' && track.matchedUrl)) {
         return bridge.fetchAudio(ctx, track.source === 'youtube' ? track.url : track.matchedUrl);
+      }
+      else if (track.source === 'suno') {
+        if (!bridge.available) throw new Error('Suno necesita el bridge (npm start).');
+        if (track.playable === false) throw new Error('Suno no entrega el audio de este tema fuera de su reproductor. Si es tuyo, descargalo desde Suno y agregalo como archivo.');
+        return bridge.fetchAudio(ctx, null, (fmt) => bridge.sunoStreamUrl(track.sunoId, fmt));
       } else {
         const r = await fetch(track.url, { mode: 'cors' });
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -92,6 +97,9 @@ export class Library extends EventTarget {
     return this.add({ key: item.uri, source: 'spotify', uri: item.uri, title: item.title, artist: item.artist, duration: item.duration, cover: item.cover, bpm: null, added: Date.now() });
   }
   addSpotifyMany(items) { let n = 0; for (const it of items) { if (!this.tracks.some(t => t.key === it.uri)) { this._attach({ key: it.uri, source: 'spotify', uri: it.uri, title: it.title, artist: it.artist, duration: it.duration, cover: it.cover, bpm: null, added: Date.now() }); n++; } } this._persist(); this.emit('change'); return n; }
+  sunoTrack(c) { return { key: 'suno:' + c.id, source: 'suno', sunoId: c.id, url: c.url, title: c.title, artist: c.artist, duration: c.duration, cover: c.cover, tags: c.tags, playable: c.playable, bpm: null, added: Date.now() }; }
+  addSuno(c) { return this.add(this.sunoTrack(c)); }
+  addSunoMany(clips) { let n = 0; for (const c of clips) { if (!this.tracks.some(t => t.key === 'suno:' + c.id)) { this._attach(this.sunoTrack(c)); n++; } } this._persist(); this.emit('change'); return n; }
   addUrl(url) {
     let u; try { u = new URL(url); } catch { throw new Error('URL inválida'); }
     const name = decodeURIComponent(u.pathname.split('/').pop() || u.hostname);

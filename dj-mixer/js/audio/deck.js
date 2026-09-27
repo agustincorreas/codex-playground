@@ -143,6 +143,7 @@ export class Deck extends EventTarget {
   _makeBackend(track) {
     if (track.source === 'youtube') return bridge.ytdlp ? new BufferBackend(this) : new YouTubeBackend(this);
     if (track.source === 'spotify') return track.matchedUrl && Deck.spotifyViaYouTube() ? new BufferBackend(this) : new SpotifyBackend(this);
+    if (track.source === 'suno') return new BufferBackend(this);
     return new BufferBackend(this);
   }
   async load(track) {

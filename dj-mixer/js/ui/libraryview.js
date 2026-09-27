@@ -5,7 +5,7 @@ import { Deck } from '../audio/deck.js';
 import { store } from '../store.js';
 import { GENRES, DEFAULT_GENRE } from '../genres.js';
 
-const SRC_LABEL = { local: 'Local', youtube: 'YouTube', spotify: 'Spotify', url: 'URL' };
+const SRC_LABEL = { local: 'Local', youtube: 'YouTube', spotify: 'Spotify', suno: 'Suno', url: 'URL' };
 
 export class LibraryView {
   constructor(library, root, { onLoad, decks }) {
@@ -29,7 +29,7 @@ export class LibraryView {
   }
   build() {
     const srcBtn = (id, label) => { const b = el('button', { class: 'src-btn', dataset: { src: id } }, label); b.addEventListener('click', () => { this.source = id; this.render(); }); return b; };
-    this.$srcs = el('div', { class: 'lib-sources' }, srcBtn('all', 'Todo'), srcBtn('local', '💾 Local'), srcBtn('youtube', '▶ YouTube'), srcBtn('spotify', '● Spotify'), srcBtn('url', '🔗 URL'), srcBtn('queue', '☰ Cola Automix'));
+    this.$srcs = el('div', { class: 'lib-sources' }, srcBtn('all', 'Todo'), srcBtn('local', '💾 Local'), srcBtn('youtube', '▶ YouTube'), srcBtn('spotify', '● Spotify'), srcBtn('suno', '✦ Suno'), srcBtn('url', '🔗 URL'), srcBtn('queue', '☰ Cola Automix'), srcBtn('next', '≈ ¿Con qué sigo?'));
     const files = el('input', { type: 'file', multiple: '', accept: 'audio/*,.mp3,.m4a,.flac,.wav,.ogg,.aac,.opus' });
     files.addEventListener('change', () => this.addFiles(files.files));
     const folder = el('input', { type: 'file', webkitdirectory: '', multiple: '' });
@@ -96,6 +96,20 @@ export class LibraryView {
     this.$spContent = el('div', { class: 'sp-content' });
     this.$spNote = el('span', { class: 'muted small' });
     this.$spPanel = el('div', { class: 'src-panel', dataset: { panel: 'spotify' } }, el('div', { class: 'row' }, this.$spLogin, spHomeBtn, spIn, this.$spTypes, spBtn, this.$spToggle), this.$spNote, this.$spContent);
+    // Suno: link (tema / playlist / perfil) + inicio (biblioteca personal y temas públicos)
+    const snIn = el('input', { type: 'text', placeholder: 'Pegá un link de Suno (tema, playlist o perfil @usuario)', class: 'grow' });
+    const snAdd = el('button', { class: 'btn sm accent' }, 'Agregar');
+    const snGo = async () => { const v = snIn.value.trim(); if (!v) return; await this.addLink(v.startsWith('@') ? 'https://suno.com/' + v : v); snIn.value = ''; };
+    snAdd.addEventListener('click', snGo); snIn.addEventListener('keydown', e => e.key === 'Enter' && snGo());
+    const snHome = el('button', { class: 'btn sm' }, 'Inicio'); snHome.addEventListener('click', () => { this.sunoHome = null; this.renderSuno(); });
+    this.$snNote = el('span', { class: 'muted small' });
+    this.$snContent = el('div', { class: 'sp-content' });
+    this.$snPanel = el('div', { class: 'src-panel', dataset: { panel: 'suno' } }, el('div', { class: 'row' }, snHome, snIn, snAdd), this.$snNote, this.$snContent);
+    // ¿Con qué sigo?: similares al tema que suena
+    this.$nxSeed = el('span', { class: 'grow' });
+    const nxRefresh = el('button', { class: 'btn sm' }, 'Actualizar'); nxRefresh.addEventListener('click', () => { this.nextCache = null; this.renderNext(); });
+    this.$nxContent = el('div', { class: 'sp-content' });
+    this.$nxPanel = el('div', { class: 'src-panel', dataset: { panel: 'next' } }, el('div', { class: 'row' }, el('span', { class: 'row-label' }, 'Basado en'), this.$nxSeed, nxRefresh), this.$nxContent);
     // URL
     const urlIn = el('input', { type: 'url', placeholder: 'https://…/tema.mp3 (stream directo, radio, etc.)', class: 'grow' });
     const urlAdd = el('button', { class: 'btn sm accent' }, 'Agregar');
@@ -108,7 +122,7 @@ export class LibraryView {
     const table = el('table', { class: 'tracks' }, el('thead', {}, el('tr', {}, el('th', { class: 'c-load' }), el('th', {}, 'Título'), el('th', {}, 'Artista'), el('th', { class: 'num' }, 'BPM'), el('th', { class: 'num' }, 'Tiempo'), el('th', {}, 'Fuente'), el('th', { class: 'c-act' }))), this.$tbody);
     this.$empty = el('div', { class: 'lib-empty muted' }, 'La biblioteca está vacía. Tocá "+ Archivos" o "+ Carpeta", arrastrá música acá, o pegá un link en YouTube / URL.');
     this.$list = el('div', { class: 'lib-list' }, table, this.$empty);
-    this.root.append(toolbar, this.$ytPanel, this.$spPanel, this.$urlPanel, this.$list);
+    this.root.append(toolbar, this.$ytPanel, this.$spPanel, this.$snPanel, this.$nxPanel, this.$urlPanel, this.$list);
     // drop de archivos
     this.root.addEventListener('dragover', e => { if (e.dataTransfer.types.includes('Files')) { e.preventDefault(); this.root.classList.add('drop'); } });
     this.root.addEventListener('dragleave', () => this.root.classList.remove('drop'));
@@ -255,12 +269,81 @@ export class LibraryView {
       else box.append(this.spTrackList('Temas', v.tracks, { importAll: true }));
     }
   }
-  isLink(v) { v = (v || '').trim(); return /youtu\.?be/.test(v) || /open\.spotify\.com|^spotify:/.test(v) || /^https?:\/\//.test(v); }
+  isLink(v) { v = (v || '').trim(); return /youtu\.?be/.test(v) || /open\.spotify\.com|^spotify:/.test(v) || /suno\.com/.test(v) || /^https?:\/\//.test(v); }
+  // ---- ¿Con qué sigo? ----
+  openNext(deck) { this.nextSeedDeck = deck; this.nextCache = null; this.source = 'next'; this.render(); }
+  nextSeed() {
+    const d = this.nextSeedDeck?.loaded ? this.nextSeedDeck : (this.decks.A.playing ? this.decks.A : this.decks.B.playing ? this.decks.B : this.decks.A.loaded ? this.decks.A : this.decks.B.loaded ? this.decks.B : null);
+    if (d?.track) return { track: d.track, bpm: d.effectiveBpm || d.bpm, from: `Deck ${d.id}` };
+    const t = this.selectedTrack(); return t ? { track: t, bpm: t.bpm, from: 'selección' } : null;
+  }
+  async renderNext() {
+    const box = this.$nxContent; box.innerHTML = '';
+    const seed = this.nextSeed();
+    if (!seed) { this.$nxSeed.textContent = '—'; box.append(el('div', { class: 'muted sp-empty' }, 'Reproducí un tema o seleccioná uno en la lista y acá aparecen ideas para seguir.')); return; }
+    const t = seed.track;
+    this.$nxSeed.innerHTML = ''; this.$nxSeed.append(el('b', {}, t.title), ` · ${t.artist || ''}`, seed.bpm ? ` · ${seed.bpm.toFixed(1)} BPM` : '', el('span', { class: 'muted small' }, ` (${seed.from})`));
+    const key = t.key + '|' + Math.round(seed.bpm || 0);
+    if (this.nextCache?.key !== key) this.nextCache = { key, rows: {} };
+    const cache = this.nextCache;
+    const section = (title) => { const h = el('div', { class: 'sp-section' }, el('div', { class: 'row-label' }, title), el('div', { class: 'muted small' }, 'Buscando…')); box.append(h); return h; };
+    const fill = (holder, node) => { if (this.nextCache === cache && holder.isConnected) holder.replaceWith(node); };
+    // 1) biblioteca: BPM cercano (±6 %, también mitad/doble)
+    const lib = section('En tu biblioteca · BPM compatible');
+    const near = this.lib.tracks.filter(x => x !== t && x.bpm && seed.bpm && [1, 2, 0.5].some(m => Math.abs(x.bpm * m / seed.bpm - 1) <= 0.06)).slice(0, 20);
+    fill(lib, el('div', { class: 'sp-section' }, el('div', { class: 'row-label' }, 'En tu biblioteca · BPM compatible'), near.length ? el('div', { class: 'results' }, ...near.map(x => { const a = el('button', { class: 'btn xs a' }, 'A'); a.addEventListener('click', () => this.onLoad(x, this.decks.A)); const b = el('button', { class: 'btn xs b' }, 'B'); b.addEventListener('click', () => this.onLoad(x, this.decks.B)); return el('div', { class: 'result' }, el('span', { class: 'cover', style: x.cover ? `background-image:url("${x.cover}")` : '' }), el('span', { class: 'grow' }, `${x.title} `, el('small', { class: 'muted' }, `${x.artist || ''} · ${fmtBpm(x.bpm)} BPM`)), el('span', { class: 'acts' }, a, b)); })) : el('div', { class: 'muted small' }, seed.bpm ? 'Ningún tema analizado con BPM parecido. Cargá más pistas o dejá que se analicen.' : 'Este tema no tiene BPM detectado.')));
+    // 2) YouTube: mix relacionado
+    if (bridge.ytdlp) {
+      const h = section('YouTube · mix relacionado');
+      const run = cache.rows.yt ? Promise.resolve(cache.rows.yt) : bridge.related({ url: t.source === 'youtube' ? t.url : (t.matchedUrl || ''), q: `${t.artist || ''} ${t.title || ''}`.trim() }).then(d => (cache.rows.yt = d));
+      run.then(d => fill(h, this.ytCardRow('YouTube · mix relacionado', d.items, d.error || 'Nada por acá.'))).catch(e => fill(h, this.ytCardRow('YouTube · mix relacionado', [], e.message)));
+    }
+    // 3) Spotify: más del artista y mismo género
+    if (spotify.loggedIn && (t.artist || t.title)) {
+      const artist = (t.artist || '').split(/,|&| feat\.? /i)[0].trim();
+      if (artist && !/^(youtube|spotify|suno)$/i.test(artist)) {
+        const h1 = section(`Spotify · más de ${artist}`);
+        const r1 = cache.rows.spArtist ? Promise.resolve(cache.rows.spArtist) : spotify.search(`artist:"${artist}"`, 'track').then(items => (cache.rows.spArtist = items.filter(x => x.title.toLowerCase() !== (t.title || '').toLowerCase())));
+        r1.then(items => fill(h1, this.spCardRow(`Spotify · más de ${artist}`, items.slice(0, 14).map(x => ({ kind: 'track', track: x, name: x.title, sub: x.artist, cover: x.cover }))) || el('div', { class: 'muted small' }, 'Nada por acá.'))).catch(e => fill(h1, el('div', { class: 'muted small' }, e.message)));
+      }
+      const h2 = section('Spotify · mismo género');
+      const r2 = cache.rows.spGenre ? Promise.resolve(cache.rows.spGenre) : spotify.genresFor({ uri: t.uri, artist, title: t.title }).then(async gs => { const g = gs[0]; if (!g) return { g: null, items: [] }; const items = await spotify.search(`genre:"${g}" year:2021-2026`, 'track'); return (cache.rows.spGenre = { g, items }); });
+      r2.then(({ g, items }) => fill(h2, g ? (this.spCardRow(`Spotify · ${g}`, items.slice(0, 14).map(x => ({ kind: 'track', track: x, name: x.title, sub: x.artist, cover: x.cover }))) || el('div', { class: 'muted small' }, 'Nada por acá.')) : el('div', { class: 'sp-section' }, el('div', { class: 'row-label' }, 'Spotify · mismo género'), el('div', { class: 'muted small' }, 'Spotify no tiene género para este artista.')))).catch(e => fill(h2, el('div', { class: 'muted small' }, e.message)));
+    } else if (!spotify.loggedIn) box.append(el('div', { class: 'muted small sp-empty' }, 'Conectá Spotify para ver más del artista y del mismo género.'));
+  }
+  sunoCard(c) { return this.card({ name: c.title, sub: `${c.artist}${c.playable === false ? ' · solo en Suno' : ''}`, cover: c.cover, key: 'suno:' + c.id }, { add: () => this.lib.addSuno(c) }); }
+  sunoRow(title, tracks, note) {
+    const head = el('div', { class: 'row sp-head' }, el('span', { class: 'row-label' }, title));
+    if (tracks?.length > 1) { const b = el('button', { class: 'btn xs accent' }, `Importar todo (${tracks.length})`); b.addEventListener('click', () => { const n = this.lib.addSunoMany(tracks); toast(`${n} pista(s) importadas`); this.renderSuno(); }); head.append(b); }
+    return el('div', { class: 'sp-section' }, head, tracks?.length ? el('div', { class: 'sp-cards' }, ...tracks.map(c => this.sunoCard(c))) : el('div', { class: 'muted small' }, note || 'Nada por acá.'));
+  }
+  async renderSuno() {
+    const box = this.$snContent; box.innerHTML = '';
+    this.$snNote.textContent = !bridge.available ? 'Suno necesita el bridge (npm start).' : bridge.suno?.session ? 'Sesión de Suno activa: tu biblioteca personal y tus temas. Los temas públicos de otros se cargan cuando Suno entrega su audio; si no, quedan como enlace.' : 'Sin sesión: se pueden agregar temas y playlists públicos por link. Para tu biblioteca personal, pegá tu cookie __client en Ajustes (⚙).';
+    if (!bridge.available) return;
+    if (!this.sunoHome) {
+      this.sunoHome = {};
+      const sections = [['me', 'Tu biblioteca de Suno', () => bridge.sunoMe(0)], ['profile', 'Tus temas públicos', () => bridge.sunoProfile('')]];
+      for (const [key, title, fn] of sections) {
+        const holder = el('div', { class: 'sp-section' }, el('div', { class: 'row-label' }, title), el('div', { class: 'muted small' }, 'Cargando…')); box.append(holder);
+        fn().then(d => { this.sunoHome[key] = d; holder.replaceWith(this.sunoRow(title, d.tracks, d.needsSession ? 'Pegá tu cookie __client de suno.com en Ajustes para ver tu biblioteca.' : d.needsHandle ? 'Poné tu @usuario de Suno en Ajustes.' : d.error || 'Nada por acá.')); })
+          .catch(e => holder.replaceWith(this.sunoRow(title, [], e.message)));
+      }
+      return;
+    }
+    for (const [key, title] of [['me', 'Tu biblioteca de Suno'], ['profile', 'Tus temas públicos']]) { const d = this.sunoHome[key]; if (d) box.append(this.sunoRow(title, d.tracks, d.error || (d.needsSession ? 'Pegá tu cookie __client en Ajustes.' : d.needsHandle ? 'Poné tu @usuario de Suno en Ajustes.' : null))); }
+  }
   // Pegar un link + Enter lo agrega a la lista (YouTube, tema/playlist/álbum de Spotify, o URL de audio).
   async addLink(v, loadToo = false) {
     try {
       let track = null;
       if (/youtu\.?be/.test(v)) { let info = null; if (bridge.ytdlp) { try { info = await bridge.resolve(v); } catch { /* embed */ } } track = this.lib.addYouTube(v, info); }
+      else if (/suno\.com/.test(v)) {
+        if (!bridge.available) return toast('Suno necesita el bridge (npm start).', 'warn');
+        toast('Consultando Suno…'); const r = await bridge.sunoResolve(v);
+        if (r.kind === 'song') track = this.lib.addSuno(r.tracks[0]);
+        else { const n = this.lib.addSunoMany(r.tracks); toast(`${n} pista(s) importadas de ${r.name || 'Suno'}`); this.$search.value = ''; this.q = ''; this.source = 'suno'; this.render(); return; }
+      }
       else if (/open\.spotify\.com|^spotify:/.test(v)) {
         if (!spotify.loggedIn) return toast('Conectá Spotify primero (Client ID en Ajustes).', 'warn');
         if (spotify.parseCollection(v)) { toast('Importando…'); const items = await spotify.collectionTracks(v); const n = this.lib.addSpotifyMany(items); toast(`${n} pista(s) importadas`); this.$search.value = ''; this.q = ''; this.source = 'spotify'; this.render(); return; }
@@ -280,7 +363,9 @@ export class LibraryView {
   freeDeck() { const { A, B } = this.decks; if (!A.loaded) return A; if (!B.loaded) return B; return A.playing ? (B.playing ? null : B) : A; }
   render() {
     this.$srcs.querySelectorAll('.src-btn').forEach(b => b.classList.toggle('active', b.dataset.src === this.source));
-    this.$ytPanel.hidden = this.source !== 'youtube'; this.$spPanel.hidden = this.source !== 'spotify'; this.$urlPanel.hidden = this.source !== 'url';
+    this.$ytPanel.hidden = this.source !== 'youtube'; this.$spPanel.hidden = this.source !== 'spotify'; this.$snPanel.hidden = this.source !== 'suno'; this.$urlPanel.hidden = this.source !== 'url'; this.$nxPanel.hidden = this.source !== 'next';
+    if (this.source === 'next') this.renderNext();
+    if (this.source === 'suno') this.renderSuno();
     this.$ytStatus.textContent = bridge.ytdlp ? (bridge.account ? 'Bridge activo con tu cuenta de YouTube: audio completo, búsqueda e inicio personalizado.' : 'Bridge activo: audio completo + búsqueda. Para ver tus recomendaciones e historial, elegí tu navegador en Ajustes (⚙).') : 'Modo embed (sin waveform/EQ ni búsqueda). Bridge: npm start + yt-dlp';
     if (this.source === 'youtube') this.renderYouTube();
     this.$spLogin.textContent = spotify.loggedIn ? 'Desconectar Spotify' : 'Conectar Spotify';
@@ -288,7 +373,7 @@ export class LibraryView {
     this.$spNote.textContent = Deck.spotifyViaYouTube()
       ? 'Bridge activo: al cargar un tema de Spotify, el audio se toma de YouTube (waveform, EQ, loops y los dos decks). Requiere Premium para buscar e importar.'
       : 'Sin bridge: reproductor oficial de Spotify (Premium). Un deck a la vez y sin EQ ni waveform por DRM. Con yt-dlp + npm start se desbloquea todo.';
-    const list = this.lib.filter({ source: this.source, q: this.q });
+    const list = this.lib.filter({ source: this.source === 'next' ? 'all' : this.source, q: this.q });
     this.$count.textContent = `${list.length} pista${list.length === 1 ? '' : 's'}`;
     this.$empty.hidden = list.length > 0;
     this.$empty.textContent = this.source === 'queue' ? 'La cola Automix está vacía: agregá pistas con el botón ☰ de la lista.' : 'La biblioteca está vacía. Tocá "+ Archivos" o "+ Carpeta", arrastrá música acá, o pegá un link en YouTube / URL.';

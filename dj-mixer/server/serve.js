@@ -5,11 +5,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawn, execFile } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { createSuno } from './suno.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = Number(process.env.PORT || 8787);
 const YTDLP = process.env.YTDLP || 'yt-dlp';
-export const SERVER_VERSION = 6; // subir cuando cambie la API del bridge
+export const SERVER_VERSION = 7; // subir cuando cambie la API del bridge
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
   '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon',
@@ -21,6 +22,7 @@ const CFG_PATH = path.join(ROOT, 'server', '.config.json');
 let cfg = {};
 try { cfg = JSON.parse(fs.readFileSync(CFG_PATH, 'utf8')); } catch { cfg = {}; }
 const saveCfg = () => fs.writeFileSync(CFG_PATH, JSON.stringify(cfg, null, 2));
+const suno = createSuno(() => cfg);
 const ytArgs = () => { const a = []; if (cfg.cookiesFromBrowser) a.push('--cookies-from-browser', cfg.cookiesFromBrowser); if (cfg.cookiesFile) a.push('--cookies', cfg.cookiesFile); return a; };
 const readBody = (req) => new Promise((resolve) => { let b = ''; req.on('data', d => { b += d; if (b.length > 1e6) req.destroy(); }); req.on('end', () => { try { resolve(JSON.parse(b || '{}')); } catch { resolve({}); } }); });
 const cache = new Map(); // key → { at, data }
@@ -97,14 +99,59 @@ export function createServer() {
 return http.createServer(async (req, res) => {
   const u = new URL(req.url, `http://${req.headers.host}`);
   try {
-    if (u.pathname === '/api/bridge/status') return json(res, 200, { ok: true, ytdlp: ytdlpOk, ytdlpVersion, version: SERVER_VERSION, account: !!(cfg.cookiesFromBrowser || cfg.cookiesFile), accountOk: !!cfg.cookiesOk });
+    if (u.pathname === '/api/bridge/status') return json(res, 200, { ok: true, ytdlp: ytdlpOk, ytdlpVersion, version: SERVER_VERSION, account: !!(cfg.cookiesFromBrowser || cfg.cookiesFile), accountOk: !!cfg.cookiesOk, suno: { session: !!cfg.sunoClient, handle: cfg.sunoHandle || '' } });
+    // ---- Suno ----
+    if (u.pathname === '/api/suno/me') {
+      if (!cfg.sunoClient) return json(res, 200, { tracks: [], needsSession: true });
+      try { return json(res, 200, await cached('suno:me:' + (u.searchParams.get('page') || 0), 60 * 1000, () => suno.me(Number(u.searchParams.get('page') || 0)))); }
+      catch (e) { return json(res, 200, { tracks: [], error: e.message }); }
+    }
+    if (u.pathname === '/api/suno/resolve') {
+      try { return json(res, 200, await suno.resolve(u.searchParams.get('url') || '')); }
+      catch (e) { return json(res, 400, { error: e.message }); }
+    }
+    if (u.pathname === '/api/suno/profile') {
+      const h = u.searchParams.get('handle') || cfg.sunoHandle; if (!h) return json(res, 200, { tracks: [], needsHandle: true });
+      try { return json(res, 200, await cached('suno:profile:' + h, 5 * 60 * 1000, () => suno.profile(h))); }
+      catch (e) { return json(res, 200, { tracks: [], error: e.message }); }
+    }
+    if (u.pathname === '/api/suno/stream') {
+      const id = u.searchParams.get('id'); if (!id) return json(res, 400, { error: 'id requerido' });
+      const wantWav = u.searchParams.get('fmt') === 'wav';
+      if (wantWav && !ffmpegOk) return json(res, 503, { error: 'ffmpeg no está instalado: no se puede convertir el audio.' });
+      let audioUrl;
+      try { audioUrl = await suno.audioUrl(id); } catch (e) { return json(res, 403, { error: e.message }); }
+      let up;
+      try { up = await fetch(audioUrl, { headers: { 'User-Agent': suno.ua, Referer: 'https://suno.com/' } }); }
+      catch (e) { return json(res, 502, { error: 'No se pudo descargar el audio de Suno: ' + e.message }); }
+      if (!up.ok || !up.body) return json(res, 502, { error: `Suno CDN respondió ${up.status}` });
+      const type = up.headers.get('content-type') || 'audio/mpeg';
+      if (!wantWav) {
+        res.writeHead(200, { 'Content-Type': type, 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store' });
+        const { Readable } = await import('node:stream'); Readable.fromWeb(up.body).pipe(res); return;
+      }
+      const ff = spawn(FFMPEG, ['-loglevel', 'error', '-i', 'pipe:0', '-vn', '-ac', '2', '-ar', '44100', '-f', 'wav', 'pipe:1']);
+      const { Readable } = await import('node:stream'); Readable.fromWeb(up.body).pipe(ff.stdin); ff.stdin.on('error', () => {});
+      res.writeHead(200, { 'Content-Type': 'audio/wav', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store' });
+      ff.stdout.pipe(res); req.on('close', () => ff.kill('SIGKILL'));
+      return;
+    }
     if (u.pathname === '/api/config') {
       let probe = null;
       if (req.method === 'POST') {
-        const b = await readBody(req); cfg.cookiesFromBrowser = String(b.cookiesFromBrowser || '').trim(); cfg.cookiesFile = String(b.cookiesFile || '').trim(); cfg.cookiesOk = false; saveCfg(); cache.clear();
+        const b = await readBody(req);
+        if ('sunoClient' in b || 'sunoHandle' in b) { // ajustes de Suno (no tocan las cookies de YouTube)
+          if ('sunoClient' in b) cfg.sunoClient = String(b.sunoClient || '').trim().replace(/^__client=/, '');
+          if ('sunoHandle' in b) cfg.sunoHandle = String(b.sunoHandle || '').trim().replace(/^@/, '');
+          saveCfg(); cache.clear();
+          let sunoProbe = null;
+          if (cfg.sunoClient) { try { const me = await suno.me(0); sunoProbe = { ok: true, count: me.tracks.length }; } catch (e) { sunoProbe = { ok: false, error: e.message }; } }
+          return json(res, 200, { sunoHandle: cfg.sunoHandle || '', sunoSession: !!cfg.sunoClient, sunoProbe });
+        }
+        cfg.cookiesFromBrowser = String(b.cookiesFromBrowser || '').trim(); cfg.cookiesFile = String(b.cookiesFile || '').trim(); cfg.cookiesOk = false; saveCfg(); cache.clear();
         if (cfg.cookiesFromBrowser || cfg.cookiesFile) probe = await probeCookies();
       }
-      return json(res, 200, { cookiesFromBrowser: cfg.cookiesFromBrowser || '', cookiesFile: cfg.cookiesFile || '', cookiesOk: !!cfg.cookiesOk, probe });
+      return json(res, 200, { cookiesFromBrowser: cfg.cookiesFromBrowser || '', cookiesFile: cfg.cookiesFile || '', cookiesOk: !!cfg.cookiesOk, probe, sunoHandle: cfg.sunoHandle || '', sunoSession: !!cfg.sunoClient });
     }
     // Inicio de YouTube: secciones de la cuenta (con cookies), tendencias de música y relacionados
     if (u.pathname === '/api/yt/home') {
@@ -140,6 +187,21 @@ return http.createServer(async (req, res) => {
       if (!ytdlpOk) return json(res, 503, { error: 'yt-dlp no disponible' });
       const items = await runJson(['-j', '--flat-playlist', '--no-warnings', `ytsearch10:${q}`]);
       return json(res, 200, items.map(pick));
+    }
+    if (u.pathname === '/api/yt/related') {
+      if (!ytdlpOk) return json(res, 503, { error: 'yt-dlp no disponible' });
+      const url = u.searchParams.get('url') || '', q = u.searchParams.get('q') || '';
+      let id = (url.match(/[?&]v=([\w-]{11})/) || url.match(/youtu\.be\/([\w-]{11})/) || url.match(/^([\w-]{11})$/) || [])[1] || null;
+      try {
+        if (!id && q) { const r = await cached('seed:' + q, 30 * 60 * 1000, () => runJson(['-j', '--flat-playlist', '--no-warnings', `ytsearch1:${q}`])); id = r[0]?.id || null; }
+        if (!id) return json(res, 200, { items: [], error: 'No se encontró el tema en YouTube' });
+        let items = await cached('related:' + id, 10 * 60 * 1000, async () => {
+          const raw = await runJson(['-j', '--flat-playlist', '--no-warnings', '--playlist-end', '25', `https://www.youtube.com/watch?v=${id}&list=RD${id}`]).catch(() => []);
+          return raw.map(pick).filter(i => i.id && i.id !== id && (!i.duration || i.duration <= 20 * 60));
+        });
+        if (!items.length && q) items = (await runJson(['-j', '--flat-playlist', '--no-warnings', `ytsearch12:${q} similar`])).map(pick).filter(i => i.id !== id);
+        return json(res, 200, { items, seed: id });
+      } catch (e) { return json(res, 200, { items: [], error: cleanErr(e.message) || 'yt-dlp falló' }); }
     }
     if (u.pathname === '/api/match') {
       const artist = u.searchParams.get('artist') || '', title = u.searchParams.get('title') || '', duration = Number(u.searchParams.get('duration')) || null;

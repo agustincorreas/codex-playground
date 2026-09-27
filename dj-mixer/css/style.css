@@ -64,6 +64,7 @@ body.learn [data-action] { cursor: crosshair; }
 .deck { --deck: var(--a); background: var(--panel); padding: 10px 12px; display: grid; grid-template-rows: auto 34px 1fr; gap: 8px; min-width: 0; position: relative; }
 .deck.drop::after { content: 'Soltar para cargar'; position: absolute; inset: 0; display: grid; place-items: center; background: rgba(51,209,255,.12); border: 2px dashed var(--deck); font-weight: 700; letter-spacing: .1em; }
 .deck-head { display: grid; grid-template-columns: 44px 1fr auto auto; gap: 10px; align-items: center; }
+.deck-btns { display: flex; flex-direction: column; gap: 2px; }
 .deck .art { width: 44px; height: 44px; border-radius: 6px; background: var(--panel2) center/cover no-repeat; border: 1px solid var(--line2); }
 .deck .meta { min-width: 0; }
 .deck .title { font-weight: 700; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -204,7 +205,7 @@ table.tracks .num { text-align: right; width: 70px; } .c-load { width: 60px; } .
 .cover { width: 22px; height: 22px; border-radius: 3px; background: var(--panel2) center/cover; flex: none; }
 .deck-tag { font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 3px; background: var(--panel2); }
 .src-tag { font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 3px; background: var(--panel2); color: var(--muted); }
-.src-tag.youtube { color: #ff5c5c; } .src-tag.spotify { color: #1ed760; } .src-tag.url { color: var(--amber); } .src-tag.local { color: var(--a); }
+.src-tag.youtube { color: #ff5c5c; } .src-tag.suno { color: #c77dff; } .src-tag.spotify { color: #1ed760; } .src-tag.url { color: var(--amber); } .src-tag.local { color: var(--a); }
 .acts { display: inline-flex; gap: 3px; }
 
 /* ---- Spotify: inicio, filtros y detalle ---- */

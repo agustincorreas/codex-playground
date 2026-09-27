@@ -1,15 +1,15 @@
 // Cliente del bridge opcional (server/serve.js + yt-dlp): permite cargar YouTube como audio real.
 import { store } from '../store.js';
 
-export const EXPECTED_SERVER = 6;
+export const EXPECTED_SERVER = 7;
 export const bridge = {
-  available: false, ytdlp: false, version: 0, stale: false, account: false,
+  available: false, ytdlp: false, version: 0, stale: false, account: false, suno: { session: false, handle: '' },
   get base() { return (store.get('bridgeUrl', '') || '').replace(/\/$/, ''); },
   async check() {
     try {
       const r = await fetch(this.base + '/api/bridge/status', { cache: 'no-store' });
       const j = await r.json();
-      this.available = !!j.ok; this.ytdlp = !!j.ytdlp; this.version = j.version || 0; this.stale = this.available && this.version < EXPECTED_SERVER; this.account = !!j.account; this.ytdlpVersion = j.ytdlpVersion || '';
+      this.available = !!j.ok; this.ytdlp = !!j.ytdlp; this.version = j.version || 0; this.stale = this.available && this.version < EXPECTED_SERVER; this.account = !!j.account; this.ytdlpVersion = j.ytdlpVersion || ''; this.suno = j.suno || { session: false, handle: '' };
     } catch { this.available = false; this.ytdlp = false; this.stale = false; }
     return this.ytdlp;
   },
@@ -35,13 +35,18 @@ export const bridge = {
     if (!r.ok) throw new Error('El bridge no respondió');
     return r.json();
   },
+  async related({ url = '', q = '' } = {}) { const r = await fetch(`${this.base}/api/yt/related?url=${encodeURIComponent(url)}&q=${encodeURIComponent(q)}`); if (!r.ok) throw new Error('El bridge no respondió'); return r.json(); },
   async getConfig() { const r = await fetch(this.base + '/api/config'); return r.json(); },
   async setConfig(c) { const r = await fetch(this.base + '/api/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(c) }); await this.check(); return r.json(); },
   streamUrl(url, fmt = null) { return `${this.base}/api/stream?url=${encodeURIComponent(url)}${fmt ? '&fmt=' + fmt : ''}`; },
   // Descarga y decodifica el audio de un video; si el navegador no decodifica el formato, pide una conversión a WAV.
-  async fetchAudio(ctx, url) {
+  sunoStreamUrl(id, fmt = null) { return `${this.base}/api/suno/stream?id=${encodeURIComponent(id)}${fmt ? '&fmt=' + fmt : ''}`; },
+  async sunoMe(page = 0) { const r = await fetch(`${this.base}/api/suno/me?page=${page}`); return r.json(); },
+  async sunoProfile(handle = '') { const r = await fetch(`${this.base}/api/suno/profile?handle=${encodeURIComponent(handle)}`); return r.json(); },
+  async sunoResolve(url) { const r = await fetch(`${this.base}/api/suno/resolve?url=${encodeURIComponent(url)}`); const j = await r.json(); if (!r.ok) throw new Error(j.error || 'Suno: error'); return j; },
+  async fetchAudio(ctx, url, urlFor = null) {
     const get = async (fmt) => {
-      const r = await fetch(this.streamUrl(url, fmt));
+      const r = await fetch(urlFor ? urlFor(fmt) : this.streamUrl(url, fmt));
       if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(j.error || `Bridge HTTP ${r.status}`); }
       const ab = await r.arrayBuffer();
       if (ab.byteLength < 1024) throw new Error('El bridge devolvió un audio vacío para este video');

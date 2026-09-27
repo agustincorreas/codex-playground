@@ -20,7 +20,8 @@ Cualquier servidor estático sirve (`npx http-server`, `python -m http.server`),
 | Decks (A/B) | Waveform scroll en 3 bandas (graves rojo / medios verde / agudos azul), overview, beatgrid, platter con jog/nudge, Play, Cue estilo Serato, Sync (tempo + fase), pitch ±8/16/50 %, keylock, 8 hot cues, autoloops 1–16 beats, loop in/out, ½ y ×2, quantize, tap tempo, edición de BPM y de grid |
 | Mixer | Trim, EQ 3 bandas con kill, filtro (LP/HP en un knob), fader con curva, crossfader equal-power o cortante, VU por canal y master, limitador en master, cue por canal a auriculares (segunda salida o **split cue** por cable Y) |
 | Biblioteca | Archivos y carpetas locales (drag & drop), tags ID3 y carátula, análisis automático de BPM/beatgrid/ganancia, búsqueda, cola Automix, hot cues y BPM persistentes por pista |
-| Fuentes externas | **YouTube** (link o búsqueda), **Spotify** (búsqueda + reproducción), **URL directa** (mp3, streams, radios) |
+| Fuentes externas | **YouTube** (link o búsqueda), **Spotify** (búsqueda + reproducción), **Suno** (tu biblioteca y temas públicos), **URL directa** (mp3, streams, radios) |
+| ¿Con qué sigo? | Pestaña que, a partir del tema que suena, propone continuaciones: temas de tu biblioteca con BPM compatible, el mix relacionado de YouTube, y en Spotify más del artista y del mismo género |
 | Automático | **Automix**: encadena la cola con sync y crossfade automático. Auto-gain al cargar. En modo simple, sync automático al cargar |
 | MIDI | Cualquier controlador: *MIDI learn* desde la pantalla o desde la tabla de acciones, jog relativo, LEDs de estado, exportar/importar mapa |
 | Sampler | 8 pads con samples sintetizados incluidos (kick, clap, hats, snare, crash, air horn, riser) o tus propios archivos (Shift+click o arrastrar), disparo cuantizado al beat, volumen y cue |
@@ -43,6 +44,7 @@ El modo se recuerda entre sesiones.
 | YouTube **embed** (sin bridge) | Pegar link | ❌ (barra de progreso, sin EQ) | Usa el reproductor oficial; play/pause/seek/volumen/velocidad. El video se ve en el lugar del platter |
 | Spotify **con bridge** | Client ID + Premium + yt-dlp | ✅ | Spotify es el catálogo (búsqueda, playlists, álbumes); el audio se busca automáticamente en YouTube por artista/título/duración y se carga como archivo. Dos decks, EQ, loops, keylock |
 | Spotify **sin bridge** | Client ID propio + cuenta Premium | ❌ (DRM) | Web Playback SDK: play/pause/seek/volumen. Un solo deck a la vez |
+| Suno | Link de tema/playlist/perfil, o tu sesión | ✅ cuando Suno entrega el audio | Con tu cookie `__client` (Ajustes) se lista tu biblioteca personal y se descargan tus temas. Los temas públicos de otros hoy están cifrados por Suno: se listan y se abren en Suno, pero no se cargan en el deck |
 | URL directa | Pegar URL | ✅ si el servidor permite CORS, si no ❌ | Streams/radios funcionan como `<audio>` |
 
 Los decks "embed" y el reproductor oficial de Spotify no pasan por el motor de audio: el fader, crossfader y master sí los controlan (por volumen), pero no hay EQ, filtro, cue a auriculares ni grabación de esa señal. Es una limitación del DRM/iframe, no de la app; por eso existe el bridge.
@@ -67,6 +69,14 @@ La pestaña YouTube tiene un **Inicio** con "Tendencias de música" y sugerencia
 3. La pestaña Spotify muestra un **Inicio** resumido (tus playlists, recientes, me gusta y lo más escuchado) y busca por **canción, artista, álbum o playlist**. Un artista abre sus temas más escuchados y sus álbumes; un álbum o playlist muestra sus temas con "Importar todo". También podés pegar el link de una playlist o álbum. Requiere Premium (restricción de Spotify).
 
 Con el bridge activo, al cargar un tema de Spotify la app busca el mismo tema en YouTube (`/api/match`: artista + título, duración a ±3 s, evita lives/covers/sped-up) y lo carga con audio real. La coincidencia se guarda por tema. Si no encuentra nada, cae al reproductor oficial. Podés desactivarlo en Ajustes para usar siempre el reproductor de Spotify.
+
+### Suno
+
+La pestaña Suno acepta links de temas, playlists y perfiles (`suno.com/@usuario`). En Ajustes podés poner tu @usuario (lista tus temas públicos) y tu cookie `__client` de suno.com (Chrome: DevTools → Application → Cookies → suno.com), con la que la app lee tu biblioteca personal y descarga el audio de tus temas por la misma API que usa el sitio. La cookie queda solo en `server/.config.json`. Desde agosto de 2026 Suno cifra el audio público de otros usuarios; esos temas se listan pero no se pueden cargar en un deck. Tus propias canciones también podés bajarlas desde Suno y agregarlas como archivos.
+
+### ¿Con qué sigo?
+
+El botón **≈** de cada deck (o la pestaña "¿Con qué sigo?") toma el tema que suena y muestra: pistas de tu biblioteca con BPM compatible (±6 %, mitad o doble), el "mix" automático relacionado de YouTube (vía bridge), y en Spotify más temas del artista y del mismo género.
 
 ## Controlador MIDI
 

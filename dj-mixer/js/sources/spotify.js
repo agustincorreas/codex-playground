@@ -90,6 +90,15 @@ export const spotify = {
   },
   // Spotify quitó "top tracks" (y en algunos casos los álbumes del artista) para apps en modo desarrollo (feb. 2026):
   // se intenta la ruta oficial y, si falla, se usa la búsqueda filtrada por artista.
+  // Géneros del artista principal de un tema (por uri o buscando "artista título")
+  async genresFor({ uri = null, artist = '', title = '' }) {
+    let artistId = null;
+    if (uri) { const m = uri.match(/spotify:track:([A-Za-z0-9]+)/); if (m) { const t = await this.api(`/tracks/${m[1]}`).catch(() => null); artistId = t?.artists?.[0]?.id || null; } }
+    if (!artistId && (artist || title)) { const r = await this.search(`${artist} ${title}`.trim(), 'track').catch(() => []); const t = r[0]; if (t) { const tt = await this.api(`/tracks/${t.id}`).catch(() => null); artistId = tt?.artists?.[0]?.id || null; } }
+    if (!artistId) return [];
+    const a = await this.api(`/artists/${artistId}`).catch(() => null);
+    return a?.genres || [];
+  },
   async artistDetail(id, name) {
     const quoted = `artist:"${(name || '').replace(/"/g, '')}"`;
     const tracks = await this.api(`/artists/${id}/top-tracks`).then(j => (j.tracks || []).map(mapTrack).filter(Boolean)).catch(() => null)

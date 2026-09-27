@@ -56,8 +56,8 @@ function syncDeck(deck) {
 
 for (const d of Object.values(decks)) d.on('matched', () => library.persist());
 const views = {
-  A: new DeckView(decks.A, $('#deck-A'), { color: COLORS.A, onDropTrack: (id, d) => loadTrack(library.byId(id), d), onSync: syncDeck }),
-  B: new DeckView(decks.B, $('#deck-B'), { color: COLORS.B, onDropTrack: (id, d) => loadTrack(library.byId(id), d), onSync: syncDeck }),
+  A: new DeckView(decks.A, $('#deck-A'), { color: COLORS.A, onDropTrack: (id, d) => loadTrack(library.byId(id), d), onSync: syncDeck, onSimilar: (d) => libView.openNext(d) }),
+  B: new DeckView(decks.B, $('#deck-B'), { color: COLORS.B, onDropTrack: (id, d) => loadTrack(library.byId(id), d), onSync: syncDeck, onSimilar: (d) => libView.openNext(d) }),
 };
 const waves = { A: new ScrollingWave($('#wave-A'), decks.A, COLORS.A), B: new ScrollingWave($('#wave-B'), decks.B, COLORS.B) };
 $$('#waves .zoom button').forEach(b => b.addEventListener('click', () => { const z = waves.A.zoom * (b.dataset.zoom === '+' ? 0.5 : 2); waves.A.zoom = waves.B.zoom = Math.max(2, Math.min(32, z)); }));
@@ -189,7 +189,7 @@ setInterval(() => midi.refreshLeds(), 250);
 // ---------- ajustes ----------
 const settings = $('#settings');
 $('#settings-btn').addEventListener('click', async () => {
-  if (bridge.available) { try { const c = await bridge.getConfig(); $('#yt-browser').value = c.cookiesFromBrowser || ''; $('#yt-cookies-file').value = c.cookiesFile || ''; } catch { /* sin bridge */ } } $('#spotify-via-yt').checked = store.get('spotifyViaYouTube', true) !== false; $('#spotify-client').value = spotify.clientId; $('#bridge-url').value = store.get('bridgeUrl', ''); $('#spotify-redirect').textContent = spotify.redirectUri; $('#xf-curve').value = store.get('xfCurve', 'smooth'); settings.showModal(); });
+  if (bridge.available) { try { const c = await bridge.getConfig(); $('#yt-browser').value = c.cookiesFromBrowser || ''; $('#yt-cookies-file').value = c.cookiesFile || ''; $('#suno-handle').value = c.sunoHandle ? '@' + c.sunoHandle : ''; $('#suno-client').value = c.sunoSession ? '••••••••' : ''; } catch { /* sin bridge */ } } $('#spotify-via-yt').checked = store.get('spotifyViaYouTube', true) !== false; $('#spotify-client').value = spotify.clientId; $('#bridge-url').value = store.get('bridgeUrl', ''); $('#spotify-redirect').textContent = spotify.redirectUri; $('#xf-curve').value = store.get('xfCurve', 'smooth'); settings.showModal(); });
 async function listDevices() {
   try { const s = await navigator.mediaDevices.getUserMedia({ audio: true }); s.getTracks().forEach(t => t.stop()); } catch { /* sin permiso: sin etiquetas */ }
   const devs = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'audiooutput');
@@ -218,6 +218,16 @@ const saveYtConfig = async () => {
     else toast(c.probe?.error || 'No se pudo leer la sesión de YouTube', 'error', 15000);
   } catch (e) { toast('No se pudo guardar en el bridge: ' + e.message, 'error'); }
 };
+const saveSuno = async (field) => {
+  const v = field === 'sunoClient' ? $('#suno-client').value.trim() : $('#suno-handle').value.trim();
+  if (field === 'sunoClient' && /^•+$/.test(v)) return;
+  try {
+    const c = await bridge.setConfig({ [field]: v }); libView.sunoHome = null; libView.render(); status();
+    if (field === 'sunoClient') { if (!v) toast('Sesión de Suno quitada'); else if (c.sunoProbe?.ok) toast(`Suno conectado: ${c.sunoProbe.count} temas en la primera página de tu biblioteca`); else toast(c.sunoProbe?.error || 'No se pudo validar la sesión de Suno', 'error', 10000); $('#suno-client').value = c.sunoSession ? '••••••••' : ''; }
+    else toast(v ? 'Usuario de Suno guardado' : 'Usuario de Suno quitado');
+  } catch (e) { toast('No se pudo guardar en el bridge: ' + e.message, 'error'); }
+};
+$('#suno-handle').addEventListener('change', () => saveSuno('sunoHandle')); $('#suno-client').addEventListener('change', () => saveSuno('sunoClient'));
 $('#yt-browser').addEventListener('change', saveYtConfig); $('#yt-cookies-file').addEventListener('change', saveYtConfig);
 $('#xf-curve').addEventListener('change', (e) => { store.set('xfCurve', e.target.value); mixer.curve = e.target.value; mixer.applyXf(mixer.xf.value); });
 mixer.curve = store.get('xfCurve', 'smooth');
@@ -291,6 +301,7 @@ function status() {
   const bits = [];
   bits.push(bridge.stale ? '⚠ servidor viejo' : bridge.ytdlp ? (bridge.account ? 'Bridge YT ✓ (cuenta)' : 'Bridge YT ✓') : 'YT embed');
   if (spotify.loggedIn) bits.push('Spotify ✓');
+  if (bridge.suno?.session) bits.push('Suno ✓');
   if (!engine.hasKeylock) bits.push('sin keylock');
   $('#status').textContent = bits.join(' · ');
 }

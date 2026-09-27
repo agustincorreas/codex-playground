@@ -3,8 +3,8 @@ import { knob, fader, button } from './components.js';
 import { OverviewWave, HOTCUE_COLORS } from './waveform.js';
 
 export class DeckView {
-  constructor(deck, root, { color, onDropTrack, onSync }) {
-    this.deck = deck; this.root = root; this.color = color; this.onDropTrack = onDropTrack; this.onSync = onSync;
+  constructor(deck, root, { color, onDropTrack, onSync, onSimilar = null }) {
+    this.deck = deck; this.root = root; this.color = color; this.onDropTrack = onDropTrack; this.onSync = onSync; this.onSimilar = onSimilar;
     this.angle = 0; this._last = performance.now();
     this.build();
     deck.on('loaded', () => this.onLoaded()).on('state', () => this.refresh()).on('rate', () => this.refreshRate())
@@ -25,10 +25,11 @@ export class DeckView {
     this.$remain = el('span', { class: 'remain' }, '-00:00.0');
     this.$pitchTxt = el('span', { class: 'pitch-txt' }, '+0.00%');
     this.$eject = button({ label: '⏏', cls: 'ghost sm eject', title: 'Expulsar', onPress: () => d.eject() });
+    this.$similar = button({ label: '≈', cls: 'ghost sm', title: '¿Con qué sigo? Buscar temas similares a este', onPress: () => this.onSimilar?.(d) });
     const head = el('div', { class: 'deck-head' }, this.$art,
       el('div', { class: 'meta' }, this.$title, this.$artist),
       el('div', { class: 'numbers' }, el('div', {}, this.$bpm, el('small', {}, ' BPM')), el('div', {}, this.$time), el('div', { class: 'muted' }, this.$remain), el('div', { class: 'muted' }, this.$pitchTxt)),
-      this.$eject.el);
+      el('div', { class: 'deck-btns' }, this.$similar.el, this.$eject.el));
     this.$overview = el('canvas', { class: 'overview' });
     this.$overview.addEventListener('pointerdown', (e) => { if (!d.loaded) return; const rc = this.$overview.getBoundingClientRect(); d.seek((e.clientX - rc.left) / rc.width * d.duration); });
     this.overview = new OverviewWave(this.$overview, d, this.color);
