@@ -63,6 +63,11 @@ export function createSuno(getCfg) {
       const clips = Array.isArray(j) ? j : (j.clips || []);
       return { tracks: clips.filter(c => c.status === 'complete').map(mapClip), hasMore: clips.length >= 20 };
     },
+    async search(term, rank = 'trending') {
+      const j = await api('/api/search/', { auth: true, method: 'POST', body: { search_queries: [{ name: 'public_song', search_type: 'public_song', term, from_index: 0, rank_by: rank }] } });
+      const res = j?.result?.public_song?.result || j?.result?.public_song || [];
+      return (Array.isArray(res) ? res : []).map(mapClip);
+    },
     async resolve(input) {
       const s = (input || '').trim();
       const m = s.match(UUID);

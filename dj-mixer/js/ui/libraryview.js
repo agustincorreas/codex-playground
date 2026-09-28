@@ -292,24 +292,40 @@ export class LibraryView {
     const lib = section('En tu biblioteca · BPM compatible');
     const near = this.lib.tracks.filter(x => x !== t && x.bpm && seed.bpm && [1, 2, 0.5].some(m => Math.abs(x.bpm * m / seed.bpm - 1) <= 0.06)).slice(0, 20);
     fill(lib, el('div', { class: 'sp-section' }, el('div', { class: 'row-label' }, 'En tu biblioteca · BPM compatible'), near.length ? el('div', { class: 'results' }, ...near.map(x => { const a = el('button', { class: 'btn xs a' }, 'A'); a.addEventListener('click', () => this.onLoad(x, this.decks.A)); const b = el('button', { class: 'btn xs b' }, 'B'); b.addEventListener('click', () => this.onLoad(x, this.decks.B)); return el('div', { class: 'result' }, el('span', { class: 'cover', style: x.cover ? `background-image:url("${x.cover}")` : '' }), el('span', { class: 'grow' }, `${x.title} `, el('small', { class: 'muted' }, `${x.artist || ''} · ${fmtBpm(x.bpm)} BPM`)), el('span', { class: 'acts' }, a, b)); })) : el('div', { class: 'muted small' }, seed.bpm ? 'Ningún tema analizado con BPM parecido. Cargá más pistas o dejá que se analicen.' : 'Este tema no tiene BPM detectado.')));
-    // 2) YouTube: mix relacionado
-    if (bridge.ytdlp) {
+    const artist = (t.artist || '').split(/,|&| feat\.? /i)[0].trim();
+    const realArtist = artist && !/^(youtube|spotify|suno)$/i.test(artist) ? artist : '';
+    const unavailable = (title, msg, action = null) => el('div', { class: 'sp-section' }, el('div', { class: 'row-label' }, title), el('div', { class: 'row' }, el('span', { class: 'muted small' }, msg), action));
+    const settingsBtn = () => { const b = el('button', { class: 'btn xs' }, 'Ajustes'); b.addEventListener('click', () => document.getElementById('settings-btn').click()); return b; };
+    // 2) YouTube: mix relacionado (la "radio" automática de YouTube para ese tema)
+    if (bridge.stale) box.append(unavailable('YouTube · mix relacionado', 'El servidor corre una versión vieja: reinicialo con npm start.'));
+    else if (!bridge.ytdlp) box.append(unavailable('YouTube · mix relacionado', 'Necesita el bridge con yt-dlp (npm start).'));
+    else {
       const h = section('YouTube · mix relacionado');
       const run = cache.rows.yt ? Promise.resolve(cache.rows.yt) : bridge.related({ url: t.source === 'youtube' ? t.url : (t.matchedUrl || ''), q: `${t.artist || ''} ${t.title || ''}`.trim() }).then(d => (cache.rows.yt = d));
       run.then(d => fill(h, this.ytCardRow('YouTube · mix relacionado', d.items, d.error || 'Nada por acá.'))).catch(e => fill(h, this.ytCardRow('YouTube · mix relacionado', [], e.message)));
     }
     // 3) Spotify: más del artista y mismo género
-    if (spotify.loggedIn && (t.artist || t.title)) {
-      const artist = (t.artist || '').split(/,|&| feat\.? /i)[0].trim();
-      if (artist && !/^(youtube|spotify|suno)$/i.test(artist)) {
-        const h1 = section(`Spotify · más de ${artist}`);
-        const r1 = cache.rows.spArtist ? Promise.resolve(cache.rows.spArtist) : spotify.search(`artist:"${artist}"`, 'track').then(items => (cache.rows.spArtist = items.filter(x => x.title.toLowerCase() !== (t.title || '').toLowerCase())));
-        r1.then(items => fill(h1, this.spCardRow(`Spotify · más de ${artist}`, items.slice(0, 14).map(x => ({ kind: 'track', track: x, name: x.title, sub: x.artist, cover: x.cover }))) || el('div', { class: 'muted small' }, 'Nada por acá.'))).catch(e => fill(h1, el('div', { class: 'muted small' }, e.message)));
+    let genrePromise = Promise.resolve(null);
+    if (!spotify.loggedIn) box.append(unavailable('Spotify · más del artista y mismo género', 'Conectá Spotify (pestaña Spotify) para ver estas sugerencias.'));
+    else {
+      if (realArtist) {
+        const h1 = section(`Spotify · más de ${realArtist}`);
+        const r1 = cache.rows.spArtist ? Promise.resolve(cache.rows.spArtist) : spotify.search(`artist:"${realArtist}"`, 'track').then(items => (cache.rows.spArtist = items.filter(x => x.title.toLowerCase() !== (t.title || '').toLowerCase())));
+        r1.then(items => fill(h1, this.spCardRow(`Spotify · más de ${realArtist}`, items.slice(0, 14).map(x => ({ kind: 'track', track: x, name: x.title, sub: x.artist, cover: x.cover }))) || el('div', { class: 'muted small' }, 'Nada por acá.'))).catch(e => fill(h1, el('div', { class: 'muted small' }, e.message)));
       }
       const h2 = section('Spotify · mismo género');
-      const r2 = cache.rows.spGenre ? Promise.resolve(cache.rows.spGenre) : spotify.genresFor({ uri: t.uri, artist, title: t.title }).then(async gs => { const g = gs[0]; if (!g) return { g: null, items: [] }; const items = await spotify.search(`genre:"${g}" year:2021-2026`, 'track'); return (cache.rows.spGenre = { g, items }); });
-      r2.then(({ g, items }) => fill(h2, g ? (this.spCardRow(`Spotify · ${g}`, items.slice(0, 14).map(x => ({ kind: 'track', track: x, name: x.title, sub: x.artist, cover: x.cover }))) || el('div', { class: 'muted small' }, 'Nada por acá.')) : el('div', { class: 'sp-section' }, el('div', { class: 'row-label' }, 'Spotify · mismo género'), el('div', { class: 'muted small' }, 'Spotify no tiene género para este artista.')))).catch(e => fill(h2, el('div', { class: 'muted small' }, e.message)));
-    } else if (!spotify.loggedIn) box.append(el('div', { class: 'muted small sp-empty' }, 'Conectá Spotify para ver más del artista y del mismo género.'));
+      genrePromise = cache.rows.spGenre ? Promise.resolve(cache.rows.spGenre) : spotify.genresFor({ uri: t.uri, artist: realArtist, title: t.title }).then(async gs => { const g = gs[0] || null; const items = g ? await spotify.search(`genre:"${g}" year:2021-2026`, 'track') : []; return (cache.rows.spGenre = { g, items }); }).catch(e => ({ g: null, items: [], error: e.message }));
+      genrePromise.then(({ g, items, error }) => fill(h2, g ? (this.spCardRow(`Spotify · ${g}`, items.slice(0, 14).map(x => ({ kind: 'track', track: x, name: x.title, sub: x.artist, cover: x.cover }))) || el('div', { class: 'muted small' }, 'Nada por acá.')) : unavailable('Spotify · mismo género', error || 'Spotify no tiene género para este artista.')));
+    }
+    // 4) Suno: búsqueda por género o artista (requiere sesión de Suno)
+    if (!bridge.available) box.append(unavailable('Suno · similares', 'Necesita el bridge (npm start).'));
+    else if (!bridge.suno?.session) box.append(unavailable('Suno · similares', 'Pegá tu cookie __client de suno.com en Ajustes para buscar en Suno.', settingsBtn()));
+    else {
+      const h3 = section('Suno · similares');
+      const termFor = async () => { const g = (await genrePromise)?.g; return g || (t.tags ? t.tags.split(',')[0].trim() : '') || realArtist || t.title || ''; };
+      const r3 = cache.rows.suno ? Promise.resolve(cache.rows.suno) : termFor().then(term => term ? bridge.sunoSearch(term).then(d => (cache.rows.suno = { term, ...d })) : { term: '', tracks: [] });
+      r3.then(d => fill(h3, d.tracks?.length ? this.sunoRow(`Suno · ${d.term}`, d.tracks.slice(0, 14)) : unavailable(`Suno · ${d.term || 'similares'}`, d.error || d.needsSession && 'Necesita tu sesión de Suno (Ajustes).' || 'Sin resultados en Suno.'))).catch(e => fill(h3, unavailable('Suno · similares', e.message)));
+    }
   }
   sunoCard(c) { return this.card({ name: c.title, sub: `${c.artist}${c.playable === false ? ' · solo en Suno' : ''}`, cover: c.cover, key: 'suno:' + c.id }, { add: () => this.lib.addSuno(c) }); }
   sunoRow(title, tracks, note) {

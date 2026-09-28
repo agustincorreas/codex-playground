@@ -43,6 +43,7 @@ export const bridge = {
   sunoStreamUrl(id, fmt = null) { return `${this.base}/api/suno/stream?id=${encodeURIComponent(id)}${fmt ? '&fmt=' + fmt : ''}`; },
   async sunoMe(page = 0) { const r = await fetch(`${this.base}/api/suno/me?page=${page}`); return r.json(); },
   async sunoProfile(handle = '') { const r = await fetch(`${this.base}/api/suno/profile?handle=${encodeURIComponent(handle)}`); return r.json(); },
+  async sunoSearch(term) { const r = await fetch(`${this.base}/api/suno/search?term=${encodeURIComponent(term)}`); return r.json(); },
   async sunoResolve(url) { const r = await fetch(`${this.base}/api/suno/resolve?url=${encodeURIComponent(url)}`); const j = await r.json(); if (!r.ok) throw new Error(j.error || 'Suno: error'); return j; },
   async fetchAudio(ctx, url, urlFor = null) {
     const get = async (fmt) => {

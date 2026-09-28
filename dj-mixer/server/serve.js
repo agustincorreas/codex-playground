@@ -106,6 +106,12 @@ return http.createServer(async (req, res) => {
       try { return json(res, 200, await cached('suno:me:' + (u.searchParams.get('page') || 0), 60 * 1000, () => suno.me(Number(u.searchParams.get('page') || 0)))); }
       catch (e) { return json(res, 200, { tracks: [], error: e.message }); }
     }
+    if (u.pathname === '/api/suno/search') {
+      const term = u.searchParams.get('term') || ''; if (!term) return json(res, 400, { error: 'term requerido' });
+      if (!cfg.sunoClient) return json(res, 200, { tracks: [], needsSession: true });
+      try { return json(res, 200, await cached('suno:search:' + term, 5 * 60 * 1000, async () => ({ tracks: await suno.search(term) }))); }
+      catch (e) { return json(res, 200, { tracks: [], error: e.message }); }
+    }
     if (u.pathname === '/api/suno/resolve') {
       try { return json(res, 200, await suno.resolve(u.searchParams.get('url') || '')); }
       catch (e) { return json(res, 400, { error: e.message }); }
