@@ -1,0 +1,10 @@
+{
+  "name": "Estudio — grabá música por capas",
+  "short_name": "Estudio",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#14151a",
+  "theme_color": "#14151a",
+  "orientation": "any",
+  "icons": []
+}

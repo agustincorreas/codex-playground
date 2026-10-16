@@ -29,6 +29,15 @@ Son útiles para jugar, mejorar código y experimentar.
   mercado (Moises, Chordify, Ultimate Guitar, Songsterr, Jamzone, Chord ai…), los límites técnicos y
   legales de usar YouTube, y el roadmap.
 
+## Proyecto: Estudio — grabá música por capas (estilo GarageBand)
+
+- [`estudio/`](estudio/README.md): estudio de música táctil para iPhone/iPad/Android y escritorio.
+  Pistas de instrumento de software (piano, synth, bajo, pad), pista de batería con pads, pista de
+  micrófono y **grabación por capas (overdub)** sobre un loop, con metrónomo, tempo, cuantización y
+  mezcla por pista (mute/solo/volumen). Código original inspirado en el *género* de GarageBand (no
+  clona la app de Apple). Sin dependencias ni build: abrí `estudio/index.html` o
+  https://agustincorreas.github.io/codex-playground/estudio/.
+
 ## Proyecto: Sillage — Recomendador de perfumes
 
 - [`sillage/`](sillage/README.md): app React Native (Expo) con tier gratuito y membresía PRO.

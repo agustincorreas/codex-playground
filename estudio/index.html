@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#14151a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Estudio — grabá música por capas</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="manifest.webmanifest">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">🎛️ <span>Estudio</span></div>
+    <div class="transport">
+      <button id="btnPlay" class="t-btn" title="Reproducir / parar">▶</button>
+      <button id="btnRec" class="t-btn rec" title="Grabar">●</button>
+      <div class="tempo">
+        <button id="bpmDown" class="mini">−</button>
+        <div class="tempo-val"><strong id="bpmVal">100</strong><span>BPM</span></div>
+        <button id="bpmUp" class="mini">+</button>
+      </div>
+      <button id="btnMetro" class="t-btn on" title="Metrónomo">🔔</button>
+    </div>
+    <div class="bars-ctl">
+      <label>Compases</label>
+      <select id="barsSel">
+        <option value="1">1</option>
+        <option value="2">2</option>
+        <option value="4" selected>4</option>
+        <option value="8">8</option>
+      </select>
+    </div>
+  </header>
+
+  <!-- Línea de tiempo / lista de pistas -->
+  <section class="timeline" id="timeline">
+    <div class="playhead" id="playhead"></div>
+    <div class="tracks" id="tracks"></div>
+    <div class="add-track">
+      <button data-kind="piano">+ Piano</button>
+      <button data-kind="synth">+ Synth</button>
+      <button data-kind="bass">+ Bajo</button>
+      <button data-kind="pad">+ Pad</button>
+      <button data-kind="drum">+ Batería</button>
+      <button data-kind="audio">+ Micrófono</button>
+    </div>
+  </section>
+
+  <!-- Zona de interpretación: cambia según la pista seleccionada -->
+  <section class="performer" id="performer">
+    <div class="perf-head">
+      <span id="perfName">Elegí o agregá una pista para tocar</span>
+      <div class="perf-opts">
+        <label class="q-opt"><input type="checkbox" id="quantize" checked> Ajustar al ritmo</label>
+      </div>
+    </div>
+
+    <!-- Teclado (instrumentos melódicos) -->
+    <div class="keyboard" id="keyboard" hidden>
+      <button class="oct-btn" id="octDown">◀ 8va</button>
+      <div class="keys" id="keys"></div>
+      <button class="oct-btn" id="octUp">8va ▶</button>
+    </div>
+
+    <!-- Pads (batería) -->
+    <div class="pads" id="pads" hidden></div>
+
+    <!-- Micrófono -->
+    <div class="mic" id="mic" hidden>
+      <p>Grabá una toma de una pasada del loop desde el micrófono.</p>
+      <button id="micArm" class="big">Armar micrófono</button>
+      <p class="mic-hint" id="micHint"></p>
+    </div>
+  </section>
+
+  <footer class="hint" id="hint">
+    Tocá <strong>▶</strong> para que gire el loop. Con <strong>●</strong> grabás encima lo que toques (overdub).
+  </footer>
+
+  <script src="engine.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
