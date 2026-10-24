@@ -22,16 +22,21 @@ sonido o voz cuando una hace un nuevo máximo, un squeeze, un bull flag, un halt
 
 ## 1. Qué muestra
 
-La pantalla está armada con ventanas, como una plataforma de trading:
+La pantalla está armada con ventanas, como una plataforma de trading. En la computadora se pueden
+**reacomodar**: con el botón de ventanas (arriba a la derecha) cada una se mueve desde su barra de título y
+cambia de tamaño desde los bordes y las esquinas; **Listo** fija la disposición y **Restablecer** vuelve a
+la original. Se guarda en ese navegador, una para pantalla grande (las ventanas ocupan todo el alto, así que
+en un monitor grande todo se agranda) y otra para notebook.
 
 | Ventana | Qué es |
 | --- | --- |
+| **Mis trades** | Arriba del Nivel 2: tu trade abierto en vivo (acciones, precio promedio, ganancia o pérdida en US$ y en %, R, tiempo en el trade y una barra con el precio entre tu stop y tu objetivo) y los trades que ya cerraste hoy con su resultado, más lo realizado en el día. |
 | **Máximos del día** | El escáner de momentum: cada señal en una fila, la más nueva arriba (nuevo máximo, squeeze, subida rápida, bull flag, ruptura del máximo del pre-market, pico de volumen), con hora, precio, volumen, float, volumen relativo y % del día. El color de la fila dice cuántos pilares cumple y las celdas que pasan el corte (float bajo, RVOL 5x, +10%) se resaltan. Pestañas **Alertas** (todas, con filtros) y **Halts** (motivo, cuenta regresiva de 5 minutos y % de la reanudación). |
 | **Escáneres** | **Top gappers** (suben 5%+ contra el cierre anterior, precio $1–$20, volumen desde 50K), **5 pilares** (cumplen 4 o 5: `$` precio, `%` suba, `V` volumen relativo, `N` noticia, `F` float), **Subiendo** (lo que más sube en 5 minutos), **Low float**, **Volumen relativo**, **Se desinflan** (subieron 20%+ y ya están 15%+ abajo del máximo), **Watchlist** (tus estrellas) y **Rango del día**. |
 | **Nivel 2 y órdenes** | El libro de órdenes por bolsa, la cinta (Time & Sales) y la entrada de órdenes de la cuenta de práctica (sección 2). |
 | **Gráfico 1 min y 5 min** | Velas (también de 10 y 30 segundos) con VWAP, EMA 9, 20 y 200, volumen y MACD; leyenda con OHLC, float y capitalización; cuenta regresiva del cierre de la vela; líneas del máximo del día, máximo del pre-market y cierre anterior; marcas de halts y de bull flag. En práctica, además, tus compras (C) y ventas (V), tu costo y tus órdenes. |
 | **Cotización** | La ficha de la acción: precio, empresa y bolsa, noticias, float, volumen, volumen relativo diario y de 5 minutos, gap, máximos, VWAP, short interest, capitalización, etiquetas de dilución de la SEC, los 5 pilares con su valor y el estado del setup (VWAP, EMA 9, MACD). Pestaña **Noticias** con todos los titulares. |
-| **Posiciones / Trades de hoy / Cuenta** | Las acciones que operaste hoy (abiertas y ya cerradas) con el resultado no realizado, el realizado y el total; cada trade cerrado con lo que ganaste o perdiste y el **resultado del día**; efectivo, plata sin liquidar, poder de compra y cuenta de day trades. |
+| **Posiciones / Trades de hoy / Cuenta** | Las acciones que operaste hoy (abiertas y ya cerradas) con el resultado no realizado, el realizado y el total; cada trade cerrado con lo que ganaste o perdiste y el **resultado del día**; efectivo, plata sin liquidar, poder de compra, cuenta de day trades y **Cambiar saldo**. |
 | **Actividad de órdenes** | Todas las órdenes del día con su estado (enviada, abierta, parcial, ejecutada, cancelada o rechazada). |
 | **Cuenta y métricas** | Se abre con el botón del saldo, arriba: estadísticas, Profit Trifecta, curva de capital y trades (sección 2). |
 
@@ -123,6 +128,10 @@ que instalar nada.
    también muestra el resultado de hoy).
 8. A las 15:59 ET el día se cierra solo (vende lo que quedó abierto), o lo cerrás antes con *Terminar el
    día*. El saldo pasa al día siguiente.
+9. **El saldo lo cambiás cuando quieras:** en la pestaña *Cuenta* (o en *Ajustes de la cuenta → Cuenta*),
+   **Cambiar saldo** con el monto que quieras o con los botones de US$ 1.000 a US$ 50.000. Cuenta como un
+   depósito o un retiro: el resultado del día, el total y las estadísticas no lo suman como ganancia (con una
+   posición abierta hay que cerrarla antes).
 
 ### Atajos de teclado
 
@@ -365,8 +374,9 @@ pulso/
     stats.ts      métricas, Profit Trifecta, curva de capital y desgloses
     store.ts      guardado en el navegador o en la base del artifact de Claude
   src/client/   interfaz React + lightweight-charts (TradingView)
-    training.ts   días de práctica: crear, reanudar, terminar y guardar
+    training.ts   días de práctica: crear, reanudar, terminar, cambiar el saldo y guardar
     lib/hotkeys.ts  atajos de teclado configurables
+    components/WindowGrid.tsx  ventanas reacomodables (react-grid-layout)
   server/       servidor Node: Alpaca, Massive, halts de Nasdaq, SEC, float; WebSocket hacia la interfaz
   test/         pruebas (motor, adaptadores con mensajes de la documentación oficial, servidores falsos)
 ```
@@ -375,7 +385,7 @@ pulso/
 | --- | --- |
 | `npm run dev` | Interfaz en modo demo con recarga en caliente (http://localhost:5173). |
 | `npm start` | Compila la interfaz y arranca el servidor (datos reales si hay claves). |
-| `npm test` | Pruebas (64): motor, alertas, bull flag, halts, Alpaca y Massive contra servidores falsos, simulador, bróker de práctica y métricas. |
+| `npm test` | Pruebas (68): motor, alertas, bull flag, halts, Alpaca y Massive contra servidores falsos, simulador, bróker de práctica y métricas. |
 | `npm run typecheck` | Chequeo de tipos de todo el proyecto. |
 | `npm run build:demo` | Página única del demo (`dist-demo/index.html`) para GitHub Pages. |
 

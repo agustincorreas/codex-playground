@@ -14,6 +14,14 @@ export const IconPulse = ({ size }: { size?: number }) => (
     <path d="M2 12h4l2.5-6 4 13 3-9 1.5 2H22" />
   </Svg>
 );
+export const IconLayout = () => (
+  <Svg>
+    <rect x="3" y="3" width="8" height="10" rx="1.5" />
+    <rect x="13" y="3" width="8" height="6" rx="1.5" />
+    <rect x="13" y="11" width="8" height="10" rx="1.5" />
+    <rect x="3" y="15" width="8" height="6" rx="1.5" />
+  </Svg>
+);
 export const IconSound = () => (
   <Svg>
     <path d="M4 9v6h4l5 4V5L8 9H4z" />

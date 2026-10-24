@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { fmtVolume } from '../engine/alerts';
 import type { Alert, AlertType, NewsItem, ProviderStatus, ScannerId, Settings, SymbolDetail, ViewModel } from '../engine/types';
 import { DEFAULT_SETTINGS } from '../engine/types';
@@ -12,9 +12,11 @@ import { AlertFeed, HaltsPanel, HodBoard, MomentumFeed, NewsPanel, WatchlistPane
 import { Journal } from './components/Journal';
 import { Level2, num, type TicketForm } from './components/Level2';
 import { IconVoice } from './components/Icons';
+import { DayResult, MyTrades } from './components/MyTrades';
 import { Empty, Panel } from './components/Panel';
 import { PracticeSettings } from './components/PracticeSettings';
 import { SCANNER_COLUMNS, ScannerTable } from './components/ScannerTable';
+import { WindowGrid, type PanelId } from './components/WindowGrid';
 import { DEFAULT_SOUND_TYPES } from './lib/alertMeta';
 import { beep, playOrder, speak, unlockAudio } from './lib/audio';
 import { matches, typing } from './lib/hotkeys';
@@ -144,6 +146,9 @@ function Workspace({ server, c }: { server: boolean; c: TrainingController }) {
     return (p.audioV ?? 1) < 2 ? { ...p, sound: true, voice: true, audioV: 2 } : p;
   });
   const [audioLocked, setAudioLocked] = useState(true);
+  /** Modo "reacomodar ventanas" (escritorio) y contador para volver a la disposición original. */
+  const [layoutEdit, setLayoutEdit] = useState(false);
+  const [layoutReset, setLayoutReset] = useState(0);
   const spokenAt = useRef(new Map<string, number>());
   const lastVoice = useRef(0);
   const [tabs, setTabs] = useState<Record<string, string>>(() => load('tabs', { scan: 'gappers', momo: 'momentum', quote: 'quote', acct: 'pos' }));
@@ -454,6 +459,137 @@ function Workspace({ server, c }: { server: boolean; c: TrainingController }) {
   };
   const search = source ? source.search.bind(source) : async () => [];
 
+  const panels: Record<PanelId, ReactNode> = {
+    trades: (
+      <Panel title="Mis trades" area="trades" mtab="chart" className="p-trades" actions={<DayResult c={c} />}>
+        <MyTrades c={c} now={now} onSelect={select} />
+      </Panel>
+    ),
+    momo: (
+      <Panel
+        title="Momentum"
+        area="momo"
+        mtab="momo"
+        help={`Señales de impulso (nuevo máximo del día, squeeze, subida rápida, bull flag, ruptura del máximo pre-market y picos de volumen) en acciones con ${prefs.momentumMinScore} o más pilares. El color de la fila: 5 pilares magenta, 4 celeste, 3 azul. Se resaltan float bajo, volumen relativo de 5x y suba de 10% o más.`}
+        tabs={[
+          { id: 'momentum', label: 'Máximos del día' },
+          { id: 'alerts', label: 'Alertas' },
+          { id: 'halts', label: 'Halts', count: activeHalts || undefined },
+        ]}
+        activeTab={momoTab}
+        onTab={(id) => setTab('momo', id)}
+        actions={
+          <button
+            type="button"
+            className={`chip voice-chip ${prefs.sound && prefs.voice ? 'is-active' : ''}`}
+            onClick={() => updatePrefs(prefs.sound && prefs.voice ? { voice: false } : { sound: true, voice: true })}
+            aria-pressed={prefs.sound && prefs.voice}
+            title={prefs.sound && prefs.voice ? 'Alertas con voz prendidas: tocá para apagar la voz' : 'Prender las alertas con sonido y voz'}
+          >
+            <IconVoice /> <span className="vc-label">Voz</span>
+          </button>
+        }
+      >
+        {momoTab === 'momentum' && <MomentumFeed alerts={alerts} minScore={prefs.momentumMinScore} selected={selected} onSelect={select} />}
+        {momoTab === 'alerts' && <AlertFeed alerts={alerts} selected={selected} onSelect={select} />}
+        {momoTab === 'halts' && <HaltsPanel halts={view.halts} now={now} selected={selected} onSelect={select} />}
+      </Panel>
+    ),
+    scan: (
+      <Panel
+        title="Escáneres"
+        area="scan"
+        mtab="scan"
+        help={scanIds.includes(scanTab as ScannerId) ? scannerHelp(scanTab as ScannerId, settings) : 'Tus símbolos marcados con la estrella y dónde está el precio dentro del rango del día.'}
+        tabs={[
+          ...scanIds.map((id) => ({ id, label: SCANNER_LABEL[id], count: sc[id].length })),
+          { id: 'watch', label: 'Watchlist', count: watch.length || undefined },
+          { id: 'hod', label: 'Rango del día' },
+        ]}
+        activeTab={scanTab}
+        onTab={(id) => setTab('scan', id)}
+      >
+        {scanIds.includes(scanTab as ScannerId) &&
+          (sc[scanTab as ScannerId].length ? (
+            <ScannerTable rows={sc[scanTab as ScannerId]} columns={SCANNER_COLUMNS[scanTab as ScannerId]} selected={selected} onSelect={select} />
+          ) : (
+            <Empty>Nada cumple este criterio por ahora.</Empty>
+          ))}
+        {scanTab === 'watch' && (
+          <WatchlistPanel rows={view.watch} watch={watch} selected={selected} onSelect={select} onRemove={(s) => updateWatch(watch.filter((x) => x !== s))} onAdd={(s) => !watch.includes(s) && updateWatch([...watch, s])} />
+        )}
+        {scanTab === 'hod' && <HodBoard rows={view.hodBoard} selected={selected} onSelect={select} />}
+      </Panel>
+    ),
+    l2: (
+      <Panel
+        title="Nivel 2 y órdenes"
+        area="l2"
+        mtab="chart"
+        className="p-l2"
+        help="Libro por venues (un color por nivel de precio), cinta de operaciones y ticket. Tocá un precio del libro para usarlo. Las órdenes tardan unos milisegundos en llegar y se ejecutan contra el libro; las límite esperan su turno en la cola."
+      >
+        <Level2 c={c} source={source} detail={detail} quote={quote} now={now} ticket={ticket} setTicket={setTicket} onSymbol={select} search={search} onHotkey={runHotkey} compact={isMobile} />
+      </Panel>
+    ),
+    quote: (
+      <Panel
+        title="Cotización"
+        area="quote"
+        mtab="news"
+        className="p-quote"
+        tabs={[
+          { id: 'quote', label: selected ? `Cotización · ${selected}` : 'Cotización' },
+          { id: 'news', label: 'Noticias' },
+        ]}
+        activeTab={quoteTab}
+        onTab={(id) => setTab('quote', id)}
+      >
+        {quoteTab === 'quote' &&
+          (selected && !detail ? <Empty>Sin datos para {selected} todavía.</Empty> : <Detail detail={detail} settings={settings} now={now} watched={!!detail && watch.includes(detail.sym)} onToggleWatch={toggleWatch} />)}
+        {quoteTab === 'news' && <NewsPanel news={news} now={now} onSelect={select} known={(s) => knownSyms.has(s) || watch.includes(s)} />}
+      </Panel>
+    ),
+    chart1: (
+      <Panel title="Gráfico 1 min" area="chart1" mtab="chart" className="p-chart p-chart1">
+        <Chart id="a" defaultTf={60} detail={detail} alerts={alerts} themeKey={theme} now={now} position={chartPos} fills={chartFills} orders={chartOrders} />
+      </Panel>
+    ),
+    chart5: (
+      <Panel title="Gráfico 5 min" area="chart5" mtab="news" className="p-chart p-chart5">
+        <Chart id="b" defaultTf={300} detail={detail} alerts={alerts} themeKey={theme} now={now} position={chartPos} fills={chartFills} orders={chartOrders} />
+      </Panel>
+    ),
+    pos: (
+      <Panel
+        title="Posiciones"
+        area="pos"
+        mtab="chart"
+        className="p-pos"
+        tabs={[
+          { id: 'pos', label: 'Posiciones', count: c.active?.positions.length || undefined },
+          { id: 'trades', label: 'Trades de hoy', count: c.active?.trades.length || undefined },
+          { id: 'acct', label: 'Cuenta' },
+        ]}
+        activeTab={acctTab}
+        onTab={(id) => setTab('acct', id)}
+      >
+        {acctTab === 'trades' ? (
+          <TodayTrades c={c} onSelect={select} />
+        ) : acctTab === 'acct' ? (
+          <AccountValue c={c} onSettings={() => setPracticeSettings(true)} />
+        ) : (
+          <PositionsWindow c={c} selected={selected} onSelect={select} />
+        )}
+      </Panel>
+    ),
+    orders: (
+      <Panel title="Actividad de órdenes" area="orders" mtab="chart" className="p-orders" count={openOrders || undefined}>
+        <TradeActivity c={c} onSelect={select} />
+      </Panel>
+    ),
+  };
+
   return (
     <div className="app" data-tab={mobileTab}>
       <Header
@@ -475,128 +611,33 @@ function Workspace({ server, c }: { server: boolean; c: TrainingController }) {
         account={{ equity: acct.equity, dayPnl: acct.dayPnl }}
         onJournal={openJournal}
         audioLocked={audioLocked}
+        layoutEditing={isMobile ? undefined : layoutEdit}
+        onLayout={() => setLayoutEdit((x) => !x)}
       />
 
-      <main className="grid">
-        <Panel
-          title="Momentum"
-          area="momo"
-          mtab="momo"
-          help={`Señales de impulso (nuevo máximo del día, squeeze, subida rápida, bull flag, ruptura del máximo pre-market y picos de volumen) en acciones con ${prefs.momentumMinScore} o más pilares. El color de la fila: 5 pilares magenta, 4 celeste, 3 azul. Se resaltan float bajo, volumen relativo de 5x y suba de 10% o más.`}
-          tabs={[
-            { id: 'momentum', label: 'Máximos del día' },
-            { id: 'alerts', label: 'Alertas' },
-            { id: 'halts', label: 'Halts', count: activeHalts || undefined },
-          ]}
-          activeTab={momoTab}
-          onTab={(id) => setTab('momo', id)}
-          actions={
-            <button
-              type="button"
-              className={`chip voice-chip ${prefs.sound && prefs.voice ? 'is-active' : ''}`}
-              onClick={() => updatePrefs(prefs.sound && prefs.voice ? { voice: false } : { sound: true, voice: true })}
-              aria-pressed={prefs.sound && prefs.voice}
-              title={prefs.sound && prefs.voice ? 'Alertas con voz prendidas: tocá para apagar la voz' : 'Prender las alertas con sonido y voz'}
-            >
-              <IconVoice /> Voz
-            </button>
-          }
-        >
-          {momoTab === 'momentum' && <MomentumFeed alerts={alerts} minScore={prefs.momentumMinScore} selected={selected} onSelect={select} />}
-          {momoTab === 'alerts' && <AlertFeed alerts={alerts} selected={selected} onSelect={select} />}
-          {momoTab === 'halts' && <HaltsPanel halts={view.halts} now={now} selected={selected} onSelect={select} />}
-        </Panel>
-
-        <Panel
-          title="Escáneres"
-          area="scan"
-          mtab="scan"
-          help={scanIds.includes(scanTab as ScannerId) ? scannerHelp(scanTab as ScannerId, settings) : 'Tus símbolos marcados con la estrella y dónde está el precio dentro del rango del día.'}
-          tabs={[
-            ...scanIds.map((id) => ({ id, label: SCANNER_LABEL[id], count: sc[id].length })),
-            { id: 'watch', label: 'Watchlist', count: watch.length || undefined },
-            { id: 'hod', label: 'Rango del día' },
-          ]}
-          activeTab={scanTab}
-          onTab={(id) => setTab('scan', id)}
-        >
-          {scanIds.includes(scanTab as ScannerId) &&
-            (sc[scanTab as ScannerId].length ? (
-              <ScannerTable rows={sc[scanTab as ScannerId]} columns={SCANNER_COLUMNS[scanTab as ScannerId]} selected={selected} onSelect={select} />
-            ) : (
-              <Empty>Nada cumple este criterio por ahora.</Empty>
-            ))}
-          {scanTab === 'watch' && (
-            <WatchlistPanel rows={view.watch} watch={watch} selected={selected} onSelect={select} onRemove={(s) => updateWatch(watch.filter((x) => x !== s))} onAdd={(s) => !watch.includes(s) && updateWatch([...watch, s])} />
-          )}
-          {scanTab === 'hod' && <HodBoard rows={view.hodBoard} selected={selected} onSelect={select} />}
-        </Panel>
-
-        <Panel
-          title="Nivel 2 y órdenes"
-          area="l2"
-          mtab="chart"
-          className="p-l2"
-          help="Libro por venues (un color por nivel de precio), cinta de operaciones y ticket. Tocá un precio del libro para usarlo. Las órdenes tardan unos milisegundos en llegar y se ejecutan contra el libro; las límite esperan su turno en la cola."
-        >
-          <Level2 c={c} source={source} detail={detail} quote={quote} now={now} ticket={ticket} setTicket={setTicket} onSymbol={select} search={search} onHotkey={runHotkey} compact={isMobile} />
-        </Panel>
-
-        <Panel
-          title="Cotización"
-          area="quote"
-          mtab="news"
-          className="p-quote"
-          tabs={[
-            { id: 'quote', label: selected ? `Cotización · ${selected}` : 'Cotización' },
-            { id: 'news', label: 'Noticias' },
-          ]}
-          activeTab={quoteTab}
-          onTab={(id) => setTab('quote', id)}
-        >
-          {quoteTab === 'quote' &&
-            (selected && !detail ? <Empty>Sin datos para {selected} todavía.</Empty> : <Detail detail={detail} settings={settings} now={now} watched={!!detail && watch.includes(detail.sym)} onToggleWatch={toggleWatch} />)}
-          {quoteTab === 'news' && <NewsPanel news={news} now={now} onSelect={select} known={(s) => knownSyms.has(s) || watch.includes(s)} />}
-        </Panel>
-
-        <Panel title="Gráfico 1 min" area="chart1" mtab="chart" className="p-chart p-chart1">
-          <Chart id="a" defaultTf={60} detail={detail} alerts={alerts} themeKey={theme} now={now} position={chartPos} fills={chartFills} orders={chartOrders} />
-        </Panel>
-        <Panel title="Gráfico 5 min" area="chart5" mtab="news" className="p-chart p-chart5">
-          <Chart id="b" defaultTf={300} detail={detail} alerts={alerts} themeKey={theme} now={now} position={chartPos} fills={chartFills} orders={chartOrders} />
-        </Panel>
-
-        <Panel
-          title="Posiciones"
-          area="pos"
-          mtab="chart"
-          className="p-pos"
-          tabs={[
-            { id: 'pos', label: 'Posiciones', count: c.active?.positions.length || undefined },
-            { id: 'trades', label: 'Trades de hoy', count: c.active?.trades.length || undefined },
-            { id: 'acct', label: 'Cuenta' },
-          ]}
-          activeTab={acctTab}
-          onTab={(id) => setTab('acct', id)}
-        >
-          {acctTab === 'trades' ? (
-            <TodayTrades c={c} onSelect={select} />
-          ) : acctTab === 'acct' ? (
-            <AccountValue c={c} onSettings={() => setPracticeSettings(true)} />
-          ) : (
-            <PositionsWindow c={c} selected={selected} onSelect={select} />
-          )}
-        </Panel>
-        <Panel title="Actividad de órdenes" area="orders" mtab="chart" className="p-orders" count={openOrders || undefined}>
-          <TradeActivity c={c} onSelect={select} />
-        </Panel>
-
-        {isMobile && (
+      {isMobile ? (
+        <main className="grid">
+          {(Object.keys(panels) as PanelId[]).map((id) => (
+            <Fragment key={id}>{panels[id]}</Fragment>
+          ))}
           <section className="panel journal-tab" data-tab="diario">
             <Journal c={c} onSelect={select} onSettings={() => setPracticeSettings(true)} />
           </section>
-        )}
-      </main>
+        </main>
+      ) : (
+        <WindowGrid panels={panels} editing={layoutEdit} resetKey={layoutReset} />
+      )}
+      {layoutEdit && !isMobile && (
+        <div className="layout-bar" role="status">
+          <span>Mové las ventanas desde su barra de título y cambiales el tamaño desde los bordes y las esquinas.</span>
+          <button className="btn" onClick={() => setLayoutReset((x) => x + 1)}>
+            Restablecer
+          </button>
+          <button className="btn primary" onClick={() => setLayoutEdit(false)}>
+            Listo
+          </button>
+        </div>
+      )}
 
       <footer className="statusbar">
         <span className={`dot ${status?.connected ? 'on' : 'off'}`} />
