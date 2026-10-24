@@ -1,10 +1,12 @@
-// Diario de trading: estadísticas, curva de capital, desgloses, trades con etiquetas y notas, días
-// anteriores y los ajustes de la cuenta de práctica.
-import { useMemo, useState } from 'react';
+// Cuenta y métricas, al estilo de la pantalla "Account & Metrics" del simulador de Warrior Trading:
+// tus aptitudes (ganancias y pérdidas, ganadores, perdedores), la "Profit Trifecta" de Ross Cameron
+// (constancia, % de aciertos y relación ganancia/pérdida), la rentabilidad por precio, horario, gap,
+// volumen y volumen relativo, el rendimiento por semana, la curva de capital y todos los trades.
+import { useMemo, useState, type ReactNode } from 'react';
 import { formatEtTime } from '../../engine/time';
 import { fmtMoney } from '../../trading/broker';
-import { breakdown, DIMENSIONS, equityCurve, summarize, type Dimension, type Summary } from '../../trading/stats';
-import { SETUPS, type SessionRecord, type Trade, type TradingSettings } from '../../trading/types';
+import { breakdown, DAYS_PER_WEEK, DIMENSIONS, equityCurve, LEVELS, summarize, weeklyResults, type Bucket, type Dimension, type Summary, type WeekResult } from '../../trading/stats';
+import { SETUPS, type SessionRecord, type Trade } from '../../trading/types';
 import { fmtPct, fmtPrice } from '../lib/format';
 import type { TrainingController } from '../training';
 import { IconClose } from './Icons';
@@ -28,10 +30,13 @@ function ratio(v: number): string {
   return v ? v.toFixed(2) : '—';
 }
 
-function dayLabel(rec: { dayKey: string; mode: string; startedAt: number }): string {
+const mins = (m: number) => (m >= 60 ? `${(m / 60).toFixed(1)} h` : m >= 1 ? `${m.toFixed(1)} min` : `${Math.max(1, Math.round(m * 60))} s`);
+
+function dayLabel(rec: { dayKey: string; mode: string; startedAt: number; dayIndex?: number }): string {
   const d = new Date(rec.startedAt);
   const when = d.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' }) + ' ' + d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
-  return rec.mode === 'sim' ? `Simulado · ${when}` : `En vivo · ${rec.dayKey}`;
+  if (rec.mode !== 'sim') return `En vivo · ${rec.dayKey}`;
+  return rec.dayIndex ? `Día ${rec.dayIndex} · ${when}` : `Simulador · ${when}`;
 }
 
 /** Consejos a partir de las estadísticas (al estilo de la revisión diaria de un trader). */
@@ -96,70 +101,112 @@ function EquityChart({ trades, start }: { trades: Trade[]; start: number }) {
   );
 }
 
-function SettingsForm({ c }: { c: TrainingController }) {
-  const [s, setS] = useState<TradingSettings>(c.state.settings);
-  const field = (k: keyof TradingSettings, label: string, step = '1', hint?: string) => (
-    <label className="field">
-      <span className="field-label">{label}</span>
-      <input
-        id={`trade-set-${k}`}
-        type="number"
-        inputMode="decimal"
-        step={step}
-        min={0}
-        value={String(s[k])}
-        onChange={(e) => setS({ ...s, [k]: Number(e.target.value) })}
-      />
-      {hint && <span className="field-hint">{hint}</span>}
-    </label>
-  );
+/** Barras de resultado neto por grupo, con el cero marcado (verde ganancia, rojo pérdida). */
+function ProfitBars({ title, buckets, extra }: { title: string; buckets: Bucket[]; extra?: ReactNode }) {
+  const max = Math.max(1, ...buckets.map((b) => Math.abs(b.net)));
+  const hasNeg = buckets.some((b) => b.net < 0);
+  const hasPos = buckets.some((b) => b.net > 0);
+  const zero = hasNeg && hasPos ? 50 : hasNeg ? 100 : 0;
+  const scale = hasNeg && hasPos ? 50 : 100;
   return (
-    <form
-      className="journal-settings"
-      onSubmit={(e) => {
-        e.preventDefault();
-        c.updateSettings(s);
-        c.notify('Ajustes de práctica guardados.', 'ok');
-      }}
-    >
-      <div className="grid-fields">
-        {field('startingBalance', 'Saldo inicial (US$)', '100', 'Se aplica al reiniciar la cuenta')}
-        {field('defaultShares', 'Acciones por defecto')}
-        {field('defaultRisk', 'Riesgo por trade (US$)', '5', 'Para el botón "Riesgo"')}
-        {field('maxDailyLoss', 'Pérdida máxima del día (US$)', '10', '0 = sin límite; bloquea nuevas compras')}
-        {field('commissionPerShare', 'Comisión por acción (US$)', '0.001', 'Ej.: 0,005 como IBKR Pro')}
-        {field('minCommission', 'Comisión mínima por orden (US$)', '0.1')}
-        <label className="field">
-          <span className="field-label">Cuenta</span>
-          <select id="trade-set-margin" value={s.margin} onChange={(e) => setS({ ...s, margin: Number(e.target.value) as 1 | 2 | 4 })}>
-            <option value={1}>Cash (sin margen)</option>
-            <option value={2}>Margen 2x</option>
-            <option value={4}>Margen 4x (requiere US$ 25.000 en EE.UU.)</option>
-          </select>
-        </label>
-        <label className="field">
-          <span className="field-label">Deslizamiento</span>
-          <select id="trade-set-slippage" value={s.slippage ? '1' : '0'} onChange={(e) => setS({ ...s, slippage: e.target.value === '1' })}>
-            <option value="1">Realista (según volumen)</option>
-            <option value="0">Sin deslizamiento</option>
-          </select>
-        </label>
-      </div>
-      <div className="row-end">
-        <button type="submit" className="btn primary">
-          Guardar ajustes
-        </button>
-      </div>
-    </form>
+    <section className="pbars">
+      <header className="pbars-head">
+        <h4>{title}</h4>
+        {extra}
+      </header>
+      {buckets.length ? (
+        <ul>
+          {buckets.map((b) => {
+            const w = (Math.abs(b.net) / max) * scale;
+            const left = b.net >= 0 ? zero : zero - w;
+            return (
+              <li key={b.key} title={`${b.trades} trades · ${b.winRate.toFixed(0)}% de aciertos · ${money(b.net)}`}>
+                <span className="pb-label">{b.label}</span>
+                <span className="pb-track">
+                  <span className="pb-zero" style={{ left: `${zero}%` }} />
+                  <span className={`pb-bar ${b.net >= 0 ? 'up' : 'down'}`} style={{ left: `${left}%`, width: `${Math.max(0.5, w)}%` }} />
+                </span>
+                <span className={`pb-val ${b.net >= 0 ? 't-up' : 't-down'}`}>{money(b.net)}</span>
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <p className="t-muted small">Sin trades en este período.</p>
+      )}
+    </section>
   );
 }
 
-export function Journal({ c, onClose, onSelect }: { c: TrainingController; onClose?: () => void; onSelect: (sym: string) => void }) {
-  const [scope, setScope] = useState<Scope>('today');
+/** El triángulo de la trifecta: constancia arriba, % de aciertos abajo a la izquierda y G/P a la derecha. */
+function Trifecta({ week }: { week?: WeekResult }) {
+  const sc = week?.score;
+  return (
+    <div className="trifecta">
+      <svg viewBox="0 0 240 210" role="img" aria-label={sc ? `Trifecta: constancia ${sc.consistency}, aciertos ${sc.winRate}, relación ganancia/pérdida ${sc.plRatio}, total ${sc.total}` : 'Trifecta sin datos'}>
+        <polygon points="120,8 180,108 60,108" className="tri-blue" />
+        <polygon points="60,108 120,208 0,208" className="tri-green" />
+        <polygon points="180,108 240,208 120,208" className="tri-yellow" />
+        <polygon points="60,108 180,108 120,208" className="tri-center" />
+        <text x="120" y="80" className="tri-n">
+          {sc?.consistency ?? '—'}
+        </text>
+        <text x="60" y="182" className="tri-n">
+          {sc?.winRate ?? '—'}
+        </text>
+        <text x="180" y="182" className="tri-n">
+          {sc?.plRatio ?? '—'}
+        </text>
+        <text x="120" y="152" className="tri-total">
+          {sc?.total ?? '—'}
+        </text>
+      </svg>
+      <div className="tri-legend">
+        <span>
+          <i className="dot blue" /> Constancia
+        </span>
+        <span>
+          <i className="dot green" /> % de aciertos
+        </span>
+        <span>
+          <i className="dot yellow" /> Relación G/P
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/** Descarga los trades como CSV (en Claude, con el permiso de descargas; si no, con un enlace). */
+async function exportCsv(trades: Trade[]): Promise<void> {
+  const head = ['fecha', 'hora_et_entrada', 'hora_et_salida', 'simbolo', 'setup', 'acciones', 'entrada', 'salida', 'bruto', 'comisiones', 'neto', 'pct', 'r', 'salida_por', 'nota'];
+  const esc = (v: unknown) => {
+    const s = v === undefined || v === null ? '' : String(v);
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const rows = [...trades]
+    .sort((a, b) => a.openedAt - b.openedAt)
+    .map((t) => [new Date(t.openedAt).toISOString().slice(0, 10), formatEtTime(t.openedAt), formatEtTime(t.closedAt), t.sym, t.setup ?? '', t.shares, t.avgEntry, t.avgExit, t.gross, t.fees, t.net, t.returnPct, t.r ?? '', t.exitReason, t.note ?? ''].map(esc).join(','));
+  const data = [head.join(','), ...rows].join('\n');
+  const filename = `pulso-trades-${new Date().toISOString().slice(0, 10)}.csv`;
+  const claude = (window as unknown as { claude?: { use(n: string): Promise<unknown> } }).claude;
+  const dl = claude?.use ? ((await claude.use('downloads').catch(() => null)) as { save(f: { filename: string; data: string }): Promise<unknown> } | null) : null;
+  if (dl) {
+    await dl.save({ filename, data }).catch(() => undefined);
+    return;
+  }
+  const url = URL.createObjectURL(new Blob([data], { type: 'text/csv' }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+export function Journal({ c, onClose, onSelect, onSettings }: { c: TrainingController; onClose?: () => void; onSelect: (sym: string) => void; onSettings: () => void }) {
+  const [scope, setScope] = useState<Scope>('all');
   const [dim, setDim] = useState<Dimension>('setup');
+  const [hourStep, setHourStep] = useState<'hora' | 'hora30' | 'hora15'>('hora30');
   const [review, setReview] = useState<Trade | null>(null);
-  const [confirmReset, setConfirmReset] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
   const [startMin, setStartMin] = useState(c.state.settings.startMinutes);
   const a = c.active;
   const sessions = c.sessions;
@@ -170,14 +217,27 @@ export function Journal({ c, onClose, onSelect }: { c: TrainingController; onClo
     const history = sessions.flatMap((s) => s.trades);
     if (scope === 'all') return [...current, ...history];
     if (scope === 'week') {
-      const from = Date.now() - 7 * 86_400_000;
-      return [...current, ...sessions.filter((s) => s.endedAt >= from).flatMap((s) => s.trades)];
+      const from = (a?.dayIndex ?? c.state.dayIndex) - DAYS_PER_WEEK + 1;
+      return [...current, ...sessions.filter((s) => (s.dayIndex ?? 0) >= from).flatMap((s) => s.trades)];
     }
     return sessions.find((s) => s.id === scope)?.trades ?? [];
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scope, a, a?.trades.length, sessions, c.lastEnded]);
 
+  // Semanas de práctica: todos los trades, con el día de práctica de cada uno.
+  const weeks = useMemo(() => {
+    const dayOfSession = new Map<string, number>();
+    for (const x of sessions) if (x.dayIndex) dayOfSession.set(x.id, x.dayIndex);
+    if (a) dayOfSession.set(a.id, a.dayIndex);
+    const all = [...(a?.trades ?? []), ...sessions.flatMap((x) => x.trades)];
+    return weeklyResults(all, (t) => dayOfSession.get(t.sessionId));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessions, a, a?.trades.length]);
+  const lastWeek = weeks[weeks.length - 1];
+
   const s = summarize(trades);
+  const gross = trades.reduce((x, t) => x + t.gross, 0);
+  const daysInScope = new Set(trades.map((t) => t.sessionId)).size || 1;
   const sorted = [...trades].sort((x, y) => y.closedAt - x.closedAt);
   const startForCurve =
     scope === 'today' && a ? a.startCash : scope === 'today' && c.lastEnded ? c.lastEnded.startCash : (sessions.find((x) => x.id === scope)?.startCash ?? c.state.settings.startingBalance);
@@ -188,13 +248,13 @@ export function Journal({ c, onClose, onSelect }: { c: TrainingController; onClo
     <div className="journal">
       <header className="journal-head">
         <div>
-          <h2>Diario de trading</h2>
+          <h2>Cuenta y métricas</h2>
           <p className="t-muted small">
             {c.storeKind === 'cuenta' ? 'Se guarda en tu cuenta de Claude: lo ves desde cualquier dispositivo.' : 'Se guarda en este navegador.'} Solo compras (long), dinero ficticio.
           </p>
         </div>
         {onClose && (
-          <button className="icon-btn" onClick={onClose} aria-label="Cerrar el diario">
+          <button className="icon-btn" onClick={onClose} aria-label="Cerrar">
             <IconClose />
           </button>
         )}
@@ -203,13 +263,13 @@ export function Journal({ c, onClose, onSelect }: { c: TrainingController; onClo
       <section className="journal-account">
         <div className="big-stat">
           <span className="stat-label">Equity</span>
-          <span className="big mono">{fmtMoney(sum.equity)}</span>
-          <span className={`mono ${sum.dayPnl > 0 ? 't-up' : sum.dayPnl < 0 ? 't-down' : 't-muted'}`}>Hoy {money(sum.dayPnl)}</span>
+          <span className="big">{fmtMoney(sum.equity)}</span>
+          <span className={sum.dayPnl > 0 ? 't-up' : sum.dayPnl < 0 ? 't-down' : 't-muted'}>Hoy {money(sum.dayPnl)}</span>
         </div>
         <div className="big-stat">
           <span className="stat-label">Resultado total</span>
-          <span className={`big mono ${sum.equity - c.state.settings.startingBalance >= 0 ? 't-up' : 't-down'}`}>{money(sum.equity - c.state.settings.startingBalance)}</span>
-          <span className="mono t-muted">desde {fmtMoney(c.state.settings.startingBalance)}</span>
+          <span className={`big ${sum.equity - c.state.settings.startingBalance >= 0 ? 't-up' : 't-down'}`}>{money(sum.equity - c.state.settings.startingBalance)}</span>
+          <span className="t-muted">desde {fmtMoney(c.state.settings.startingBalance)}</span>
         </div>
         <div className="journal-actions">
           {a ? (
@@ -233,37 +293,17 @@ export function Journal({ c, onClose, onSelect }: { c: TrainingController; onClo
               </button>
             </div>
           )}
-          <button className="btn ghost" onClick={() => setShowSettings((v) => !v)}>
-            {showSettings ? 'Ocultar ajustes' : 'Ajustes de práctica'}
+          <button className="btn ghost" onClick={onSettings}>
+            Ajustes de la cuenta
           </button>
-          {!confirmReset ? (
-            <button className="btn ghost" onClick={() => setConfirmReset(true)}>
-              Reiniciar cuenta
-            </button>
-          ) : (
-            <div className="confirm">
-              <span>¿Reiniciar a {fmtMoney(c.state.settings.startingBalance)}?</span>
-              <button className="btn-small" onClick={() => (c.resetAccount(false), setConfirmReset(false))}>
-                Sí, conservar historial
-              </button>
-              <button className="btn-small sell" onClick={() => (c.resetAccount(true), setConfirmReset(false))}>
-                Sí, borrar todo
-              </button>
-              <button className="btn-small" onClick={() => setConfirmReset(false)}>
-                No
-              </button>
-            </div>
-          )}
         </div>
       </section>
-
-      {showSettings && <SettingsForm c={c} />}
 
       <div className="chips scope" role="group" aria-label="Período">
         {(
           [
             ['today', a ? 'Hoy' : 'Último día'],
-            ['week', 'Últimos 7 días'],
+            ['week', 'Últimos 5 días'],
             ['all', 'Todo'],
           ] as const
         ).map(([k, label]) => (
@@ -283,32 +323,90 @@ export function Journal({ c, onClose, onSelect }: { c: TrainingController; onClo
         )}
       </div>
 
+      <h3 className="section-title">Tus aptitudes</h3>
+      <section className="apt-grid">
+        <div className="apt apt-blue">
+          <h4>Ganancias y pérdidas</h4>
+          <dl>
+            <div>
+              <dt>Relación G/P</dt>
+              <dd>{s.wins && s.losses ? `${ratio(s.plRatio)} : 1` : '—'}</dd>
+            </div>
+            <div>
+              <dt>Resultado bruto</dt>
+              <dd>{money(Math.round(gross * 100) / 100)}</dd>
+            </div>
+            <div>
+              <dt>Resultado neto</dt>
+              <dd className={s.net >= 0 ? 't-up' : 't-down'}>{money(s.net)}</dd>
+            </div>
+            <div>
+              <dt>Comisiones y tasas</dt>
+              <dd>{fmtMoney(s.fees)}</dd>
+            </div>
+            <div>
+              <dt>Promedio por día</dt>
+              <dd>{money(Math.round((s.net / daysInScope) * 100) / 100)}</dd>
+            </div>
+            <div>
+              <dt>% de aciertos</dt>
+              <dd>{s.trades ? `${s.winRate.toFixed(1)}%` : '—'}</dd>
+            </div>
+          </dl>
+        </div>
+        <div className="apt apt-green">
+          <h4>Ganadores ({s.wins})</h4>
+          <dl>
+            <div>
+              <dt>Ganancia promedio</dt>
+              <dd>{s.wins ? money(s.avgWin) : '—'}</dd>
+            </div>
+            <div>
+              <dt>Tiempo promedio de las ganadoras</dt>
+              <dd>{s.wins ? mins(s.avgWinHoldMin) : '—'}</dd>
+            </div>
+            <div>
+              <dt>Mayor ganancia</dt>
+              <dd>{s.wins ? money(s.largestWin) : '—'}</dd>
+            </div>
+          </dl>
+        </div>
+        <div className="apt apt-red">
+          <h4>Perdedores ({s.losses})</h4>
+          <dl>
+            <div>
+              <dt>Pérdida promedio</dt>
+              <dd>{s.losses ? money(s.avgLoss) : '—'}</dd>
+            </div>
+            <div>
+              <dt>Tiempo promedio de las perdedoras</dt>
+              <dd>{s.losses ? mins(s.avgLossHoldMin) : '—'}</dd>
+            </div>
+            <div>
+              <dt>Mayor pérdida</dt>
+              <dd>{s.losses ? money(s.largestLoss) : '—'}</dd>
+            </div>
+          </dl>
+        </div>
+      </section>
+
       <section className="stat-grid">
         {(
           [
             ['Trades', `${s.trades}`, `${s.wins} ganadores · ${s.losses} perdedores`],
-            ['Resultado', money(s.net), s.fees ? `comisiones ${fmtMoney(s.fees)}` : 'sin comisiones'],
-            ['% de aciertos', s.trades ? `${s.winRate.toFixed(0)}%` : '—', 'trades ganadores / total'],
-            ['Ganancia promedio', s.wins ? money(s.avgWin) : '—', `mayor ${money(s.largestWin)}`],
-            ['Pérdida promedio', s.losses ? money(s.avgLoss) : '—', `mayor ${money(s.largestLoss)}`],
-            ['Relación G/P', ratio(s.plRatio), 'ganancia prom. / pérdida prom.'],
             ['Profit factor', ratio(s.profitFactor), 'total ganado / total perdido'],
             ['R promedio', s.avgR !== undefined ? `${s.avgR.toFixed(2)}R` : '—', 'en trades con stop'],
             ['Esperanza', s.trades ? money(s.expectancy) : '—', 'resultado medio por trade'],
             ['Máx. drawdown', s.trades ? fmtMoney(-s.maxDrawdown) : '—', 'mayor caída desde un máximo'],
             ['Rachas', s.trades ? `${s.bestStreak} / ${s.worstStreak}` : '—', 'ganadores / perdedores seguidos'],
-            ['Tiempo promedio', s.trades ? `${s.avgHoldMin.toFixed(1)} min` : '—', s.trades ? `gana ${s.avgWinHoldMin.toFixed(1)} · pierde ${s.avgLossHoldMin.toFixed(1)}` : ''],
           ] as Array<[string, string, string]>
-        ).map(([label, value, sub]) => {
-          const tone = label === 'Resultado' || label === 'Esperanza' ? (s.net > 0 ? 't-up' : s.net < 0 ? 't-down' : '') : '';
-          return (
-            <div key={label} className="stat-card">
-              <span className="stat-label">{label}</span>
-              <span className={`stat-big mono ${tone}`}>{value}</span>
-              <span className="stat-sub">{sub}</span>
-            </div>
-          );
-        })}
+        ).map(([label, value, sub]) => (
+          <div key={label} className="stat-card">
+            <span className="stat-label">{label}</span>
+            <span className={`stat-big ${label === 'Esperanza' ? (s.net > 0 ? 't-up' : s.net < 0 ? 't-down' : '') : ''}`}>{value}</span>
+            <span className="stat-sub">{sub}</span>
+          </div>
+        ))}
       </section>
 
       <section className="journal-two">
@@ -321,58 +419,203 @@ export function Journal({ c, onClose, onSelect }: { c: TrainingController; onClo
             ))}
           </ul>
         </div>
-        <div className="journal-block">
-          <div className="chips" role="group" aria-label="Desglose">
-            {DIMENSIONS.map((d) => (
-              <button key={d.id} className={`chip ${dim === d.id ? 'is-active' : ''}`} onClick={() => setDim(d.id)}>
-                {d.label}
-              </button>
-            ))}
+        <div className="journal-block trifecta-block">
+          <h3 className="sub" title="Ross Cameron mide su rendimiento con tres números: constancia (semanas positivas seguidas), % de aciertos y relación ganancia/pérdida. Cada uno vale de 1 a 6.">
+            Profit Trifecta · {lastWeek ? `semana ${lastWeek.week}` : 'sin semanas'}
+          </h3>
+          <div className="trifecta-row">
+            <Trifecta week={lastWeek} />
+            <table className="grid-table levels">
+              <thead>
+                <tr>
+                  <th>Puntaje</th>
+                  <th>Nivel</th>
+                </tr>
+              </thead>
+              <tbody>
+                {LEVELS.map(([lo, hi, label]) => (
+                  <tr key={label} className={lastWeek && lastWeek.score.total >= lo && lastWeek.score.total <= hi ? 'is-selected' : ''}>
+                    <td>
+                      {lo}–{hi}
+                    </td>
+                    <td>{label}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-          {rows.length ? (
+          {weeks.length > 1 && (
             <div className="table-wrap">
-              <table className="scan">
+              <table className="grid-table lookback">
                 <thead>
                   <tr>
-                    <th>{DIMENSIONS.find((d) => d.id === dim)?.label}</th>
-                    <th className="num">Trades</th>
-                    <th className="num">Aciertos</th>
-                    <th className="num">Resultado</th>
-                    <th className="num">Promedio</th>
-                    <th className="num">R prom.</th>
+                    <th>Semana</th>
+                    {weeks.slice(-6).map((w) => (
+                      <th key={w.week} className="num">
+                        {w.week}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map((b) => (
-                    <tr key={b.key}>
-                      <td>{b.label}</td>
-                      <td className="num">{b.trades}</td>
-                      <td className="num">{b.winRate.toFixed(0)}%</td>
-                      <td className={`num ${b.net >= 0 ? 't-up' : 't-down'}`}>{money(b.net)}</td>
-                      <td className="num">{money(b.avg)}</td>
-                      <td className="num">{b.avgR !== undefined ? `${b.avgR.toFixed(2)}R` : '—'}</td>
-                    </tr>
-                  ))}
+                  <tr>
+                    <td>% de aciertos</td>
+                    {weeks.slice(-6).map((w) => (
+                      <td key={w.week} className="num">
+                        {w.trades ? `${w.winRate.toFixed(0)}%` : '—'}
+                      </td>
+                    ))}
+                  </tr>
+                  <tr>
+                    <td>Relación G/P</td>
+                    {weeks.slice(-6).map((w) => (
+                      <td key={w.week} className="num">
+                        {w.trades ? `${w.plRatio.toFixed(2)}:1` : '—'}
+                      </td>
+                    ))}
+                  </tr>
+                  <tr>
+                    <td>Trifecta</td>
+                    {weeks.slice(-6).map((w) => (
+                      <td key={w.week} className="num">
+                        {w.score.total}
+                      </td>
+                    ))}
+                  </tr>
                 </tbody>
               </table>
             </div>
-          ) : (
-            <p className="t-muted small">Sin trades en este período.</p>
           )}
+          <p className="t-muted small">Una semana de práctica son {DAYS_PER_WEEK} días simulados. La constancia cuenta las semanas positivas seguidas.</p>
         </div>
       </section>
 
+      <h3 className="section-title">Rentabilidad</h3>
+      <section className="pbars-grid">
+        <ProfitBars title="Por precio" buckets={breakdown(trades, 'precio')} />
+        <ProfitBars
+          title="Por horario"
+          buckets={breakdown(trades, hourStep)}
+          extra={
+            <span className="seg mini" role="group" aria-label="Intervalo">
+              {(
+                [
+                  ['hora', '1 h'],
+                  ['hora30', '30 min'],
+                  ['hora15', '15 min'],
+                ] as const
+              ).map(([k, label]) => (
+                <button key={k} className={hourStep === k ? 'is-active' : ''} onClick={() => setHourStep(k)}>
+                  {label}
+                </button>
+              ))}
+            </span>
+          }
+        />
+        <ProfitBars title="Por gap del día" buckets={breakdown(trades, 'gap')} />
+        <ProfitBars title="Por volumen" buckets={breakdown(trades, 'volumen')} />
+        <ProfitBars title="Por volumen relativo" buckets={breakdown(trades, 'rvol')} />
+        <ProfitBars title="Por setup" buckets={breakdown(trades, 'setup')} />
+      </section>
+
+      <h3 className="section-title">Rendimiento por semana</h3>
+      {weeks.length ? (
+        <div className="table-wrap">
+          <table className="grid-table weekly">
+            <thead>
+              <tr>
+                <th>Semana</th>
+                {Array.from({ length: DAYS_PER_WEEK }, (_, i) => (
+                  <th key={i} className="num">
+                    Día {i + 1}
+                  </th>
+                ))}
+                <th className="num">Neto semana</th>
+              </tr>
+            </thead>
+            <tbody>
+              {weeks
+                .slice(-8)
+                .reverse()
+                .map((w) => (
+                  <tr key={w.week}>
+                    <td>Semana {w.week}</td>
+                    {Array.from({ length: DAYS_PER_WEEK }, (_, i) => {
+                      const d = w.days.find((x) => x.dayIndex === (w.week - 1) * DAYS_PER_WEEK + i + 1);
+                      return (
+                        <td key={i} className={`num day-cell ${d ? (d.net > 0 ? 'pos' : d.net < 0 ? 'neg' : '') : 'empty'}`} title={d ? `Día ${d.dayIndex}: ${d.trades} trades` : 'Sin trades'}>
+                          {d ? money(d.net) : ''}
+                        </td>
+                      );
+                    })}
+                    <td className={`num ${w.net >= 0 ? 't-up' : 't-down'}`}>
+                      <b>{money(w.net)}</b>
+                    </td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <p className="t-muted small">Las semanas aparecen con el primer trade cerrado.</p>
+      )}
+
       <section className="journal-block">
-        <h3 className="sub">Trades ({sorted.length})</h3>
+        <div className="chips" role="group" aria-label="Desglose">
+          {DIMENSIONS.map((d) => (
+            <button key={d.id} className={`chip ${dim === d.id ? 'is-active' : ''}`} onClick={() => setDim(d.id)}>
+              {d.label}
+            </button>
+          ))}
+        </div>
+        {rows.length ? (
+          <div className="table-wrap">
+            <table className="grid-table">
+              <thead>
+                <tr>
+                  <th>{DIMENSIONS.find((d) => d.id === dim)?.label}</th>
+                  <th className="num">Trades</th>
+                  <th className="num">Aciertos</th>
+                  <th className="num">Resultado</th>
+                  <th className="num">Promedio</th>
+                  <th className="num">R prom.</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((b) => (
+                  <tr key={b.key}>
+                    <td>{b.label}</td>
+                    <td className="num">{b.trades}</td>
+                    <td className="num">{b.winRate.toFixed(0)}%</td>
+                    <td className={`num ${b.net >= 0 ? 't-up' : 't-down'}`}>{money(b.net)}</td>
+                    <td className="num">{money(b.avg)}</td>
+                    <td className="num">{b.avgR !== undefined ? `${b.avgR.toFixed(2)}R` : '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : null}
+      </section>
+
+      <section className="journal-block">
+        <div className="block-head">
+          <h3 className="sub">Trades ({sorted.length})</h3>
+          {c.allTrades().length > 0 && (
+            <button className="btn-small" onClick={() => void exportCsv(c.allTrades())}>
+              Exportar todo (CSV)
+            </button>
+          )}
+        </div>
         {sorted.length === 0 ? (
-          <p className="t-muted small">Todavía no hay trades. Elegí una acción del escáner y comprá desde el ticket de la ficha.</p>
+          <p className="t-muted small">Todavía no hay trades. Elegí una acción del escáner y comprá desde el ticket.</p>
         ) : (
           <div className="table-wrap">
-            <table className="scan trades">
+            <table className="grid-table trades">
               <thead>
                 <tr>
                   <th>Hora ET</th>
-                  <th>Símb.</th>
+                  <th>Sím.</th>
                   <th>Setup</th>
                   <th className="num">Acc.</th>
                   <th className="num">Entrada</th>
@@ -389,9 +632,9 @@ export function Journal({ c, onClose, onSelect }: { c: TrainingController; onClo
               <tbody>
                 {sorted.slice(0, 300).map((t) => (
                   <tr key={t.id}>
-                    <td className="mono t-muted">{formatEtTime(t.openedAt, false)}</td>
-                    <td className="c-sym">
-                      <button className="link-btn" onClick={() => onSelect(t.sym)}>
+                    <td className="t-muted">{formatEtTime(t.openedAt, false)}</td>
+                    <td>
+                      <button className="link sym-link" onClick={() => onSelect(t.sym)}>
                         {t.sym}
                       </button>
                     </td>
@@ -440,7 +683,7 @@ export function Journal({ c, onClose, onSelect }: { c: TrainingController; onClo
         <section className="journal-block">
           <h3 className="sub">Días anteriores</h3>
           <div className="table-wrap">
-            <table className="scan">
+            <table className="grid-table">
               <thead>
                 <tr>
                   <th>Día</th>

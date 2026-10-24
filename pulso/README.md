@@ -9,9 +9,10 @@ sonido o voz cuando una hace un nuevo máximo, un squeeze, un bull flag, un halt
 
 - **Probarlo sin instalar nada:** modo demo con un mercado simulado (acciones ficticias), en
   https://agustincorreas.github.io/codex-playground/pulso/ (se publica desde `main`).
-- **Practicar con plata ficticia:** una cuenta de práctica de US$ 1.000 para operar ese mercado simulado en
-  tiempo real, con stop y objetivo, velas de 10 y 30 segundos y un diario que te lleva las estadísticas
-  (trades ganadores y perdedores, cuánto ganaste y perdiste, % de aciertos, R, por setup y por horario).
+- **Practicar con plata ficticia:** un simulador de trading realista, en tiempo real, con una cuenta de
+  US$ 1.000. La pantalla toma como modelo el simulador de Warrior Trading que usa Ross Cameron: Nivel 2 por
+  bolsa, Time & Sales, entrada de órdenes con botones y atajos de teclado, gráficos de 1 y 5 minutos,
+  posiciones, actividad de órdenes y una página de métricas con tus estadísticas y el Profit Trifecta.
 - **Usarlo con datos reales:** corre en tu computadora y se conecta a **Alpaca** o a **Massive**
   (ex Polygon.io). Hace falta una suscripción de datos; abajo están los costos y cómo sacarla.
 
@@ -21,23 +22,20 @@ sonido o voz cuando una hace un nuevo máximo, un squeeze, un bull flag, un halt
 
 ## 1. Qué muestra
 
-| Panel | Qué es |
-| --- | --- |
-| **Top gappers** | Suben 5% o más contra el cierre anterior, precio $1–$20, volumen desde 50K. Ordenadas por % de suba. En el pre-market es la lista para armar la watchlist del día. |
-| **5 pilares** | Las que cumplen 4 o 5 pilares (configurable). Cada fila muestra los pilares como casilleros: `$` precio, `%` suba, `V` volumen relativo, `N` noticia, `F` float. |
-| **Momentum** | Equivalente al scanner de "máximos del día": cada señal en una fila, la más nueva arriba (nuevo máximo, squeeze, subida rápida, bull flag, ruptura del máximo del pre-market, pico de volumen). |
-| **Subiendo ahora / Volumen relativo** | Las que más suben en los últimos 5 minutos y las de mayor volumen relativo. |
-| **Low float / Se desinflan** | Float de hasta 20M que suben; y las que llegaron a subir 20%+ pero ya están 15%+ debajo del máximo. |
-| **Halts** | Halts y reanudaciones con el motivo (pausa LULD, noticia pendiente, etc.), cuenta regresiva de 5 minutos para las pausas por volatilidad y el % de la reanudación contra el precio del halt. |
-| **Alertas** | Todas las alertas, con filtros por tipo y por cantidad de pilares. |
-| **Noticias** | Titulares en tiempo real (Benzinga vía Alpaca, o Massive). |
-| **Gráfico** | Velas de 10 s, 30 s, 1 min y 5 min con VWAP, EMA 9, EMA 20, volumen y MACD; líneas de máximo del día, máximo del pre-market, cierre anterior y entrada/stop del bull flag; marcas de halts. En práctica, además, tus compras y ventas, tu costo, tu stop y tu objetivo. |
-| **Operar** | El ticket de la cuenta de práctica (bid, ask, compra y venta a mercado, límite o stop, stop y objetivo, tamaño por riesgo) y la ficha de la acción: precio, volumen, RVOL, float, rotación, VWAP, máximos, short interest, etiquetas de dilución de la SEC, los 5 pilares con su valor y el estado del setup (VWAP, EMA 9, MACD). |
-| **Posiciones / Órdenes / Watchlist** | Lo que tenés abierto con su resultado en vivo, las órdenes pendientes y tus símbolos marcados con la estrella. |
-| **Rango del día** | Dónde está el precio entre el mínimo y el máximo del día de cada gapper. |
-| **Diario** | Tus trades de práctica y sus estadísticas (sección 2). |
+La pantalla está armada con ventanas, como una plataforma de trading:
 
-En el celular la misma información se ordena en pestañas (Escáner, Alertas, Operar, Noticias y Diario).
+| Ventana | Qué es |
+| --- | --- |
+| **Máximos del día** | El escáner de momentum: cada señal en una fila, la más nueva arriba (nuevo máximo, squeeze, subida rápida, bull flag, ruptura del máximo del pre-market, pico de volumen), con hora, precio, volumen, float, volumen relativo y % del día. El color de la fila dice cuántos pilares cumple y las celdas que pasan el corte (float bajo, RVOL 5x, +10%) se resaltan. Pestañas **Alertas** (todas, con filtros) y **Halts** (motivo, cuenta regresiva de 5 minutos y % de la reanudación). |
+| **Escáneres** | **Top gappers** (suben 5%+ contra el cierre anterior, precio $1–$20, volumen desde 50K), **5 pilares** (cumplen 4 o 5: `$` precio, `%` suba, `V` volumen relativo, `N` noticia, `F` float), **Subiendo** (lo que más sube en 5 minutos), **Low float**, **Volumen relativo**, **Se desinflan** (subieron 20%+ y ya están 15%+ abajo del máximo), **Watchlist** (tus estrellas) y **Rango del día**. |
+| **Nivel 2 y órdenes** | El libro de órdenes por bolsa, la cinta (Time & Sales) y la entrada de órdenes de la cuenta de práctica (sección 2). |
+| **Gráfico 1 min y 5 min** | Velas (también de 10 y 30 segundos) con VWAP, EMA 9, 20 y 200, volumen y MACD; leyenda con OHLC, float y capitalización; cuenta regresiva del cierre de la vela; líneas del máximo del día, máximo del pre-market y cierre anterior; marcas de halts y de bull flag. En práctica, además, tus compras (C) y ventas (V), tu costo y tus órdenes. |
+| **Cotización** | La ficha de la acción: precio, empresa y bolsa, noticias, float, volumen, volumen relativo diario y de 5 minutos, gap, máximos, VWAP, short interest, capitalización, etiquetas de dilución de la SEC, los 5 pilares con su valor y el estado del setup (VWAP, EMA 9, MACD). Pestaña **Noticias** con todos los titulares. |
+| **Posiciones / Valor de la cuenta** | Lo que tenés abierto con el resultado no realizado y realizado; efectivo, plata sin liquidar, poder de compra y cuenta de day trades. |
+| **Actividad de órdenes** | Todas las órdenes del día con su estado (enviada, abierta, parcial, ejecutada, cancelada o rechazada). |
+| **Cuenta y métricas** | Se abre con el botón del saldo, arriba: estadísticas, Profit Trifecta, curva de capital y trades (sección 2). |
+
+En el celular la misma información se ordena en pestañas (Escáner, Alertas, Operar, Cotización y Métricas).
 
 ### Los 5 pilares (valores por defecto, se cambian en Ajustes)
 
@@ -63,71 +61,135 @@ leen en voz alta ("T R O R, squeeze"). En Ajustes elegís qué alertas suenan y 
 
 ---
 
-## 2. Modo práctica: operá con US$ 1.000 ficticios y llevá tus estadísticas
+## 2. Modo práctica: un simulador realista con US$ 1.000 ficticios
 
 Como conectarse a datos reales cuesta plata, Pulso trae un **mercado simulado en tiempo real** y una
-**cuenta de práctica** para operarlo. Las acciones son ficticias pero se comportan como small caps de
-momentum: gaps con noticia, squeezes, bull flags, halts por volatilidad y acciones que se desinflan. Las velas se arman segundo a segundo y todo pasa en el navegador: no hay que instalar nada.
+**cuenta de práctica** para operarlo. La pantalla y la forma de operar toman como modelo el simulador de
+Warrior Trading que usa Ross Cameron: las mismas ventanas, el Nivel 2 con colores por nivel de precio, la
+cinta, los botones y los atajos de teclado. (Es solo un modelo visual: Pulso no tiene relación con Warrior
+Trading.) Las acciones son ficticias pero se comportan como small caps de momentum: gaps con noticia,
+squeezes, bull flags, halts por volatilidad y acciones que se desinflan. Todo pasa en el navegador: no hay
+que instalar nada.
 
 ![Practicando en el escritorio](docs/practica-escritorio.jpg)
+
+### El mercado simulado
+
+- **Cada operación tiene un agresor:** las compras pagan el ask y las ventas toman el bid; las órdenes grandes
+  barren varios niveles (en la cinta aparecen arriba del ask o debajo del bid). Hay lotes impares y cruces
+  en el medio del spread, como en la cinta real.
+- **Bid y ask (NBBO) que se mueven con el precio.** El spread es más ancho en las acciones baratas, en el
+  pre-market, en los movimientos rápidos y al reanudar un halt.
+- **Nivel 2 por bolsa** (NSDQ, ARCA, EDGX, BATS, MEMX, IEX y otras) armado alrededor del NBBO, con paredes en
+  los dólares y medios dólares. Lo que compran o venden los demás (y vos) lo consume, y se repone.
+- **Halts por volatilidad** de 5 minutos y reanudación.
+- Las acciones "en juego" (suben 15% o más) siguen operando con volumen aunque ya no estén corriendo.
+- La cinta arranca con los últimos 3 minutos de operaciones, como cuando abrís un símbolo en una plataforma.
 
 ### Un día de práctica
 
 1. Cada día simulado es un mercado distinto. Arranca a las 9:25 ET con el pre-market ya armado (o a las
-   7:00, 9:00 o 9:45: se elige en *Diario → Nuevo día simulado*). Con 2x, 5x o 10x el reloj corre más rápido
-   y con ⏸ se pausa.
-2. Elegís una acción en los escáneres. En el panel **Operar** está el ticket: bid, ask, spread y poder de
-   compra.
-3. Comprás **a mercado** (al ask), con orden **límite** (a tu precio o mejor) o **stop** (cuando rompe un
-   precio, para entrar en la ruptura). Con **Stop y objetivo** tildado la compra sale con un stop de pérdida
-   y una venta límite en el objetivo, que se cancelan entre sí (OCO).
-4. El ticket propone el stop un centavo debajo del mínimo de la vela de 1 minuto anterior (el mínimo del
-   retroceso, o el stop del bull flag si hay uno armado) y el objetivo a 2R; la propuesta se actualiza con
-   cada vela hasta que la cambiás a mano, y **Sugerir** la vuelve a calcular. El botón **Riesgo US$ 20**
-   calcula cuántas acciones comprar para perder como mucho eso si toca el stop. Si la orden supera tu poder
-   de compra, te avisa cuántas acciones te alcanzan.
-5. Salís con **Vender ½** o **Vender todo** (al bid), en el objetivo o en el stop. **Stop a break even** sube
-   el stop a tu precio de entrada.
-6. En el gráfico ves tus compras (C) y ventas (V), tu costo, tu stop y tu objetivo. Para entrar y salir
-   rápido conviene mirar las velas de 10 o 30 segundos.
-7. A las 15:59 ET el día se cierra solo (vende lo que quedó abierto), o lo cerrás antes con *Terminar el
+   7:00, 9:00 o 9:45: se elige en *Cuenta y métricas → Nuevo día simulado*). Con 2x, 5x o 10x el reloj corre
+   más rápido y con ⏸ se pausa.
+2. Elegís una acción en *Máximos del día* o en los escáneres, o escribís el símbolo en la ventana *Nivel 2
+   y órdenes*.
+3. **Entrada de órdenes:** tipo (*Limit*, *Market* o *Stop*), precio (las flechas lo mueven de a un tick y
+   tocando un nivel del libro se copia su precio), cantidad (de a 100; **P** pone el tamaño de tu
+   posición), ruta, vigencia (**DAY+** opera también en pre-market y after-hours; **DAY** solo en la rueda)
+   y **VENDER** / **COMPRAR**.
+4. Con **Stop y objetivo** tildado, la compra sale con un stop de pérdida y una venta límite en el objetivo,
+   que se cancelan entre sí (OCO). El stop propuesto va debajo del mínimo del retroceso (o en el stop del bull
+   flag si hay uno armado), nunca más pegado que el rango típico de una vela de 1 minuto, y el objetivo a 2R.
+   La propuesta acompaña al precio mientras no la cambies a mano y **Sugerir** la vuelve a calcular.
+   **Tamaño por riesgo** calcula cuántas acciones comprar para perder como mucho US$ 20 (se cambia en los
+   ajustes) si toca el stop, y la línea de abajo te dice cuántas acciones te alcanzan.
+5. Para entrar y salir rápido están los **botones rápidos** (abajo de COMPRAR/VENDER) y los **atajos de
+   teclado**. Con una posición abierta aparecen **Stop a BE** (sube el stop a tu precio de entrada) y
+   **Aplicar stop/obj.**; en *Posiciones*, **Cerrar** vende todo.
+6. A las 15:59 ET el día se cierra solo (vende lo que quedó abierto), o lo cerrás antes con *Terminar el
    día*. El saldo pasa al día siguiente.
 
-**Atajos de teclado** (con una acción elegida): **B** compra con lo que dice el ticket, **S** vende todo,
-**H** vende la mitad y **Esc** cancela las órdenes pendientes.
+### Atajos de teclado
+
+Funcionan con la acción elegida y no actúan mientras escribís en un campo. En *Ajustes de la cuenta → Atajos
+de teclado* se cambia la tecla (tocás la casilla y apretás la combinación nueva), qué hace cada uno, se
+agregan nuevos y se elige cuáles aparecen como botón rápido.
+
+| Tecla | Qué hace (por defecto) |
+| --- | --- |
+| ⇧1 | Compra las acciones del ticket a Ask + 0,05 (también es botón rápido) |
+| ⇧2 | Compra por riesgo (las acciones que dan US$ 20 hasta el stop) a Ask + 0,05 |
+| ⇧3 / ⇧4 | Compra 100 / 500 acciones a Ask + 0,05 |
+| ⇧Q / ⇧W / ⇧E | Vende ¼ / ½ / toda la posición a Bid − 0,05 (⇧E también es botón rápido) |
+| ⇧R / ⇧T | Vende ½ / toda la posición en el ask (orden límite que espera) |
+| ⇧B | Mueve el stop al precio de entrada |
+| Esc | Cancela las órdenes de la acción |
+
+Ask + 0,05 y Bid − 0,05 son órdenes límite que se ejecutan enseguida pero no pagan cualquier precio (así
+vienen los botones del simulador de Warrior Trading), y además funcionan en el pre-market, donde no se
+aceptan órdenes a mercado.
 
 ### Qué tan real es la ejecución
 
-- A mercado se compra al ask y se vende al bid. El spread es más ancho en las acciones baratas, en los
-  movimientos rápidos y fuera de la rueda (pre-market).
-- **Deslizamiento** según tu tamaño contra lo que la acción opera por minuto: 100 acciones en una que mueve
-  50.000 por minuto casi no se notan; 5.000 en una que mueve 2.000 por minuto pagan bastante más que el ask.
-- Durante un **halt** no se ejecuta nada, tampoco los stops. Si reanuda más abajo, el stop sale al precio de
-  la reanudación, como en la realidad.
-- La cuenta es **cash**: solo comprás con lo que tenés. En *Ajustes de práctica* se cambia el saldo inicial,
-  se pasa a margen 2x o 4x, se agregan comisiones (por ejemplo US$ 0,005 por acción, como IBKR Pro) y se
-  fija una **pérdida máxima del día** que bloquea nuevas compras cuando la alcanzás.
-- Solo compras (long), sin ventas en corto: es el estilo de Ross Cameron en small caps.
+- **Latencia:** cada orden tarda entre 100 y 240 ms en llegar (150 ms de base, se cambia en los ajustes) y se
+  ejecuta contra el mercado de ese momento, no contra el precio que viste al apretar.
+- **Libro:** a mercado (o con un límite que cruza el spread) se recorre el libro nivel por nivel. Si comprás
+  más de lo que hay en el ask, el resto se paga al nivel siguiente y te queda un precio promedio.
+- **Fila:** una orden límite que espera tiene adelante las acciones que ya estaban a ese precio. Se ejecuta
+  cuando la cinta opera ese volumen a tu precio, o cuando opera más allá (eras la mejor punta). Puede quedar
+  ejecutada en parte.
+- **Stops:** se disparan con el último precio (una operación en tu stop o peor) y salen contra el bid. Fuera
+  de la rueda salen como límite 3% peor.
+- **Pre-market y after-hours:** solo órdenes límite, como en los brókers reales. Una orden DAY espera las 9:30
+  y vence a las 16:00.
+- **Halts:** no se ejecuta nada; las órdenes esperan la reanudación.
+- **Costos:** en cada venta, la tasa de la SEC (US$ 20,60 por millón vendido) y la TAF de FINRA
+  (US$ 0,000195 por acción, máximo US$ 9,79), redondeadas al centavo hacia arriba. Las comisiones por acción
+  (con mínimo por orden) son opcionales.
+- **Cuenta cash** (por defecto): lo que vendés hoy se liquida al día siguiente (T+1), así que esa plata no se
+  puede volver a usar hasta el próximo día simulado. No tiene regla PDT.
+- **Cuenta margen:** poder de compra 2x (4x con US$ 25.000 o más) y regla PDT: con menos de US$ 25.000, como
+  máximo 3 day trades en 5 días.
+- **Pérdida máxima del día** opcional: al llegar, no te deja abrir nuevas posiciones.
+- Se rechazan los precios a más de 50% del último (un dedo de más). Solo compras (long), sin cortos: es el
+  estilo de Ross Cameron en small caps.
 
-### Diario y estadísticas
+Todo esto se cambia en *Ajustes de la cuenta* (botón en *Valor de la cuenta* o en *Cuenta y métricas*):
+saldo inicial, tipo de cuenta, apalancamiento, pérdida máxima, acciones y riesgo por defecto, vigencia,
+hora de inicio, latencia, comisiones y tasas.
 
-Se abre con el botón de la cuenta (arriba, el que muestra el saldo) o con la pestaña *Diario* en el celular.
+### Cuenta y métricas
 
-![Diario de trading con las estadísticas](docs/practica-diario.jpg)
+Se abre con el botón del saldo (arriba) o con la pestaña *Métricas* en el celular.
 
-- **Equity**, resultado del día y resultado total desde el saldo inicial.
-- **Trades ganadores y perdedores**, % de aciertos, ganancia y pérdida promedio (y la mayor de cada una),
-  relación ganancia/pérdida, profit factor, R promedio, esperanza por trade, máximo drawdown, rachas y
-  tiempo promedio en el trade.
+![Cuenta y métricas](docs/practica-diario.jpg)
+
+- **Tus aptitudes:** ganancias y pérdidas (relación ganancia/pérdida, resultado bruto y neto, comisiones y
+  tasas, promedio por día, % de aciertos), ganadores y perdedores (promedio, tiempo promedio en el trade y el
+  mayor de cada uno).
+- Trades, profit factor, R promedio, esperanza por trade, máximo drawdown y rachas.
 - **Curva de capital** y consejos automáticos: por ejemplo, si tus pérdidas promedio son más grandes que tus
-  ganancias, si mantenés las perdedoras más tiempo que las ganadoras, si entrás sin stop o qué horario y qué
-  setup te cuestan plata.
-- **Desglose** por setup, horario, precio, float, cantidad de pilares y motivo de salida, para saber qué te
-  funciona y qué no.
-- **Lista de trades** con hora, entrada, salida, resultado en US$ y en %, R, minutos y motivo de salida.
+  ganancias, si mantenés las perdedoras más tiempo que las ganadoras o qué horario y qué setup te cuestan plata.
+- **Profit Trifecta** de la semana (5 días simulados): % de aciertos, relación ganancia/pérdida y constancia
+  (semanas positivas seguidas) suman de 1 a 6 puntos cada uno, y el total da tu nivel.
+
+  | Puntos | % de aciertos | Relación G/P | Semanas positivas seguidas |
+  | --- | --- | --- | --- |
+  | 1 | 50% o menos | menos de 1:1 | 0 |
+  | 2 | 51% | 1:1 | 1 |
+  | 3 | 56% | 1,5:1 | 2 |
+  | 4 | 61% | 1,75:1 | 3 o 4 |
+  | 5 | 66% | 2:1 | 5 |
+  | 6 | 71% o más | más de 2,25:1 | 6 o más |
+
+  Niveles: 1–3 no rentable, 4–6 principiante, 7–9 intermedio, 10–13 con experiencia, 14–18 profesional.
+- **Rentabilidad** por precio, horario (de a 1 hora, 30 o 15 minutos), gap, volumen, volumen relativo y setup.
+- **Rendimiento por semana**, día por día.
+- **Desglose** por setup, horario, precio, gap, volumen, volumen relativo, float, pilares y motivo de salida.
+- **Lista de trades** con hora, setup, entrada, salida, resultado en US$ y en %, R, minutos y motivo de salida.
   Podés corregir el setup y anotar qué aprendiste; **Ver** abre el gráfico del trade con tus entradas y
-  salidas y cuánto llegó a ir a favor y en contra (MFE/MAE).
-- Filtros por hoy, últimos 7 días, todo o un día en particular, y la tabla de días anteriores.
+  salidas y cuánto llegó a ir a favor y en contra (MFE/MAE). **Exportar todo (CSV)** baja todos tus trades.
+- Filtros por hoy, últimos 5 días, todo o un día en particular, y la tabla de días anteriores.
 
 ### Dónde se guarda
 
@@ -136,9 +198,10 @@ Se abre con el botón de la cuenta (arriba, el que muestra el saldo) o con la pe
 - **En la demo de GitHub Pages o en tu computadora:** en el navegador. Si borrás los datos del sitio, se
   pierden.
 
-Si cerrás la pestaña en medio de un día, al volver se reanuda el mismo mercado en el mismo minuto, con tus
+Si cerrás la pestaña en medio de un día, al volver se reanuda el mismo mercado en el mismo segundo, con tus
 posiciones y órdenes. Con datos reales (secciones 3 y 4) la misma cuenta de práctica opera sobre el mercado
-de verdad: precios reales, con el bid y el ask estimados porque el escáner no recibe el libro de órdenes.
+de verdad: precios y cinta reales, pero el Nivel 2 es una estimación armada alrededor del bid y el ask,
+porque el escáner no recibe el libro de órdenes.
 
 ---
 
@@ -282,11 +345,13 @@ pulso/
     time.ts       hora ET, sesiones, feriados NYSE 2025–2027, curva de volumen intradía
   src/sim/      mercado simulado (gappers, runners con noticia, halts LULD, fades); determinista por semilla
   src/trading/  cuenta de práctica (sin dependencias)
-    broker.ts     órdenes a mercado, límite y stop, OCO, spread y deslizamiento, halts, margen, comisiones
-    stats.ts      estadísticas del diario, curva de capital y desgloses
+    broker.ts     órdenes a mercado, límite y stop, latencia, fila, OCO, halts, cash T+1, margen y PDT, tasas
+    depth.ts      Nivel 2 por bolsa alrededor del NBBO
+    stats.ts      métricas, Profit Trifecta, curva de capital y desgloses
     store.ts      guardado en el navegador o en la base del artifact de Claude
   src/client/   interfaz React + lightweight-charts (TradingView)
     training.ts   días de práctica: crear, reanudar, terminar y guardar
+    lib/hotkeys.ts  atajos de teclado configurables
   server/       servidor Node: Alpaca, Massive, halts de Nasdaq, SEC, float; WebSocket hacia la interfaz
   test/         pruebas (motor, adaptadores con mensajes de la documentación oficial, servidores falsos)
 ```
@@ -295,7 +360,7 @@ pulso/
 | --- | --- |
 | `npm run dev` | Interfaz en modo demo con recarga en caliente (http://localhost:5173). |
 | `npm start` | Compila la interfaz y arranca el servidor (datos reales si hay claves). |
-| `npm test` | Pruebas (54): motor, alertas, bull flag, halts, Alpaca y Massive contra servidores falsos, simulador y cuenta de práctica. |
+| `npm test` | Pruebas (62): motor, alertas, bull flag, halts, Alpaca y Massive contra servidores falsos, simulador, bróker de práctica y métricas. |
 | `npm run typecheck` | Chequeo de tipos de todo el proyecto. |
 | `npm run build:demo` | Página única del demo (`dist-demo/index.html`) para GitHub Pages. |
 
@@ -306,6 +371,7 @@ pulso/
   desactualizado unos días. Las acciones en circulación de la SEC no se ajustan por splits (se muestran con ≈).
 - Las etiquetas de dilución son heurísticas sobre los formularios presentados a la SEC: confirmá leyendo el filing.
 - El bull flag es una detección automática simple sobre velas de 1 minuto. Es una ayuda para mirar, no una señal de compra.
-- El simulador sirve para entrenar la lectura del gráfico, la disciplina y el manejo del riesgo, pero sus
-  movimientos los genera un modelo: no hay libro de órdenes (nivel 2) ni cinta, y la ejecución es una
-  aproximación. Un resultado positivo en práctica no garantiza el mismo resultado con plata real.
+- El simulador sirve para entrenar la lectura del gráfico y de la cinta, la disciplina y el manejo del
+  riesgo, pero sus movimientos los genera un modelo: tus órdenes consumen el libro pero no mueven el precio,
+  y la ejecución es una aproximación. Un resultado positivo en práctica no garantiza el mismo resultado con
+  plata real.

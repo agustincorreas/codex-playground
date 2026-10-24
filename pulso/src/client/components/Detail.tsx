@@ -1,4 +1,5 @@
-// Ficha de la acción seleccionada: datos clave, los 5 pilares, salud del setup y plan de riesgo.
+// Cotización de la acción elegida (como la ventana "Stock Quote"): precio, noticias, datos clave,
+// los 5 pilares y la salud del setup.
 import type { Settings, SymbolDetail } from '../../engine/types';
 import { formatEtTime } from '../../engine/time';
 import { fmtFloat, fmtMoney, fmtPct, fmtPrice, fmtRvol, fmtVolume, timeAgo, toneOf } from '../lib/format';
@@ -25,50 +26,43 @@ function Check({ ok, label, value }: { ok: boolean | null; label: string; value:
   );
 }
 
-function Stat({ label, value, tone, title }: { label: string; value: string; tone?: string; title?: string }) {
-  return (
-    <div className="stat" title={title}>
-      <span className="stat-label">{label}</span>
-      <span className={`stat-value mono ${tone ? `t-${tone}` : ''}`}>{value}</span>
-    </div>
-  );
-}
-
 export function Detail({ detail, settings: s, now, watched, onToggleWatch }: Props) {
-  if (!detail) return <Empty>Elegí una acción de cualquier lista para ver su ficha.</Empty>;
+  if (!detail) return <Empty>Elegí una acción de cualquier lista para ver su cotización.</Empty>;
   const r = detail.row;
   const p = r.pillars;
   const ref = detail.ref;
   const shares = ref.sharesOutstanding;
   const lastNews = detail.news[0];
+  const chg = r.price - r.prevClose;
 
   return (
-    <div className="detail">
-      <div className="detail-head">
-        <div className="detail-id">
-          <div className="detail-sym">
-            <span className="sym-big">{detail.sym}</span>
-            <button className={`icon-btn star ${watched ? 'is-on' : ''}`} onClick={() => onToggleWatch(detail.sym)} aria-pressed={watched} aria-label={watched ? 'Quitar de la watchlist' : 'Agregar a la watchlist'} title={watched ? 'Quitar de la watchlist' : 'Agregar a la watchlist'}>
-              <IconStar filled={watched} />
-            </button>
-          </div>
-          <span className="detail-name">
-            {ref.name ?? '—'}
-            {ref.exchange ? ` · ${ref.exchange}` : ''}
+    <div className="quote">
+      <div className="quote-head">
+        <div className="quote-sym">
+          <span className="sym-big">{detail.sym}</span>
+          <button className={`icon-btn star ${watched ? 'is-on' : ''}`} onClick={() => onToggleWatch(detail.sym)} aria-pressed={watched} aria-label={watched ? 'Quitar de la watchlist' : 'Agregar a la watchlist'} title={watched ? 'Quitar de la watchlist' : 'Agregar a la watchlist'}>
+            <IconStar filled={watched} />
+          </button>
+        </div>
+        <div className={`quote-price t-${toneOf(r.changePct)}`}>
+          <span className="price-big">{fmtPrice(r.price)}</span>
+          <span className="quote-chg">
+            {chg >= 0 ? '+' : ''}
+            {fmtPrice(chg)} ({fmtPct(r.changePct, 2)})
           </span>
         </div>
-        <div className="detail-price">
-          <span className="price-big mono">{fmtPrice(r.price)}</span>
-          <span className={`mono t-${toneOf(r.changePct)}`}>{fmtPct(r.changePct, 2)}</span>
-        </div>
       </div>
+      <p className="quote-name">
+        {ref.name ?? '—'}
+        {ref.exchange ? ` | ${ref.exchange}` : ''}
+      </p>
+      <p className="quote-updated">Actualizado {formatEtTime(r.lastTs || now)} ET</p>
 
       <div className="tags">
         {r.halted && <span className="tag warn">HALT · {detail.halt?.reasonText}</span>}
         {r.float !== undefined && r.float <= s.maxFloat && <span className="tag up">Float bajo</span>}
         {p.news && <span className="tag info">Noticia</span>}
         {r.rotation !== undefined && r.rotation >= 1 && <span className="tag up">Rotó el float {r.rotation.toFixed(1)}x</span>}
-        {ref.shortInterest && ref.float ? <span className="tag">Short {((ref.shortInterest / ref.float) * 100).toFixed(0)}% del float</span> : null}
         {(ref.flags ?? []).map((f) => (
           <span key={f} className="tag down" title="Riesgo de dilución / contexto de la empresa">
             {f}
@@ -76,20 +70,90 @@ export function Detail({ detail, settings: s, now, watched, onToggleWatch }: Pro
         ))}
       </div>
 
-      <div className="stats">
-        <Stat label="Volumen" value={fmtVolume(r.volume)} />
-        <Stat label="RVOL" value={fmtRvol(r.rvol)} tone={r.rvol >= s.minRvol ? 'hot' : undefined} title="Volumen de hoy vs. lo normal a esta hora" />
-        <Stat label="RVOL 5m" value={fmtRvol(r.rvol5m)} />
-        <Stat label="Float" value={`${r.floatEst ? '≈' : ''}${fmtFloat(r.float)}`} title={ref.floatSource ? `Fuente: ${ref.floatSource}` : undefined} />
-        <Stat label="VWAP" value={fmtPrice(r.vwap)} tone={r.price >= r.vwap ? 'up' : 'down'} />
-        <Stat label="Máx. día" value={fmtPrice(r.hod)} />
-        <Stat label="Máx. pre" value={detail.pmHigh ? fmtPrice(detail.pmHigh) : '—'} />
-        <Stat label="Mín. día" value={fmtPrice(detail.lod)} />
-        <Stat label="Gap" value={fmtPct(r.gapPct)} tone={toneOf(r.gapPct)} />
-        <Stat label="Cierre ant." value={fmtPrice(r.prevClose)} />
-        <Stat label="Vol. prom." value={fmtVolume(ref.avgVolume ?? 0)} />
-        <Stat label="Cap. aprox." value={shares ? fmtMoney(shares * r.price) : '—'} />
-      </div>
+      <section className="quote-news">
+        <h3 className="sub">Noticias</h3>
+        {detail.news.length ? (
+          <ol className="news-list compact">
+            {detail.news.slice(0, 4).map((n) => (
+              <li key={n.id} className={`news s-${n.sentiment ?? 'neutral'}`}>
+                {n.url ? (
+                  <a className="news-headline" href={n.url} target="_blank" rel="noreferrer">
+                    {n.headline}
+                  </a>
+                ) : (
+                  <p className="news-headline">{n.headline}</p>
+                )}
+                <span className="news-meta">
+                  {formatEtTime(n.ts, false)} ET · {timeAgo(n.ts, now)}
+                  {n.source ? ` · ${n.source}` : ''}
+                </span>
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <p className="t-muted small">Sin noticias recientes.</p>
+        )}
+      </section>
+
+      <dl className="kv">
+        <div>
+          <dt>Float</dt>
+          <dd title={ref.floatSource ? `Fuente: ${ref.floatSource}` : undefined}>
+            {r.floatEst ? '≈' : ''}
+            {fmtFloat(r.float)}
+          </dd>
+        </div>
+        <div>
+          <dt>Volumen</dt>
+          <dd>{fmtVolume(r.volume)}</dd>
+        </div>
+        <div>
+          <dt>Volumen relativo (diario)</dt>
+          <dd className={r.rvol >= s.minRvol ? 't-hot' : ''}>{fmtRvol(r.rvol)}</dd>
+        </div>
+        <div>
+          <dt>Volumen relativo (5 min)</dt>
+          <dd>{fmtRvol(r.rvol5m)}</dd>
+        </div>
+        <div>
+          <dt>Gap (%)</dt>
+          <dd className={`t-${toneOf(r.gapPct)}`}>{fmtPct(r.gapPct)}</dd>
+        </div>
+        <div>
+          <dt>Volumen en 5 minutos</dt>
+          <dd>{fmtVolume(r.vol5m)}</dd>
+        </div>
+        <div>
+          <dt>Cierre anterior</dt>
+          <dd>{fmtPrice(r.prevClose)}</dd>
+        </div>
+        <div>
+          <dt>Máximo / mínimo</dt>
+          <dd>
+            {fmtPrice(r.hod)} / {fmtPrice(detail.lod)}
+          </dd>
+        </div>
+        <div>
+          <dt>Máximo pre-market</dt>
+          <dd>{detail.pmHigh ? fmtPrice(detail.pmHigh) : '—'}</dd>
+        </div>
+        <div>
+          <dt>VWAP</dt>
+          <dd className={r.price >= r.vwap ? 't-up' : 't-down'}>{fmtPrice(r.vwap)}</dd>
+        </div>
+        <div>
+          <dt>Short interest</dt>
+          <dd>{ref.shortInterest && ref.float ? `${((ref.shortInterest / ref.float) * 100).toFixed(0)}% del float` : '—'}</dd>
+        </div>
+        <div>
+          <dt>Volumen promedio</dt>
+          <dd>{fmtVolume(ref.avgVolume ?? 0)}</dd>
+        </div>
+        <div>
+          <dt>Capitalización</dt>
+          <dd>{shares ? fmtMoney(shares * r.price) : '—'}</dd>
+        </div>
+      </dl>
 
       <div className="detail-cols">
         <section>
@@ -111,38 +175,12 @@ export function Detail({ detail, settings: s, now, watched, onToggleWatch }: Pro
             <Check ok={!r.halted} label="Sin halt" value={r.halted ? 'en halt' : 'opera'} />
             <Check ok={r.pctFromHod > -5} label="Cerca del máximo" value={fmtPct(r.pctFromHod)} />
           </ul>
-          <p className="next-level mono">
+          <p className="next-level">
             Próximo nivel: <b>${fmtPrice(detail.setup.nextLevel)}</b>
-            {detail.setup.flag && (
-              <span className="t-up"> · bull flag armado (entrada ${fmtPrice(detail.setup.flag.entry)})</span>
-            )}
+            {detail.setup.flag && <span className="t-up"> · bull flag armado (entrada ${fmtPrice(detail.setup.flag.entry)})</span>}
           </p>
         </section>
       </div>
-
-      {detail.news.length > 0 && (
-        <section>
-          <h3 className="sub">Noticias</h3>
-          <ol className="news-list compact">
-            {detail.news.slice(0, 4).map((n) => (
-              <li key={n.id} className={`news s-${n.sentiment ?? 'neutral'}`}>
-                <div className="news-top">
-                  <span className="mono t-muted">{formatEtTime(n.ts, false)}</span>
-                  <span className="t-muted">{timeAgo(n.ts, now)}</span>
-                  {n.source && <span className="news-src">{n.source}</span>}
-                </div>
-                {n.url ? (
-                  <a className="news-headline" href={n.url} target="_blank" rel="noreferrer">
-                    {n.headline}
-                  </a>
-                ) : (
-                  <p className="news-headline">{n.headline}</p>
-                )}
-              </li>
-            ))}
-          </ol>
-        </section>
-      )}
     </div>
   );
 }

@@ -10,7 +10,11 @@ import { ScoreDots } from './PillarDots';
 
 const MOMENTUM = new Set<AlertType>(MOMENTUM_TYPES);
 
-/** Lista estilo "High of Day Momentum": cada fila es una señal, la más nueva arriba. */
+/**
+ * Lista estilo "High of Day Momentum" de los escáneres de Ross Cameron: cada fila es una señal, la más
+ * nueva arriba. El color de la fila dice cuántos pilares cumple (5 magenta, 4 celeste, 3 azul) y se
+ * resaltan las celdas que cumplen su pilar: float bajo, volumen relativo de 5x y suba de 10% o más.
+ */
 export function MomentumFeed({
   alerts,
   minScore,
@@ -24,54 +28,55 @@ export function MomentumFeed({
 }) {
   // Varias señales del mismo símbolo en el mismo instante se muestran en una sola fila.
   const rows = useMemo(() => {
-    const out: Array<{ a: Alert; types: AlertType[] }> = [];
+    const out: Array<{ a: Alert; types: AlertType[]; n: number }> = [];
     for (let i = alerts.length - 1; i >= 0 && out.length < 80; i--) {
       const a = alerts[i];
       if (!MOMENTUM.has(a.type) || a.score < minScore) continue;
       const last = out[out.length - 1];
       if (last && last.a.sym === a.sym && Math.abs(last.a.ts - a.ts) <= 2000) {
         if (!last.types.includes(a.type)) last.types.push(a.type);
+        last.n++;
         continue;
       }
-      out.push({ a, types: [a.type] });
+      out.push({ a, types: [a.type], n: 1 });
     }
     return out;
   }, [alerts, minScore]);
   if (!rows.length) return <Empty>Todavía no hay señales con {minScore}+ pilares.</Empty>;
   return (
     <div className="table-wrap">
-      <table className="scan feed">
+      <table className="scan dtd">
         <thead>
           <tr>
             <th>Hora</th>
-            <th>Símb.</th>
-            <th>Señal</th>
+            <th>Símbolo</th>
             <th className="num">Precio</th>
-            <th className="num">Cambio</th>
-            <th className="num">RVOL</th>
+            <th className="num" title="Volumen del día">Vol.</th>
             <th className="num">Float</th>
+            <th className="num" title="Volumen relativo del día, ajustado por horario">RVOL</th>
+            <th className="num">%</th>
           </tr>
         </thead>
         <tbody>
-          {rows.map(({ a, types }) => (
-            <tr key={a.id} className={`${a.sym === selected ? 'is-selected' : ''} ${a.warmup ? 'is-old' : ''}`} onClick={() => onSelect(a.sym)} title={a.text}>
-              <td className="t-muted mono">{formatEtTime(a.ts)}</td>
-              <td className="c-sym">
-                <b>{a.sym}</b>
+          {rows.map(({ a, types, n }) => (
+            <tr key={a.id} className={`dtd-s${Math.min(5, Math.max(2, a.score))} ${a.sym === selected ? 'is-selected' : ''} ${a.warmup ? 'is-old' : ''}`} onClick={() => onSelect(a.sym)} title={a.text}>
+              <td className="dtd-time">
+                {formatEtTime(a.ts)}
+                {n > 1 && <small> ({n})</small>}
               </td>
-              <td className="c-badges">
+              <td className="c-sym">
+                <b className="dtd-sym">{a.sym}</b>
                 {types.map((t) => (
-                  <span key={t} className={`badge b-${t}`}>
+                  <span key={t} className={`dtd-sig b-${t}`}>
                     {ALERT_META[t].short}
                   </span>
                 ))}
               </td>
               <td className="num">{fmtPrice(a.price)}</td>
-              <td className="num">
-                <span className={`t-${toneOf(a.changePct)}`}>{fmtPct(a.changePct)}</span>
-              </td>
-              <td className="num">{fmtRvol(a.rvol)}</td>
-              <td className="num">{fmtFloat(a.float)}</td>
+              <td className="num dtd-vol">{fmtFloat(a.volume)}</td>
+              <td className={`num ${a.float !== undefined && a.float <= 10e6 ? 'dtd-hit-float' : ''}`}>{fmtFloat(a.float)}</td>
+              <td className={`num ${a.rvol >= 5 ? 'dtd-hit-rvol' : ''}`}>{fmtRvol(a.rvol)}</td>
+              <td className={`num ${a.changePct >= 10 ? 'dtd-hit-chg' : ''}`}>{fmtPct(a.changePct)}</td>
             </tr>
           ))}
         </tbody>

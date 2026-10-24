@@ -54,8 +54,10 @@ export function fitState(state: TrainingState, max = MAX_DOC): TrainingState {
   let total = jsonBytes(state);
   const a = state.active;
   if (total <= max || !a) return state;
-  const active: ActiveSession = { ...a, trades: a.trades.slice(), fills: a.fills.slice() };
+  const active: ActiveSession = { ...a, trades: a.trades.slice(), fills: a.fills.slice(), history: (a.history ?? []).slice() };
   total = trimTrades(active.trades, total, max);
+  // Las órdenes ya terminadas solo se muestran en la actividad del día: se descartan las más viejas.
+  while (active.history.length && total > max) total -= jsonBytes(active.history.shift()) + 1;
   const open = new Set(a.positions.map((p) => p.sym));
   for (let i = 0; i < active.fills.length && total > max; ) {
     if (open.has(active.fills[i].sym)) {
@@ -68,16 +70,25 @@ export function fitState(state: TrainingState, max = MAX_DOC): TrainingState {
   return { ...state, active };
 }
 
-const KEY_STATE = 'pulso:training';
-const KEY_SESSIONS = 'pulso:training-sessions';
-
 export class LocalTrainingStore implements TrainingStore {
   readonly kind = 'navegador' as const;
+  onFallback?: () => void;
+
+  /** `prefix` separa la cuenta de este navegador del respaldo local de la cuenta de Claude. */
+  constructor(private readonly prefix = 'pulso:training') {}
+
+  private get keyState() {
+    return this.prefix;
+  }
+
+  private get keySessions() {
+    return `${this.prefix}-sessions`;
+  }
 
   async load() {
     try {
-      const state = JSON.parse(localStorage.getItem(KEY_STATE) ?? 'null') as TrainingState | null;
-      const sessions = JSON.parse(localStorage.getItem(KEY_SESSIONS) ?? '[]') as SessionRecord[];
+      const state = JSON.parse(localStorage.getItem(this.keyState) ?? 'null') as TrainingState | null;
+      const sessions = JSON.parse(localStorage.getItem(this.keySessions) ?? '[]') as SessionRecord[];
       return { state, sessions: Array.isArray(sessions) ? sessions : [] };
     } catch {
       return { state: null, sessions: [] };
@@ -86,7 +97,7 @@ export class LocalTrainingStore implements TrainingStore {
 
   async saveState(state: TrainingState) {
     try {
-      localStorage.setItem(KEY_STATE, JSON.stringify(state));
+      localStorage.setItem(this.keyState, JSON.stringify(state));
     } catch {
       // Sin almacenamiento disponible: la práctica sigue, pero no se recuerda al recargar.
     }
@@ -94,7 +105,7 @@ export class LocalTrainingStore implements TrainingStore {
 
   async saveSession(rec: SessionRecord) {
     try {
-      const list = (JSON.parse(localStorage.getItem(KEY_SESSIONS) ?? '[]') as SessionRecord[]).filter((s) => s.id !== rec.id);
+      const list = (JSON.parse(localStorage.getItem(this.keySessions) ?? '[]') as SessionRecord[]).filter((s) => s.id !== rec.id);
       list.unshift(fitSession(rec, 120_000));
       let json = JSON.stringify(list);
       // localStorage tiene ~5 MB: si no entra, se quitan las velas de las sesiones más viejas.
@@ -102,7 +113,7 @@ export class LocalTrainingStore implements TrainingStore {
         list[i] = { ...list[i], trades: list[i].trades.map(({ bars: _b, ...t }) => t) };
         json = JSON.stringify(list);
       }
-      localStorage.setItem(KEY_SESSIONS, json);
+      localStorage.setItem(this.keySessions, json);
     } catch {
       // Ver saveState.
     }
@@ -110,8 +121,8 @@ export class LocalTrainingStore implements TrainingStore {
 
   async clear() {
     try {
-      localStorage.removeItem(KEY_STATE);
-      localStorage.removeItem(KEY_SESSIONS);
+      localStorage.removeItem(this.keyState);
+      localStorage.removeItem(this.keySessions);
     } catch {
       // Ver saveState.
     }
@@ -147,10 +158,11 @@ export class DbTrainingStore implements TrainingStore {
   onFallback?: () => void;
   private readonly stateDoc: DbDoc;
   private readonly sessions: DbCollection;
-  private readonly local = new LocalTrainingStore();
+  private readonly local = new LocalTrainingStore('pulso:training-respaldo');
   private failed = false;
   private writing: Promise<void> = Promise.resolve();
-  private pending: TrainingState | null = null;
+  /** Estado que espera su turno para guardarse (si llegan varios seguidos, se guarda el último). */
+  private slot: { state: TrainingState | null; started: boolean } | null = null;
   private sessionWrites: Promise<void> = Promise.resolve();
 
   constructor(db: Db, uid: string) {
@@ -164,9 +176,10 @@ export class DbTrainingStore implements TrainingStore {
 
   async load() {
     const [snap, list, local] = await Promise.all([this.stateDoc.get(), this.sessions.orderBy('endedAt', 'desc').limit(500).get(), this.local.load()]);
-    const saved = snap.exists ? (snap.data() as unknown as TrainingState) : null;
+    // Lo que devuelve la base está congelado: se clona para poder modificarlo.
+    const saved = snap.exists ? (structuredClone(snap.data()) as unknown as TrainingState) : null;
     const state = local.state && (!saved || local.state.updatedAt > saved.updatedAt) ? local.state : saved;
-    const sessions = list.docs.filter((d) => d.exists).map((d) => d.data() as unknown as SessionRecord);
+    const sessions = list.docs.filter((d) => d.exists).map((d) => structuredClone(d.data()) as unknown as SessionRecord);
     const ids = new Set(sessions.map((x) => x.id));
     return { state, sessions: [...sessions, ...local.sessions.filter((x) => !ids.has(x.id))] };
   }
@@ -174,17 +187,19 @@ export class DbTrainingStore implements TrainingStore {
   /** Una escritura por vez: si llegan varias seguidas, se guarda solo la última. */
   saveState(state: TrainingState): Promise<void> {
     if (this.failed) return this.local.saveState(state);
-    const wasIdle = this.pending === null;
-    this.pending = state;
-    if (wasIdle) {
-      this.writing = this.writing.then(async () => {
-        const next = this.pending;
-        this.pending = null;
-        if (!next) return;
-        const body = JSON.parse(JSON.stringify(fitState(next))) as Record<string, unknown>;
-        if (!(await this.write(() => this.stateDoc.set(body)))) await this.local.saveState(next);
-      });
+    if (this.slot && !this.slot.started) {
+      this.slot.state = state;
+      return this.writing;
     }
+    const slot = { state: state as TrainingState | null, started: false };
+    this.slot = slot;
+    this.writing = this.writing.then(async () => {
+      slot.started = true;
+      const next = slot.state;
+      if (!next) return;
+      const body = JSON.parse(JSON.stringify(fitState(next))) as Record<string, unknown>;
+      if (!(await this.write(() => this.stateDoc.set(body)))) await this.local.saveState(next);
+    });
     return this.writing;
   }
 
@@ -196,15 +211,24 @@ export class DbTrainingStore implements TrainingStore {
     return this.sessionWrites;
   }
 
-  async clear() {
-    await this.local.clear();
-    try {
-      const list = await this.sessions.orderBy('endedAt', 'desc').limit(1000).get();
-      for (const d of list.docs) await this.sessions.doc(d.id).delete();
-      await this.stateDoc.delete();
-    } catch (e) {
-      console.warn('No se pudo borrar el historial de la cuenta de Claude', e);
-    }
+  /** Borra todo. Va en la misma cola que los guardados: el estado nuevo se escribe después del borrado. */
+  clear(): Promise<void> {
+    const run = async () => {
+      await this.local.clear();
+      try {
+        const list = await this.sessions.orderBy('endedAt', 'desc').limit(1000).get();
+        for (const d of list.docs) await this.sessions.doc(d.id).delete();
+        await this.stateDoc.delete();
+      } catch (e) {
+        console.warn('No se pudo borrar el historial de la cuenta de Claude', e);
+      }
+    };
+    // Lo que estaba por guardarse es la cuenta que se borra: el próximo guardado va después del borrado.
+    if (this.slot && !this.slot.started) this.slot.state = null;
+    this.slot = null;
+    this.writing = this.writing.then(run);
+    this.sessionWrites = this.sessionWrites.then(() => this.writing);
+    return this.writing;
   }
 
   /** Reintenta una vez si la base está momentáneamente ocupada; si igual falla, se pasa al navegador. */

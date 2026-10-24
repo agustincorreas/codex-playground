@@ -3,17 +3,20 @@ import { fmtVolume } from '../engine/alerts';
 import type { Alert, NewsItem, ProviderStatus, ScannerId, Settings, SymbolDetail, ViewModel } from '../engine/types';
 import { DEFAULT_SETTINGS } from '../engine/types';
 import { createTrainingStore, LocalTrainingStore } from '../trading/store';
-import { Chart, type ChartFill, type ChartPosition } from './components/Chart';
+import type { Hotkey } from '../trading/types';
+import { AccountValue, PositionsWindow, TradeActivity } from './components/Account';
+import { Chart, type ChartFill, type ChartOrder, type ChartPosition } from './components/Chart';
 import { Header, MobileTabs, SettingsModal, type MobileTab, type Prefs } from './components/Chrome';
 import { Detail } from './components/Detail';
 import { AlertFeed, HaltsPanel, HodBoard, MomentumFeed, NewsPanel, WatchlistPanel } from './components/Feeds';
 import { Journal } from './components/Journal';
+import { Level2, num, type TicketForm } from './components/Level2';
 import { Empty, Panel } from './components/Panel';
-import { OrdersList, PositionsList } from './components/Positions';
+import { PracticeSettings } from './components/PracticeSettings';
 import { SCANNER_COLUMNS, ScannerTable } from './components/ScannerTable';
-import { Ticket } from './components/Ticket';
 import { DEFAULT_SOUND_TYPES } from './lib/alertMeta';
 import { beep, playFill, speak, unlockAudio } from './lib/audio';
+import { matches, typing } from './lib/hotkeys';
 import { load, save } from './lib/storage';
 import { LocalSource, type SimConfig } from './source/local';
 import { detectServer, RemoteSource } from './source/remote';
@@ -87,14 +90,25 @@ export function App() {
       setMsg('Cargando tu cuenta de práctica…');
       let store = await createTrainingStore();
       let loaded;
+      let failed = false;
       try {
         loaded = await store.load();
       } catch {
-        store = new LocalTrainingStore();
-        loaded = await store.load();
+        // Un error momentáneo de la base: se reintenta una vez.
+        await new Promise((r) => setTimeout(r, 800 + Math.random() * 1200));
+        try {
+          loaded = await store.load();
+        } catch {
+          // Sin la base, se practica en este navegador (con claves propias: no reemplaza la cuenta de Claude).
+          failed = store.kind === 'cuenta';
+          store = new LocalTrainingStore(failed ? 'pulso:training-sin-cuenta' : 'pulso:training');
+          loaded = await store.load();
+        }
       }
       if (!alive) return;
-      setBoot({ server: !!server, c: new TrainingController(store, loaded, server ? 'remote' : 'local') });
+      const c = new TrainingController(store, loaded, server ? 'remote' : 'local');
+      if (failed) c.notify('No se pudo leer tu cuenta de Claude: esta sesión se guarda solo en este navegador.', 'error');
+      setBoot({ server: !!server, c });
     })();
     return () => {
       alive = false;
@@ -116,11 +130,36 @@ function Workspace({ server, c }: { server: boolean; c: TrainingController }) {
   const [settings, setSettings] = useState<Settings>(() => load('settings', DEFAULT_SETTINGS));
   const [watch, setWatch] = useState<string[]>([]);
   const [prefs, setPrefs] = useState<Prefs>(() => load('prefs', DEFAULT_PREFS));
-  const [tabs, setTabs] = useState<Record<string, string>>(() => load('tabs', { a: 'running', b: 'lowFloat', p: 'pos' }));
+  const [tabs, setTabs] = useState<Record<string, string>>(() => load('tabs', { scan: 'gappers', momo: 'momentum', quote: 'quote', acct: 'pos' }));
   const [speed, setSpeed] = useState(1);
   const [mobileTab, setMobileTab] = useState<MobileTab>('scan');
   const [showSettings, setShowSettings] = useState(false);
   const [showJournal, setShowJournal] = useState(false);
+  const [practiceSettings, setPracticeSettings] = useState(false);
+  const [ticket, setTicketState] = useState<TicketForm>(() => ({
+    sym: null,
+    type: 'limit',
+    price: '',
+    shares: String(c.state.settings.defaultShares),
+    route: 'SMRT',
+    tif: c.state.settings.defaultTif,
+    bracket: load('ticket-bracket', true),
+    stop: '',
+    target: '',
+    setup: load('ticket-setup', 'Bull flag'),
+    edited: false,
+  }));
+  const ticketRef = useRef(ticket);
+  ticketRef.current = ticket;
+  const setTicket = useCallback((patch: Partial<TicketForm>) => {
+    setTicketState((t) => {
+      const next = { ...t, ...patch };
+      if (patch.bracket !== undefined) save('ticket-bracket', next.bracket);
+      if (patch.setup !== undefined) save('ticket-setup', next.setup);
+      return next;
+    });
+  }, []);
+  const [isMobile, setIsMobile] = useState(() => !!window.matchMedia?.('(max-width: 899px)').matches);
   const [now, setNow] = useState(0);
   const [theme, setTheme] = useState<'dark' | 'light'>(() => effectiveThemeNow());
   // La fuente del simulador se recrea solo cuando empieza un día nuevo (otra semilla).
@@ -223,10 +262,11 @@ function Workspace({ server, c }: { server: boolean; c: TrainingController }) {
     }
   }
 
-  // Sonido de cada ejecución de práctica.
+  // Aviso y sonido de cada ejecución de práctica.
   useEffect(
     () =>
       c.onFill(({ fill, trade }) => {
+        c.notify(c.describeFill(fill, trade), trade ? (trade.net >= 0 ? 'ok' : 'error') : 'ok');
         if (!prefsRef.current.sound) return;
         if (fill.side === 'buy') playFill('buy');
         else if (trade) playFill(trade.net >= 0 ? 'win' : 'loss');
@@ -234,6 +274,15 @@ function Workspace({ server, c }: { server: boolean; c: TrainingController }) {
       }),
     [c],
   );
+
+  // Celular o escritorio: el diario va en una pestaña o en una ventana, nunca los dos a la vez.
+  useEffect(() => {
+    const mq = window.matchMedia?.('(max-width: 899px)');
+    if (!mq) return;
+    const f = () => setIsMobile(mq.matches);
+    mq.addEventListener?.('change', f);
+    return () => mq.removeEventListener?.('change', f);
+  }, []);
 
   // Guardar el punto de reanudación al salir o pasar a segundo plano.
   useEffect(() => {
@@ -282,27 +331,40 @@ function Workspace({ server, c }: { server: boolean; c: TrainingController }) {
     };
   }, []);
 
-  // Atajos de teclado para operar rápido: S vende todo, H vende la mitad, Esc cancela órdenes (B, en el ticket).
+  // Atajos de teclado configurables (Ajustes de la cuenta → Atajos). No actúan mientras escribís en
+  // un campo, con una ventana abierta (Esc la cierra) ni al mantener apretada la tecla.
+  const runHotkey = useCallback(
+    (h: Hotkey) => {
+      const sym = selectedRef.current;
+      if (!sym) return;
+      const t = ticketRef.current;
+      c.hotkey(h, sym, {
+        shares: Math.floor(Number(t.shares) || 0),
+        stop: t.bracket ? num(t.stop) : undefined,
+        target: t.bracket ? num(t.target) : undefined,
+        setup: t.setup,
+        route: t.route,
+        tif: t.tif,
+      });
+    },
+    [c],
+  );
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const el = e.target as HTMLElement | null;
-      if (el && (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA')) return;
-      if (e.metaKey || e.ctrlKey || e.altKey) return;
-      const sym = selectedRef.current;
-      if (!sym || !c.broker) return;
-      const k = e.key.toLowerCase();
-      if (k === 's' && c.broker.position(sym)) c.sell(sym, 1);
-      else if (k === 'h' && c.broker.position(sym)) c.sell(sym, 0.5);
-      else if (e.key === 'Escape' && c.broker.orders(sym).length) c.cancelAll(sym);
-      else return;
+      if (e.repeat || typing(e.target)) return;
+      if (document.querySelector('.modal-back, .journal-overlay')) return;
+      const h = c.state.settings.hotkeys.find((x) => matches(x, e));
+      if (!h) return;
       e.preventDefault();
+      runHotkey(h);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [c]);
+  }, [c, runHotkey]);
 
   const select = useCallback(
     (sym: string) => {
+      sym = sym.toUpperCase();
       setSelected(sym);
       selectedRef.current = sym;
       save(`selected${keySuffix}`, sym);
@@ -313,7 +375,7 @@ function Workspace({ server, c }: { server: boolean; c: TrainingController }) {
         window.scrollTo({ top: 0 });
       } else {
         // En pantallas medianas la página se desplaza: volver al gráfico y al ticket si quedaron fuera de vista.
-        const chart = document.querySelector('.p-chart');
+        const chart = document.querySelector('.p-l2');
         const r = chart?.getBoundingClientRect();
         if (r && (r.bottom < 120 || r.top > window.innerHeight - 120)) window.scrollTo({ top: 0, behavior: 'smooth' });
       }
@@ -357,26 +419,26 @@ function Workspace({ server, c }: { server: boolean; c: TrainingController }) {
   const chartFills: ChartFill[] | undefined = selected
     ? c.active?.fills.filter((f) => f.sym === selected).map((f) => ({ ts: f.ts, side: f.side, price: f.price, shares: f.shares }))
     : undefined;
+  const chartOrders: ChartOrder[] | undefined = selected
+    ? c.broker
+        ?.orders(selected)
+        .filter((o) => o.role !== 'stop' && o.role !== 'target')
+        .map((o) => ({ side: o.side, price: o.price ?? o.stopPrice ?? 0, shares: o.shares - o.filled, kind: o.type === 'stop' ? 'stop' : 'limit' }))
+    : undefined;
   const acct = c.summary();
   const openOrders = c.active?.orders.length ?? 0;
-
-  const scannerPanel = (slot: 'a' | 'b', ids: ScannerId[], area: string) => {
-    const active = (ids.includes(tabs[slot] as ScannerId) ? tabs[slot] : ids[0]) as ScannerId;
-    return (
-      <Panel
-        title={SCANNER_LABEL[active]}
-        area={area}
-        mtab="scan"
-        help={scannerHelp(active, settings)}
-        tabs={ids.map((id) => ({ id, label: SCANNER_LABEL[id], count: sc[id].length }))}
-        activeTab={active}
-        onTab={(id) => setTab(slot, id)}
-      >
-        {sc[active].length ? <ScannerTable rows={sc[active]} columns={SCANNER_COLUMNS[active]} selected={selected} onSelect={select} /> : <Empty>Nada cumple este criterio por ahora.</Empty>}
-      </Panel>
-    );
+  const scanIds: ScannerId[] = ['gappers', 'pillars', 'running', 'lowFloat', 'rvol', 'fades'];
+  const scanTab = tabs.scan ?? 'gappers';
+  const momoTab = tabs.momo ?? 'momentum';
+  const quoteTab = tabs.quote ?? 'quote';
+  const acctTab = tabs.acct ?? 'pos';
+  const openJournal = () => {
+    if (isMobile) {
+      setMobileTab('diario');
+      window.scrollTo({ top: 0 });
+    } else setShowJournal(true);
   };
-  const pTab = tabs.p ?? 'pos';
+  const search = source ? source.search.bind(source) : async () => [];
 
   return (
     <div className="app" data-tab={mobileTab}>
@@ -394,72 +456,113 @@ function Workspace({ server, c }: { server: boolean; c: TrainingController }) {
         onSettings={() => setShowSettings(true)}
         onSearch={select}
         canSpeed={source?.kind === 'local'}
-        search={source ? source.search.bind(source) : async () => []}
+        search={search}
         effectiveTheme={theme}
         account={{ equity: acct.equity, dayPnl: acct.dayPnl }}
-        onJournal={() => {
-          setShowJournal(true);
-          setMobileTab('diario');
-        }}
+        onJournal={openJournal}
       />
 
       <main className="grid">
-        <Panel title={detail ? `Gráfico · ${detail.sym}` : 'Gráfico'} area="chart" mtab="chart" className="p-chart">
-          <Chart detail={detail} alerts={alerts} themeKey={theme} position={chartPos} fills={chartFills} />
-        </Panel>
-        <Panel title={selected ? `Operar · ${selected}` : 'Operar'} area="detail" mtab="chart" help="Cuenta de práctica con dinero ficticio. Comprá y vendé con el ticket; la ficha de la acción sigue abajo.">
-          <Ticket c={c} detail={detail} quote={quote} />
-          {selected && !detail ? <Empty>Sin datos para {selected} todavía.</Empty> : <Detail detail={detail} settings={settings} now={now} watched={!!detail && watch.includes(detail.sym)} onToggleWatch={toggleWatch} />}
-        </Panel>
         <Panel
           title="Momentum"
           area="momo"
           mtab="momo"
-          help={`Señales de impulso (nuevo máximo del día, squeeze, subida rápida, bull flag, ruptura del máximo pre-market y picos de volumen) en acciones con ${prefs.momentumMinScore} o más pilares. La más nueva arriba.`}
-        >
-          <MomentumFeed alerts={alerts} minScore={prefs.momentumMinScore} selected={selected} onSelect={select} />
-        </Panel>
-        <Panel title="Halts" area="halts" mtab="momo" count={activeHalts || undefined} help="Halts y reanudaciones del día. Las pausas por volatilidad (LULD) duran 5 minutos; al reanudar se compara contra el precio del halt.">
-          <HaltsPanel halts={view.halts} now={now} selected={selected} onSelect={select} />
-        </Panel>
-        <Panel title="Top gappers" area="gappers" mtab="scan" count={sc.gappers.length} help={scannerHelp('gappers', settings)}>
-          {sc.gappers.length ? <ScannerTable rows={sc.gappers} columns={SCANNER_COLUMNS.gappers} selected={selected} onSelect={select} /> : <Empty>Ningún gapper con estos criterios.</Empty>}
-        </Panel>
-        <Panel title="5 pilares" area="pillars" mtab="scan" count={sc.pillars.length} help={scannerHelp('pillars', settings)}>
-          {sc.pillars.length ? <ScannerTable rows={sc.pillars} columns={SCANNER_COLUMNS.pillars} selected={selected} onSelect={select} /> : <Empty>Ninguna acción cumple {settings.pillarsMinScore} pilares todavía.</Empty>}
-        </Panel>
-        {scannerPanel('a', ['running', 'rvol'], 'scanA')}
-        {scannerPanel('b', ['lowFloat', 'fades'], 'scanB')}
-        <Panel title="Alertas" area="alerts" mtab="momo" help="Todas las alertas del motor. Filtrá por tipo o por cantidad de pilares.">
-          <AlertFeed alerts={alerts} selected={selected} onSelect={select} />
-        </Panel>
-        <Panel title="Noticias" area="news" mtab="news" help="Titulares en tiempo real. Tocá un símbolo para ver su ficha.">
-          <NewsPanel news={news} now={now} onSelect={select} known={(s) => knownSyms.has(s) || watch.includes(s)} />
-        </Panel>
-        <Panel
-          title="Posiciones"
-          area="watch"
-          mtab="chart"
+          help={`Señales de impulso (nuevo máximo del día, squeeze, subida rápida, bull flag, ruptura del máximo pre-market y picos de volumen) en acciones con ${prefs.momentumMinScore} o más pilares. El color de la fila: 5 pilares magenta, 4 celeste, 3 azul. Se resaltan float bajo, volumen relativo de 5x y suba de 10% o más.`}
           tabs={[
-            { id: 'pos', label: 'Posiciones', count: c.active?.positions.length || undefined },
-            { id: 'ord', label: 'Órdenes', count: openOrders || undefined },
-            { id: 'watch', label: 'Watchlist', count: watch.length || undefined },
+            { id: 'momentum', label: 'Máximos del día' },
+            { id: 'alerts', label: 'Alertas' },
+            { id: 'halts', label: 'Halts', count: activeHalts || undefined },
           ]}
-          activeTab={pTab}
-          onTab={(id) => setTab('p', id)}
+          activeTab={momoTab}
+          onTab={(id) => setTab('momo', id)}
         >
-          {pTab === 'pos' && <PositionsList c={c} selected={selected} onSelect={select} />}
-          {pTab === 'ord' && <OrdersList c={c} onSelect={select} />}
-          {pTab === 'watch' && (
+          {momoTab === 'momentum' && <MomentumFeed alerts={alerts} minScore={prefs.momentumMinScore} selected={selected} onSelect={select} />}
+          {momoTab === 'alerts' && <AlertFeed alerts={alerts} selected={selected} onSelect={select} />}
+          {momoTab === 'halts' && <HaltsPanel halts={view.halts} now={now} selected={selected} onSelect={select} />}
+        </Panel>
+
+        <Panel
+          title="Escáneres"
+          area="scan"
+          mtab="scan"
+          help={scanIds.includes(scanTab as ScannerId) ? scannerHelp(scanTab as ScannerId, settings) : 'Tus símbolos marcados con la estrella y dónde está el precio dentro del rango del día.'}
+          tabs={[
+            ...scanIds.map((id) => ({ id, label: SCANNER_LABEL[id], count: sc[id].length })),
+            { id: 'watch', label: 'Watchlist', count: watch.length || undefined },
+            { id: 'hod', label: 'Rango del día' },
+          ]}
+          activeTab={scanTab}
+          onTab={(id) => setTab('scan', id)}
+        >
+          {scanIds.includes(scanTab as ScannerId) &&
+            (sc[scanTab as ScannerId].length ? (
+              <ScannerTable rows={sc[scanTab as ScannerId]} columns={SCANNER_COLUMNS[scanTab as ScannerId]} selected={selected} onSelect={select} />
+            ) : (
+              <Empty>Nada cumple este criterio por ahora.</Empty>
+            ))}
+          {scanTab === 'watch' && (
             <WatchlistPanel rows={view.watch} watch={watch} selected={selected} onSelect={select} onRemove={(s) => updateWatch(watch.filter((x) => x !== s))} onAdd={(s) => !watch.includes(s) && updateWatch([...watch, s])} />
           )}
+          {scanTab === 'hod' && <HodBoard rows={view.hodBoard} selected={selected} onSelect={select} />}
         </Panel>
-        <Panel title="Rango del día" area="hod" mtab="scan" help="Dónde está el precio dentro del rango del día (mínimo a máximo) en los principales gappers. La marca vertical es el VWAP.">
-          <HodBoard rows={view.hodBoard} selected={selected} onSelect={select} />
+
+        <Panel
+          title="Nivel 2 y órdenes"
+          area="l2"
+          mtab="chart"
+          className="p-l2"
+          help="Libro por venues (un color por nivel de precio), cinta de operaciones y ticket. Tocá un precio del libro para usarlo. Las órdenes tardan unos milisegundos en llegar y se ejecutan contra el libro; las límite esperan su turno en la cola."
+        >
+          <Level2 c={c} source={source} detail={detail} quote={quote} now={now} ticket={ticket} setTicket={setTicket} onSymbol={select} search={search} onHotkey={runHotkey} compact={isMobile} />
         </Panel>
-        <section className="panel journal-tab" data-tab="diario">
-          <Journal c={c} onSelect={select} />
-        </section>
+
+        <Panel
+          title="Cotización"
+          area="quote"
+          mtab="news"
+          className="p-quote"
+          tabs={[
+            { id: 'quote', label: selected ? `Cotización · ${selected}` : 'Cotización' },
+            { id: 'news', label: 'Noticias' },
+          ]}
+          activeTab={quoteTab}
+          onTab={(id) => setTab('quote', id)}
+        >
+          {quoteTab === 'quote' &&
+            (selected && !detail ? <Empty>Sin datos para {selected} todavía.</Empty> : <Detail detail={detail} settings={settings} now={now} watched={!!detail && watch.includes(detail.sym)} onToggleWatch={toggleWatch} />)}
+          {quoteTab === 'news' && <NewsPanel news={news} now={now} onSelect={select} known={(s) => knownSyms.has(s) || watch.includes(s)} />}
+        </Panel>
+
+        <Panel title="Gráfico 1 min" area="chart1" mtab="chart" className="p-chart p-chart1">
+          <Chart id="a" defaultTf={60} detail={detail} alerts={alerts} themeKey={theme} now={now} position={chartPos} fills={chartFills} orders={chartOrders} />
+        </Panel>
+        <Panel title="Gráfico 5 min" area="chart5" mtab="news" className="p-chart p-chart5">
+          <Chart id="b" defaultTf={300} detail={detail} alerts={alerts} themeKey={theme} now={now} position={chartPos} fills={chartFills} orders={chartOrders} />
+        </Panel>
+
+        <Panel
+          title="Posiciones"
+          area="pos"
+          mtab="chart"
+          className="p-pos"
+          tabs={[
+            { id: 'pos', label: 'Posiciones', count: c.active?.positions.length || undefined },
+            { id: 'acct', label: 'Valor de la cuenta' },
+          ]}
+          activeTab={acctTab}
+          onTab={(id) => setTab('acct', id)}
+        >
+          {acctTab === 'pos' ? <PositionsWindow c={c} selected={selected} onSelect={select} /> : <AccountValue c={c} onSettings={() => setPracticeSettings(true)} />}
+        </Panel>
+        <Panel title="Actividad de órdenes" area="orders" mtab="chart" className="p-orders" count={openOrders || undefined}>
+          <TradeActivity c={c} onSelect={select} />
+        </Panel>
+
+        {isMobile && (
+          <section className="panel journal-tab" data-tab="diario">
+            <Journal c={c} onSelect={select} onSettings={() => setPracticeSettings(true)} />
+          </section>
+        )}
       </main>
 
       <footer className="statusbar">
@@ -490,13 +593,15 @@ function Workspace({ server, c }: { server: boolean; c: TrainingController }) {
         </div>
       )}
 
-      {showJournal && (
+      {showJournal && !isMobile && (
         <div className="journal-overlay" onClick={() => setShowJournal(false)}>
           <div className="journal-sheet" onClick={(e) => e.stopPropagation()}>
-            <Journal c={c} onClose={() => setShowJournal(false)} onSelect={select} />
+            <Journal c={c} onClose={() => setShowJournal(false)} onSelect={select} onSettings={() => setPracticeSettings(true)} />
           </div>
         </div>
       )}
+
+      {practiceSettings && <PracticeSettings c={c} onClose={() => setPracticeSettings(false)} />}
 
       {showSettings && (
         <SettingsModal
@@ -509,6 +614,10 @@ function Workspace({ server, c }: { server: boolean; c: TrainingController }) {
             source?.setSettings(s);
             updatePrefs(p);
             setShowSettings(false);
+          }}
+          onPractice={() => {
+            setShowSettings(false);
+            setPracticeSettings(true);
           }}
         />
       )}

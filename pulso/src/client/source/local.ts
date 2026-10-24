@@ -2,9 +2,10 @@
 // Cada sesión de práctica tiene su semilla: con la misma semilla el mercado es idéntico, así que al
 // recargar la página se reconstruye y se avanza rápido hasta donde estabas.
 import { Engine } from '../../engine/engine';
-import { formatEtTime } from '../../engine/time';
-import type { Alert, NewsItem, Quote, ScanRow, Settings } from '../../engine/types';
+import { formatEtTime, sessionAt } from '../../engine/time';
+import type { Alert, NewsItem, Quote, ScanRow, Session, Settings, TapePrint } from '../../engine/types';
 import { MarketSim } from '../../sim/simulator';
+import { MarketBooks, type DepthBook } from '../../trading/depth';
 import type { DataSource, SourceHandlers } from './types';
 
 export interface SimConfig {
@@ -32,6 +33,9 @@ export class LocalSource implements DataSource {
   private realLast = 0;
   private lastView = 0;
   private stopped = false;
+  private readonly books: MarketBooks;
+  ready = false;
+  readonly depthIsReal = true;
 
   constructor(
     settings: Settings,
@@ -42,6 +46,7 @@ export class LocalSource implements DataSource {
     this.engine.setWatchlist(watch);
     this.sim = new MarketSim((ev) => this.engine.ingest(ev), { seed: cfg.seed, dayTs: cfg.dayTs, startMinutes: cfg.startMinutes });
     this.engine.setReference(this.sim.refs);
+    this.books = new MarketBooks(cfg.seed);
   }
 
   start(h: SourceHandlers): void {
@@ -55,6 +60,7 @@ export class LocalSource implements DataSource {
       this.engine.tick(this.sim.now);
       void this.fastForward().then(() => {
         if (this.stopped) return;
+        this.ready = true;
         this.engine.warmup = false;
         this.engine.onAlert((a) => this.pendingAlerts.push(a));
         this.engine.onNews((n) => this.pendingNews.push(n));
@@ -72,6 +78,9 @@ export class LocalSource implements DataSource {
   /** Reanudar: avanzar el mercado hasta la hora guardada, en tramos para no congelar la página. */
   private async fastForward(): Promise<void> {
     const target = this.cfg.resumeAt ?? 0;
+    if (this.sim.now >= target) return;
+    // Al avanzar rápido no hacen falta las cotizaciones intermedias: al final se publican las actuales.
+    this.sim.quiet = true;
     while (!this.stopped && this.sim.now < target) {
       const chunkEnd = Math.min(target, this.sim.now + 5 * 60 * SEC);
       this.sim.advance(chunkEnd - this.sim.now);
@@ -79,6 +88,8 @@ export class LocalSource implements DataSource {
       this.h?.onStatus(this.status(`Reanudando tu sesión: ${formatEtTime(this.sim.now, false)} ET…`));
       await new Promise((r) => setTimeout(r, 0));
     }
+    this.sim.quiet = false;
+    this.sim.flushQuotes();
   }
 
   private status(message: string) {
@@ -163,5 +174,21 @@ export class LocalSource implements DataSource {
 
   row(sym: string): ScanRow | null {
     return this.engine.row(sym);
+  }
+
+  book(sym: string): DepthBook | null {
+    return this.books.get(sym, this.engine.quote(sym), this.sim.now);
+  }
+
+  printsSince(sym: string, seq: number): TapePrint[] {
+    return this.engine.printsSince(sym, seq);
+  }
+
+  lastSeq(): number {
+    return this.engine.lastPrintSeq;
+  }
+
+  session(now: number): Session {
+    return sessionAt(now);
   }
 }

@@ -1,6 +1,6 @@
 // Estado intradía de un símbolo: precio, máximos, volumen, VWAP, velas de 1 minuto e indicadores.
 import { Ema, Macd } from './indicators';
-import type { Bar, NewsItem, ReferenceData, TradePlan } from './types';
+import type { Bar, NewsItem, ReferenceData, TapePrint, TradePlan } from './types';
 
 const MIN = 60_000;
 const SEC10 = 10_000;
@@ -13,6 +13,9 @@ export interface FlagSetup extends TradePlan {
   armedAt: number;
   pullbackBars: number;
 }
+
+/** Prints que se guardan por acción para la cinta y para ejecutar órdenes límite en cola. */
+export const TAPE_MAX = 400;
 
 export class SymbolState {
   ref: ReferenceData;
@@ -47,6 +50,15 @@ export class SymbolState {
   haltReason = '';
   luld?: { up: number; down: number };
 
+  /** NBBO publicado por el proveedor o el simulador (0 = sin cotización real). */
+  bid = 0;
+  ask = 0;
+  bidSize = 0;
+  askSize = 0;
+  quoteTs = 0;
+  /** Cinta: los últimos prints con el lado en que se hicieron. */
+  tape: TapePrint[] = [];
+
   news: NewsItem[] = [];
   lastNewsTs = 0;
 
@@ -64,6 +76,12 @@ export class SymbolState {
   /** Cumple el prefiltro de precio/volumen (se recalcula en cada vista). */
   eligible = false;
 
+  /** Agrega un print a la cinta (se guardan los últimos TAPE_MAX). */
+  addPrint(p: TapePrint): void {
+    this.tape.push(p);
+    if (this.tape.length > TAPE_MAX + 100) this.tape.splice(0, this.tape.length - TAPE_MAX);
+  }
+
   constructor(readonly sym: string, ref?: ReferenceData) {
     this.ref = ref ?? { sym };
     if (ref?.prevClose) this.prevClose = ref.prevClose;
@@ -77,9 +95,10 @@ export class SymbolState {
     return this.prevClose > 0 && this.last > 0 ? ((this.last - this.prevClose) / this.prevClose) * 100 : 0;
   }
 
+  /** Gap del día: apertura vs. cierre anterior. Antes de la apertura, lo que sube en el pre-market. */
   get gapPct(): number {
-    const base = this.open || this.dayOpen;
-    return this.prevClose > 0 && base > 0 ? ((base - this.prevClose) / this.prevClose) * 100 : 0;
+    if (!this.open) return this.changePct;
+    return this.prevClose > 0 ? ((this.open - this.prevClose) / this.prevClose) * 100 : 0;
   }
 
   /** Actualiza precio/máximos con un print. Devuelve true si marcó nuevo máximo del día. */

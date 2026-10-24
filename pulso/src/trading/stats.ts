@@ -112,16 +112,22 @@ export interface Bucket {
   trades: number;
   winRate: number;
   net: number;
+  /** Suma de los trades ganadores y de los perdedores (para las barras de ganancia y pérdida). */
+  gains: number;
+  losses: number;
   avg: number;
   avgR?: number;
 }
 
-export type Dimension = 'setup' | 'hora' | 'precio' | 'float' | 'pilares' | 'salida';
+export type Dimension = 'setup' | 'hora' | 'hora30' | 'hora15' | 'precio' | 'float' | 'gap' | 'volumen' | 'rvol' | 'pilares' | 'salida';
 
 export const DIMENSIONS: Array<{ id: Dimension; label: string }> = [
   { id: 'setup', label: 'Setup' },
   { id: 'hora', label: 'Horario' },
   { id: 'precio', label: 'Precio' },
+  { id: 'gap', label: 'Gap' },
+  { id: 'volumen', label: 'Volumen' },
+  { id: 'rvol', label: 'Vol. relativo' },
   { id: 'float', label: 'Float' },
   { id: 'pilares', label: 'Pilares' },
   { id: 'salida', label: 'Salida' },
@@ -135,12 +141,51 @@ function bucketOf(t: Trade, dim: Dimension): [string, string, number] {
       return [t.setup ?? '—', t.setup ?? 'Sin etiqueta', 0];
     case 'hora': {
       const m = t.ctx?.minutes;
-      if (m === undefined) return ['?', 'Sin dato', 9];
+      if (m === undefined) return ['?', 'Sin dato', 9999];
       if (m < 9 * 60 + 30) return ['pre', 'Pre-market', 0];
       if (m < 10 * 60) return ['930', '9:30–10:00', 1];
       if (m < 10 * 60 + 30) return ['1000', '10:00–10:30', 2];
       if (m < 11 * 60 + 30) return ['1030', '10:30–11:30', 3];
       return ['tarde', 'Después de 11:30', 4];
+    }
+    case 'hora30':
+    case 'hora15': {
+      const m = t.ctx?.minutes;
+      if (m === undefined) return ['?', 'Sin dato', 9999];
+      const step = dim === 'hora30' ? 30 : 15;
+      const from = Math.floor(m / step) * step;
+      const hhmm = (x: number) => `${Math.floor(x / 60)}:${String(x % 60).padStart(2, '0')}`;
+      return [String(from), `${hhmm(from)}–${hhmm(from + step)}`, from];
+    }
+    case 'gap': {
+      const g = t.ctx?.gapPct ?? t.ctx?.changePct;
+      if (g === undefined) return ['?', 'Sin dato', 9];
+      if (g >= 100) return ['100', 'Más de 100%', 0];
+      if (g >= 50) return ['50', '50%–100%', 1];
+      if (g >= 20) return ['20', '20%–50%', 2];
+      if (g >= 10) return ['10', '10%–20%', 3];
+      if (g >= 0) return ['0', '0%–10%', 4];
+      return ['neg', 'Negativo', 5];
+    }
+    case 'volumen': {
+      const v = t.ctx?.volume;
+      if (v === undefined) return ['?', 'Sin dato', 9];
+      if (v >= 25e6) return ['25m', '25M o más', 0];
+      if (v >= 10e6) return ['10m', '10M–25M', 1];
+      if (v >= 5e6) return ['5m', '5M–10M', 2];
+      if (v >= 2.5e6) return ['2.5m', '2,5M–5M', 3];
+      if (v >= 1e6) return ['1m', '1M–2,5M', 4];
+      if (v >= 500e3) return ['500k', '500K–1M', 5];
+      if (v >= 250e3) return ['250k', '250K–500K', 6];
+      if (v >= 50e3) return ['50k', '50K–250K', 7];
+      return ['<50k', 'Menos de 50K', 8];
+    }
+    case 'rvol': {
+      const r = t.ctx?.rvol;
+      if (r === undefined) return ['?', 'Sin dato', 9];
+      if (r >= 7) return ['7', 'Más de 7x', 0];
+      const lo = Math.floor(r);
+      return [String(lo), `${lo}x–${lo + 1}x`, 7 - lo];
     }
     case 'precio': {
       const p = t.avgEntry;
@@ -180,8 +225,126 @@ export function breakdown(trades: Trade[], dim: Dimension): Bucket[] {
   return [...groups.entries()]
     .map(([key, g]) => {
       const s = summarize(g.list);
-      return { key, label: g.label, trades: s.trades, winRate: s.winRate, net: s.net, avg: s.expectancy, avgR: s.avgR, order: g.order };
+      return { key, label: g.label, trades: s.trades, winRate: s.winRate, net: s.net, gains: s.grossWins, losses: s.grossLosses, avg: s.expectancy, avgR: s.avgR, order: g.order };
     })
     .sort((a, b) => (dim === 'setup' || dim === 'salida' ? b.net - a.net : a.order - b.order))
     .map(({ order: _order, ...rest }) => rest);
+}
+
+// ---------------------------------------------------------------- semanas y "Profit Trifecta"
+
+/** Una semana de práctica son 5 días simulados seguidos (como una semana de rueda). */
+export const DAYS_PER_WEEK = 5;
+
+export interface DayResult {
+  dayIndex: number;
+  net: number;
+  trades: number;
+}
+
+export interface WeekResult {
+  week: number;
+  days: DayResult[];
+  net: number;
+  trades: number;
+  winRate: number;
+  plRatio: number;
+  score: TrifectaScore;
+}
+
+export interface TrifectaScore {
+  consistency: number;
+  winRate: number;
+  plRatio: number;
+  total: number;
+  level: string;
+}
+
+export const LEVELS: Array<[number, number, string]> = [
+  [1, 3, 'No rentable'],
+  [4, 6, 'Principiante'],
+  [7, 9, 'Intermedio'],
+  [10, 13, 'Con experiencia'],
+  [14, 18, 'Profesional'],
+];
+
+/** Puntaje de 1 a 6 del % de aciertos: 50% o menos = 1 ... 71% o más = 6. */
+export function winRateScore(wr: number): number {
+  if (wr >= 71) return 6;
+  if (wr >= 66) return 5;
+  if (wr >= 61) return 4;
+  if (wr >= 56) return 3;
+  if (wr >= 51) return 2;
+  return 1;
+}
+
+/** Puntaje de 1 a 6 de la relación ganancia/pérdida promedio: menos de 1:1 = 1 ... más de 2:1 = 6. */
+export function plScore(r: number): number {
+  if (r > 2.25) return 6;
+  if (r >= 2) return 5;
+  if (r >= 1.75) return 4;
+  if (r >= 1.5) return 3;
+  if (r >= 1) return 2;
+  return 1;
+}
+
+/** Puntaje de 1 a 6 de la constancia: semanas positivas seguidas (0 = 1 ... 6 o más = 6). */
+export function consistencyScore(weeks: number): number {
+  if (weeks >= 6) return 6;
+  if (weeks >= 5) return 5;
+  if (weeks >= 3) return 4;
+  if (weeks >= 2) return 3;
+  if (weeks >= 1) return 2;
+  return 1;
+}
+
+export function levelOf(total: number): string {
+  return LEVELS.find(([lo, hi]) => total >= lo && total <= hi)?.[2] ?? 'No rentable';
+}
+
+/**
+ * Resultados por día y por semana de práctica, con el puntaje de la "trifecta" de Ross Cameron
+ * (constancia, % de aciertos y relación ganancia/pérdida) de cada semana.
+ * `dayOf` dice a qué día de práctica pertenece cada trade.
+ */
+export function weeklyResults(trades: Trade[], dayOf: (t: Trade) => number | undefined): WeekResult[] {
+  const byDay = new Map<number, Trade[]>();
+  for (const t of trades) {
+    const d = dayOf(t);
+    if (d === undefined) continue;
+    const list = byDay.get(d) ?? [];
+    list.push(t);
+    byDay.set(d, list);
+  }
+  const weeks = new Map<number, Map<number, Trade[]>>();
+  for (const [d, list] of byDay) {
+    const w = Math.floor((d - 1) / DAYS_PER_WEEK) + 1;
+    const m = weeks.get(w) ?? new Map<number, Trade[]>();
+    m.set(d, list);
+    weeks.set(w, m);
+  }
+  const out: WeekResult[] = [];
+  let streak = 0;
+  const first = Math.min(...weeks.keys());
+  const last = Math.max(...weeks.keys());
+  for (let w = first; w <= last && Number.isFinite(first); w++) {
+    const days = weeks.get(w) ?? new Map<number, Trade[]>();
+    const all = [...days.values()].flat();
+    const s = summarize(all);
+    streak = s.net > 0 ? streak + 1 : 0;
+    const pl = Number.isFinite(s.plRatio) ? s.plRatio : s.wins ? 3 : 0;
+    const score = { consistency: consistencyScore(streak), winRate: winRateScore(s.winRate), plRatio: plScore(pl), total: 0, level: '' };
+    score.total = score.consistency + score.winRate + score.plRatio;
+    score.level = levelOf(score.total);
+    out.push({
+      week: w,
+      days: [...days.entries()].sort((a, b) => a[0] - b[0]).map(([dayIndex, list]) => ({ dayIndex, net: money(list.reduce((x, t) => x + t.net, 0)), trades: list.length })),
+      net: s.net,
+      trades: s.trades,
+      winRate: s.winRate,
+      plRatio: pl,
+      score,
+    });
+  }
+  return out;
 }

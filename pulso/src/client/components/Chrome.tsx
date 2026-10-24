@@ -85,7 +85,7 @@ export function Header({ now, session, status, speed, onSpeed, prefs, onPrefs, o
       </div>
 
       {account && (
-        <button className="account-chip" onClick={onJournal} title="Cuenta de práctica: abrir el diario de trading">
+        <button className="account-chip" onClick={onJournal} title="Cuenta de práctica: abrir cuenta y métricas">
           <IconBook />
           <span className="mono">{fmtMoney(account.equity)}</span>
           <span className={`mono ${account.dayPnl > 0 ? 't-up' : account.dayPnl < 0 ? 't-down' : 't-muted'}`}>
@@ -159,9 +159,11 @@ interface SettingsProps {
   prefs: Prefs;
   onSave: (s: Settings, p: Prefs) => void;
   onClose: () => void;
+  /** Abre los ajustes de la cuenta de práctica (cuenta, órdenes y atajos). */
+  onPractice?: () => void;
 }
 
-export function SettingsModal({ settings, prefs, onSave, onClose }: SettingsProps) {
+export function SettingsModal({ settings, prefs, onSave, onClose, onPractice }: SettingsProps) {
   const [s, setS] = useState<Settings>(settings);
   const [p, setP] = useState<Prefs>(prefs);
   const num = (k: keyof Settings, scale = 1) => ({
@@ -184,7 +186,12 @@ export function SettingsModal({ settings, prefs, onSave, onClose }: SettingsProp
     <div className="modal-back" onClick={onClose}>
       <div className="modal" role="dialog" aria-modal="true" aria-labelledby="settings-title" onClick={(e) => e.stopPropagation()}>
         <header className="modal-head">
-          <h2 id="settings-title">Ajustes</h2>
+          <h2 id="settings-title">Ajustes de escáneres y alertas</h2>
+          {onPractice && (
+            <button type="button" className="btn ghost" onClick={onPractice}>
+              Cuenta, órdenes y atajos de práctica…
+            </button>
+          )}
           <button className="icon-btn" onClick={onClose} aria-label="Cerrar">
             <IconClose />
           </button>
@@ -306,8 +313,8 @@ export function MobileTabs({ tab, onTab, haltCount }: { tab: MobileTab; onTab: (
     { id: 'scan', label: 'Escáner', icon: <IconScan /> },
     { id: 'momo', label: 'Alertas', icon: <IconBolt /> },
     { id: 'chart', label: 'Operar', icon: <IconChart /> },
-    { id: 'news', label: 'Noticias', icon: <IconNews /> },
-    { id: 'diario', label: 'Diario', icon: <IconBook size={20} /> },
+    { id: 'news', label: 'Cotización', icon: <IconNews /> },
+    { id: 'diario', label: 'Métricas', icon: <IconBook size={20} /> },
   ];
   return (
     <nav className="mobile-tabs" aria-label="Secciones">

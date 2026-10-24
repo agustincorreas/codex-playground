@@ -21,6 +21,8 @@ import {
   type Session,
   type Settings,
   type SymbolDetail,
+  type TapePrint,
+  type TapeSide,
   type Tone,
   type TradePlan,
   type ViewModel,
@@ -83,6 +85,7 @@ export class Engine implements AlertSink {
   private readonly maxAlerts: number;
   private readonly accept?: (sym: string, price: number) => boolean;
   private readonly allSecBars: boolean;
+  private printSeq = 0;
   private alertListeners = new Set<(a: Alert) => void>();
   private newsListeners = new Set<(n: NewsItem) => void>();
   private seq = 0;
@@ -255,7 +258,36 @@ export class Engine implements AlertSink {
       }
       case 'news':
         return this.onNewsItem(ev.item);
+      case 'quote': {
+        const st = this.symbols.get(ev.sym);
+        if (!st) return;
+        st.bid = ev.bid;
+        st.ask = ev.ask;
+        st.bidSize = ev.bidSize;
+        st.askSize = ev.askSize;
+        st.quoteTs = ev.ts;
+        return;
+      }
     }
+  }
+
+  /** ¿Hay NBBO del mercado (y no uno viejo)? */
+  private hasQuote(st: SymbolState): boolean {
+    return st.bid > 0 && st.ask > st.bid && !st.halted && this.now - st.quoteTs < 10 * MIN;
+  }
+
+  /** Lado del print respecto de las puntas; sin NBBO, por la regla del tick (sube = compra). */
+  private sideOf(st: SymbolState, price: number): TapeSide {
+    if (this.hasQuote(st)) {
+      if (price > st.ask) return 'above';
+      if (price === st.ask) return 'ask';
+      if (price < st.bid) return 'below';
+      if (price === st.bid) return 'bid';
+      return 'mid';
+    }
+    const prev = st.tape[st.tape.length - 1];
+    if (!prev || price === prev.price) return prev?.side === 'bid' || prev?.side === 'below' ? 'bid' : 'ask';
+    return price > prev.price ? 'ask' : 'bid';
   }
 
   private onTrade(sym: string, ts: number, price: number, size: number, updatesPrice: boolean): void {
@@ -268,7 +300,10 @@ export class Engine implements AlertSink {
     st.ticks++;
     const barsBefore = st.bars.length;
     st.addToBar(ts, price, price, price, price, size, price * size, 1);
-    if (this.allSecBars || st.eligible) st.addToSecBar(ts, price, price, price, price, size, price * size, 1);
+    if (this.allSecBars || st.eligible || this.isWatched(sym)) {
+      st.addToSecBar(ts, price, price, price, price, size, price * size, 1);
+      st.addPrint({ seq: ++this.printSeq, ts, price, size, side: this.sideOf(st, price) });
+    }
     if (st.bars.length > barsBefore && barsBefore > 0) onBarClosed(st, this);
     if (!updatesPrice) return;
     this.afterPrice(st, price, ts);
@@ -351,6 +386,7 @@ export class Engine implements AlertSink {
       st.haltTs = ev.ts;
       st.haltReason = ev.reason;
       st.flag = undefined;
+      st.bid = st.ask = st.bidSize = st.askSize = 0;
       const row: HaltRow = {
         sym: ev.sym,
         ts: ev.ts,
@@ -551,6 +587,8 @@ export class Engine implements AlertSink {
       row,
       bars: st.bars.slice(),
       secBars: st.secBars.slice(),
+      tape: st.tape.slice(-150),
+      quote: this.quote(sym),
       open: st.open || st.dayOpen,
       pmHigh: st.pmHigh,
       lod: Number.isFinite(st.lod) ? st.lod : st.last,
@@ -589,8 +627,26 @@ export class Engine implements AlertSink {
   quote(sym: string): Quote | null {
     const st = this.symbols.get(sym);
     if (!st || !(st.last > 0)) return null;
+    const volPerMin = st.volumePerMinute();
+    if (this.hasQuote(st)) {
+      return { sym, last: st.last, bid: st.bid, ask: st.ask, bidSize: st.bidSize, askSize: st.askSize, real: true, ts: Math.max(st.lastTs, st.quoteTs), halted: false, volPerMin };
+    }
     const { bid, ask } = syntheticQuote(st.last, recentRangePct(st), this.session !== 'regular');
-    return { sym, last: st.last, bid, ask, ts: st.lastTs, halted: st.halted, volPerMin: st.volumePerMinute() };
+    return { sym, last: st.last, bid, ask, bidSize: 0, askSize: 0, real: false, ts: st.lastTs, halted: st.halted, volPerMin };
+  }
+
+  /** Prints de la cinta posteriores a `seq` (para ejecutar órdenes límite en su turno). */
+  printsSince(sym: string, seq: number): TapePrint[] {
+    const tape = this.symbols.get(sym)?.tape;
+    if (!tape?.length || tape[tape.length - 1].seq <= seq) return [];
+    let i = tape.length - 1;
+    while (i > 0 && tape[i - 1].seq > seq) i--;
+    return tape.slice(i);
+  }
+
+  /** Último número de print (para empezar a seguir la cinta desde ahora). */
+  get lastPrintSeq(): number {
+    return this.printSeq;
   }
 
   /** Busca símbolos por prefijo (buscador de la interfaz). */

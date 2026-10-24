@@ -1,5 +1,7 @@
 // Modo en vivo: la interfaz se conecta por WebSocket al servidor de Pulso (que habla con el proveedor).
-import type { Quote, ScanRow, Settings, SymbolDetail } from '../../engine/types';
+import { sessionAt } from '../../engine/time';
+import type { Quote, ScanRow, Session, Settings, SymbolDetail, TapePrint } from '../../engine/types';
+import { MarketBooks, type DepthBook } from '../../trading/depth';
 import type { DataSource, SourceHandlers } from './types';
 
 export class RemoteSource implements DataSource {
@@ -14,6 +16,10 @@ export class RemoteSource implements DataSource {
   /** Última fila conocida de cada símbolo (de las vistas y de la ficha) para cotizar órdenes. */
   private rows = new Map<string, ScanRow>();
   private detail: SymbolDetail | null = null;
+  /** Con datos reales no hay Level 2 en este escáner: el libro se estima solo para ejecutar las órdenes. */
+  private readonly books = new MarketBooks(1);
+  ready = false;
+  readonly depthIsReal = false;
 
   constructor(
     private settings: Settings,
@@ -48,6 +54,7 @@ export class RemoteSource implements DataSource {
           if (msg.serverTime) this.clockOffset = msg.serverTime - Date.now();
           break;
         case 'view':
+          this.ready = true;
           for (const rows of Object.values(msg.view.scanners as Record<string, ScanRow[]>)) for (const r of rows) this.rows.set(r.sym, r);
           for (const r of [...(msg.view.watch as ScanRow[]), ...((msg.view.tracked as ScanRow[] | undefined) ?? [])]) this.rows.set(r.sym, r);
           h.onView(msg.view);
@@ -119,7 +126,9 @@ export class RemoteSource implements DataSource {
   quote(sym: string): Quote | null {
     const r = this.rows.get(sym);
     if (!r) return null;
-    return { sym, last: r.price, bid: r.bid, ask: r.ask, ts: r.lastTs, halted: r.halted, volPerMin: r.vol5m / 5 };
+    const d = this.detail?.sym === sym ? this.detail.quote : null;
+    if (d) return d;
+    return { sym, last: r.price, bid: r.bid, ask: r.ask, bidSize: 0, askSize: 0, real: false, ts: r.lastTs, halted: r.halted, volPerMin: r.vol5m / 5 };
   }
 
   row(sym: string): ScanRow | null {
@@ -142,6 +151,24 @@ export class RemoteSource implements DataSource {
 
   now(): number {
     return Date.now() + this.clockOffset;
+  }
+
+  book(sym: string): DepthBook | null {
+    return this.books.get(sym, this.quote(sym), this.now());
+  }
+
+  printsSince(sym: string, seq: number): TapePrint[] {
+    const tape = this.detail?.sym === sym ? this.detail.tape : undefined;
+    return tape ? tape.filter((p) => p.seq > seq) : [];
+  }
+
+  lastSeq(): number {
+    const tape = this.detail?.tape;
+    return tape?.length ? tape[tape.length - 1].seq : 0;
+  }
+
+  session(now: number): Session {
+    return sessionAt(now);
   }
 }
 

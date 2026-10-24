@@ -1,147 +1,248 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Quote } from '../src/engine/types';
-import { Broker } from '../src/trading/broker';
-import { breakdown, equityCurve, summarize } from '../src/trading/stats';
+import type { Quote, TapePrint } from '../src/engine/types';
+import { Broker, type MarketAccess } from '../src/trading/broker';
+import { DepthBook } from '../src/trading/depth';
+import { breakdown, consistencyScore, equityCurve, levelOf, plScore, summarize, weeklyResults, winRateScore } from '../src/trading/stats';
 import { DbTrainingStore, fitSession, fitState, jsonBytes } from '../src/trading/store';
 import { DEFAULT_TRADING, type ActiveSession, type Fill, type Position, type SessionRecord, type Trade, type TradingSettings, type TrainingState } from '../src/trading/types';
 
 function session(cash = 1000): ActiveSession {
-  return { id: 's1', mode: 'sim', dayKey: '2026-10-23', startedAt: 0, marketStart: 0, startCash: cash, cash, positions: [], orders: [], fills: [], trades: [], seq: 0 };
+  return { id: 's1', mode: 'sim', dayKey: '2026-10-23', dayIndex: 1, startedAt: 0, marketStart: 0, startCash: cash, cash, unsettled: 0, positions: [], orders: [], history: [], fills: [], trades: [], seq: 0 };
 }
 
-const q = (last: number, extra: Partial<Quote> = {}): Quote => ({ sym: 'RUN', last, bid: last - 0.01, ask: last + 0.01, ts: 0, halted: false, volPerMin: 100_000, ...extra });
-
-function setup(settings: Partial<TradingSettings> = {}) {
-  const b = new Broker(session(), { ...DEFAULT_TRADING, slippage: false, ...settings });
-  let px = 3;
-  const marks = () => px;
-  return { b, marks, setPx: (p: number) => (px = p) };
+/** Libro fijo para los tests: no cambia solo (las órdenes propias igual lo consumen). */
+class StaticBook extends DepthBook {
+  sync(): void {}
 }
+
+const lvl = (price: number, ...sizes: number[]) => ({ price, rows: sizes.map((size, i) => ({ venue: ['NSDQ', 'ARCA', 'EDGX'][i] ?? 'BATS', size })) });
+
+/** Mercado falso: NBBO, libro, cinta y sesión controlados por el test. */
+function market(bid: number, ask: number) {
+  const book = new StaticBook(1);
+  book.bids = [lvl(bid, 300, 200), lvl(Math.round((bid - 0.01) * 100) / 100, 500), lvl(Math.round((bid - 0.03) * 100) / 100, 1000)];
+  book.asks = [lvl(ask, 200), lvl(Math.round((ask + 0.01) * 100) / 100, 300), lvl(Math.round((ask + 0.05) * 100) / 100, 2000)];
+  const quote: Quote = { sym: 'RUN', last: bid, bid, ask, bidSize: 500, askSize: 200, real: true, ts: 0, halted: false, volPerMin: 100_000 };
+  const tape: TapePrint[] = [];
+  let seq = 0;
+  let sess: 'pre' | 'regular' | 'post' | 'closed' = 'regular';
+  const m: MarketAccess = {
+    quote: () => quote,
+    book: () => (quote.halted ? null : book),
+    printsSince: (_sym, after) => tape.filter((p) => p.seq > after),
+    lastSeq: () => seq,
+    session: () => sess,
+  };
+  return {
+    m,
+    book,
+    quote,
+    marks: () => quote.last,
+    print(price: number, size: number, side: TapePrint['side']) {
+      tape.push({ seq: ++seq, ts: 0, price, size, side });
+      quote.last = price;
+    },
+    setSession(s: typeof sess) {
+      sess = s;
+    },
+  };
+}
+
+function setup(settings: Partial<TradingSettings> = {}, cash = 1000, priorDayTrades = 0) {
+  const b = new Broker(session(cash), { ...DEFAULT_TRADING, latencyMs: 100, ...settings }, {}, () => ({ priorDayTrades }));
+  return { b, ...market(3.0, 3.01) };
+}
+
+/** Pasa el tiempo suficiente para que llegue la orden (la latencia máxima es 1,6 × 100 ms). */
+const LAT = 200;
 
 describe('bróker de práctica', () => {
-  it('compra a mercado en la punta vendedora y vende en la compradora', () => {
-    const { b, marks } = setup();
-    const r = b.place({ sym: 'RUN', side: 'buy', type: 'market', shares: 100 }, q(3), 1000, marks);
+  it('la orden llega después de la latencia y una compra a mercado recorre el libro', () => {
+    const { b, m, marks } = setup();
+    const r = b.place({ sym: 'RUN', side: 'buy', type: 'market', shares: 300 }, 0, m, marks);
     expect(r.ok).toBe(true);
-    expect(r.fills[0].price).toBe(3.01);
-    expect(b.session.cash).toBe(699);
-    expect(b.position('RUN')).toMatchObject({ shares: 100, avgCost: 3.01 });
-    const s = b.place({ sym: 'RUN', side: 'sell', type: 'market', shares: 100 }, q(3.2), 2000, marks);
-    expect(s.fills[0].price).toBe(3.19);
-    expect(b.position('RUN')).toBeUndefined();
-    const t = b.session.trades[0];
-    expect(t).toMatchObject({ sym: 'RUN', shares: 100, avgEntry: 3.01, avgExit: 3.19, net: 18, exitReason: 'manual' });
-    expect(b.session.cash).toBe(1018);
+    expect(b.process(10, m, marks)).toHaveLength(0);
+    expect(b.orders()[0].status).toBe('sent');
+    const fills = b.process(LAT, m, marks);
+    expect(fills).toHaveLength(1);
+    // 200 a 3,01 (todo el ask) y 100 a 3,02 (el nivel siguiente).
+    expect(fills[0]).toMatchObject({ shares: 300, price: 3.0133 });
+    expect(b.position('RUN')).toMatchObject({ shares: 300, avgCost: 3.0133 });
+    expect(b.session.cash).toBe(96);
+    expect(b.session.history[0]).toMatchObject({ status: 'filled', filled: 300 });
   });
 
-  it('rechaza compras sin poder de compra (cuenta cash de $1000)', () => {
-    const { b, marks } = setup();
-    const r = b.place({ sym: 'RUN', side: 'buy', type: 'market', shares: 400 }, q(3), 0, marks);
-    expect(r.ok).toBe(false);
-    expect(r.message).toMatch(/Poder de compra insuficiente/);
-    expect(r.message).toMatch(/alcanza para 332 acciones/);
-  });
-
-  it('con margen 4x el poder de compra se multiplica', () => {
-    const { b, marks } = setup({ margin: 4 });
-    expect(b.buyingPower(marks)).toBe(4000);
-    expect(b.place({ sym: 'RUN', side: 'buy', type: 'market', shares: 1000 }, q(3), 0, marks).ok).toBe(true);
-  });
-
-  it('no permite operar a mercado durante un halt', () => {
-    const { b, marks } = setup();
-    const r = b.place({ sym: 'RUN', side: 'buy', type: 'market', shares: 10 }, q(3, { halted: true }), 0, marks);
-    expect(r.ok).toBe(false);
-    expect(r.message).toMatch(/halt/);
-  });
-
-  it('el deslizamiento crece con el tamaño contra la liquidez', () => {
-    const b = new Broker(session(100_000), { ...DEFAULT_TRADING, slippage: true });
-    const thin = q(4, { volPerMin: 4000 });
-    expect(b.execPrice('buy', thin, 100)).toBe(4.01);
-    // 5000 acciones contra 4000 por minuto: ~1,9% de deslizamiento.
-    expect(b.execPrice('buy', thin, 5000)).toBeCloseTo(4.09, 2);
-    expect(b.execPrice('sell', thin, 5000)).toBeCloseTo(3.92, 2);
-    expect(b.execPrice('buy', thin, 50_000)).toBeCloseTo(4.21, 2);
-  });
-
-  it('el stop de un bracket vende con la punta compradora y calcula la R', () => {
-    const { b, marks } = setup();
-    const r = b.place({ sym: 'RUN', side: 'buy', type: 'market', shares: 200, stop: 2.9, target: 3.4, setup: 'Bull flag' }, q(3), 0, marks);
+  it('fuera de la rueda regular solo acepta órdenes límite', () => {
+    const { b, m, marks, setSession } = setup();
+    setSession('pre');
+    expect(b.place({ sym: 'RUN', side: 'buy', type: 'market', shares: 100 }, 0, m, marks).message).toMatch(/solo se aceptan órdenes límite/);
+    const r = b.place({ sym: 'RUN', side: 'buy', type: 'limit', price: 3.06, shares: 100 }, 0, m, marks);
     expect(r.ok).toBe(true);
-    expect(b.orders('RUN').map((o) => o.role).sort()).toEqual(['stop', 'target']);
-    b.onQuote(q(3.1), 10);
-    expect(b.position('RUN')).toBeDefined();
-    // Cae fuerte: el bid (2.84) queda debajo del stop y se vende ahí (deslizamiento por gap).
-    b.onQuote(q(2.85), 20);
-    expect(b.position('RUN')).toBeUndefined();
-    expect(b.orders('RUN')).toHaveLength(0);
+    expect(b.process(LAT, m, marks)[0]).toMatchObject({ shares: 100, price: 3.01 });
+  });
+
+  it('una compra límite marketable toma el libro hasta su precio y el resto queda esperando', () => {
+    const { b, m, marks } = setup({}, 5000);
+    b.place({ sym: 'RUN', side: 'buy', type: 'limit', price: 3.02, shares: 1000 }, 0, m, marks);
+    const fills = b.process(LAT, m, marks);
+    expect(fills[0]).toMatchObject({ shares: 500, price: 3.016 });
+    expect(b.orders()[0]).toMatchObject({ status: 'partial', filled: 500 });
+  });
+
+  it('una compra límite debajo del mercado espera su turno en la cola', () => {
+    const { b, m, marks, print } = setup();
+    b.place({ sym: 'RUN', side: 'buy', type: 'limit', price: 3.0, shares: 200 }, 0, m, marks);
+    b.process(LAT, m, marks);
+    expect(b.orders()[0].queueAhead).toBe(500);
+    print(3.0, 300, 'bid');
+    expect(b.process(LAT + 100, m, marks)).toHaveLength(0);
+    expect(b.orders()[0].queueAhead).toBe(200);
+    // Este print se come los 200 de adelante y 100 son míos: ejecución parcial.
+    print(3.0, 300, 'bid');
+    const f1 = b.process(LAT + 200, m, marks);
+    expect(f1[0]).toMatchObject({ shares: 100, price: 3.0 });
+    expect(b.orders()[0].status).toBe('partial');
+    // Un print más abajo: yo era la mejor punta, me tocaba.
+    print(2.99, 400, 'bid');
+    const f2 = b.process(LAT + 300, m, marks);
+    expect(f2[0]).toMatchObject({ shares: 100, price: 3.0 });
+    expect(b.position('RUN')!.shares).toBe(200);
+  });
+
+  it('el stop puesto sobre la posición no se dispara con prints anteriores a la orden', () => {
+    const { b, m, marks, print, quote } = setup();
+    print(2.9, 100, 'bid');
+    print(3.0, 100, 'bid');
+    b.place({ sym: 'RUN', side: 'buy', type: 'market', shares: 100 }, 0, m, marks);
+    b.process(LAT, m, marks);
+    expect(b.setBracket('RUN', { stop: 2.95 }, LAT, quote).ok).toBe(true);
+    expect(b.process(LAT + 100, m, marks)).toHaveLength(0);
+    expect(b.position('RUN')!.shares).toBe(100);
+    print(2.95, 100, 'bid');
+    expect(b.process(LAT + 200, m, marks)[0]).toMatchObject({ side: 'sell', shares: 100 });
+  });
+
+  it('al reanudar, las órdenes vivas vuelven a mirar la cinta desde ahora', () => {
+    const { b, m, marks, print } = setup();
+    b.place({ sym: 'RUN', side: 'buy', type: 'market', shares: 100, stop: 2.95 }, 0, m, marks);
+    b.process(LAT, m, marks);
+    const saved = structuredClone(b.session);
+    print(2.9, 100, 'bid');
+    print(3.0, 100, 'bid');
+    // Página nueva: otro bróker con la sesión guardada; los prints de antes no disparan el stop.
+    const b2 = new Broker(saved, b.settings, {}, () => ({ priorDayTrades: 0 }));
+    expect(b2.process(LAT + 100, m, marks)).toHaveLength(0);
+    print(2.94, 100, 'bid');
+    expect(b2.process(LAT + 200, m, marks)[0]).toMatchObject({ side: 'sell', shares: 100 });
+  });
+
+  it('el stop se dispara con el último precio y vende contra el bid, nivel por nivel', () => {
+    const { b, m, marks, print } = setup();
+    b.place({ sym: 'RUN', side: 'buy', type: 'market', shares: 300, stop: 2.95 }, 0, m, marks);
+    b.process(LAT, m, marks);
+    expect(b.orders().map((o) => o.role).sort()).toEqual(['stop']);
+    print(2.96, 100, 'bid');
+    expect(b.process(LAT + 100, m, marks)).toHaveLength(0);
+    print(2.95, 100, 'bid');
+    const fills = b.process(LAT + 200, m, marks);
+    // Sale a mercado: 300 en el bid de 3,00 (el libro del test no se movió).
+    expect(fills[0]).toMatchObject({ shares: 300, price: 3.0, role: 'stop' });
     const t = b.session.trades[0];
     expect(t.exitReason).toBe('stop');
-    expect(t.avgExit).toBe(2.84);
-    expect(t.risk).toBe(22); // (3.01 − 2.90) × 200
-    expect(t.r).toBeCloseTo(-34 / 22, 2);
-    expect(t.setup).toBe('Bull flag');
-    expect(t.mfePct).toBeGreaterThan(0);
-    expect(t.maePct).toBeLessThan(0);
+    expect(t.r).toBeCloseTo(-0.21, 2);
   });
 
   it('el objetivo cancela el stop (OCO)', () => {
-    const { b, marks } = setup();
-    b.place({ sym: 'RUN', side: 'buy', type: 'market', shares: 100, stop: 2.9, target: 3.3 }, q(3), 0, marks);
-    b.onQuote(q(3.35), 10);
-    expect(b.position('RUN')).toBeUndefined();
+    const { b, m, marks, print } = setup();
+    b.place({ sym: 'RUN', side: 'buy', type: 'market', shares: 100, stop: 2.9, target: 3.2 }, 0, m, marks);
+    b.process(LAT, m, marks);
+    print(3.21, 200, 'ask');
+    const fills = b.process(LAT + 100, m, marks);
+    expect(fills[0]).toMatchObject({ role: 'target', price: 3.2, shares: 100 });
     expect(b.orders()).toHaveLength(0);
-    expect(b.session.trades[0]).toMatchObject({ exitReason: 'target', avgExit: 3.34 });
+    expect(b.session.history.find((o) => o.role === 'stop')).toMatchObject({ status: 'canceled' });
+    expect(b.session.trades[0].exitReason).toBe('target');
   });
 
   it('una venta parcial achica el stop y el objetivo a las acciones que quedan', () => {
-    const { b, marks } = setup();
-    b.place({ sym: 'RUN', side: 'buy', type: 'market', shares: 300, stop: 2.9, target: 3.5 }, q(3), 0, marks);
-    b.place({ sym: 'RUN', side: 'sell', type: 'market', shares: 100 }, q(3.2), 5, marks);
+    const { b, m, marks } = setup({}, 5000);
+    b.place({ sym: 'RUN', side: 'buy', type: 'market', shares: 400, stop: 2.9, target: 3.5 }, 0, m, marks);
+    b.process(LAT, m, marks);
+    b.place({ sym: 'RUN', side: 'sell', type: 'limit', price: 2.95, shares: 200 }, LAT, m, marks);
+    b.process(LAT * 2, m, marks);
     expect(b.position('RUN')!.shares).toBe(200);
-    expect(b.orders('RUN').every((o) => o.shares === 200)).toBe(true);
-    expect(b.session.trades).toHaveLength(0);
+    expect(b.orders().every((o) => o.shares - o.filled === 200)).toBe(true);
   });
 
-  it('las compras límite esperan al precio y las compras stop entran en la ruptura', () => {
-    const { b, marks } = setup();
-    const lim = b.place({ sym: 'RUN', side: 'buy', type: 'limit', shares: 100, price: 2.9 }, q(3), 0, marks);
-    expect(lim.ok).toBe(true);
-    expect(b.position('RUN')).toBeUndefined();
-    expect(b.buyingPower(marks)).toBe(710); // 1000 − 100 × 2.90 reservados
-    b.onQuote(q(2.88), 10);
-    expect(b.position('RUN')).toMatchObject({ shares: 100, avgCost: 2.89 });
-    b.place({ sym: 'RUN', side: 'buy', type: 'stop', shares: 100, price: 3.1 }, q(2.95), 20, marks);
-    b.onQuote(q(3.0), 30);
-    expect(b.position('RUN')!.shares).toBe(100);
-    b.onQuote(q(3.12), 40);
-    expect(b.position('RUN')!.shares).toBe(200);
+  it('cuenta cash: el dinero de las ventas se libera al día siguiente (T+1)', () => {
+    const { b, m, marks } = setup();
+    b.place({ sym: 'RUN', side: 'buy', type: 'market', shares: 300 }, 0, m, marks);
+    b.process(LAT, m, marks);
+    b.place({ sym: 'RUN', side: 'sell', type: 'market', shares: 300 }, LAT, m, marks);
+    b.process(LAT * 2, m, marks);
+    expect(b.session.unsettled).toBeGreaterThan(890);
+    expect(b.buyingPower(marks)).toBeLessThan(100);
+    const r = b.place({ sym: 'RUN', side: 'buy', type: 'market', shares: 100 }, LAT * 2, m, marks);
+    expect(r.ok).toBe(false);
+    expect(r.message).toMatch(/liquidación T\+1/);
   });
 
-  it('cobra comisiones por acción con mínimo', () => {
-    const { b, marks } = setup({ commissionPerShare: 0.005, minCommission: 1 });
-    b.place({ sym: 'RUN', side: 'buy', type: 'market', shares: 100 }, q(3), 0, marks);
-    b.place({ sym: 'RUN', side: 'sell', type: 'market', shares: 100 }, q(3.1), 1, marks);
-    const t = b.session.trades[0];
-    expect(t.fees).toBe(2);
-    expect(t.net).toBe(t.gross - 2);
+  it('cuenta margen chica: la regla PDT bloquea el cuarto day trade', () => {
+    const { b, m, marks } = setup({ account: 'margin', leverage: 4 }, 1000, 3);
+    expect(b.buyingPower(marks)).toBe(2000);
+    expect(b.place({ sym: 'RUN', side: 'buy', type: 'market', shares: 100 }, 0, m, marks).message).toMatch(/Regla PDT/);
+    const big = setup({ account: 'margin', leverage: 4 }, 30_000, 3);
+    expect(big.b.buyingPower(big.marks)).toBe(120_000);
+    expect(big.b.place({ sym: 'RUN', side: 'buy', type: 'market', shares: 100 }, 0, big.m, big.marks).ok).toBe(true);
+  });
+
+  it('cobra las tasas de la SEC y de FINRA en las ventas', () => {
+    const { b, m, marks } = setup({}, 5000);
+    b.place({ sym: 'RUN', side: 'buy', type: 'market', shares: 200 }, 0, m, marks);
+    b.process(LAT, m, marks);
+    b.place({ sym: 'RUN', side: 'sell', type: 'market', shares: 200 }, LAT, m, marks);
+    const [f] = b.process(LAT * 2, m, marks);
+    // 600 vendidos: SEC 0,0124 → 0,02; TAF 200 × 0,000195 = 0,039 → 0,04.
+    expect(f.fee).toBe(0.06);
+    expect(b.session.trades[0].fees).toBe(0.06);
+  });
+
+  it('en halt no se ejecuta nada y no acepta órdenes a mercado', () => {
+    const { b, m, marks, quote } = setup();
+    b.place({ sym: 'RUN', side: 'buy', type: 'limit', price: 3.05, shares: 100 }, 0, m, marks);
+    quote.halted = true;
+    expect(b.place({ sym: 'RUN', side: 'buy', type: 'market', shares: 100 }, 0, m, marks).message).toMatch(/halt/);
+    expect(b.process(LAT, m, marks)).toHaveLength(0);
+    expect(b.orders()[0].note).toMatch(/halt/);
+    quote.halted = false;
+    expect(b.process(LAT + 100, m, marks)).toHaveLength(1);
+  });
+
+  it('una orden DAY mandada en el pre-market espera la apertura y vence al cierre', () => {
+    const { b, m, marks, setSession } = setup();
+    setSession('pre');
+    b.place({ sym: 'RUN', side: 'buy', type: 'limit', price: 2.5, shares: 100, tif: 'DAY' }, 0, m, marks);
+    b.process(LAT, m, marks);
+    expect(b.orders()[0].note).toMatch(/rueda regular/);
+    setSession('post');
+    b.process(LAT + 100, m, marks);
+    expect(b.orders()).toHaveLength(0);
+    expect(b.session.history[0]).toMatchObject({ status: 'canceled' });
   });
 
   it('bloquea compras al llegar a la pérdida máxima del día', () => {
-    const { b, marks, setPx } = setup({ maxDailyLoss: 30 });
-    b.place({ sym: 'RUN', side: 'buy', type: 'market', shares: 200 }, q(3), 0, marks);
-    setPx(2.8);
-    b.place({ sym: 'RUN', side: 'sell', type: 'market', shares: 200 }, q(2.8), 1, marks);
-    const r = b.place({ sym: 'RUN', side: 'buy', type: 'market', shares: 10 }, q(2.8), 2, marks);
-    expect(r.ok).toBe(false);
-    expect(r.message).toMatch(/pérdida máxima/);
+    const { b, m, marks, quote } = setup({ maxDailyLoss: 20 });
+    b.place({ sym: 'RUN', side: 'buy', type: 'market', shares: 300 }, 0, m, marks);
+    b.process(LAT, m, marks);
+    quote.last = 2.9;
+    expect(b.place({ sym: 'RUN', side: 'buy', type: 'limit', price: 2.9, shares: 10 }, LAT, m, marks).message).toMatch(/pérdida máxima/);
   });
 
   it('cierra todo al terminar el día', () => {
-    const { b, marks } = setup();
-    b.place({ sym: 'RUN', side: 'buy', type: 'market', shares: 100, stop: 2.5 }, q(3), 0, marks);
-    const trades = b.flatten(() => q(3.5), 99);
+    const { b, m, marks } = setup();
+    b.place({ sym: 'RUN', side: 'buy', type: 'market', shares: 100, stop: 2.5 }, 0, m, marks);
+    b.process(LAT, m, marks);
+    const trades = b.flatten(LAT * 2, m, marks);
     expect(trades).toHaveLength(1);
     expect(trades[0].exitReason).toBe('eod');
     expect(b.orders()).toHaveLength(0);
@@ -192,6 +293,42 @@ describe('estadísticas', () => {
     ]);
   });
 
+  it('puntajes del Profit Trifecta y niveles', () => {
+    expect([50, 51, 56, 61, 66, 71].map(winRateScore)).toEqual([1, 2, 3, 4, 5, 6]);
+    expect([0.9, 1, 1.5, 1.75, 2, 2.3].map(plScore)).toEqual([1, 2, 3, 4, 5, 6]);
+    expect([0, 1, 2, 3, 4, 5, 6, 9].map(consistencyScore)).toEqual([1, 2, 3, 4, 4, 5, 6, 6]);
+    expect([3, 4, 9, 10, 13, 14, 18].map(levelOf)).toEqual(['No rentable', 'Principiante', 'Intermedio', 'Con experiencia', 'Con experiencia', 'Profesional', 'Profesional']);
+  });
+
+  it('agrupa los días de práctica en semanas de 5 y cuenta las semanas positivas seguidas', () => {
+    // Semana 1 (días 1 a 5): +30, −10 y +20. Semana 2 (día 6): −40. Semana 3 (día 11): +15.
+    const day = new Map<string, number>();
+    const trades = (
+      [
+        [30, 1],
+        [-10, 2],
+        [20, 5],
+        [-40, 6],
+        [15, 11],
+      ] as const
+    ).map(([net, d], i) => {
+      const t = mk(net, i);
+      day.set(t.id, d);
+      return t;
+    });
+    const weeks = weeklyResults(trades, (t) => day.get(t.id));
+    expect(weeks.map((w) => [w.week, w.net, w.trades])).toEqual([
+      [1, 40, 3],
+      [2, -40, 1],
+      [3, 15, 1],
+    ]);
+    expect(weeks[0].days.map((d) => d.dayIndex)).toEqual([1, 2, 5]);
+    // Semana 1: 67% de aciertos (5), relación G/P 25/10 = 2,5 (6) y 1 semana positiva (2): 13 puntos.
+    expect(weeks[0].score).toMatchObject({ winRate: 5, plRatio: 6, consistency: 2, total: 13, level: 'Con experiencia' });
+    // La semana 2 corta la racha y la 3 la vuelve a empezar.
+    expect(weeks.map((w) => w.score.consistency)).toEqual([2, 1, 2]);
+  });
+
   it('una sesión enorme se achica quitando velas para entrar en un documento', () => {
     const bars = Array.from({ length: 60 }, (_, i) => [i, 1, 2, 0.5, 1.5, 1000]);
     const trades = Array.from({ length: 200 }, (_, i) => mk(1, i, { bars }));
@@ -224,7 +361,7 @@ describe('guardado de la cuenta de práctica', () => {
   });
   const bars = Array.from({ length: 60 }, (_, i) => [i * 60_000, 4, 4.2, 3.9, 4.1, 12_000]);
   const fill = (i: number, sym: string): Fill => ({ id: `f${i}`, orderId: `o${i}`, sym, side: 'buy', shares: 100, price: 4, fee: 0, ts: i, role: 'entry' });
-  const stateWith = (a: ActiveSession, updatedAt = 1): TrainingState => ({ version: 1, settings: DEFAULT_TRADING, balance: 1000, updatedAt, active: a });
+  const stateWith = (a: ActiveSession, updatedAt = 1): TrainingState => ({ version: 1, settings: DEFAULT_TRADING, balance: 1000, dayIndex: 1, dayTrades: [], updatedAt, active: a });
 
   it('un día con muchos trades entra en un documento: se quitan las velas de los más viejos', () => {
     const a = session();
@@ -317,6 +454,30 @@ describe('guardado de la cuenta de práctica', () => {
     expect(loaded.state?.updatedAt).toBe(9);
     expect(loaded.state?.active?.cash).toBe(900);
     expect(loaded.sessions.map((x) => x.id)).toEqual(['sabc']);
+  });
+
+  it('borrar todo y guardar la cuenta nueva: queda la nueva', async () => {
+    const { db, docs } = fakeDb();
+    const store = new DbTrainingStore(db, 'u_1');
+    await store.saveState(stateWith(session(), 5));
+    await store.saveSession(rec);
+    void store.saveState(stateWith(session(4000), 6));
+    void store.clear();
+    await store.saveState(stateWith(session(5000), 7));
+    expect(docs.has('data/users/u_1/training/sessions/sabc')).toBe(false);
+    const loaded = await new DbTrainingStore(db, 'u_1').load();
+    expect(loaded.state?.active?.cash).toBe(5000);
+  });
+
+  it('los datos leídos de la base se pueden modificar (la base los entrega congelados)', async () => {
+    const { db, docs } = fakeDb();
+    const store = new DbTrainingStore(db, 'u_1');
+    await store.saveSession(rec);
+    for (const [k, v] of docs) docs.set(k, Object.freeze(v));
+    const loaded = await new DbTrainingStore(db, 'u_1').load();
+    expect(() => {
+      loaded.sessions[0].trades = [];
+    }).not.toThrow();
   });
 
   it('reintenta una vez si la base está momentáneamente no disponible', async () => {

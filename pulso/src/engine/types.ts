@@ -96,7 +96,22 @@ export type MarketEvent =
       source?: string;
     }
   | { kind: 'luld'; sym: string; ts: number; up: number; down: number }
-  | { kind: 'news'; item: NewsItem };
+  | { kind: 'news'; item: NewsItem }
+  /** Mejor compra y venta del mercado (NBBO) con su tamaño. */
+  | { kind: 'quote'; sym: string; ts: number; bid: number; ask: number; bidSize: number; askSize: number };
+
+/** Dónde se hizo un print respecto de las puntas de ese momento (los colores de la cinta). */
+export type TapeSide = 'below' | 'bid' | 'mid' | 'ask' | 'above';
+
+/** Un print de la cinta (Time & Sales). */
+export interface TapePrint {
+  /** Número de orden (crece de a uno en cada print del motor). */
+  seq: number;
+  ts: number;
+  price: number;
+  size: number;
+  side: TapeSide;
+}
 
 export type AlertType =
   | 'hod'
@@ -235,6 +250,11 @@ export interface Quote {
   last: number;
   bid: number;
   ask: number;
+  /** Acciones en la mejor punta (0 si el spread es estimado). */
+  bidSize: number;
+  askSize: number;
+  /** true si las puntas vienen del mercado; false si se estiman a partir del precio. */
+  real: boolean;
   ts: number;
   halted: boolean;
   /** Volumen típico por minuto (promedio de las últimas velas): mide la liquidez. */
@@ -248,6 +268,9 @@ export interface SymbolDetail {
   bars: Bar[];
   /** Velas de 10 segundos (para los gráficos de 10 s y 30 s). */
   secBars: Bar[];
+  /** Últimos prints (Time & Sales), el más nuevo al final. */
+  tape: TapePrint[];
+  quote: Quote | null;
   open: number;
   pmHigh: number;
   lod: number;

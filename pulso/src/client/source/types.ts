@@ -1,4 +1,5 @@
-import type { Alert, NewsItem, ProviderStatus, Quote, ScanRow, Settings, SymbolDetail, ViewModel } from '../../engine/types';
+import type { Alert, NewsItem, ProviderStatus, Quote, ScanRow, Session, Settings, SymbolDetail, TapePrint, ViewModel } from '../../engine/types';
+import type { DepthBook } from '../../trading/depth';
 
 export interface SourceHandlers {
   onView(v: ViewModel): void;
@@ -29,4 +30,14 @@ export interface DataSource {
   row(sym: string): ScanRow | null;
   /** Velas de 1 minuto [t, o, h, l, c, v] para guardar con un trade. */
   reviewBars(sym: string, from: number, to: number): number[][] | undefined;
+  /** El mercado terminó de generarse o de reanudarse: recién ahí se puede operar y guardar la hora. */
+  readonly ready: boolean;
+  /** Level 2: libro con profundidad sincronizado a este momento. */
+  book(sym: string): DepthBook | null;
+  /** true si el Level 2 es el del mercado (simulador); false si solo se estima para ejecutar. */
+  readonly depthIsReal: boolean;
+  /** Prints de la cinta posteriores a `seq` (para las órdenes límite en cola). */
+  printsSince(sym: string, seq: number): TapePrint[];
+  lastSeq(): number;
+  session(now: number): Session;
 }

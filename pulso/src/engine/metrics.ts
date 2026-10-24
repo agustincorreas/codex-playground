@@ -85,7 +85,8 @@ export function buildRow(st: SymbolState, ctx: MetricCtx): ScanRow {
   const rvol = rvolOf(st, ctx.volFrac);
   const fl = floatOf(st);
   const pillars = pillarsOf(st, ctx, rvol);
-  const q = syntheticQuote(price, recentRangePct(st), ctx.extended);
+  const real = st.bid > 0 && st.ask > st.bid && !st.halted && now - st.quoteTs < 10 * 60_000;
+  const q = real ? { bid: st.bid, ask: st.ask } : syntheticQuote(price, recentRangePct(st), ctx.extended);
   return {
     sym: st.sym,
     name: st.ref.name,

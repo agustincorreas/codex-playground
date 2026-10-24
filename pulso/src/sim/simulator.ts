@@ -7,6 +7,8 @@ import { headline, makeCompanies, NEWS_SOURCES } from './names';
 
 const SEC = 1000;
 const MIN = 60_000;
+/** Minutos previos a la hora de inicio que se simulan con cinta completa. */
+const TAPE_WARM = 3 * MIN;
 
 export function mulberry32(seed: number): () => number {
   let a = seed >>> 0;
@@ -73,6 +75,16 @@ interface SimSym {
   haltUntil: number;
   openPlan?: 'go' | 'fade';
   bar?: WarmBar;
+  /** Mejor compra y mejor venta (NBBO) con su tamaño. 0 = sin cotización (halt o antes de empezar). */
+  bid: number;
+  ask: number;
+  bidSize: number;
+  askSize: number;
+  /** Valor justo del último print y lado del último agresor (1 compra, −1 venta). */
+  fair: number;
+  lastSide: number;
+  /** Multiplicador del spread (más ancho justo después de reanudar un halt). */
+  wide: number;
 }
 
 export interface SimOptions {
@@ -85,6 +97,7 @@ export interface SimOptions {
 }
 
 export class MarketSim {
+  /** Reloj publicado: todos los eventos hasta esta hora ya se emitieron. */
   now: number;
   readonly refs: ReferenceData[] = [];
   readonly dayStart: number;
@@ -93,7 +106,12 @@ export class MarketSim {
   readonly startTs: number;
   private readonly syms: SimSym[] = [];
   private readonly rnd: () => number;
-  private carry = 0;
+  /** Reloj de generación: el mercado se genera de a un segundo y se publica a medida que pasa el tiempo. */
+  private t: number;
+  private pending: Array<{ at: number; ev: MarketEvent }> = [];
+  private head = 0;
+  /** Sin eventos de cotización (para avanzar rápido al reanudar); el estado interno sigue igual. */
+  quiet = false;
   private seq = 0;
   private live = false;
   private nextRunnerAt = 0;
@@ -110,7 +128,7 @@ export class MarketSim {
     this.openTs = etWallToTs(day.y, day.mo, day.d, REG_OPEN);
     this.closeTs = etWallToTs(day.y, day.mo, day.d, REG_CLOSE);
     this.startTs = etWallToTs(day.y, day.mo, day.d, opts.startMinutes ?? 9 * 60 + 27);
-    this.now = this.dayStart;
+    this.t = this.now = this.dayStart;
     this.buildUniverse(opts.count ?? 150);
   }
 
@@ -173,7 +191,7 @@ export class MarketSim {
         anchor: open,
         sigma: large ? this.u(0.0002, 0.0005) : this.u(0.0006, 0.0016),
         baseShares: avgVolume / 23_400,
-        tradeSize: prevClose < 2 ? 1500 : prevClose < 5 ? 700 : prevClose < 20 ? 300 : 120,
+        tradeSize: prevClose < 2 ? 600 : prevClose < 5 ? 300 : prevClose < 20 ? 150 : 80,
         legs: [],
         legT: 0,
         legBase: open,
@@ -182,6 +200,13 @@ export class MarketSim {
         busy: false,
         halted: false,
         haltUntil: 0,
+        bid: 0,
+        ask: 0,
+        bidSize: 0,
+        askSize: 0,
+        fair: open,
+        lastSide: 1,
+        wide: 1,
       });
     });
   }
@@ -192,8 +217,8 @@ export class MarketSim {
 
   // ------------------------------------------------------------------ guiones
 
-  private news(s: SimSym, sentiment: 'bullish' | 'bearish' | 'neutral', ts = this.now): void {
-    this.emit({
+  private news(s: SimSym, sentiment: 'bullish' | 'bearish' | 'neutral', ts = this.t): void {
+    this.out({
       kind: 'news',
       item: {
         id: `demo-${++this.seq}`,
@@ -204,6 +229,12 @@ export class MarketSim {
         sentiment,
       },
     });
+  }
+
+  /** Emite un evento: en vivo pasa por la cola y se publica cuando el reloj llega a `at`. */
+  private out(ev: MarketEvent, at = this.t): void {
+    if (!this.live) this.emit(ev);
+    else if (!(this.quiet && ev.kind === 'quote')) this.pending.push({ at, ev });
   }
 
   private runnerLegs(firstBoost = 1): Leg[] {
@@ -307,10 +338,10 @@ export class MarketSim {
   }
 
   private maybeRunner(regular: boolean): void {
-    if (this.now < this.nextRunnerAt) return;
-    const minutes = (this.now - this.dayStart) / MIN + PRE_OPEN;
+    if (this.t < this.nextRunnerAt) return;
+    const minutes = (this.t - this.dayStart) / MIN + PRE_OPEN;
     if (minutes < 7 * 60) {
-      this.nextRunnerAt = this.now + 10 * MIN;
+      this.nextRunnerAt = this.t + 10 * MIN;
       return;
     }
     const pool = this.smallCaps((s) => s.price >= 1 && s.price <= 20 && s.ref.float! < 30e6);
@@ -318,49 +349,77 @@ export class MarketSim {
       const weighted = pool.filter((s) => s.ref.float! < 10e6);
       this.startRunner(weighted.length && this.rnd() < 0.7 ? this.pick(weighted) : this.pick(pool));
     }
-    this.nextRunnerAt = this.now + (regular ? this.u(150, 330) : this.u(300, 600)) * SEC;
+    this.nextRunnerAt = this.t + (regular ? this.u(150, 330) : this.u(300, 600)) * SEC;
   }
 
   private maybeNoiseNews(): void {
-    if (this.now < this.nextNoiseNewsAt) return;
+    if (this.t < this.nextNoiseNewsAt) return;
     const s = this.pick(this.syms);
     this.news(s, this.rnd() < 0.7 ? 'neutral' : 'bullish');
-    this.nextNoiseNewsAt = this.now + this.u(90, 260) * SEC;
+    this.nextNoiseNewsAt = this.t + this.u(90, 260) * SEC;
   }
 
   // ------------------------------------------------------------------ simulación
 
-  /** Genera el pre-market (en velas de 1 minuto) hasta la hora de inicio. */
+  /**
+   * Genera el pre-market (en velas de 1 minuto) hasta la hora de inicio. Los últimos minutos ya se
+   * simulan operación por operación, así la cinta (Time & Sales) arranca con historia, como al abrir
+   * un símbolo en una plataforma real.
+   */
   warmup(): void {
     this.setupGappers();
     this.live = false;
     this.nextRunnerAt = this.dayStart + 3 * 3600 * SEC;
     this.nextNoiseNewsAt = this.dayStart + 2 * 3600 * SEC;
-    while (this.now < this.startTs) this.step();
+    const tapeFrom = Math.max(this.t, this.startTs - TAPE_WARM);
+    while (this.t < tapeFrom) this.step();
     for (const s of this.syms) this.flushBar(s);
     this.live = true;
-    this.nextRunnerAt = this.now + 20 * SEC;
+    this.nextRunnerAt = this.startTs + 20 * SEC;
+    // Cotización inicial de cada acción.
+    const regular = this.t >= this.openTs && this.t < this.closeTs;
+    for (const s of this.syms) {
+      s.fair = s.price;
+      this.requote(s, s.price, this.t, regular, true);
+    }
+    while (this.t < this.startTs) this.step();
+    this.now = this.t;
+    this.release(this.now);
   }
 
-  /** Avanza el reloj virtual `ms` milisegundos. */
+  /** Avanza el reloj virtual `ms` milisegundos y publica los eventos de ese lapso, en orden. */
   advance(ms: number): void {
-    this.carry += ms;
-    while (this.carry >= SEC) {
-      this.carry -= SEC;
-      this.step();
+    const target = this.now + ms;
+    while (this.t < target) this.step();
+    this.release(target);
+    this.now = target;
+  }
+
+  /** Publica las cotizaciones actuales de todas las acciones (después de avanzar en modo `quiet`). */
+  flushQuotes(): void {
+    for (const s of this.syms) if (s.bid > 0 && !s.halted) this.emit(this.quoteEvent(s, this.now));
+  }
+
+  private release(target: number): void {
+    const q = this.pending;
+    while (this.head < q.length && q[this.head].at <= target) this.emit(q[this.head++].ev);
+    if (this.head > 4096) {
+      this.pending = q.slice(this.head);
+      this.head = 0;
     }
   }
 
   private step(): void {
-    this.now += SEC;
-    while (this.scheduled.length && this.scheduled[0].at <= this.now) this.scheduled.shift()!.fn();
-    const regular = this.now >= this.openTs && this.now < this.closeTs;
+    this.t += SEC;
+    const from = this.pending.length;
+    while (this.scheduled.length && this.scheduled[0].at <= this.t) this.scheduled.shift()!.fn();
+    const regular = this.t >= this.openTs && this.t < this.closeTs;
     this.maybeRunner(regular);
-    if (this.now >= this.dayStart + 2 * 3600 * SEC) this.maybeNoiseNews();
-    const minuteEdge = this.now % MIN === 0;
+    if (this.t >= this.dayStart + 2 * 3600 * SEC) this.maybeNoiseNews();
+    const minuteEdge = this.t % MIN === 0;
     for (const s of this.syms) {
       if (s.halted) {
-        if (this.now >= s.haltUntil) this.resume(s);
+        if (this.t >= s.haltUntil) this.resume(s, regular);
         else continue;
       }
       if (!this.live && !s.busy && !s.legs.length) {
@@ -369,10 +428,20 @@ export class MarketSim {
       }
       this.stepSym(s, 1, regular);
     }
+    // Los eventos de este segundo se publican en orden de hora (dentro de cada acción ya lo están).
+    if (this.pending.length - from > 1) {
+      const batch = this.pending.splice(from);
+      batch.sort((a, b) => a.at - b.at);
+      for (const e of batch) this.pending.push(e);
+    }
   }
 
   private stepSym(s: SimSym, dt: number, regular: boolean): void {
     const leg = s.legs[0];
+    // "En juego": sube 15% o más en el día. Sigue operando con volumen alto (más cuanto más sube)
+    // aunque ya no esté corriendo, como cualquier acción con noticia y volumen relativo alto.
+    const up = s.price / s.ref.prevClose! - 1;
+    const inPlay = s.role !== 'large' && up >= 0.15;
     let mu: number;
     let sigma: number;
     let vol: number;
@@ -387,14 +456,17 @@ export class MarketSim {
       mu = -0.003 * Math.log(s.price / s.anchor);
       sigma = s.sigma;
       vol = s.idleVol;
-      if (s.idleVol > 1) s.idleVol = Math.max(1, s.idleVol * 0.998);
+      const floor = inPlay ? 6 + 30 * Math.min(1, (up - 0.15) / 0.85) : 1;
+      s.idleVol = s.idleVol > floor ? Math.max(floor, s.idleVol * 0.998) : floor;
     }
-    const session = regular ? 1 : leg || s.role === 'gapper' ? 0.5 : 0.04;
+    const session = regular ? 1 : leg || s.role === 'gapper' || inPlay ? 0.5 : 0.04;
     const p0 = s.price;
     const p1 = Math.max(0.05, p0 * Math.exp(mu * dt + sigma * Math.sqrt(dt) * this.gauss()));
     const shares = s.baseShares * vol * session * dt * Math.exp(0.6 * this.gauss() - 0.18);
-    this.prints(s, p0, p1, shares, dt);
+    if (this.live) this.livePrints(s, p0, p1, shares, regular);
+    else this.prints(s, p0, p1, shares, dt);
     s.price = p1;
+    if (s.wide > 1) s.wide = 1 + (s.wide - 1) * 0.97;
     if (leg) {
       s.legT += dt;
       if (s.legT >= leg.dur) {
@@ -411,21 +483,146 @@ export class MarketSim {
     }
   }
 
+  /** Pre-market ya pasado: solo hacen falta las velas de 1 minuto. */
   private prints(s: SimSym, p0: number, p1: number, shares: number, dt: number): void {
     const expected = shares / s.tradeSize;
     const n = expected >= 1 ? Math.min(40, Math.round(expected)) : this.rnd() < expected ? 1 : 0;
     if (!n) return;
     const per = shares / n;
-    const t0 = this.now - dt * SEC;
+    const t0 = this.t - dt * SEC;
     for (let i = 0; i < n; i++) {
       const f = (i + 1) / n;
       const px = this.tick(Math.max(0.01, p0 + (p1 - p0) * f + p0 * 0.0008 * this.gauss()));
       let size = Math.max(1, Math.round(per * Math.exp(0.7 * this.gauss() - 0.245)));
       if (size >= 100) size = Math.round(size / 100) * 100;
       const ts = t0 + Math.floor(f * dt * SEC) - 1;
-      if (this.live) this.emit({ kind: 'trade', sym: s.ref.sym, ts, price: px, size });
-      else this.addWarm(s, ts, px, size);
+      this.addWarm(s, ts, px, size);
     }
+  }
+
+  /**
+   * En vivo, cada operación tiene un agresor: la compra paga el ask y la venta toma el bid. El valor
+   * justo (el camino del precio) mueve las puntas, y las órdenes grandes se comen el tamaño de la
+   * mejor punta y barren los niveles siguientes. Algunas operaciones son lotes impares o se cruzan
+   * en el medio del spread (dark pools), como en la cinta real.
+   */
+  private livePrints(s: SimSym, p0: number, p1: number, shares: number, regular: boolean): void {
+    const expected = shares / s.tradeSize;
+    const n = expected >= 1 ? Math.min(40, Math.round(expected)) : this.rnd() < expected ? 1 : 0;
+    const t0 = this.t - SEC;
+    if (!n) {
+      this.requote(s, p1, t0 + Math.floor(this.rnd() * SEC), regular);
+      s.fair = p1;
+      return;
+    }
+    const per = shares / n;
+    let prev = s.fair;
+    for (let i = 0; i < n; i++) {
+      const f = (i + 1) / n;
+      const fair = Math.max(0.01, p0 + (p1 - p0) * f + p0 * 0.0008 * this.gauss());
+      const ts = t0 + Math.floor(f * SEC) - 1;
+      this.requote(s, fair, ts, regular);
+      let size = Math.max(1, Math.round(per * Math.exp(0.7 * this.gauss() - 0.245)));
+      if (this.rnd() < 0.27) size = 1 + Math.floor(this.rnd() * 99);
+      else if (size >= 100) size = Math.round(size / 100) * 100;
+      const tick = tickOf(fair);
+      const d = fair - prev;
+      prev = fair;
+      const buy = Math.abs(d) < tick * 0.3 ? this.rnd() < (s.lastSide > 0 ? 0.62 : 0.38) : this.rnd() < (d > 0 ? 0.8 : 0.2);
+      s.lastSide = buy ? 1 : -1;
+      const width = Math.round((s.ask - s.bid) / tick);
+      if (width >= 2 && this.rnd() < 0.05) {
+        const mid = roundTo(s.bid + Math.floor(width / 2) * tick, tick);
+        this.out({ kind: 'trade', sym: s.ref.sym, ts, price: mid, size }, ts);
+        continue;
+      }
+      this.take(s, buy, size, ts);
+    }
+    s.fair = prev;
+  }
+
+  /** Una orden agresiva: consume la mejor punta y, si no alcanza, barre el nivel siguiente. */
+  private take(s: SimSym, buy: boolean, size: number, ts: number): void {
+    let left = size;
+    let moved = false;
+    for (let guard = 0; left > 0 && guard < 6; guard++) {
+      const px = buy ? s.ask : s.bid;
+      const avail = buy ? s.askSize : s.bidSize;
+      const q = Math.min(left, Math.max(1, avail));
+      this.out({ kind: 'trade', sym: s.ref.sym, ts, price: px, size: q }, ts);
+      left -= q;
+      const tick = tickOf(px);
+      const jump = (this.rnd() < 0.2 ? 2 : 1) * tick;
+      if (buy) {
+        s.askSize -= q;
+        if (s.askSize <= 0) {
+          s.ask = roundTo(s.ask + jump, tick);
+          s.askSize = this.touchSize(s);
+          moved = true;
+        }
+      } else {
+        s.bidSize -= q;
+        if (s.bidSize <= 0) {
+          s.bid = roundTo(Math.max(tick, s.bid - jump), tick);
+          s.bidSize = this.touchSize(s);
+          moved = true;
+        }
+      }
+    }
+    if (moved) {
+      if (s.bid >= s.ask) {
+        // El barrido cruzó la otra punta: se reacomoda a un tick.
+        const tick = tickOf(s.ask);
+        if (buy) s.bid = roundTo(s.ask - tick, tick);
+        else s.ask = roundTo(s.bid + tick, tick);
+      }
+      this.out(this.quoteEvent(s, ts), ts);
+    }
+  }
+
+  /** Spread objetivo en ticks: más ancho en acciones baratas, volátiles y fuera de la rueda. */
+  private targetSpread(s: SimSym, price: number, regular: boolean): number {
+    const leg = s.legs[0];
+    const sigma = leg ? leg.sigma : s.sigma;
+    const large = s.role === 'large';
+    const pct = (large ? 0.00008 : 0.0011) + sigma * 1.4 + (regular ? 0 : large ? 0.0004 : 0.0035) + (price < 2 ? 0.0015 : 0);
+    const ticks = (price * pct * s.wide) / tickOf(price);
+    return Math.max(1, Math.min(80, Math.round(ticks * Math.exp(0.35 * this.gauss()))));
+  }
+
+  /** Tamaño en la mejor punta: lotes redondos, a veces una orden grande ("pared"). */
+  private touchSize(s: SimSym): number {
+    const big = this.rnd() < 0.06 ? this.u(5, 20) : 1;
+    return Math.max(100, Math.round((s.tradeSize * this.logU(0.4, 3.5) * big) / 100) * 100);
+  }
+
+  /**
+   * Las puntas siguen al valor justo: si el precio sale del spread se reacomodan alrededor; si el
+   * spread quedó demasiado ancho, alguien mejora el lado más lejano. Si no, quedan donde están.
+   */
+  private requote(s: SimSym, fair: number, ts: number, regular: boolean, force = false): void {
+    const tick = tickOf(fair);
+    const target = this.targetSpread(s, fair, regular);
+    const idealBid = roundTo(Math.max(tick, Math.floor((fair - (target * tick) / 2) / tick + 1e-9) * tick), tick);
+    const idealAsk = roundTo(idealBid + target * tick, tick);
+    let { bid, ask } = s;
+    if (force || !(bid > 0 && ask > bid) || fair >= ask || fair <= bid) {
+      bid = idealBid;
+      ask = idealAsk;
+    } else if ((ask - bid) / tick > target * 1.6 + 1) {
+      if (ask - fair > fair - bid) ask = Math.max(roundTo(bid + tick, tick), idealAsk);
+      else bid = Math.min(roundTo(ask - tick, tick), idealBid);
+    }
+    if (bid === s.bid && ask === s.ask) return;
+    if (bid !== s.bid) s.bidSize = this.touchSize(s);
+    if (ask !== s.ask) s.askSize = this.touchSize(s);
+    s.bid = bid;
+    s.ask = ask;
+    this.out(this.quoteEvent(s, ts), ts);
+  }
+
+  private quoteEvent(s: SimSym, ts: number): MarketEvent {
+    return { kind: 'quote', sym: s.ref.sym, ts, bid: s.bid, ask: s.ask, bidSize: s.bidSize, askSize: s.askSize };
   }
 
   private addWarm(s: SimSym, ts: number, px: number, size: number): void {
@@ -453,11 +650,12 @@ export class MarketSim {
 
   private halt(s: SimSym): void {
     s.halted = true;
-    s.haltUntil = this.now + 5 * MIN;
-    this.emit({
+    s.haltUntil = this.t + 5 * MIN;
+    s.bid = s.ask = s.bidSize = s.askSize = 0;
+    this.out({
       kind: 'status',
       sym: s.ref.sym,
-      ts: this.now,
+      ts: this.t,
       halted: true,
       reason: 'LUDP',
       resumeTs: s.haltUntil,
@@ -465,12 +663,29 @@ export class MarketSim {
     });
   }
 
-  private resume(s: SimSym): void {
+  /** Reanudación: subasta de apertura con un print grande y spreads anchos los primeros minutos. */
+  private resume(s: SimSym, regular: boolean): void {
     s.halted = false;
-    this.emit({ kind: 'status', sym: s.ref.sym, ts: this.now, halted: false, reason: 'LUDP', source: 'demo' });
+    this.out({ kind: 'status', sym: s.ref.sym, ts: this.t, halted: false, reason: 'LUDP', source: 'demo' });
     s.price = this.tick(s.price * (1 + this.u(-0.12, 0.25)));
     const size = Math.round((s.baseShares * 600) / 100) * 100 || 100;
-    if (this.live) this.emit({ kind: 'trade', sym: s.ref.sym, ts: this.now, price: s.price, size });
-    else this.addWarm(s, this.now, s.price, size);
+    if (!this.live) {
+      this.addWarm(s, this.t, s.price, size);
+      return;
+    }
+    s.fair = s.price;
+    s.wide = 3;
+    this.requote(s, s.price, this.t, regular, true);
+    this.out({ kind: 'trade', sym: s.ref.sym, ts: this.t, price: s.price, size });
   }
+}
+
+/** Variación mínima de precio: un centavo, o una centésima de centavo debajo de US$ 1. */
+export function tickOf(price: number): number {
+  return price >= 1 ? 0.01 : 0.0001;
+}
+
+function roundTo(p: number, tick: number): number {
+  const v = Math.round(p / tick) * tick;
+  return tick >= 0.01 ? Math.round(v * 100) / 100 : Math.round(v * 10000) / 10000;
 }
