@@ -4,6 +4,7 @@
 import { useEffect, useState } from 'react';
 import { fmtMoney } from '../../trading/broker';
 import { DEFAULT_HOTKEYS, type Hotkey, type HotkeyAction, type Tif, type TradingSettings } from '../../trading/types';
+import { playOrder } from '../lib/audio';
 import { fromEvent, hotkeyLabel, reserved } from '../lib/hotkeys';
 import type { TrainingController } from '../training';
 import { IconClose } from './Icons';
@@ -326,6 +327,33 @@ export function PracticeSettings({ c, onClose, initial = 'cuenta' }: { c: Traini
                     ))}
                   </select>
                 </label>
+              </section>
+              <section className="card">
+                <h3>Salidas y sonidos</h3>
+                <label className="check-inline">
+                  <input id="trade-set-auto" type="checkbox" checked={s.autoBracket} onChange={(e) => set({ autoBracket: e.target.checked })} />
+                  Stop y objetivo automáticos al comprar (OCO)
+                </label>
+                <p className="field-hint">
+                  Apagado: la compra sale sola y las salidas las hacés vos, con los atajos o los botones. El stop y el objetivo del ticket quedan como plan: sirven para el tamaño por riesgo y la R, y se ven punteados en el gráfico. Prendido: se colocan como órdenes que se cancelan entre sí.
+                </p>
+                <label className="check-inline">
+                  <input id="trade-set-sounds" type="checkbox" checked={s.orderSounds} onChange={(e) => set({ orderSounds: e.target.checked })} />
+                  Sonidos de las órdenes
+                </label>
+                <p className="field-hint">
+                  Uno distinto cuando se ejecuta una compra o una venta, al cerrar un trade con ganancia o con pérdida, en una ejecución parcial, cuando la orden queda en espera, al cancelarla y si se rechaza.{' '}
+                  <button
+                    type="button"
+                    className="link"
+                    onClick={() => {
+                      const order = ['buy', 'sell', 'win', 'loss', 'partial', 'placed', 'canceled', 'rejected'] as const;
+                      order.forEach((k, i) => setTimeout(() => playOrder(k), i * 650));
+                    }}
+                  >
+                    Escucharlos
+                  </button>
+                </p>
               </section>
               <section className="card">
                 <h3>Ejecución y costos</h3>

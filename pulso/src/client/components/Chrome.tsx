@@ -15,6 +15,8 @@ export interface Prefs {
   soundTypes: AlertType[];
   momentumMinScore: number;
   theme: 'system' | 'dark' | 'light';
+  /** Versión de los valores de audio (2: alertas con sonido y voz prendidas por defecto). */
+  audioV?: number;
 }
 
 interface HeaderProps {
@@ -34,9 +36,11 @@ interface HeaderProps {
   /** Cuenta de práctica (equity y resultado del día). */
   account: { equity: number; dayPnl: number } | null;
   onJournal: () => void;
+  /** El navegador todavía no dejó reproducir audio (hace falta un toque). */
+  audioLocked?: boolean;
 }
 
-export function Header({ now, session, status, speed, onSpeed, prefs, onPrefs, onSettings, onSearch, search, effectiveTheme, canSpeed, account, onJournal }: HeaderProps) {
+export function Header({ now, session, status, speed, onSpeed, prefs, onPrefs, onSettings, onSearch, search, effectiveTheme, canSpeed, account, onJournal, audioLocked }: HeaderProps) {
   const [q, setQ] = useState('');
   const [suggest, setSuggest] = useState<string[]>([]);
   const next = now ? nextSessionChange(now) : null;
@@ -88,6 +92,7 @@ export function Header({ now, session, status, speed, onSpeed, prefs, onPrefs, o
         <button className="account-chip" onClick={onJournal} title="Cuenta de práctica: abrir cuenta y métricas">
           <IconBook />
           <span className="mono">{fmtMoney(account.equity)}</span>
+          <span className="account-chip-day">Hoy</span>
           <span className={`mono ${account.dayPnl > 0 ? 't-up' : account.dayPnl < 0 ? 't-down' : 't-muted'}`}>
             {account.dayPnl > 0 ? '+' : ''}
             {fmtMoney(account.dayPnl)}
@@ -126,6 +131,11 @@ export function Header({ now, session, status, speed, onSpeed, prefs, onPrefs, o
               </button>
             ))}
           </div>
+        )}
+        {prefs.sound && audioLocked && (
+          <span className="audio-hint" role="note">
+            Tocá la pantalla para activar el sonido
+          </span>
         )}
         <button className={`icon-btn ${prefs.sound ? 'is-on' : ''}`} onClick={() => onPrefs({ sound: !prefs.sound })} aria-pressed={prefs.sound} title={prefs.sound ? 'Silenciar alertas' : 'Activar sonido de alertas'}>
           {prefs.sound ? <IconSound /> : <IconMute />}

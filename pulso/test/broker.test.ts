@@ -230,6 +230,52 @@ describe('bróker de práctica', () => {
     expect(b.session.history[0]).toMatchObject({ status: 'canceled' });
   });
 
+  it('sin stop automático, el stop y el objetivo quedan como plan: sin órdenes, pero con la R del trade', () => {
+    const { b, m, marks, print } = setup();
+    b.place({ sym: 'RUN', side: 'buy', type: 'market', shares: 100, planStop: 2.9, planTarget: 3.2 }, 0, m, marks);
+    b.process(LAT, m, marks);
+    expect(b.orders()).toHaveLength(0);
+    expect(b.position('RUN')).toMatchObject({ planStop: 2.9, planTarget: 3.2, initialStop: 2.9 });
+    expect(b.position('RUN')!.stop).toBeUndefined();
+    // El precio pasa por el stop del plan y no pasa nada: la salida la hace el usuario.
+    print(2.85, 100, 'bid');
+    expect(b.process(LAT + 100, m, marks)).toHaveLength(0);
+    b.place({ sym: 'RUN', side: 'sell', type: 'market', shares: 100 }, LAT + 100, m, marks);
+    b.process(LAT * 2 + 100, m, marks);
+    const t = b.session.trades[0];
+    expect(t.exitReason).toBe('manual');
+    // Entró a 3,01 con el stop del plan en 2,90: 1R = 11 centavos por acción.
+    expect(t.risk).toBe(11);
+    expect(t.r).toBeCloseTo(t.net / 11, 2);
+  });
+
+  it('avisa cuando una orden queda en espera y cuando se cancela sola, pero no las cancelaciones del usuario ni las del OCO', () => {
+    const events: string[] = [];
+    const b = new Broker(session(1000), { ...DEFAULT_TRADING, latencyMs: 100 }, { onOrder: (kind, o) => events.push(`${kind}:${o.side}:${o.note ?? ''}`) }, () => ({ priorDayTrades: 0 }));
+    const { m, marks, print, setSession } = market(3.0, 3.01);
+    // Límite debajo del mercado: queda en espera.
+    b.place({ sym: 'RUN', side: 'buy', type: 'limit', price: 2.95, shares: 100 }, 0, m, marks);
+    b.process(LAT, m, marks);
+    expect(events).toEqual(['open:buy:']);
+    // La cancela el usuario: no hay aviso del bróker (lo da el controlador).
+    b.cancel(b.orders()[0].id, LAT);
+    expect(events).toHaveLength(1);
+    // Compra con stop y objetivo: el objetivo se ejecuta y el stop se cancela por OCO, sin aviso.
+    b.place({ sym: 'RUN', side: 'buy', type: 'market', shares: 100, stop: 2.9, target: 3.05 }, LAT, m, marks);
+    b.process(LAT * 2, m, marks);
+    print(3.06, 200, 'ask');
+    b.process(LAT * 2 + 100, m, marks);
+    expect(b.session.history.find((o) => o.role === 'stop')).toMatchObject({ status: 'canceled' });
+    expect(events).toHaveLength(1);
+    // Una orden DAY que vence al cierre sí avisa.
+    setSession('pre');
+    b.place({ sym: 'RUN', side: 'buy', type: 'limit', price: 2.5, shares: 10, tif: 'DAY' }, LAT * 3, m, marks);
+    b.process(LAT * 4, m, marks);
+    setSession('post');
+    b.process(LAT * 5, m, marks);
+    expect(events.slice(1)).toEqual(['open:buy:Espera la rueda regular (TIF DAY)', 'canceled:buy:Venció al cierre de la rueda (DAY)']);
+  });
+
   it('bloquea compras al llegar a la pérdida máxima del día', () => {
     const { b, m, marks, quote } = setup({ maxDailyLoss: 20 });
     b.place({ sym: 'RUN', side: 'buy', type: 'market', shares: 300 }, 0, m, marks);

@@ -1724,6 +1724,9 @@ a.news-headline:hover {
 .hot-other {
   background: var(--sell);
 }
+.oe-auto {
+  padding-top: 2px;
+}
 .oe-bracket {
   align-items: flex-end;
 }
@@ -3102,4 +3105,91 @@ legend {
   .mini-field input {
     width: 78px;
   }
+}
+
+/* Alertas con voz: botón en la ventana de Máximos del día y aviso para habilitar el audio. */
+.voice-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  padding: 2px 8px;
+}
+.voice-chip svg {
+  width: 13px;
+  height: 13px;
+}
+/* Flotante: no ocupa lugar en el encabezado, así al desaparecer con el primer toque nada se mueve. */
+.audio-hint {
+  position: fixed;
+  top: 52px;
+  right: 16px;
+  z-index: 40;
+  pointer-events: none;
+  font-size: 12px;
+  color: var(--warn);
+  background: var(--panel);
+  border: 1px solid color-mix(in srgb, var(--warn) 55%, transparent);
+  border-radius: 999px;
+  padding: 4px 11px;
+  white-space: nowrap;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  animation: audio-hint-pulse 1.6s ease-in-out infinite;
+}
+@keyframes audio-hint-pulse {
+  50% {
+    opacity: 0.55;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .audio-hint {
+    animation: none;
+  }
+}
+@media (max-width: 899px) {
+  .audio-hint {
+    display: none;
+  }
+}
+
+/* Resultado del día (pestaña Trades de hoy) y posiciones ya cerradas. */
+.day-total {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+}
+.day-total-label {
+  font-size: 12px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.day-total-value {
+  font: 700 22px/1.1 var(--font-data);
+  font-variant-numeric: tabular-nums;
+}
+.grid-table tr.is-flat td {
+  color: var(--muted);
+}
+.grid-table tr.is-flat td.t-up,
+.grid-table tr.is-flat td.t-down {
+  color: inherit;
+}
+.grid-table tr.is-flat td.t-up b {
+  color: var(--up);
+}
+.grid-table tr.is-flat td.t-down b {
+  color: var(--down);
+}
+.grid-table tfoot td {
+  font-weight: 700;
+  border-top: 1px solid var(--line);
+}
+.account-chip-day {
+  font-size: 11px;
+  color: var(--muted);
+  margin-left: 2px;
 }
