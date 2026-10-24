@@ -1,0 +1,36 @@
+{
+  "name": "pulso-momentum-scanner",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Pulso: escáner de momentum en tiempo real para acciones de EE.UU. (small caps, estilo 5 pilares)",
+  "type": "module",
+  "engines": {
+    "node": ">=20.12"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "build:demo": "vite build --mode demo && node scripts/inline-build.mjs dist-demo",
+    "start": "vite build && tsx server/index.ts",
+    "server": "tsx server/index.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "lightweight-charts": "5.2.1",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "tsx": "^4.23.15",
+    "ws": "^8.22.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
+    "@types/ws": "^8.18.2",
+    "@vitejs/plugin-react": "^6.1.2",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5",
+    "vitest": "^5.0.5"
+  }
+}

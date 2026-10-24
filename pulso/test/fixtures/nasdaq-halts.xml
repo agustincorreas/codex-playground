@@ -1,0 +1,87 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:ndaq="http://www.nasdaqtrader.com/">
+  <channel>
+    <title>NASDAQTrader.com</title>
+    <link>http://www.nasdaqtrader.com</link>
+    <description>NASDAQ Trade Halts</description>
+    <copyright>Copyright 2026. All rights reserved.</copyright>
+    <pubDate>Sat, 24 Oct 2026 03:36:51 GMT</pubDate>
+    <ttl>1</ttl>
+    <ndaq:numItems>89</ndaq:numItems>
+    <item>
+      <title>PASW</title>
+      <pubDate>Fri, 23 Oct 2026 04:00:00 GMT</pubDate>
+      <ndaq:HaltDate>10/23/2026</ndaq:HaltDate>
+      <ndaq:HaltTime>15:59:32.226</ndaq:HaltTime>
+      <ndaq:IssueSymbol>PASW</ndaq:IssueSymbol>
+      <ndaq:IssueName>Ping An Biomedical Co Cl A Ord</ndaq:IssueName>
+      <ndaq:Market>NASDAQ</ndaq:Market>
+      <ndaq:ReasonCode>LUDP</ndaq:ReasonCode>
+      <ndaq:PauseThresholdPrice />
+      <ndaq:ResumptionDate>10/23/2026</ndaq:ResumptionDate>
+      <ndaq:ResumptionQuoteTime>15:59:32</ndaq:ResumptionQuoteTime>
+      <ndaq:ResumptionTradeTime>16:00:00</ndaq:ResumptionTradeTime>
+      <description><![CDATA[...]]></description>
+    </item>
+<item>
+      <title>ITOC</title>
+      <pubDate>Fri, 23 Oct 2026 04:00:00 GMT</pubDate>
+      <ndaq:HaltDate>10/23/2026</ndaq:HaltDate>
+      <ndaq:HaltTime>15:44:54.566</ndaq:HaltTime>
+      <ndaq:IssueSymbol>ITOC</ndaq:IssueSymbol>
+      <ndaq:IssueName>iTonic Holdings Ltd Cl A Ord</ndaq:IssueName>
+      <ndaq:Market>NASDAQ</ndaq:Market>
+      <ndaq:ReasonCode>LUDP</ndaq:ReasonCode>
+      <ndaq:PauseThresholdPrice />
+      <ndaq:ResumptionDate>10/23/2026</ndaq:ResumptionDate>
+      <ndaq:ResumptionQuoteTime>15:44:54</ndaq:ResumptionQuoteTime>
+      <ndaq:ResumptionTradeTime>15:49:54</ndaq:ResumptionTradeTime>
+      <description><![CDATA[...]]></description>
+    </item>
+<item>
+      <title>TWG</title>
+      <pubDate>Fri, 23 Oct 2026 04:00:00 GMT</pubDate>
+      <ndaq:HaltDate>10/23/2026</ndaq:HaltDate>
+      <ndaq:HaltTime>19:50:00.000</ndaq:HaltTime>
+      <ndaq:IssueSymbol>TWG</ndaq:IssueSymbol>
+      <ndaq:IssueName>Top Wlth Grp Hldg Ord A</ndaq:IssueName>
+      <ndaq:Market>NASDAQ</ndaq:Market>
+      <ndaq:ReasonCode>T1</ndaq:ReasonCode>
+      <ndaq:PauseThresholdPrice />
+      <ndaq:ResumptionDate />
+      <ndaq:ResumptionQuoteTime />
+      <ndaq:ResumptionTradeTime />
+      <description><![CDATA[...]]></description>
+    </item>
+<item>
+      <title>AHT-F</title>
+      <pubDate>Fri, 23 Oct 2026 04:00:00 GMT</pubDate>
+      <ndaq:HaltDate>10/23/2026</ndaq:HaltDate>
+      <ndaq:HaltTime>12:22:20.430</ndaq:HaltTime>
+      <ndaq:IssueSymbol>AHT-F</ndaq:IssueSymbol>
+      <ndaq:IssueName />
+      <ndaq:Market>NYSE</ndaq:Market>
+      <ndaq:ReasonCode>M</ndaq:ReasonCode>
+      <ndaq:PauseThresholdPrice />
+      <ndaq:ResumptionDate>10/23/2026</ndaq:ResumptionDate>
+      <ndaq:ResumptionQuoteTime>12:27:20</ndaq:ResumptionQuoteTime>
+      <ndaq:ResumptionTradeTime>12:27:20</ndaq:ResumptionTradeTime>
+      <description><![CDATA[...]]></description>
+    </item>
+<item>
+      <title>SVA</title>
+      <pubDate>Fri, 22 Feb 2019 05:00:00 GMT</pubDate>
+      <ndaq:HaltDate>02/22/2019</ndaq:HaltDate>
+      <ndaq:HaltTime>16:02:01</ndaq:HaltTime>
+      <ndaq:IssueSymbol>SVA</ndaq:IssueSymbol>
+      <ndaq:IssueName>Sinovac Biotech, Ltd Ord Shrs</ndaq:IssueName>
+      <ndaq:Market>NASDAQ</ndaq:Market>
+      <ndaq:ReasonCode>T12</ndaq:ReasonCode>
+      <ndaq:PauseThresholdPrice />
+      <ndaq:ResumptionDate />
+      <ndaq:ResumptionQuoteTime />
+      <ndaq:ResumptionTradeTime />
+      <description><![CDATA[...]]></description>
+    </item>
+  </channel>
+</rss>
