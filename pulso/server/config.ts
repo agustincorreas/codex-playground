@@ -1,0 +1,106 @@
+// Configuración por variables de entorno (archivo pulso/.env; ver .env.example).
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
+import { log, ROOT } from './util';
+
+export type ProviderName = 'demo' | 'alpaca' | 'massive';
+export type MassivePlan = 'basic' | 'starter' | 'developer' | 'advanced';
+
+export interface Config {
+  provider: ProviderName;
+  port: number;
+  host: string;
+  universeMin: number;
+  universeMax: number;
+  haltsRss: boolean;
+  secUserAgent?: string;
+  fmpKey?: string;
+  floatCsv: string;
+  alpaca: {
+    keyId?: string;
+    secret?: string;
+    feed: 'sip' | 'iex' | 'delayed_sip';
+    tradingUrl: string;
+    dataUrl: string;
+    streamUrl: string;
+    newsStreamUrl: string;
+    hotLimit: number;
+  };
+  massive: {
+    key?: string;
+    plan: MassivePlan;
+    restUrl: string;
+    socketUrl: string;
+  };
+}
+
+function env(name: string): string | undefined {
+  const v = process.env[name]?.trim();
+  return v ? v : undefined;
+}
+
+function num(name: string, fallback: number): number {
+  const v = Number(env(name));
+  return Number.isFinite(v) && env(name) !== undefined ? v : fallback;
+}
+
+export function loadConfig(): Config {
+  const envFile = join(ROOT, '.env');
+  if (existsSync(envFile)) {
+    try {
+      process.loadEnvFile(envFile);
+    } catch (e) {
+      log('warn', `No se pudo leer .env: ${(e as Error).message}`);
+    }
+  }
+
+  const alpacaKey = env('ALPACA_KEY_ID') ?? env('APCA_API_KEY_ID');
+  const alpacaSecret = env('ALPACA_SECRET_KEY') ?? env('APCA_API_SECRET_KEY');
+  const massiveKey = env('MASSIVE_API_KEY') ?? env('POLYGON_API_KEY');
+  const massivePlan = (env('MASSIVE_PLAN') ?? 'advanced').toLowerCase() as MassivePlan;
+  const feed = (env('ALPACA_FEED') ?? 'iex').toLowerCase() as Config['alpaca']['feed'];
+
+  let provider = (env('DATA_PROVIDER') ?? 'auto').toLowerCase() as ProviderName | 'auto';
+  if (provider === 'auto') {
+    if (alpacaKey && alpacaSecret) provider = 'alpaca';
+    else if (massiveKey && massivePlan !== 'basic') provider = 'massive';
+    else provider = 'demo';
+  }
+  if (provider === 'alpaca' && !(alpacaKey && alpacaSecret)) {
+    log('warn', 'DATA_PROVIDER=alpaca pero faltan ALPACA_KEY_ID / ALPACA_SECRET_KEY: uso el modo demo.');
+    provider = 'demo';
+  }
+  if (provider === 'massive' && !massiveKey) {
+    log('warn', 'DATA_PROVIDER=massive pero falta MASSIVE_API_KEY: uso el modo demo.');
+    provider = 'demo';
+  }
+
+  const realtimeMassive = massivePlan === 'advanced';
+  return {
+    provider,
+    port: num('PORT', 8787),
+    host: env('HOST') ?? '127.0.0.1',
+    universeMin: num('UNIVERSE_MIN_PRICE', 0.2),
+    universeMax: num('UNIVERSE_MAX_PRICE', 60),
+    haltsRss: env('HALTS_RSS') !== 'false',
+    secUserAgent: env('SEC_USER_AGENT'),
+    fmpKey: env('FMP_API_KEY'),
+    floatCsv: env('FLOAT_CSV') ?? join(ROOT, 'data', 'float.csv'),
+    alpaca: {
+      keyId: alpacaKey,
+      secret: alpacaSecret,
+      feed: ['sip', 'iex', 'delayed_sip'].includes(feed) ? feed : 'iex',
+      tradingUrl: env('ALPACA_TRADING_URL') ?? 'https://paper-api.alpaca.markets',
+      dataUrl: env('ALPACA_DATA_URL') ?? 'https://data.alpaca.markets',
+      streamUrl: env('ALPACA_STREAM_URL') ?? `wss://stream.data.alpaca.markets/v2/${['sip', 'iex', 'delayed_sip'].includes(feed) ? feed : 'iex'}`,
+      newsStreamUrl: env('ALPACA_NEWS_URL') ?? 'wss://stream.data.alpaca.markets/v1beta1/news',
+      hotLimit: num('ALPACA_HOT_SYMBOLS', feed === 'iex' ? 25 : 400),
+    },
+    massive: {
+      key: massiveKey,
+      plan: ['basic', 'starter', 'developer', 'advanced'].includes(massivePlan) ? massivePlan : 'advanced',
+      restUrl: env('MASSIVE_REST_URL') ?? 'https://api.massive.com',
+      socketUrl: env('MASSIVE_SOCKET_URL') ?? (realtimeMassive ? 'wss://socket.massive.com/stocks' : 'wss://delayed.massive.com/stocks'),
+    },
+  };
+}
