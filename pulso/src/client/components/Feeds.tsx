@@ -51,7 +51,7 @@ export function MomentumFeed({
             <th>Hora</th>
             <th>Símbolo</th>
             <th className="num">Precio</th>
-            <th className="num" title="Volumen del día">Vol.</th>
+            <th className="num dtd-vol" title="Volumen del día">Vol.</th>
             <th className="num">Float</th>
             <th className="num" title="Volumen relativo del día, ajustado por horario">RVOL</th>
             <th className="num">%</th>

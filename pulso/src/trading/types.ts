@@ -302,6 +302,11 @@ export interface TrainingState {
   settings: TradingSettings;
   /** Efectivo de la cuenta entre sesiones. */
   balance: number;
+  /**
+   * Plata puesta en la cuenta: el saldo inicial más los cambios de saldo (depósitos y retiros). El
+   * resultado total es el equity menos esto. Sin el dato, el saldo inicial de los ajustes.
+   */
+  capital?: number;
   /** Último día de práctica empezado (crece de a uno con cada día nuevo). */
   dayIndex: number;
   /** Day trades de los días anteriores: el número de día de cada uno (para la regla PDT). */

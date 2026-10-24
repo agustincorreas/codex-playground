@@ -25,7 +25,7 @@ interface Level {
 
 export const VENUES = ['NSDQ', 'ARCA', 'EDGX', 'BATS', 'MEMX', 'EPRL', 'NYSE', 'EDGA', 'BATY', 'IEX', 'AMEX', '24X'];
 /** Niveles de precio por lado. */
-const DEPTH = 12;
+const DEPTH = 20;
 /** Cuánto tarda el mercado en reponer la liquidez que tomó una orden propia. */
 const REFILL_MS = 6000;
 

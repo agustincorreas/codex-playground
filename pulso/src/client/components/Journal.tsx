@@ -240,7 +240,7 @@ export function Journal({ c, onClose, onSelect, onSettings }: { c: TrainingContr
   const daysInScope = new Set(trades.map((t) => t.sessionId)).size || 1;
   const sorted = [...trades].sort((x, y) => y.closedAt - x.closedAt);
   const startForCurve =
-    scope === 'today' && a ? a.startCash : scope === 'today' && c.lastEnded ? c.lastEnded.startCash : (sessions.find((x) => x.id === scope)?.startCash ?? c.state.settings.startingBalance);
+    scope === 'today' && a ? a.startCash : scope === 'today' && c.lastEnded ? c.lastEnded.startCash : (sessions.find((x) => x.id === scope)?.startCash ?? c.capital);
   const sum = c.summary();
   const rows = breakdown(trades, dim);
 
@@ -268,8 +268,8 @@ export function Journal({ c, onClose, onSelect, onSettings }: { c: TrainingContr
         </div>
         <div className="big-stat">
           <span className="stat-label">Resultado total</span>
-          <span className={`big ${sum.equity - c.state.settings.startingBalance >= 0 ? 't-up' : 't-down'}`}>{money(sum.equity - c.state.settings.startingBalance)}</span>
-          <span className="t-muted">desde {fmtMoney(c.state.settings.startingBalance)}</span>
+          <span className={`big ${sum.equity - c.capital >= 0 ? 't-up' : 't-down'}`}>{money(sum.equity - c.capital)}</span>
+          <span className="t-muted">sobre {fmtMoney(c.capital)} puestos en la cuenta</span>
         </div>
         <div className="journal-actions">
           {a ? (

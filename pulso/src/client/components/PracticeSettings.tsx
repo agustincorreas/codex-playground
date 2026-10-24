@@ -3,6 +3,7 @@
 // atajos de teclado configurables (con botón rápido en el ticket).
 import { useEffect, useState } from 'react';
 import { fmtMoney } from '../../trading/broker';
+import { BalanceEditor } from './Account';
 import { DEFAULT_HOTKEYS, type Hotkey, type HotkeyAction, type Tif, type TradingSettings } from '../../trading/types';
 import { playOrder } from '../lib/audio';
 import { fromEvent, hotkeyLabel, reserved } from '../lib/hotkeys';
@@ -195,6 +196,10 @@ export function PracticeSettings({ c, onClose, initial = 'cuenta' }: { c: Traini
           {section === 'cuenta' && (
             <div className="settings-grid">
               <section className="card">
+                <h3>Saldo de la cuenta: {fmtMoney(c.summary().equity)}</h3>
+                <BalanceEditor c={c} />
+              </section>
+              <section className="card">
                 <h3>Ajustar o reiniciar la cuenta</h3>
                 <label className="field">
                   <span className="field-label">Tipo de cuenta</span>
@@ -203,7 +208,7 @@ export function PracticeSettings({ c, onClose, initial = 'cuenta' }: { c: Traini
                     <option value="margin">Margen: apalancamiento, con la regla PDT por debajo de US$ 25.000</option>
                   </select>
                 </label>
-                {field('startingBalance', 'Efectivo inicial (US$)', '100', 'Se aplica al reiniciar la cuenta')}
+                {field('startingBalance', 'Saldo al reiniciar (US$)', '100', 'Con cuánto arranca la cuenta si la reiniciás')}
                 {s.account === 'margin' ? (
                   <>
                     <label className="field">

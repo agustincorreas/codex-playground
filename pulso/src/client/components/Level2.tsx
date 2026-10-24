@@ -1,7 +1,7 @@
 // Ventana "Nivel 2 y órdenes", como la del simulador de Warrior Trading y el montage de DAS: el libro
 // por venues con un color por nivel de precio, la cinta (Time & Sales) y el ticket de órdenes con
 // botones rápidos. Tus órdenes que esperan aparecen en el libro con la ruta que elegiste.
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { fmtVolume } from '../../engine/alerts';
 import { formatCountdown, formatEtTime } from '../../engine/time';
 import type { Quote, SymbolDetail, TapePrint } from '../../engine/types';
@@ -153,7 +153,23 @@ export function Level2({ c, source, detail, quote, now, ticket, setTicket, onSym
   const bids = book ? book.view('bid', own('buy')) : NO_ROWS;
   const asks = book ? book.view('ask', own('sell')) : NO_ROWS;
   const tape: TapePrint[] = sym && source ? source.printsSince(sym, 0).slice(-120).reverse() : [];
-  const rowsMax = compact ? 8 : 14;
+  // El libro muestra tantos niveles como entren en la ventana (más en una pantalla grande).
+  const bookRef = useRef<HTMLDivElement>(null);
+  const [bookRows, setBookRows] = useState(14);
+  useEffect(() => {
+    const el = bookRef.current;
+    if (!el || compact) return;
+    const fit = () => {
+      const row = el.querySelector('tbody tr')?.getBoundingClientRect().height || 21;
+      const head = el.querySelector('thead')?.getBoundingClientRect().height || 24;
+      setBookRows(Math.max(6, Math.min(60, Math.floor((el.clientHeight - head) / row))));
+    };
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [compact]);
+  const rowsMax = compact ? 8 : bookRows;
 
   const settings = c.state.settings;
   const bp = c.broker ? c.broker.buyingPower(c.marks) : 0;
@@ -257,7 +273,7 @@ export function Level2({ c, source, detail, quote, now, ticket, setTicket, onSym
       </div>
 
       <div className="l2-grid">
-        <div className="l2-book">
+        <div className="l2-book" ref={bookRef}>
           {halted ? (
             <div className="l2-halt">
               <b>HALT</b> {detail?.halt?.reasonText ?? 'Pausa por volatilidad (LULD)'}

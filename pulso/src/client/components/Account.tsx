@@ -2,6 +2,7 @@
 // de compra disponible y usado), actividad de órdenes y valor de la cuenta.
 import { useState } from 'react';
 import { formatEtTime } from '../../engine/time';
+import { parseMoney } from '../lib/format';
 import { fmtMoney, fmtPx, STATUS_LABEL } from '../../trading/broker';
 import type { Order, Trade } from '../../trading/types';
 import type { TrainingController } from '../training';
@@ -316,6 +317,69 @@ export function TradeActivity({ c, onSelect }: { c: TrainingController; onSelect
   );
 }
 
+const PRESETS = [1000, 5000, 10000, 25000, 50000];
+
+/**
+ * Cambiar el saldo de la cuenta cuando quieras, como un depósito o un retiro: no cuenta como ganancia
+ * ni como pérdida. `compact`: un link que se despliega (en la ventana Cuenta).
+ */
+export function BalanceEditor({ c, compact }: { c: TrainingController; compact?: boolean }) {
+  const [open, setOpen] = useState(!compact);
+  const [value, setValue] = useState('');
+  const s = c.summary();
+  const hasPositions = (c.active?.positions.length ?? 0) > 0;
+  const target = parseMoney(value);
+  const apply = (v: number) => {
+    if (!c.setBalance(v).ok) return;
+    setValue('');
+    if (compact) setOpen(false);
+  };
+  if (!open) {
+    return (
+      <button className="link" onClick={() => setOpen(true)}>
+        Cambiar saldo
+      </button>
+    );
+  }
+  return (
+    <div className="balance-editor">
+      <div className="be-row">
+        <label className="be-field">
+          <span className="field-label">Nuevo saldo (US$)</span>
+          <input
+            id={compact ? 'balance-input-compact' : 'balance-input'}
+            inputMode="decimal"
+            value={value}
+            placeholder={fmtMoney(s.equity).replace('$', '')}
+            onChange={(e) => setValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && target) apply(target);
+              if (e.key === 'Escape' && compact) setOpen(false);
+            }}
+            disabled={hasPositions}
+          />
+        </label>
+        <button className="btn primary" disabled={!target || hasPositions} onClick={() => target && apply(target)}>
+          Aplicar
+        </button>
+        {compact && (
+          <button className="btn" onClick={() => setOpen(false)}>
+            Cancelar
+          </button>
+        )}
+      </div>
+      <div className="be-presets" role="group" aria-label="Saldos rápidos">
+        {PRESETS.map((v) => (
+          <button key={v} className="chip" onClick={() => apply(v)} disabled={hasPositions}>
+            {fmtMoney(v).replace('.00', '')}
+          </button>
+        ))}
+      </div>
+      <p className="field-hint">{hasPositions ? 'Cerrá tus posiciones para cambiar el saldo.' : 'Es como depositar o retirar plata: tus estadísticas no lo cuentan como ganancia ni como pérdida.'}</p>
+    </div>
+  );
+}
+
 export function AccountValue({ c, onSettings }: { c: TrainingController; onSettings: () => void }) {
   const s = c.summary();
   const settings = c.state.settings;
@@ -345,6 +409,9 @@ export function AccountValue({ c, onSettings }: { c: TrainingController; onSetti
       <div className="av-equity">
         <span>Equity</span>
         <b>{fmtMoney(s.equity)}</b>
+      </div>
+      <div className="av-balance">
+        <BalanceEditor c={c} compact />
       </div>
       <dl className="av-list">
         <div>

@@ -36,6 +36,10 @@ export default defineConfig(({ mode }) => {
             external: ['react', 'react-dom', 'react-dom/client', 'lightweight-charts'],
             output: {
               format: 'iife',
+              // Las dependencias en CommonJS (react-grid-layout, react-draggable, react-resizable) piden
+              // React con require(): en la página única React llega como global desde el CDN.
+              intro:
+                'var require = function (n) { if (n === "react") return React; if (n === "react-dom" || n === "react-dom/client") return ReactDOM; throw new Error("Módulo no disponible: " + n); };',
               globals: {
                 react: 'React',
                 'react-dom': 'ReactDOM',

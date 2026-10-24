@@ -5,7 +5,7 @@ import { DEFAULT_SETTINGS } from '../../engine/types';
 import { formatCountdown, formatEtClock, nextSessionChange, SESSION_LABEL } from '../../engine/time';
 import { ALERT_META } from '../lib/alertMeta';
 import { fmtMoney } from '../../trading/broker';
-import { IconBolt, IconBook, IconChart, IconClose, IconGear, IconMoon, IconMute, IconNews, IconPulse, IconPause, IconScan, IconSearch, IconSound, IconSun, IconVoice } from './Icons';
+import { IconBolt, IconBook, IconChart, IconClose, IconGear, IconLayout, IconMoon, IconMute, IconNews, IconPulse, IconPause, IconScan, IconSearch, IconSound, IconSun, IconVoice } from './Icons';
 
 export interface Prefs {
   sound: boolean;
@@ -38,9 +38,12 @@ interface HeaderProps {
   onJournal: () => void;
   /** El navegador todavía no dejó reproducir audio (hace falta un toque). */
   audioLocked?: boolean;
+  /** Reacomodar ventanas (solo escritorio): estado y botón. */
+  layoutEditing?: boolean;
+  onLayout?: () => void;
 }
 
-export function Header({ now, session, status, speed, onSpeed, prefs, onPrefs, onSettings, onSearch, search, effectiveTheme, canSpeed, account, onJournal, audioLocked }: HeaderProps) {
+export function Header({ now, session, status, speed, onSpeed, prefs, onPrefs, onSettings, onSearch, search, effectiveTheme, canSpeed, account, onJournal, audioLocked, layoutEditing, onLayout }: HeaderProps) {
   const [q, setQ] = useState('');
   const [suggest, setSuggest] = useState<string[]>([]);
   const next = now ? nextSessionChange(now) : null;
@@ -143,6 +146,11 @@ export function Header({ now, session, status, speed, onSpeed, prefs, onPrefs, o
         <button className={`icon-btn ${prefs.voice ? 'is-on' : ''}`} onClick={() => onPrefs({ voice: !prefs.voice })} aria-pressed={prefs.voice} title={prefs.voice ? 'Apagar voz' : 'Leer las alertas en voz alta'}>
           <IconVoice />
         </button>
+        {layoutEditing !== undefined && onLayout && (
+          <button className={`icon-btn ${layoutEditing ? 'is-on' : ''}`} onClick={onLayout} aria-pressed={layoutEditing} title={layoutEditing ? 'Terminar de reacomodar las ventanas' : 'Reacomodar ventanas: moverlas y cambiarles el tamaño'}>
+            <IconLayout />
+          </button>
+        )}
         <button className="icon-btn" onClick={() => onPrefs({ theme: effectiveTheme === 'dark' ? 'light' : 'dark' })} title="Cambiar tema claro / oscuro">
           {effectiveTheme === 'dark' ? <IconSun /> : <IconMoon />}
         </button>

@@ -459,10 +459,47 @@ export class TrainingController {
     this.emit();
   }
 
+  /** Plata puesta en la cuenta (saldo inicial más depósitos y retiros): base del resultado total. */
+  get capital(): number {
+    return this.state.capital ?? this.state.settings.startingBalance;
+  }
+
+  /**
+   * Cambia el saldo de la cuenta a `target`, como un depósito o un retiro: el resultado del día, el
+   * total y las estadísticas no lo cuentan como ganancia ni como pérdida. Con posiciones abiertas no
+   * se puede (el saldo quedaría mezclado con acciones).
+   */
+  setBalance(target: number): BrokerResult {
+    const fail = (message: string) => this.reject({ ok: false, message, fills: [] });
+    target = money(target);
+    if (!Number.isFinite(target) || target < 1) return fail('Elegí un saldo de al menos US$ 1.');
+    if (target > 10_000_000) return fail('El saldo máximo es US$ 10.000.000.');
+    const a = this.state.active;
+    if (a?.positions.length) return fail('Cerrá tus posiciones antes de cambiar el saldo.');
+    const current = a ? a.cash : this.state.balance;
+    const delta = money(target - current);
+    if (delta === 0) return { ok: true, message: 'El saldo ya es ese.', fills: [] };
+    if (a) {
+      a.cash = target;
+      a.startCash = money(a.startCash + delta);
+      // La plata nueva queda toda disponible (lo vendido hoy deja de esperar la liquidación).
+      a.unsettled = 0;
+    }
+    this.state.balance = target;
+    this.state.capital = money(this.capital + delta);
+    this.touched = true;
+    this.persistNow();
+    const message = `Saldo cambiado a ${fmtMoney(target)}: ${delta > 0 ? 'depositaste' : 'retiraste'} ${fmtMoney(Math.abs(delta))}. No cuenta como ganancia ni como pérdida.`;
+    this.notify(message, 'ok');
+    this.emit();
+    return { ok: true, message, fills: [] };
+  }
+
   resetAccount(clearHistory: boolean): void {
     this.state.active = undefined;
     this.broker = null;
     this.state.balance = this.state.settings.startingBalance;
+    this.state.capital = this.state.settings.startingBalance;
     this.state.dayTrades = [];
     if (clearHistory) {
       this.sessions = [];

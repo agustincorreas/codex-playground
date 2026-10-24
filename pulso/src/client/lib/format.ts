@@ -43,3 +43,25 @@ export function timeAgo(ts: number, now: number): string {
   if (h < 48) return `hace ${h} h`;
   return `hace ${Math.round(h / 24)} d`;
 }
+
+/**
+ * Lee un monto escrito a mano: "5000", "5.000", "25,000", "1.500,50" o "1,500.50". Con un solo
+ * separador seguido de grupos de 3 cifras, es de miles; si no, es el decimal.
+ */
+export function parseMoney(raw: string): number | undefined {
+  const t = raw.replace(/[^\d.,]/g, '');
+  if (!t) return undefined;
+  const lastDot = t.lastIndexOf('.');
+  const lastComma = t.lastIndexOf(',');
+  let norm: string;
+  if (lastDot >= 0 && lastComma >= 0) {
+    const dec = lastDot > lastComma ? '.' : ',';
+    norm = t
+      .split(dec === '.' ? ',' : '.')
+      .join('')
+      .replace(dec, '.');
+  } else if (/^\d{1,3}([.,]\d{3})+$/.test(t)) norm = t.replace(/[.,]/g, '');
+  else norm = t.replace(',', '.');
+  const v = Number(norm);
+  return Number.isFinite(v) && v > 0 ? v : undefined;
+}
