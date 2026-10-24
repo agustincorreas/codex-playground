@@ -4,7 +4,8 @@ import type { AlertType, ProviderStatus, Session, Settings } from '../../engine/
 import { DEFAULT_SETTINGS } from '../../engine/types';
 import { formatCountdown, formatEtClock, nextSessionChange, SESSION_LABEL } from '../../engine/time';
 import { ALERT_META } from '../lib/alertMeta';
-import { IconBolt, IconChart, IconClose, IconGear, IconMoon, IconMute, IconNews, IconPause, IconPulse, IconScan, IconSearch, IconSound, IconSun, IconVoice } from './Icons';
+import { fmtMoney } from '../../trading/broker';
+import { IconBolt, IconBook, IconChart, IconClose, IconGear, IconMoon, IconMute, IconNews, IconPulse, IconPause, IconScan, IconSearch, IconSound, IconSun, IconVoice } from './Icons';
 
 export interface Prefs {
   sound: boolean;
@@ -30,9 +31,12 @@ interface HeaderProps {
   effectiveTheme: 'dark' | 'light';
   /** Solo el simulador local acepta cambiar la velocidad. */
   canSpeed: boolean;
+  /** Cuenta de práctica (equity y resultado del día). */
+  account: { equity: number; dayPnl: number } | null;
+  onJournal: () => void;
 }
 
-export function Header({ now, session, status, speed, onSpeed, prefs, onPrefs, onSettings, onSearch, search, effectiveTheme, canSpeed }: HeaderProps) {
+export function Header({ now, session, status, speed, onSpeed, prefs, onPrefs, onSettings, onSearch, search, effectiveTheme, canSpeed, account, onJournal }: HeaderProps) {
   const [q, setQ] = useState('');
   const [suggest, setSuggest] = useState<string[]>([]);
   const next = now ? nextSessionChange(now) : null;
@@ -79,6 +83,17 @@ export function Header({ now, session, status, speed, onSpeed, prefs, onPrefs, o
           </span>
         )}
       </div>
+
+      {account && (
+        <button className="account-chip" onClick={onJournal} title="Cuenta de práctica: abrir el diario de trading">
+          <IconBook />
+          <span className="mono">{fmtMoney(account.equity)}</span>
+          <span className={`mono ${account.dayPnl > 0 ? 't-up' : account.dayPnl < 0 ? 't-down' : 't-muted'}`}>
+            {account.dayPnl > 0 ? '+' : ''}
+            {fmtMoney(account.dayPnl)}
+          </span>
+        </button>
+      )}
 
       <form
         className="search"
@@ -284,15 +299,15 @@ export function SettingsModal({ settings, prefs, onSave, onClose }: SettingsProp
   );
 }
 
-export type MobileTab = 'scan' | 'momo' | 'chart' | 'halts' | 'news';
+export type MobileTab = 'scan' | 'momo' | 'chart' | 'news' | 'diario';
 
 export function MobileTabs({ tab, onTab, haltCount }: { tab: MobileTab; onTab: (t: MobileTab) => void; haltCount: number }) {
   const items: Array<{ id: MobileTab; label: string; icon: ReactNode }> = [
     { id: 'scan', label: 'Escáner', icon: <IconScan /> },
     { id: 'momo', label: 'Alertas', icon: <IconBolt /> },
-    { id: 'chart', label: 'Gráfico', icon: <IconChart /> },
-    { id: 'halts', label: 'Halts', icon: <IconPause /> },
+    { id: 'chart', label: 'Operar', icon: <IconChart /> },
     { id: 'news', label: 'Noticias', icon: <IconNews /> },
+    { id: 'diario', label: 'Diario', icon: <IconBook size={20} /> },
   ];
   return (
     <nav className="mobile-tabs" aria-label="Secciones">
@@ -300,7 +315,7 @@ export function MobileTabs({ tab, onTab, haltCount }: { tab: MobileTab; onTab: (
         <button key={i.id} className={tab === i.id ? 'is-active' : ''} onClick={() => onTab(i.id)} aria-current={tab === i.id ? 'page' : undefined}>
           {i.icon}
           <span>{i.label}</span>
-          {i.id === 'halts' && haltCount > 0 && <em className="dot-count">{haltCount}</em>}
+          {i.id === 'momo' && haltCount > 0 && <em className="dot-count">{haltCount}</em>}
         </button>
       ))}
     </nav>

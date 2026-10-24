@@ -278,6 +278,8 @@ wss.on('connection', (ws) => {
     } else if (msg.t === 'settings' && msg.settings) {
       settings = msg.settings;
       engine.setSettings(msg.settings);
+    } else if (msg.t === 'tracked' && Array.isArray(msg.syms)) {
+      engine.setTracked(msg.syms.map((x) => String(x).toUpperCase()).slice(0, 100));
     } else if (msg.t === 'watchlist' && Array.isArray(msg.syms)) {
       watch = msg.syms.map((s) => String(s).toUpperCase()).slice(0, 200);
       engine.setWatchlist(watch);

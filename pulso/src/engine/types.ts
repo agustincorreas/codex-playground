@@ -181,6 +181,9 @@ export interface ScanRow {
   halted: boolean;
   score: number;
   pillars: Pillars;
+  /** Punta compradora / vendedora estimadas (spread sintético según precio y volatilidad). */
+  bid: number;
+  ask: number;
   ticks: number;
   flags?: string[];
   lastTs: number;
@@ -209,6 +212,8 @@ export interface ViewModel {
   session: Session;
   scanners: Record<ScannerId, ScanRow[]>;
   watch: ScanRow[];
+  /** Filas de los símbolos con posición u órdenes abiertas (para el bróker de práctica). */
+  tracked: ScanRow[];
   hodBoard: ScanRow[];
   halts: HaltRow[];
   stats: { tracked: number; active: number; eventsPerSec: number };
@@ -224,11 +229,25 @@ export interface SetupHealth {
   nextLevel: number;
 }
 
+/** Cotización para simular órdenes. */
+export interface Quote {
+  sym: string;
+  last: number;
+  bid: number;
+  ask: number;
+  ts: number;
+  halted: boolean;
+  /** Volumen típico por minuto (promedio de las últimas velas): mide la liquidez. */
+  volPerMin: number;
+}
+
 export interface SymbolDetail {
   sym: string;
   ref: ReferenceData;
   row: ScanRow;
   bars: Bar[];
+  /** Velas de 10 segundos (para los gráficos de 10 s y 30 s). */
+  secBars: Bar[];
   open: number;
   pmHigh: number;
   lod: number;

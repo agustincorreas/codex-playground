@@ -30,6 +30,28 @@ describe('simulador + motor', () => {
     expect(live.every((a) => !a.warmup)).toBe(true);
   });
 
+  it('con la misma semilla reanuda el mismo mercado aunque avance en tramos distintos', () => {
+    const opts = { seed: 7, dayTs: Date.parse('2026-10-23T15:00:00Z'), startMinutes: 9 * 60 + 25 };
+    const run = (chunks: number[]) => {
+      const engine = new Engine({ allSecBars: true });
+      const sim = new MarketSim((ev) => engine.ingest(ev), opts);
+      engine.setReference(sim.refs);
+      sim.warmup();
+      for (const ms of chunks) {
+        sim.advance(ms);
+        engine.tick(sim.now);
+      }
+      const top = engine.view().scanners.gappers.slice(0, 5);
+      return { now: sim.now, top: top.map((r) => [r.sym, r.price, r.volume]) };
+    };
+    // En vivo: pasos chicos e irregulares (el reloj real); al reanudar: tramos de 5 minutos.
+    const live = run(Array.from({ length: 2400 }, (_, i) => (i % 3 === 0 ? 70 : 115) * 5));
+    const total = live.now - run([]).now;
+    const resumed = run([5 * 60_000, 5 * 60_000, total - 10 * 60_000]);
+    expect(resumed.now).toBe(live.now);
+    expect(resumed.top).toEqual(live.top);
+  });
+
   it('usa el último día hábil (un sábado simula el viernes)', () => {
     expect(lastTradingDay(Date.parse('2026-10-24T15:00:00Z'))).toEqual({ y: 2026, mo: 10, d: 23 });
   });

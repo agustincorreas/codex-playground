@@ -84,3 +84,22 @@ export function speak(alert: Alert, lang: 'es' | 'en'): void {
     // Sin síntesis de voz disponible.
   }
 }
+
+/** Sonido de ejecución de una orden de práctica: compra, venta con ganancia o con pérdida. */
+export function playFill(kind: 'buy' | 'win' | 'loss' | 'sell'): void {
+  if (!ctx || ctx.state !== 'running') return;
+  const t = ctx.currentTime;
+  if (kind === 'buy') {
+    tone(523, t, 0.07, 'triangle', 0.06);
+    tone(659, t + 0.07, 0.1, 'triangle', 0.06);
+  } else if (kind === 'win') {
+    tone(659, t, 0.08, 'sine');
+    tone(784, t + 0.08, 0.08, 'sine');
+    tone(1047, t + 0.16, 0.16, 'sine');
+  } else if (kind === 'loss') {
+    tone(392, t, 0.12, 'sawtooth', 0.04);
+    tone(294, t + 0.13, 0.2, 'sawtooth', 0.04);
+  } else {
+    tone(587, t, 0.1, 'triangle', 0.05);
+  }
+}

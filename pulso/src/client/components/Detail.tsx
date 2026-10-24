@@ -1,9 +1,7 @@
 // Ficha de la acción seleccionada: datos clave, los 5 pilares, salud del setup y plan de riesgo.
-import { useEffect, useState } from 'react';
 import type { Settings, SymbolDetail } from '../../engine/types';
 import { formatEtTime } from '../../engine/time';
 import { fmtFloat, fmtMoney, fmtPct, fmtPrice, fmtRvol, fmtVolume, timeAgo, toneOf } from '../lib/format';
-import { load, save } from '../lib/storage';
 import { IconStar } from './Icons';
 import { Empty } from './Panel';
 
@@ -37,32 +35,11 @@ function Stat({ label, value, tone, title }: { label: string; value: string; ton
 }
 
 export function Detail({ detail, settings: s, now, watched, onToggleWatch }: Props) {
-  const [risk, setRisk] = useState<number>(() => load('risk', 100));
-  const [entry, setEntry] = useState('');
-  const [stop, setStop] = useState('');
-  const sym = detail?.sym;
-
-  // Al cambiar de acción, precargar el plan con el bull flag (si hay) o con el precio y el VWAP.
-  useEffect(() => {
-    if (!detail) return;
-    const f = detail.setup.flag;
-    const e = f ? f.entry : detail.row.price;
-    const st = f ? f.stop : Math.min(detail.row.vwap, detail.row.price * 0.97);
-    setEntry(fmtPrice(e));
-    setStop(fmtPrice(st));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sym, detail?.setup.flag?.entry]);
-
   if (!detail) return <Empty>Elegí una acción de cualquier lista para ver su ficha.</Empty>;
   const r = detail.row;
   const p = r.pillars;
   const ref = detail.ref;
   const shares = ref.sharesOutstanding;
-  const e = Number(entry);
-  const sp = Number(stop);
-  const perShare = e - sp;
-  const qty = perShare > 0 && risk > 0 ? Math.floor(risk / perShare) : 0;
-  const target = perShare > 0 ? e + 2 * perShare : 0;
   const lastNews = detail.news[0];
 
   return (
@@ -142,47 +119,6 @@ export function Detail({ detail, settings: s, now, watched, onToggleWatch }: Pro
           </p>
         </section>
       </div>
-
-      <section className="planner">
-        <h3 className="sub">Plan de riesgo (2:1)</h3>
-        <div className="planner-grid">
-          <label>
-            Riesgo máx. US$
-            <input
-              id="plan-risk"
-              type="number"
-              inputMode="decimal"
-              min={1}
-              value={risk}
-              onChange={(ev) => {
-                const v = Number(ev.target.value);
-                setRisk(v);
-                save('risk', v);
-              }}
-            />
-          </label>
-          <label>
-            Entrada
-            <input id="plan-entry" type="number" inputMode="decimal" step="0.01" value={entry} onChange={(ev) => setEntry(ev.target.value)} />
-          </label>
-          <label>
-            Stop
-            <input id="plan-stop" type="number" inputMode="decimal" step="0.01" value={stop} onChange={(ev) => setStop(ev.target.value)} />
-          </label>
-          <div className="planner-out mono">
-            <span>
-              Acciones <b>{qty.toLocaleString('es-AR')}</b>
-            </span>
-            <span>
-              Objetivo <b className="t-up">{target ? `$${fmtPrice(target)}` : '—'}</b>
-            </span>
-            <span>
-              Capital <b>{qty ? fmtMoney(qty * e) : '—'}</b>
-            </span>
-          </div>
-        </div>
-        {perShare <= 0 && entry && stop && <p className="hint t-down">El stop tiene que estar debajo de la entrada.</p>}
-      </section>
 
       {detail.news.length > 0 && (
         <section>

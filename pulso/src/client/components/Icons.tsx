@@ -98,3 +98,9 @@ export const IconNews = () => (
     <path d="M7 9h7M7 13h7M7 16h4" />
   </Svg>
 );
+export const IconBook = ({ size = 16 }: { size?: number }) => (
+  <Svg size={size}>
+    <path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3V4z" />
+    <path d="M5 17a3 3 0 0 1 3-3h11M9 8h6" />
+  </Svg>
+);

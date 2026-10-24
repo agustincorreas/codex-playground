@@ -3,6 +3,9 @@ import { Ema, Macd } from './indicators';
 import type { Bar, NewsItem, ReferenceData, TradePlan } from './types';
 
 const MIN = 60_000;
+const SEC10 = 10_000;
+/** Velas de 10 s que se guardan (~2 horas). */
+const MAX_SEC_BARS = 720;
 
 export interface FlagSetup extends TradePlan {
   poleHigh: number;
@@ -31,6 +34,8 @@ export class SymbolState {
   pv = 0;
   ticks = 0;
   bars: Bar[] = [];
+  /** Velas de 10 segundos de las últimas ~2 horas. */
+  secBars: Bar[] = [];
 
   ema9 = new Ema(9);
   ema20 = new Ema(20);
@@ -128,6 +133,35 @@ export class SymbolState {
     }
     this.closeBarsBefore(t);
     this.bars.push({ t, o, h, l, c, v, pv, n });
+  }
+
+  /** Suma un print a la vela de 10 segundos correspondiente. */
+  addToSecBar(ts: number, o: number, h: number, l: number, c: number, v: number, pv: number, n: number): void {
+    const t = Math.floor(ts / SEC10) * SEC10;
+    const cur = this.secBars[this.secBars.length - 1];
+    if (cur && cur.t === t) {
+      if (h > cur.h) cur.h = h;
+      if (l < cur.l) cur.l = l;
+      cur.c = c;
+      cur.v += v;
+      cur.pv += pv;
+      cur.n += n;
+      return;
+    }
+    if (cur && cur.t > t) return;
+    this.secBars.push({ t, o, h, l, c, v, pv, n });
+    if (this.secBars.length > MAX_SEC_BARS + 120) this.secBars.splice(0, this.secBars.length - MAX_SEC_BARS);
+  }
+
+  /** Volumen típico por minuto: promedio de las últimas 5 velas cerradas (o la actual si no hay). */
+  volumePerMinute(): number {
+    const n = this.bars.length;
+    if (!n) return 0;
+    if (n === 1) return this.bars[0].v;
+    let v = 0;
+    let k = 0;
+    for (let i = n - 2; i >= 0 && k < 5; i--, k++) v += this.bars[i].v;
+    return v / k;
   }
 
   /**

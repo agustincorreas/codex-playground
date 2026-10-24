@@ -1,5 +1,5 @@
 // Modo en vivo: la interfaz se conecta por WebSocket al servidor de Pulso (que habla con el proveedor).
-import type { Settings } from '../../engine/types';
+import type { Quote, ScanRow, Settings, SymbolDetail } from '../../engine/types';
 import type { DataSource, SourceHandlers } from './types';
 
 export class RemoteSource implements DataSource {
@@ -10,6 +10,10 @@ export class RemoteSource implements DataSource {
   private retry = 0;
   private closed = false;
   private clockOffset = 0;
+  private tracked: string[] = [];
+  /** Última fila conocida de cada símbolo (de las vistas y de la ficha) para cotizar órdenes. */
+  private rows = new Map<string, ScanRow>();
+  private detail: SymbolDetail | null = null;
 
   constructor(
     private settings: Settings,
@@ -29,6 +33,7 @@ export class RemoteSource implements DataSource {
       this.retry = 0;
       this.send({ t: 'settings', settings: this.settings });
       this.send({ t: 'watchlist', syms: this.watch });
+      this.send({ t: 'tracked', syms: this.tracked });
       if (this.selected) this.send({ t: 'select', sym: this.selected });
     };
     ws.onmessage = (m) => {
@@ -43,7 +48,10 @@ export class RemoteSource implements DataSource {
           if (msg.serverTime) this.clockOffset = msg.serverTime - Date.now();
           break;
         case 'view':
+          for (const rows of Object.values(msg.view.scanners as Record<string, ScanRow[]>)) for (const r of rows) this.rows.set(r.sym, r);
+          for (const r of [...(msg.view.watch as ScanRow[]), ...((msg.view.tracked as ScanRow[] | undefined) ?? [])]) this.rows.set(r.sym, r);
           h.onView(msg.view);
+          h.onTick?.(this.now());
           break;
         case 'alerts':
           h.onAlerts(msg.alerts, false);
@@ -52,7 +60,11 @@ export class RemoteSource implements DataSource {
           h.onNews(msg.items, false);
           break;
         case 'detail':
-          if (msg.detail?.sym === this.selected || msg.detail === null) h.onDetail(msg.detail);
+          if (msg.detail?.sym === this.selected || msg.detail === null) {
+            this.detail = msg.detail;
+            if (msg.detail) this.rows.set(msg.detail.sym, msg.detail.row);
+            h.onDetail(msg.detail);
+          }
           break;
         case 'status':
           h.onStatus(msg.status);
@@ -97,7 +109,27 @@ export class RemoteSource implements DataSource {
     this.send({ t: 'watchlist', syms });
   }
 
+  setTracked(syms: string[]): void {
+    this.tracked = syms;
+    this.send({ t: 'tracked', syms });
+  }
+
   setSpeed(): void {}
+
+  quote(sym: string): Quote | null {
+    const r = this.rows.get(sym);
+    if (!r) return null;
+    return { sym, last: r.price, bid: r.bid, ask: r.ask, ts: r.lastTs, halted: r.halted, volPerMin: r.vol5m / 5 };
+  }
+
+  row(sym: string): ScanRow | null {
+    return this.rows.get(sym) ?? null;
+  }
+
+  reviewBars(sym: string, from: number, to: number): number[][] | undefined {
+    if (this.detail?.sym !== sym) return undefined;
+    return this.detail.bars.filter((b) => b.t >= from && b.t <= to).slice(-60).map((b) => [b.t, b.o, b.h, b.l, b.c, Math.round(b.v)]);
+  }
 
   async search(prefix: string): Promise<string[]> {
     try {

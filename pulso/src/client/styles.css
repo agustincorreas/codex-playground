@@ -184,15 +184,21 @@ button {
   display: flex;
   gap: 2px;
   height: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.panel-tabs::-webkit-scrollbar {
+  display: none;
 }
 .panel-tab {
   background: none;
   border: 0;
   border-bottom: 2px solid transparent;
-  padding: 0 8px;
+  padding: 0 7px;
   font: 600 12px/1 var(--font-display);
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   color: var(--muted);
   display: flex;
   align-items: center;
@@ -1259,6 +1265,497 @@ legend {
   font-weight: 600;
 }
 
+/* ---------------------------------------------------------------- práctica: ticket */
+.ticket {
+  padding: 8px 10px 10px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  background: color-mix(in srgb, var(--accent) 5%, var(--panel));
+}
+.ticket.ended {
+  align-items: flex-start;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+.ticket.ended p {
+  margin: 0;
+}
+.ticket-quote {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  font-size: 12px;
+  flex-wrap: wrap;
+  /* Bid/ask siempre a la vista mientras se desplaza el ticket. */
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  margin: -8px -10px 0;
+  padding: 8px 10px 4px;
+  background: color-mix(in srgb, var(--accent) 5%, var(--panel));
+}
+.ticket-bp {
+  margin-left: auto;
+  color: var(--muted);
+}
+.ticket-halt {
+  margin: 0;
+  color: var(--warn);
+  font-size: 12px;
+}
+.ticket-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+.mini-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--faint);
+}
+.mini-field input,
+.mini-field select {
+  width: 86px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 4px 6px;
+  font: 500 12.5px var(--font-data);
+  color: var(--text);
+  text-transform: none;
+  letter-spacing: 0;
+}
+.mini-field.grow {
+  flex: 1;
+  min-width: 120px;
+}
+.mini-field.grow select {
+  width: 100%;
+  font-family: var(--font-ui);
+}
+.quick {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.check-inline {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--muted);
+  align-self: center;
+}
+.ticket-plan {
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+.ticket-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+  /* Comprar y vender siempre a mano, aunque el panel sea bajo y haya que desplazar el ticket. */
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  margin: 0 -10px;
+  padding: 6px 10px;
+  background: color-mix(in srgb, var(--accent) 5%, var(--panel));
+}
+.btn.buy {
+  background: var(--up);
+  border-color: var(--up);
+  color: var(--panel);
+  font-weight: 700;
+  min-width: 128px;
+}
+.btn.sell {
+  border-color: color-mix(in srgb, var(--down) 60%, var(--line));
+  color: var(--down);
+  font-weight: 600;
+}
+.btn.ghost {
+  color: var(--muted);
+}
+.btn:disabled,
+.btn-small:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.btn-small.sell {
+  color: var(--down);
+}
+.ticket-hint {
+  font-size: 11px;
+}
+.ticket-pos {
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 12px;
+  background: var(--panel);
+}
+.ticket-pos-actions {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-top: 2px;
+}
+.ticket-orders {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 11.5px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.ticket-orders li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.icon-btn.tiny {
+  width: 20px;
+  height: 20px;
+  font-size: 14px;
+  line-height: 1;
+  margin-left: auto;
+}
+.account-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  border-radius: var(--radius);
+  padding: 0 10px;
+  height: 30px;
+  color: var(--text);
+  font-size: 12.5px;
+}
+.account-chip:hover {
+  border-color: var(--accent);
+}
+.account-line {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 6px 8px;
+  font-size: 11.5px;
+  color: var(--muted);
+  border-bottom: 1px solid var(--grid);
+}
+.account-line b {
+  color: var(--text);
+  font-weight: 600;
+}
+.account-line b.t-up {
+  color: var(--up);
+}
+.account-line b.t-down {
+  color: var(--down);
+}
+
+/* ---------------------------------------------------------------- práctica: avisos */
+.toasts {
+  position: fixed;
+  right: max(16px, env(safe-area-inset-right, 0px));
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 60;
+  max-width: min(440px, calc(100vw - 32px));
+  pointer-events: none;
+}
+.toast {
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--info);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 12.5px;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.25);
+}
+.toast.ok {
+  border-left-color: var(--up);
+}
+.toast.error {
+  border-left-color: var(--down);
+}
+
+/* ---------------------------------------------------------------- práctica: diario */
+.journal-tab {
+  display: none;
+}
+.journal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: color-mix(in srgb, var(--bg) 70%, transparent);
+  padding: 24px max(16px, env(safe-area-inset-right, 0px)) 24px max(16px, env(safe-area-inset-left, 0px));
+  display: flex;
+}
+.journal-sheet {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: auto;
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  box-shadow: 0 20px 60px rgb(0 0 0 / 0.35);
+}
+.journal {
+  padding: 14px 18px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+.journal-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+.journal-head h2 {
+  margin: 0;
+  font: 700 18px/1.2 var(--font-display);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.journal-head p {
+  margin: 4px 0 0;
+}
+.small {
+  font-size: 12px;
+}
+.journal-account {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: stretch;
+}
+.big-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  min-width: 180px;
+  background: var(--panel-2);
+}
+.big {
+  font-size: 24px;
+  font-weight: 600;
+}
+.journal-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-left: auto;
+}
+.new-day {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.new-day select,
+.chip-select-inline {
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 12px;
+  max-width: 100%;
+}
+.confirm {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: 12px;
+}
+.chips.scope {
+  position: static;
+  border: 0;
+  padding: 0;
+  background: none;
+  align-items: center;
+}
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px;
+}
+.stat-card {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--panel);
+  min-width: 0;
+}
+.stat-big {
+  font-size: 17px;
+  font-weight: 600;
+}
+.stat-sub {
+  font-size: 10.5px;
+  color: var(--faint);
+}
+.journal-two {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+}
+.journal-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.journal-block .chips {
+  position: static;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+.equity svg {
+  width: 100%;
+  height: 150px;
+  display: block;
+}
+.eq-area.up {
+  fill: color-mix(in srgb, var(--up) 14%, transparent);
+}
+.eq-area.down {
+  fill: color-mix(in srgb, var(--down) 14%, transparent);
+}
+.eq-line {
+  fill: none;
+  stroke-width: 2;
+}
+.eq-line.up {
+  stroke: var(--up);
+}
+.eq-line.down {
+  stroke: var(--down);
+}
+.eq-base {
+  stroke: var(--faint);
+  stroke-dasharray: 4 4;
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+.eq-dot.up {
+  fill: var(--up);
+}
+.eq-dot.down {
+  fill: var(--down);
+}
+.eq-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--muted);
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.insights {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 12.5px;
+  color: var(--muted);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.inline-select,
+.inline-input {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 2px 4px;
+  font-size: 12px;
+  color: var(--text);
+  max-width: 160px;
+}
+.inline-select:hover,
+.inline-input:hover,
+.inline-input:focus {
+  border-color: var(--line);
+  background: var(--panel-2);
+}
+.link-btn {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--accent);
+  font: 600 12px var(--font-data);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.journal-settings {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: var(--panel-2);
+}
+.row-end {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+.modal.review {
+  width: min(920px, 100%);
+}
+.review-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 270px;
+  gap: 14px;
+  padding: 12px 16px 16px;
+  overflow: auto;
+}
+.review-chart {
+  height: 340px;
+  min-width: 0;
+}
+.review-stats {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 12px;
+}
+.review-stats dt {
+  font: 500 10px var(--font-ui);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--faint);
+}
+.review-stats dd {
+  margin: 0;
+}
+
 /* ---------------------------------------------------------------- arranque */
 .boot {
   height: 100%;
@@ -1300,14 +1797,15 @@ legend {
   }
   .grid {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    grid-template-rows: 460px repeat(5, 340px);
+    grid-template-rows: 420px repeat(5, 340px);
+    /* Gráfico, ticket y los escáneres principales en la primera pantalla de una notebook. */
     grid-template-areas:
       'chart detail'
-      'momo halts'
       'gappers pillars'
+      'momo watch'
+      'halts alerts'
       'scanA scanB'
-      'alerts news'
-      'watch hod';
+      'news hod';
   }
 }
 
@@ -1350,8 +1848,8 @@ legend {
   .app[data-tab='scan'] .panel[data-tab='scan'],
   .app[data-tab='momo'] .panel[data-tab='momo'],
   .app[data-tab='chart'] .panel[data-tab='chart'],
-  .app[data-tab='halts'] .panel[data-tab='halts'],
-  .app[data-tab='news'] .panel[data-tab='news'] {
+  .app[data-tab='news'] .panel[data-tab='news'],
+  .app[data-tab='diario'] .panel[data-tab='diario'] {
     display: flex;
   }
   .p-chart .panel-body {
@@ -1441,5 +1939,49 @@ legend {
   .price.flash-down,
   .boot-bar {
     animation: none;
+  }
+}
+
+@media (max-width: 899px) {
+  .toasts {
+    left: max(16px, env(safe-area-inset-left, 0px));
+    right: max(16px, env(safe-area-inset-right, 0px));
+    top: calc(8px + env(safe-area-inset-top, 0px));
+    bottom: auto;
+    max-width: none;
+  }
+  .ticket-actions {
+    bottom: calc(58px + env(safe-area-inset-bottom, 0px));
+  }
+  .journal-tab .journal {
+    padding: 10px 12px 16px;
+  }
+  .journal-two {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .journal-actions {
+    margin-left: 0;
+  }
+  .big-stat {
+    flex: 1 1 140px;
+    min-width: 0;
+  }
+  .big {
+    font-size: 20px;
+  }
+  .review-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .review-chart {
+    height: 260px;
+  }
+  .account-chip {
+    order: 3;
+  }
+  .ticket-bp {
+    margin-left: 0;
+  }
+  .mini-field input {
+    width: 78px;
   }
 }

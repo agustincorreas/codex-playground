@@ -33,9 +33,11 @@ Son útiles para jugar, mejorar código y experimentar.
 
 - [`pulso/`](pulso/README.md): escáner de acciones de EE.UU. al estilo de Arcane Monitor para operar momentum
   en small caps con los 5 pilares de Ross Cameron (precio, suba, volumen relativo, noticia y float). Top
-  gappers, máximos del día, squeezes, bull flags, halts, noticias, gráfico con VWAP/EMA/MACD, ficha con plan de
-  riesgo 2:1 y alertas con sonido y voz. Datos reales vía Alpaca (US$ 99/mes) o Massive (US$ 199/mes); el
-  README explica costos y cómo contratarlos. Demo con mercado simulado en
+  gappers, máximos del día, squeezes, bull flags, halts, noticias, gráfico con VWAP/EMA/MACD (velas de 10 s a
+  5 min) y alertas con sonido y voz. Trae un **modo práctica**: mercado simulado en tiempo real, cuenta de
+  US$ 1.000 ficticios con órdenes a mercado, límite y stop, stop y objetivo, y un diario con estadísticas
+  (ganadores, perdedores, % de aciertos, R, profit factor, por setup y horario). Datos reales vía Alpaca
+  (US$ 99/mes) o Massive (US$ 199/mes); el README explica costos y cómo contratarlos. Demo en
   https://agustincorreas.github.io/codex-playground/pulso/.
 
 ## Proyecto: Sillage — Recomendador de perfumes

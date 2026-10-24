@@ -1,12 +1,27 @@
-// Modo demo: el simulador y el motor corren en el navegador, sin servidor ni claves.
+// Modo simulador: el mercado simulado y el motor corren en el navegador, sin servidor ni claves.
+// Cada sesión de práctica tiene su semilla: con la misma semilla el mercado es idéntico, así que al
+// recargar la página se reconstruye y se avanza rápido hasta donde estabas.
 import { Engine } from '../../engine/engine';
-import type { Alert, NewsItem, Settings } from '../../engine/types';
+import { formatEtTime } from '../../engine/time';
+import type { Alert, NewsItem, Quote, ScanRow, Settings } from '../../engine/types';
 import { MarketSim } from '../../sim/simulator';
 import type { DataSource, SourceHandlers } from './types';
 
+export interface SimConfig {
+  seed: number;
+  /** Un instante del día a simular (se usa el último día hábil). */
+  dayTs: number;
+  /** Hora ET (minutos) a la que arranca la simulación en vivo. */
+  startMinutes: number;
+  /** Hora de mercado a la que hay que avanzar para reanudar una sesión. */
+  resumeAt?: number;
+}
+
+const SEC = 1000;
+
 export class LocalSource implements DataSource {
   readonly kind = 'local' as const;
-  private readonly engine = new Engine();
+  private readonly engine = new Engine({ allSecBars: true });
   private readonly sim: MarketSim;
   private timer?: ReturnType<typeof setInterval>;
   private h?: SourceHandlers;
@@ -16,15 +31,16 @@ export class LocalSource implements DataSource {
   private pendingNews: NewsItem[] = [];
   private realLast = 0;
   private lastView = 0;
+  private stopped = false;
 
-  constructor(settings: Settings, watch: string[]) {
+  constructor(
+    settings: Settings,
+    watch: string[],
+    private readonly cfg: SimConfig,
+  ) {
     this.engine.setSettings(settings);
     this.engine.setWatchlist(watch);
-    // Semilla por día: al recargar se repiten las mismas acciones ficticias (y la watchlist sigue valiendo).
-    const day = new Date().toISOString().slice(0, 10);
-    let seed = 0;
-    for (const ch of day) seed = (seed * 31 + ch.charCodeAt(0)) >>> 0;
-    this.sim = new MarketSim((ev) => this.engine.ingest(ev), { seed });
+    this.sim = new MarketSim((ev) => this.engine.ingest(ev), { seed: cfg.seed, dayTs: cfg.dayTs, startMinutes: cfg.startMinutes });
     this.engine.setReference(this.sim.refs);
   }
 
@@ -33,19 +49,36 @@ export class LocalSource implements DataSource {
     h.onStatus(this.status('Generando el pre-market simulado…'));
     // Dejar que la interfaz pinte el estado de carga antes del precalentamiento.
     setTimeout(() => {
+      if (this.stopped) return;
       this.engine.warmup = true;
       this.sim.warmup();
-      this.engine.warmup = false;
       this.engine.tick(this.sim.now);
-      this.engine.onAlert((a) => this.pendingAlerts.push(a));
-      this.engine.onNews((n) => this.pendingNews.push(n));
-      h.onAlerts(this.engine.alerts.slice(), true);
-      h.onNews(this.engine.news.slice(), true);
-      h.onView(this.engine.view());
-      h.onStatus(this.status('Acciones ficticias generadas por el simulador'));
-      this.realLast = performance.now();
-      this.timer = setInterval(() => this.loop(), 100);
+      void this.fastForward().then(() => {
+        if (this.stopped) return;
+        this.engine.warmup = false;
+        this.engine.onAlert((a) => this.pendingAlerts.push(a));
+        this.engine.onNews((n) => this.pendingNews.push(n));
+        h.onAlerts(this.engine.alerts.slice(), true);
+        h.onNews(this.engine.news.slice(), true);
+        h.onView(this.engine.view());
+        if (this.selected) h.onDetail(this.engine.detail(this.selected));
+        h.onStatus(this.status('Acciones ficticias generadas por el simulador'));
+        this.realLast = performance.now();
+        this.timer = setInterval(() => this.loop(), 100);
+      });
     }, 30);
+  }
+
+  /** Reanudar: avanzar el mercado hasta la hora guardada, en tramos para no congelar la página. */
+  private async fastForward(): Promise<void> {
+    const target = this.cfg.resumeAt ?? 0;
+    while (!this.stopped && this.sim.now < target) {
+      const chunkEnd = Math.min(target, this.sim.now + 5 * 60 * SEC);
+      this.sim.advance(chunkEnd - this.sim.now);
+      this.engine.tick(this.sim.now);
+      this.h?.onStatus(this.status(`Reanudando tu sesión: ${formatEtTime(this.sim.now, false)} ET…`));
+      await new Promise((r) => setTimeout(r, 0));
+    }
   }
 
   private status(message: string) {
@@ -61,6 +94,7 @@ export class LocalSource implements DataSource {
     this.realLast = t;
     this.sim.advance(dt * this.speed);
     this.engine.tick(this.sim.now);
+    h.onTick?.(this.sim.now);
     if (this.pendingAlerts.length) {
       h.onAlerts(this.pendingAlerts, false);
       this.pendingAlerts = [];
@@ -77,13 +111,14 @@ export class LocalSource implements DataSource {
   }
 
   stop(): void {
+    this.stopped = true;
     if (this.timer) clearInterval(this.timer);
     this.timer = undefined;
   }
 
   select(sym: string | null): void {
     this.selected = sym;
-    this.h?.onDetail(sym ? this.engine.detail(sym) : null);
+    if (this.timer) this.h?.onDetail(sym ? this.engine.detail(sym) : null);
   }
 
   setSettings(s: Settings): void {
@@ -92,6 +127,10 @@ export class LocalSource implements DataSource {
 
   setWatchlist(syms: string[]): void {
     this.engine.setWatchlist(syms);
+  }
+
+  setTracked(syms: string[]): void {
+    this.engine.setTracked(syms);
   }
 
   setSpeed(x: number): void {
@@ -105,5 +144,24 @@ export class LocalSource implements DataSource {
 
   now(): number {
     return this.sim.now;
+  }
+
+  quote(sym: string): Quote | null {
+    return this.engine.quote(sym);
+  }
+
+  /** Velas de 1 minuto compactas [t, o, h, l, c, v] para revisar un trade después. */
+  reviewBars(sym: string, from: number, to: number): number[][] | undefined {
+    const st = this.engine.get(sym);
+    if (!st) return undefined;
+    const r = (p: number) => Math.round(p * 10000) / 10000;
+    return st.bars
+      .filter((b) => b.t >= from && b.t <= to)
+      .slice(-60)
+      .map((b) => [b.t, r(b.o), r(b.h), r(b.l), r(b.c), Math.round(b.v)]);
+  }
+
+  row(sym: string): ScanRow | null {
+    return this.engine.row(sym);
   }
 }

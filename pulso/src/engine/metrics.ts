@@ -7,6 +7,35 @@ export interface MetricCtx {
   settings: Settings;
   /** Fracción esperada del volumen diario a esta hora (ver time.expectedVolumeFraction). */
   volFrac: number;
+  /** Fuera de la rueda regular los spreads son más anchos. */
+  extended: boolean;
+}
+
+/**
+ * Punta compradora y vendedora estimadas. Los proveedores no mandan el libro en este escáner, así que
+ * el spread se modela: más ancho en acciones baratas, en movimientos rápidos y fuera de la rueda.
+ */
+export function syntheticQuote(price: number, rangePct: number, extended: boolean): { bid: number; ask: number } {
+  if (!(price > 0)) return { bid: 0, ask: 0 };
+  const tick = priceTick(price);
+  const pct = 0.0015 + Math.min(0.02, rangePct * 0.25) + (extended ? 0.004 : 0) + (price < 2 ? 0.002 : 0);
+  const ticks = Math.max(1, Math.round((price * pct) / tick));
+  const half = Math.floor(ticks / 2);
+  const bid = Math.max(tick, roundTick(price - half * tick, tick));
+  return { bid, ask: roundTick(bid + ticks * tick, tick) };
+}
+
+function roundTick(p: number, tick: number): number {
+  return Math.round(Math.round(p / tick) * tick * 10000) / 10000;
+}
+
+/** Rango de la vela actual y la anterior, relativo al precio (proxy de la volatilidad inmediata). */
+export function recentRangePct(st: SymbolState): number {
+  const n = st.bars.length;
+  if (!n || !(st.last > 0)) return 0;
+  const a = st.bars[n - 1];
+  const b = n > 1 ? st.bars[n - 2] : a;
+  return Math.max(a.h - a.l, b.h - b.l) / st.last;
 }
 
 const pct = (a: number, b: number) => (b > 0 ? ((a - b) / b) * 100 : 0);
@@ -56,6 +85,7 @@ export function buildRow(st: SymbolState, ctx: MetricCtx): ScanRow {
   const rvol = rvolOf(st, ctx.volFrac);
   const fl = floatOf(st);
   const pillars = pillarsOf(st, ctx, rvol);
+  const q = syntheticQuote(price, recentRangePct(st), ctx.extended);
   return {
     sym: st.sym,
     name: st.ref.name,
@@ -81,6 +111,8 @@ export function buildRow(st: SymbolState, ctx: MetricCtx): ScanRow {
     halted: st.halted,
     score: pillars.score,
     pillars,
+    bid: q.bid,
+    ask: q.ask,
     ticks: st.ticks,
     flags: st.ref.flags,
     lastTs: st.lastTs,

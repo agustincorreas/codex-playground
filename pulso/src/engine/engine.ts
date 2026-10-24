@@ -2,7 +2,7 @@
 // estado de cada acción y produce las listas de los escáneres, las alertas y la ficha de un símbolo.
 // No depende del navegador ni de Node: corre igual en el modo demo (navegador) y en el servidor.
 import { isEligible, onBarClosed, onPrice, fmtPrice, type AlertSink } from './alerts';
-import { buildRow, nextLevel, pillarsOf, rvolOf, type MetricCtx } from './metrics';
+import { buildRow, nextLevel, pillarsOf, recentRangePct, rvolOf, syntheticQuote, type MetricCtx } from './metrics';
 import { SymbolState } from './symbol';
 import { etParts, expectedVolumeFraction, REG_OPEN, sessionAt } from './time';
 import {
@@ -14,6 +14,7 @@ import {
   type HaltRow,
   type MarketEvent,
   type NewsItem,
+  type Quote,
   type ReferenceData,
   type ScannerId,
   type ScanRow,
@@ -61,6 +62,8 @@ export interface EngineOptions {
   maxAlerts?: number;
   /** Filtro de universo: si devuelve false, los eventos del símbolo se ignoran. */
   accept?: (sym: string, price: number) => boolean;
+  /** Armar velas de 10 s para todas las acciones (simulador) o solo para las elegibles (servidor). */
+  allSecBars?: boolean;
 }
 
 export class Engine implements AlertSink {
@@ -68,6 +71,8 @@ export class Engine implements AlertSink {
   readonly symbols = new Map<string, SymbolState>();
   readonly halts = new Map<string, HaltRow>();
   readonly watch = new Set<string>();
+  /** Símbolos con posición u órdenes abiertas en el bróker de práctica. */
+  readonly tracked = new Set<string>();
   alerts: Alert[] = [];
   news: NewsItem[] = [];
   now = 0;
@@ -77,6 +82,7 @@ export class Engine implements AlertSink {
 
   private readonly maxAlerts: number;
   private readonly accept?: (sym: string, price: number) => boolean;
+  private readonly allSecBars: boolean;
   private alertListeners = new Set<(a: Alert) => void>();
   private newsListeners = new Set<(n: NewsItem) => void>();
   private seq = 0;
@@ -91,6 +97,7 @@ export class Engine implements AlertSink {
     this.settings = { ...DEFAULT_SETTINGS, ...opts.settings };
     this.maxAlerts = opts.maxAlerts ?? 600;
     this.accept = opts.accept;
+    this.allSecBars = opts.allSecBars ?? false;
   }
 
   // ---------------------------------------------------------------- suscripciones
@@ -106,12 +113,17 @@ export class Engine implements AlertSink {
   }
 
   isWatched(sym: string): boolean {
-    return this.watch.has(sym);
+    return this.watch.has(sym) || this.tracked.has(sym);
   }
 
   setWatchlist(syms: string[]): void {
     this.watch.clear();
     for (const s of syms) this.watch.add(s.toUpperCase());
+  }
+
+  setTracked(syms: string[]): void {
+    this.tracked.clear();
+    for (const s of syms) this.tracked.add(s.toUpperCase());
   }
 
   setSettings(partial: Partial<Settings>): void {
@@ -256,6 +268,7 @@ export class Engine implements AlertSink {
     st.ticks++;
     const barsBefore = st.bars.length;
     st.addToBar(ts, price, price, price, price, size, price * size, 1);
+    if (this.allSecBars || st.eligible) st.addToSecBar(ts, price, price, price, price, size, price * size, 1);
     if (st.bars.length > barsBefore && barsBefore > 0) onBarClosed(st, this);
     if (!updatesPrice) return;
     this.afterPrice(st, price, ts);
@@ -287,6 +300,7 @@ export class Engine implements AlertSink {
     }
     // Agregado de 1 segundo: se acumula en la vela del minuto.
     st.addToBar(ev.ts, ev.o, ev.h, ev.l, ev.c, ev.v, pv, ev.n ?? 1);
+    if (this.allSecBars || st.eligible) st.addToSecBar(ev.ts, ev.o, ev.h, ev.l, ev.c, ev.v, pv, ev.n ?? 1);
     if (st.bars.length > barsBefore && barsBefore > 0) onBarClosed(st, this);
     if (ev.dayVolume && ev.dayVolume >= st.volume) {
       st.volume = ev.dayVolume;
@@ -433,7 +447,7 @@ export class Engine implements AlertSink {
   // ---------------------------------------------------------------- vistas
 
   private metricCtx(): MetricCtx {
-    return { now: this.now, settings: this.settings, volFrac: this.volFrac };
+    return { now: this.now, settings: this.settings, volFrac: this.volFrac, extended: this.session !== 'regular' };
   }
 
   view(): ViewModel {
@@ -441,16 +455,19 @@ export class Engine implements AlertSink {
     const s = this.settings;
     const rows: ScanRow[] = [];
     const watchRows: ScanRow[] = [];
+    const trackedRows: ScanRow[] = [];
     let active = 0;
     for (const st of this.symbols.values()) {
       if (!(st.last > 0)) continue;
       if (st.volume > 0) active++;
       const watched = this.watch.has(st.sym);
-      st.eligible = isEligible(st, s, watched);
+      const tracked = this.tracked.has(st.sym);
+      st.eligible = isEligible(st, s, watched || tracked);
       const inRange = st.last >= s.priceMin && st.last <= s.priceMax;
-      if (!watched && (!inRange || st.volume < s.minVolume)) continue;
+      if (!watched && !tracked && (!inRange || st.volume < s.minVolume)) continue;
       const row = buildRow(st, ctx);
       if (watched) watchRows.push(row);
+      if (tracked) trackedRows.push(row);
       if (inRange && st.volume >= s.minVolume) rows.push(row);
     }
 
@@ -503,6 +520,7 @@ export class Engine implements AlertSink {
       session: this.session,
       scanners,
       watch: watchRows.sort((a, b) => b.changePct - a.changePct),
+      tracked: trackedRows,
       hodBoard: gappers.slice(0, 10),
       halts,
       stats: { tracked: this.symbols.size, active, eventsPerSec: this.eventsPerSec() },
@@ -532,6 +550,7 @@ export class Engine implements AlertSink {
       ref: st.ref,
       row,
       bars: st.bars.slice(),
+      secBars: st.secBars.slice(),
       open: st.open || st.dayOpen,
       pmHigh: st.pmHigh,
       lod: Number.isFinite(st.lod) ? st.lod : st.last,
@@ -558,6 +577,20 @@ export class Engine implements AlertSink {
         nextLevel: nextLevel(st.last),
       },
     };
+  }
+
+  /** Fila de escáner de un símbolo (aunque no esté en ninguna lista). */
+  row(sym: string): ScanRow | null {
+    const st = this.symbols.get(sym);
+    return st && st.last > 0 ? buildRow(st, this.metricCtx()) : null;
+  }
+
+  /** Cotización actual (con spread estimado) para ejecutar órdenes de práctica. */
+  quote(sym: string): Quote | null {
+    const st = this.symbols.get(sym);
+    if (!st || !(st.last > 0)) return null;
+    const { bid, ask } = syntheticQuote(st.last, recentRangePct(st), this.session !== 'regular');
+    return { sym, last: st.last, bid, ask, ts: st.lastTs, halted: st.halted, volPerMin: st.volumePerMinute() };
   }
 
   /** Busca símbolos por prefijo (buscador de la interfaz). */

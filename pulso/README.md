@@ -9,6 +9,9 @@ sonido o voz cuando una hace un nuevo máximo, un squeeze, un bull flag, un halt
 
 - **Probarlo sin instalar nada:** modo demo con un mercado simulado (acciones ficticias), en
   https://agustincorreas.github.io/codex-playground/pulso/ (se publica desde `main`).
+- **Practicar con plata ficticia:** una cuenta de práctica de US$ 1.000 para operar ese mercado simulado en
+  tiempo real, con stop y objetivo, velas de 10 y 30 segundos y un diario que te lleva las estadísticas
+  (trades ganadores y perdedores, cuánto ganaste y perdiste, % de aciertos, R, por setup y por horario).
 - **Usarlo con datos reales:** corre en tu computadora y se conecta a **Alpaca** o a **Massive**
   (ex Polygon.io). Hace falta una suscripción de datos; abajo están los costos y cómo sacarla.
 
@@ -28,11 +31,13 @@ sonido o voz cuando una hace un nuevo máximo, un squeeze, un bull flag, un halt
 | **Halts** | Halts y reanudaciones con el motivo (pausa LULD, noticia pendiente, etc.), cuenta regresiva de 5 minutos para las pausas por volatilidad y el % de la reanudación contra el precio del halt. |
 | **Alertas** | Todas las alertas, con filtros por tipo y por cantidad de pilares. |
 | **Noticias** | Titulares en tiempo real (Benzinga vía Alpaca, o Massive). |
-| **Gráfico** | Velas de 1 y 5 minutos con VWAP, EMA 9, EMA 20, volumen y MACD; líneas de máximo del día, máximo del pre-market, cierre anterior y entrada/stop del bull flag; marcas de halts. |
-| **Ficha** | Precio, volumen, RVOL, float, rotación, VWAP, máximos, short interest, etiquetas de dilución de la SEC, los 5 pilares con su valor, el estado del setup (VWAP, EMA 9, MACD) y un **plan de riesgo 2:1** (acciones, objetivo y capital según tu riesgo máximo). |
-| **Watchlist** y **Rango del día** | Tus símbolos marcados con la estrella, y dónde está el precio entre el mínimo y el máximo del día de cada gapper. |
+| **Gráfico** | Velas de 10 s, 30 s, 1 min y 5 min con VWAP, EMA 9, EMA 20, volumen y MACD; líneas de máximo del día, máximo del pre-market, cierre anterior y entrada/stop del bull flag; marcas de halts. En práctica, además, tus compras y ventas, tu costo, tu stop y tu objetivo. |
+| **Operar** | El ticket de la cuenta de práctica (bid, ask, compra y venta a mercado, límite o stop, stop y objetivo, tamaño por riesgo) y la ficha de la acción: precio, volumen, RVOL, float, rotación, VWAP, máximos, short interest, etiquetas de dilución de la SEC, los 5 pilares con su valor y el estado del setup (VWAP, EMA 9, MACD). |
+| **Posiciones / Órdenes / Watchlist** | Lo que tenés abierto con su resultado en vivo, las órdenes pendientes y tus símbolos marcados con la estrella. |
+| **Rango del día** | Dónde está el precio entre el mínimo y el máximo del día de cada gapper. |
+| **Diario** | Tus trades de práctica y sus estadísticas (sección 2). |
 
-En el celular la misma información se ordena en pestañas (Escáner, Alertas, Gráfico, Halts, Noticias).
+En el celular la misma información se ordena en pestañas (Escáner, Alertas, Operar, Noticias y Diario).
 
 ### Los 5 pilares (valores por defecto, se cambian en Ajustes)
 
@@ -58,7 +63,86 @@ leen en voz alta ("T R O R, squeeze"). En Ajustes elegís qué alertas suenan y 
 
 ---
 
-## 2. ¿Hace falta pagar los datos en tiempo real? Sí. Cuánto sale y cómo se saca
+## 2. Modo práctica: operá con US$ 1.000 ficticios y llevá tus estadísticas
+
+Como conectarse a datos reales cuesta plata, Pulso trae un **mercado simulado en tiempo real** y una
+**cuenta de práctica** para operarlo. Las acciones son ficticias pero se comportan como small caps de
+momentum: gaps con noticia, squeezes, bull flags, halts por volatilidad y acciones que se desinflan. Las velas se arman segundo a segundo y todo pasa en el navegador: no hay que instalar nada.
+
+![Practicando en el escritorio](docs/practica-escritorio.jpg)
+
+### Un día de práctica
+
+1. Cada día simulado es un mercado distinto. Arranca a las 9:25 ET con el pre-market ya armado (o a las
+   7:00, 9:00 o 9:45: se elige en *Diario → Nuevo día simulado*). Con 2x, 5x o 10x el reloj corre más rápido
+   y con ⏸ se pausa.
+2. Elegís una acción en los escáneres. En el panel **Operar** está el ticket: bid, ask, spread y poder de
+   compra.
+3. Comprás **a mercado** (al ask), con orden **límite** (a tu precio o mejor) o **stop** (cuando rompe un
+   precio, para entrar en la ruptura). Con **Stop y objetivo** tildado la compra sale con un stop de pérdida
+   y una venta límite en el objetivo, que se cancelan entre sí (OCO).
+4. El ticket propone el stop un centavo debajo del mínimo de la vela de 1 minuto anterior (el mínimo del
+   retroceso, o el stop del bull flag si hay uno armado) y el objetivo a 2R; la propuesta se actualiza con
+   cada vela hasta que la cambiás a mano, y **Sugerir** la vuelve a calcular. El botón **Riesgo US$ 20**
+   calcula cuántas acciones comprar para perder como mucho eso si toca el stop. Si la orden supera tu poder
+   de compra, te avisa cuántas acciones te alcanzan.
+5. Salís con **Vender ½** o **Vender todo** (al bid), en el objetivo o en el stop. **Stop a break even** sube
+   el stop a tu precio de entrada.
+6. En el gráfico ves tus compras (C) y ventas (V), tu costo, tu stop y tu objetivo. Para entrar y salir
+   rápido conviene mirar las velas de 10 o 30 segundos.
+7. A las 15:59 ET el día se cierra solo (vende lo que quedó abierto), o lo cerrás antes con *Terminar el
+   día*. El saldo pasa al día siguiente.
+
+**Atajos de teclado** (con una acción elegida): **B** compra con lo que dice el ticket, **S** vende todo,
+**H** vende la mitad y **Esc** cancela las órdenes pendientes.
+
+### Qué tan real es la ejecución
+
+- A mercado se compra al ask y se vende al bid. El spread es más ancho en las acciones baratas, en los
+  movimientos rápidos y fuera de la rueda (pre-market).
+- **Deslizamiento** según tu tamaño contra lo que la acción opera por minuto: 100 acciones en una que mueve
+  50.000 por minuto casi no se notan; 5.000 en una que mueve 2.000 por minuto pagan bastante más que el ask.
+- Durante un **halt** no se ejecuta nada, tampoco los stops. Si reanuda más abajo, el stop sale al precio de
+  la reanudación, como en la realidad.
+- La cuenta es **cash**: solo comprás con lo que tenés. En *Ajustes de práctica* se cambia el saldo inicial,
+  se pasa a margen 2x o 4x, se agregan comisiones (por ejemplo US$ 0,005 por acción, como IBKR Pro) y se
+  fija una **pérdida máxima del día** que bloquea nuevas compras cuando la alcanzás.
+- Solo compras (long), sin ventas en corto: es el estilo de Ross Cameron en small caps.
+
+### Diario y estadísticas
+
+Se abre con el botón de la cuenta (arriba, el que muestra el saldo) o con la pestaña *Diario* en el celular.
+
+![Diario de trading con las estadísticas](docs/practica-diario.jpg)
+
+- **Equity**, resultado del día y resultado total desde el saldo inicial.
+- **Trades ganadores y perdedores**, % de aciertos, ganancia y pérdida promedio (y la mayor de cada una),
+  relación ganancia/pérdida, profit factor, R promedio, esperanza por trade, máximo drawdown, rachas y
+  tiempo promedio en el trade.
+- **Curva de capital** y consejos automáticos: por ejemplo, si tus pérdidas promedio son más grandes que tus
+  ganancias, si mantenés las perdedoras más tiempo que las ganadoras, si entrás sin stop o qué horario y qué
+  setup te cuestan plata.
+- **Desglose** por setup, horario, precio, float, cantidad de pilares y motivo de salida, para saber qué te
+  funciona y qué no.
+- **Lista de trades** con hora, entrada, salida, resultado en US$ y en %, R, minutos y motivo de salida.
+  Podés corregir el setup y anotar qué aprendiste; **Ver** abre el gráfico del trade con tus entradas y
+  salidas y cuánto llegó a ir a favor y en contra (MFE/MAE).
+- Filtros por hoy, últimos 7 días, todo o un día en particular, y la tabla de días anteriores.
+
+### Dónde se guarda
+
+- **En el artifact de Claude:** en tu cuenta de Claude. Es privado (si compartís el link, cada persona tiene
+  su propia cuenta de práctica) y lo ves desde cualquier dispositivo.
+- **En la demo de GitHub Pages o en tu computadora:** en el navegador. Si borrás los datos del sitio, se
+  pierden.
+
+Si cerrás la pestaña en medio de un día, al volver se reanuda el mismo mercado en el mismo minuto, con tus
+posiciones y órdenes. Con datos reales (secciones 3 y 4) la misma cuenta de práctica opera sobre el mercado
+de verdad: precios reales, con el bid y el ask estimados porque el escáner no recibe el libro de órdenes.
+
+---
+
+## 3. ¿Hace falta pagar los datos en tiempo real? Sí. Cuánto sale y cómo se saca
 
 No hace falta suscribirse a la bolsa directamente: se contrata a un **proveedor de datos** que cobra los
 derechos de las bolsas (NYSE, Nasdaq, Cboe). Para un particular que opera su propia plata, esos derechos son
@@ -122,7 +206,7 @@ Fuentes: [Alpaca, planes de datos](https://docs.alpaca.markets/docs/about-market
 
 ---
 
-## 3. Instalación (una vez, ~10 minutos)
+## 4. Instalación (una vez, ~10 minutos)
 
 1. Instalá **Node.js 20 o más nuevo** desde https://nodejs.org (botón "LTS").
 2. Bajá el código (botón verde **Code → Download ZIP** en GitHub, o `git clone`) y abrí una terminal en la
@@ -137,7 +221,7 @@ npm start
 ```
 
 4. Abrí http://localhost:8787. Sin claves arranca en **modo demo** (mercado simulado en el servidor).
-5. Completá `.env` con tus claves (ver la sección 2) y reiniciá con `npm start`. En la consola vas a ver el
+5. Completá `.env` con tus claves (ver la sección 3) y reiniciá con `npm start`. En la consola vas a ver el
    progreso: lista de acciones, snapshots, volumen promedio, velas del día y la conexión al streaming. Las
    claves quedan en tu computadora: la interfaz nunca las recibe.
 
@@ -168,7 +252,7 @@ Cada día a las 4:00 ET el servidor recarga los cierres y el volumen promedio so
 
 ---
 
-## 4. Cómo se usa con el método de los 5 pilares
+## 5. Cómo se usa con el método de los 5 pilares
 
 1. **Pre-market (7:00–9:30 ET):** mirá *Top gappers* y *5 pilares*. Abrí la ficha de cada candidata: noticia,
    float, RVOL y etiquetas de dilución (un 424B o un S-1 reciente suele significar que la empresa está
@@ -176,15 +260,17 @@ Cada día a las 4:00 ET el servidor recarga los cierres y el volumen promedio so
 2. **Apertura (9:30–11:00 ET):** el panel *Momentum* y las alertas sonoras te avisan cuando una de esas
    acciones hace un nuevo máximo, un squeeze o arma un bull flag. Los halts al alza y su reanudación aparecen
    en *Halts* con la cuenta regresiva.
-3. **Antes de entrar:** revisá el *Setup* de la ficha (sobre el VWAP, sobre la EMA 9, MACD a favor) y usá el
-   *Plan de riesgo*: con tu pérdida máxima, la entrada y el stop te calcula cuántas acciones comprar y el
-   objetivo 2:1. Si no hay un 2:1 razonable, no hay trade.
+3. **Antes de entrar:** revisá el *Setup* de la ficha (sobre el VWAP, sobre la EMA 9, MACD a favor) y armá la
+   orden en el ticket: con el stop en el mínimo del retroceso, el botón *Riesgo* te dice cuántas acciones
+   comprar para no perder más que tu máximo, y la línea de abajo muestra si el objetivo da 2:1. Si no hay un
+   2:1 razonable, no hay trade.
 
-Para practicar sin arriesgar plata, usá el modo demo o una cuenta paper.
+Para practicar sin arriesgar plata está el modo práctica (sección 2). Ross Cameron recomienda practicar en
+simulador hasta que las estadísticas den positivas de forma consistente antes de operar con plata real.
 
 ---
 
-## 5. Para desarrolladores
+## 6. Para desarrolladores
 
 ```
 pulso/
@@ -194,8 +280,13 @@ pulso/
     metrics.ts    RVOL ajustado por horario, 5 pilares, filas de los escáneres
     symbol.ts     velas de 1 min, VWAP, EMA/MACD incrementales
     time.ts       hora ET, sesiones, feriados NYSE 2025–2027, curva de volumen intradía
-  src/sim/      mercado simulado (gappers, runners con noticia, halts LULD, fades)
+  src/sim/      mercado simulado (gappers, runners con noticia, halts LULD, fades); determinista por semilla
+  src/trading/  cuenta de práctica (sin dependencias)
+    broker.ts     órdenes a mercado, límite y stop, OCO, spread y deslizamiento, halts, margen, comisiones
+    stats.ts      estadísticas del diario, curva de capital y desgloses
+    store.ts      guardado en el navegador o en la base del artifact de Claude
   src/client/   interfaz React + lightweight-charts (TradingView)
+    training.ts   días de práctica: crear, reanudar, terminar y guardar
   server/       servidor Node: Alpaca, Massive, halts de Nasdaq, SEC, float; WebSocket hacia la interfaz
   test/         pruebas (motor, adaptadores con mensajes de la documentación oficial, servidores falsos)
 ```
@@ -204,7 +295,7 @@ pulso/
 | --- | --- |
 | `npm run dev` | Interfaz en modo demo con recarga en caliente (http://localhost:5173). |
 | `npm start` | Compila la interfaz y arranca el servidor (datos reales si hay claves). |
-| `npm test` | Pruebas (33): motor, alertas, bull flag, halts, Alpaca y Massive contra servidores falsos. |
+| `npm test` | Pruebas (54): motor, alertas, bull flag, halts, Alpaca y Massive contra servidores falsos, simulador y cuenta de práctica. |
 | `npm run typecheck` | Chequeo de tipos de todo el proyecto. |
 | `npm run build:demo` | Página única del demo (`dist-demo/index.html`) para GitHub Pages. |
 
@@ -215,3 +306,6 @@ pulso/
   desactualizado unos días. Las acciones en circulación de la SEC no se ajustan por splits (se muestran con ≈).
 - Las etiquetas de dilución son heurísticas sobre los formularios presentados a la SEC: confirmá leyendo el filing.
 - El bull flag es una detección automática simple sobre velas de 1 minuto. Es una ayuda para mirar, no una señal de compra.
+- El simulador sirve para entrenar la lectura del gráfico, la disciplina y el manejo del riesgo, pero sus
+  movimientos los genera un modelo: no hay libro de órdenes (nivel 2) ni cinta, y la ejecución es una
+  aproximación. Un resultado positivo en práctica no garantiza el mismo resultado con plata real.

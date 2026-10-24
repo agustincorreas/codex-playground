@@ -65,7 +65,11 @@ export function vwapSeries(bars: Bar[]): number[] {
 /** Agrupa velas de 1 minuto en velas de `minutes` minutos. */
 export function aggregateBars(bars: Bar[], minutes: number): Bar[] {
   if (minutes <= 1) return bars;
-  const span = minutes * 60_000;
+  return aggregateSpan(bars, minutes * 60_000);
+}
+
+/** Agrupa velas en períodos de `span` milisegundos (por ejemplo, de 10 s a 30 s). */
+export function aggregateSpan(bars: Bar[], span: number): Bar[] {
   const out: Bar[] = [];
   for (const b of bars) {
     const t = Math.floor(b.t / span) * span;
