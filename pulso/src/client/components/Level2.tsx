@@ -20,7 +20,7 @@ export interface TicketForm {
   shares: string;
   route: string;
   tif: Tif;
-  bracket: boolean;
+  /** Stop y objetivo del plan (y de las órdenes OCO si están activadas en los ajustes). */
   stop: string;
   target: string;
   setup: string;
@@ -137,12 +137,14 @@ export function Level2({ c, source, detail, quote, now, ticket, setTicket, onSym
     if (!ticket.edited && !pos) setTicket(suggestTicket(detail, quote));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [detail?.sym, barKey, !!pos]);
-  // Con posición abierta, stop y objetivo muestran los reales (para moverlos con "Aplicar").
+  // Con posición abierta, stop y objetivo muestran los de la posición (órdenes o plan).
+  const posStop = pos?.stop ?? pos?.planStop;
+  const posTarget = pos?.target ?? pos?.planTarget;
   useEffect(() => {
-    if (pos?.stop !== undefined) setTicket({ stop: fmtPx(pos.stop) });
-    if (pos?.target !== undefined) setTicket({ target: fmtPx(pos.target) });
+    if (posStop !== undefined) setTicket({ stop: fmtPx(posStop) });
+    if (posTarget !== undefined) setTicket({ target: fmtPx(posTarget) });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sym, pos?.stop, pos?.target]);
+  }, [sym, posStop, posTarget]);
 
   const book = sym && source ? source.book(sym) : null;
   const working = sym ? (c.broker?.orders(sym) ?? []) : [];
@@ -157,8 +159,9 @@ export function Level2({ c, source, detail, quote, now, ticket, setTicket, onSym
   const bp = c.broker ? c.broker.buyingPower(c.marks) : 0;
   const price = num(ticket.price);
   const shares = Math.floor(Number(ticket.shares) || 0);
-  const stopV = ticket.bracket ? num(ticket.stop) : undefined;
-  const targetV = ticket.bracket ? num(ticket.target) : undefined;
+  const auto = settings.autoBracket;
+  const stopV = num(ticket.stop);
+  const targetV = num(ticket.target);
   const entry = ticket.type === 'market' ? (quote?.ask ?? 0) : (price ?? 0);
   const risk = stopV && entry > stopV ? (entry - stopV) * shares : 0;
   const reward = targetV && entry ? (targetV - entry) * shares : 0;
@@ -176,7 +179,7 @@ export function Level2({ c, source, detail, quote, now, ticket, setTicket, onSym
   const editPrice = (value: string, patch: Partial<TicketForm> = {}) => {
     const p = num(value);
     // Con posición y stop/objetivo puestos, los campos muestran esos niveles reales: no se tocan.
-    const posLevels = pos && (pos.stop !== undefined || pos.target !== undefined);
+    const posLevels = posStop !== undefined || posTarget !== undefined;
     if (ticket.levelsEdited || posLevels || !detail || !p) return edit({ ...patch, price: value });
     const bid = quote?.bid || detail.row.bid || detail.row.price;
     const flag = detail.setup.flag;
@@ -363,31 +366,27 @@ export function Level2({ c, source, detail, quote, now, ticket, setTicket, onSym
                 </div>
               )}
 
+              <label className="check-inline oe-auto" title="Activado: al comprar se ponen el stop y el objetivo como órdenes OCO. Apagado: quedan como plan (tamaño por riesgo, R y líneas punteadas en el gráfico) y las salidas las hacés vos.">
+                <input id="oe-bracket" type="checkbox" checked={auto} onChange={(e) => c.updateSettings({ autoBracket: e.target.checked })} />
+                Stop y objetivo automáticos (OCO)
+              </label>
               <div className="oe-row oe-bracket">
-                <label className="check-inline">
-                  <input id="oe-bracket" type="checkbox" checked={ticket.bracket} onChange={(e) => setTicket({ bracket: e.target.checked })} />
-                  Stop y objetivo
+                <label className="mini-field" title={auto ? 'Se coloca como orden stop al comprar' : 'Tu stop mental: no se envía, lo ejecutás vos'}>
+                  {auto ? 'Stop' : 'Stop plan'}
+                  <input id="oe-stop" inputMode="decimal" value={ticket.stop} onChange={(e) => editLevels({ stop: e.target.value })} />
                 </label>
-                {ticket.bracket && (
-                  <>
-                    <label className="mini-field">
-                      Stop
-                      <input id="oe-stop" inputMode="decimal" value={ticket.stop} onChange={(e) => editLevels({ stop: e.target.value })} />
-                    </label>
-                    <label className="mini-field">
-                      Objetivo
-                      <input id="oe-target" inputMode="decimal" value={ticket.target} onChange={(e) => editLevels({ target: e.target.value })} />
-                    </label>
-                    <button
-                      type="button"
-                      className="chip"
-                      onClick={() => detail && setTicket({ edited: false, levelsEdited: false, ...suggestTicket(detail, quote) })}
-                      title="Stop un tick debajo del mínimo de la vela anterior (o del bull flag) y objetivo a 2R. Se renueva con cada vela hasta que lo cambiás."
-                    >
-                      Sugerir
-                    </button>
-                  </>
-                )}
+                <label className="mini-field" title={auto ? 'Se coloca como venta límite al comprar' : 'Tu objetivo: no se envía, lo ejecutás vos'}>
+                  {auto ? 'Objetivo' : 'Obj. plan'}
+                  <input id="oe-target" inputMode="decimal" value={ticket.target} onChange={(e) => editLevels({ target: e.target.value })} />
+                </label>
+                <button
+                  type="button"
+                  className="chip"
+                  onClick={() => detail && setTicket({ edited: false, levelsEdited: false, ...suggestTicket(detail, quote) })}
+                  title="Stop un tick debajo del mínimo de la vela anterior (o del bull flag) y objetivo a 2R. Se renueva con cada vela hasta que lo cambiás."
+                >
+                  Sugerir
+                </button>
                 <select id="oe-setup" className="oe-setup" value={ticket.setup} onChange={(e) => setTicket({ setup: e.target.value })} aria-label="Setup">
                   {SETUPS.map((s) => (
                     <option key={s}>{s}</option>
@@ -406,6 +405,7 @@ export function Level2({ c, source, detail, quote, now, ticket, setTicket, onSym
                   </>
                 )}
                 {stopV !== undefined && quote && stopV >= quote.bid && <span className="t-down"> · el stop quedó arriba del bid: tocá Sugerir</span>}
+                {!auto && <span className="t-muted"> · salidas manuales</span>}
                 {' · '}
                 <button type="button" className="link" onClick={sizeByRisk} title={`Acciones para arriesgar ${fmtMoney(settings.defaultRisk)} hasta el stop`}>
                   tamaño por riesgo
@@ -426,18 +426,17 @@ export function Level2({ c, source, detail, quote, now, ticket, setTicket, onSym
                     {pos.initialStop && un ? <span className="t-muted"> · {(un.pnl / ((pos.avgCost - pos.initialStop) * pos.shares || 1)).toFixed(1)}R</span> : null}
                     <span className="t-muted">
                       {' '}
-                      · stop {pos.stop ? fmtPx(pos.stop) : '—'} · obj. {pos.target ? fmtPx(pos.target) : '—'}
+                      · stop {pos.stop ? fmtPx(pos.stop) : pos.planStop ? `${fmtPx(pos.planStop)} (plan)` : '—'} · obj.{' '}
+                      {pos.target ? fmtPx(pos.target) : pos.planTarget ? `${fmtPx(pos.planTarget)} (plan)` : '—'}
                     </span>
                   </span>
                   <span className="oe-pos-actions">
                     <button type="button" className="chip" onClick={() => c.setBracket(pos.sym, pos.avgCost, pos.target)} title="Mover el stop al precio de entrada">
                       Stop a BE
                     </button>
-                    {ticket.bracket && (
-                      <button type="button" className="chip" onClick={() => c.setBracket(pos.sym, num(ticket.stop), num(ticket.target))}>
-                        Aplicar stop/obj.
-                      </button>
-                    )}
+                    <button type="button" className="chip" onClick={() => c.setBracket(pos.sym, num(ticket.stop), num(ticket.target))} title="Poner el stop y el objetivo del ticket como órdenes OCO">
+                      Poner stop/obj.
+                    </button>
                   </span>
                 </div>
               )}

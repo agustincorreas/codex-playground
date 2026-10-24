@@ -111,6 +111,9 @@ export interface ChartPosition {
   shares: number;
   stop?: number;
   target?: number;
+  /** Stop y objetivo del plan (sin órdenes): se dibujan punteados. */
+  planStop?: number;
+  planTarget?: number;
 }
 
 export interface ChartFill {
@@ -366,7 +369,9 @@ export function Chart({ id, defaultTf, detail, alerts, themeKey, now, position, 
     if (position) {
       add(position.avgCost, p.info, `Tu costo (${position.shares})`, LineStyle.Solid, 2);
       if (position.stop) add(position.stop, p.down, 'Tu stop', LineStyle.Solid);
+      else if (position.planStop) add(position.planStop, p.down, 'Stop plan', LineStyle.Dotted);
       if (position.target) add(position.target, p.up, 'Tu objetivo', LineStyle.Solid);
+      else if (position.planTarget) add(position.planTarget, p.up, 'Obj. plan', LineStyle.Dotted);
     } else if (detail.setup.flag) {
       add(detail.setup.flag.entry, p.ema9, 'Entrada BF', LineStyle.Dashed);
       add(detail.setup.flag.stop, p.down, 'Stop BF', LineStyle.Dashed);

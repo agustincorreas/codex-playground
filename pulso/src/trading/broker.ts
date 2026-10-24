@@ -36,6 +36,9 @@ export interface OrderRequest {
   /** Stop y objetivo que se colocan como OCO cuando la compra se ejecuta. */
   stop?: number;
   target?: number;
+  /** Stop y objetivo del plan: quedan anotados en la posición (riesgo y R) sin mandar órdenes. */
+  planStop?: number;
+  planTarget?: number;
   setup?: string;
   ctx?: EntryContext;
   role?: OrderRole;
@@ -50,6 +53,12 @@ export interface BrokerResult {
 
 export interface BrokerEvents {
   onFill?(fill: Fill, trade?: Trade): void;
+  /**
+   * Una orden quedó esperando en el mercado ('open') o se canceló sin que el usuario la cancelara
+   * ('canceled': venció, sin liquidez, sin poder de compra...). Las cancelaciones que son consecuencia
+   * de otra cosa (OCO, posición cerrada, reemplazo, cierre del día) no se avisan.
+   */
+  onOrder?(kind: 'open' | 'canceled', order: Order): void;
   /** Avisos que no vienen de una acción del usuario (una orden cancelada al ejecutarse, por ejemplo). */
   onNotice?(message: string): void;
   onChange?(): void;
@@ -290,6 +299,7 @@ export class Broker {
       filled: 0,
       avgPrice: 0,
       bracket: req.side === 'buy' && (req.stop || req.target) ? { stop: req.stop, target: req.target } : undefined,
+      plan: req.side === 'buy' && (req.planStop || req.planTarget) ? { stop: req.planStop, target: req.planTarget } : undefined,
       setup: req.setup,
       ctx: req.ctx,
     };
@@ -298,19 +308,26 @@ export class Broker {
     return { ok: true, message: `Enviada: ${describeOrder(order)}.`, fills: [], order };
   }
 
-  private finish(o: Order, status: OrderStatus, now: number, note?: string): void {
+  /** Saca una orden de las vivas. `silent`: una cancelación que es consecuencia de otra acción. */
+  private finish(o: Order, status: OrderStatus, now: number, note?: string, silent = false): void {
     this.session.orders = this.session.orders.filter((x) => x.id !== o.id);
     o.status = status;
     o.updatedAt = now;
     if (note) o.note = note;
     this.session.history.push(o);
     if (this.session.history.length > HISTORY_MAX) this.session.history.splice(0, this.session.history.length - HISTORY_MAX);
+    if (status === 'canceled' && !silent) this.events.onOrder?.('canceled', o);
+  }
+
+  /** Una orden del día, viva o terminada. */
+  order(id: string): Order | undefined {
+    return this.session.orders.find((o) => o.id === id) ?? this.session.history.find((o) => o.id === id);
   }
 
   cancel(id: string, now: number): void {
     const o = this.session.orders.find((x) => x.id === id);
     if (!o) return;
-    this.finish(o, 'canceled', now, 'Cancelada por vos');
+    this.finish(o, 'canceled', now, 'Cancelada por vos', true);
     const p = this.position(o.sym);
     if (p && o.role === 'stop') p.stop = undefined;
     if (p && o.role === 'target') p.target = undefined;
@@ -327,7 +344,7 @@ export class Broker {
     if (!p) return fail(`No tenés posición en ${sym}.`);
     if (q && b.stop !== undefined && b.stop >= Math.min(q.bid, q.last) - EPS) return fail('El stop tiene que quedar debajo del bid.');
     if (q && b.target !== undefined && b.target <= q.ask + EPS) return fail('El objetivo tiene que quedar arriba del ask.');
-    for (const o of [...this.session.orders]) if (o.sym === sym && (o.role === 'stop' || o.role === 'target')) this.finish(o, 'canceled', now, 'Reemplazada');
+    for (const o of [...this.session.orders]) if (o.sym === sym && (o.role === 'stop' || o.role === 'target')) this.finish(o, 'canceled', now, 'Reemplazada', true);
     const oco = this.nextId('oco');
     const base = { sym, side: 'sell' as const, shares: p.shares, tif: 'DAY+' as const, route: 'SMRT', oco, status: 'open' as const, createdAt: now, activeAt: now, updatedAt: now, filled: 0, avgPrice: 0, tapeSeq: this.seqNow?.() };
     if (b.stop) this.session.orders.push({ ...base, id: this.nextId('o'), type: 'stop', stopPrice: roundPx(b.stop), role: 'stop' });
@@ -363,7 +380,8 @@ export class Broker {
       const q = m.quote(o.sym);
       if (!q) continue;
       const working = !q.halted && sess !== 'closed' && (sess === 'regular' || o.tif === 'DAY+');
-      if (o.status === 'sent') {
+      const arrived = o.status === 'sent';
+      if (arrived) {
         o.status = 'open';
         o.updatedAt = now;
         o.tapeSeq = m.lastSeq();
@@ -372,10 +390,12 @@ export class Broker {
       }
       if (!working) {
         o.note = q.halted ? 'Espera la reanudación del halt' : 'Espera la rueda regular (TIF DAY)';
-        continue;
+      } else {
+        o.note = undefined;
+        fills.push(...this.work(o, q, now, m, marks, sess));
       }
-      o.note = undefined;
-      fills.push(...this.work(o, q, now, m, marks, sess));
+      // Llegó y no se ejecutó nada: queda esperando en el libro (o el disparo, si es stop).
+      if (arrived && o.filled === 0 && this.session.orders.includes(o)) this.events.onOrder?.('open', o);
     }
     return fills;
   }
@@ -470,7 +490,6 @@ export class Broker {
       }
       if (!ok.length) {
         this.finish(o, 'canceled', now, 'Poder de compra insuficiente al ejecutarse');
-        this.events.onNotice?.(`Orden de compra de ${o.sym} cancelada: el poder de compra no alcanzaba al ejecutarse.`);
         this.changed();
         return [];
       }
@@ -510,7 +529,7 @@ export class Broker {
     if (o.side === 'buy') this.applyBuy(o, fill);
     else trade = this.applySell(o, fill, now);
     if (o.status === 'filled' && o.oco) {
-      for (const x of [...this.session.orders]) if (x.oco === o.oco) this.finish(x, 'canceled', now, 'OCO: se ejecutó la otra orden');
+      for (const x of [...this.session.orders]) if (x.oco === o.oco) this.finish(x, 'canceled', now, 'OCO: se ejecutó la otra orden', true);
     }
     this.events.onFill?.(fill, trade);
     this.changed();
@@ -519,7 +538,7 @@ export class Broker {
 
   /** Cierra todo (fin del día): cancela las órdenes y vende las posiciones contra el libro. */
   flatten(now: number, m: MarketAccess, marks: Marks, reason: OrderRole = 'eod'): Trade[] {
-    for (const o of [...this.session.orders]) this.finish(o, 'canceled', now, 'Cierre del día');
+    for (const o of [...this.session.orders]) this.finish(o, 'canceled', now, 'Cierre del día', true);
     const trades: Trade[] = [];
     for (const p of [...this.session.positions]) {
       const q = m.quote(p.sym);
@@ -546,7 +565,7 @@ export class Broker {
         // En halt no hay mercado: se cierra al último precio conocido.
         this.fillParts(order, [{ price: marks(p.sym) ?? p.avgCost, size: p.shares }], now, marks);
       }
-      if (this.session.orders.includes(order)) this.finish(order, 'canceled', now, 'Sin liquidez');
+      if (this.session.orders.includes(order)) this.finish(order, 'canceled', now, 'Sin liquidez', true);
       if (this.session.trades.length > before) trades.push(this.session.trades[this.session.trades.length - 1]);
     }
     this.changed();
@@ -587,6 +606,11 @@ export class Broker {
     p.fills++;
     if (o.setup && !p.setup) p.setup = o.setup;
     this.session.cash = money(this.session.cash - value - f.fee);
+    if (o.plan) {
+      if (o.plan.stop && o.plan.stop < p.avgCost) p.planStop = roundPx(o.plan.stop);
+      if (o.plan.target && o.plan.target > p.avgCost) p.planTarget = roundPx(o.plan.target);
+      if (p.initialStop === undefined && p.planStop !== undefined) p.initialStop = p.planStop;
+    }
     const stop = o.bracket?.stop ?? p.stop;
     const target = o.bracket?.target ?? p.target;
     if (stop || target) this.setBracket(o.sym, { stop, target }, f.ts);
@@ -613,7 +637,7 @@ export class Broker {
 
   private closeTrade(p: Position, f: Fill, reason: ExitReason, now: number): Trade {
     this.session.positions = this.session.positions.filter((x) => x !== p);
-    for (const x of [...this.session.orders]) if (x.sym === p.sym && x.side === 'sell' && x.id !== f.orderId) this.finish(x, 'canceled', now, 'Posición cerrada');
+    for (const x of [...this.session.orders]) if (x.sym === p.sym && x.side === 'sell' && x.id !== f.orderId) this.finish(x, 'canceled', now, 'Posición cerrada', true);
     const avgEntry = p.boughtCost / p.boughtShares;
     const avgExit = p.soldValue / p.soldShares;
     const gross = money(p.soldValue - p.boughtCost);

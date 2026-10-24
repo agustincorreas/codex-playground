@@ -1,21 +1,22 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { fmtVolume } from '../engine/alerts';
-import type { Alert, NewsItem, ProviderStatus, ScannerId, Settings, SymbolDetail, ViewModel } from '../engine/types';
+import type { Alert, AlertType, NewsItem, ProviderStatus, ScannerId, Settings, SymbolDetail, ViewModel } from '../engine/types';
 import { DEFAULT_SETTINGS } from '../engine/types';
 import { createTrainingStore, LocalTrainingStore } from '../trading/store';
 import type { Hotkey } from '../trading/types';
-import { AccountValue, PositionsWindow, TradeActivity } from './components/Account';
+import { AccountValue, PositionsWindow, TodayTrades, TradeActivity } from './components/Account';
 import { Chart, type ChartFill, type ChartOrder, type ChartPosition } from './components/Chart';
 import { Header, MobileTabs, SettingsModal, type MobileTab, type Prefs } from './components/Chrome';
 import { Detail } from './components/Detail';
 import { AlertFeed, HaltsPanel, HodBoard, MomentumFeed, NewsPanel, WatchlistPanel } from './components/Feeds';
 import { Journal } from './components/Journal';
 import { Level2, num, type TicketForm } from './components/Level2';
+import { IconVoice } from './components/Icons';
 import { Empty, Panel } from './components/Panel';
 import { PracticeSettings } from './components/PracticeSettings';
 import { SCANNER_COLUMNS, ScannerTable } from './components/ScannerTable';
 import { DEFAULT_SOUND_TYPES } from './lib/alertMeta';
-import { beep, playFill, speak, unlockAudio } from './lib/audio';
+import { beep, playOrder, speak, unlockAudio } from './lib/audio';
 import { matches, typing } from './lib/hotkeys';
 import { load, save } from './lib/storage';
 import { LocalSource, type SimConfig } from './source/local';
@@ -24,14 +25,22 @@ import type { DataSource } from './source/types';
 import { TrainingController, useTrainingVersion } from './training';
 
 const DEFAULT_PREFS: Prefs = {
-  sound: false,
-  voice: false,
+  sound: true,
+  voice: true,
   voiceLang: 'es',
   soundMinScore: 3,
   soundTypes: DEFAULT_SOUND_TYPES,
   momentumMinScore: 3,
   theme: 'system',
+  audioV: 2,
 };
+
+/** Señales que se leen en voz alta: las de momentum (algo que se está moviendo ahora) y los halts. */
+const VOICE_TYPES = new Set<AlertType>(['hod', 'squeeze', 'running', 'bullFlag', 'pmhBreak', 'volume', 'halt', 'resume']);
+/** Si llegan varias juntas, suena la más importante. */
+const ALERT_PRIORITY: Partial<Record<AlertType, number>> = { halt: 9, resume: 8, squeeze: 7, bullFlag: 6, running: 5, pmhBreak: 4, hod: 3, volume: 2 };
+/** La misma acción no se vuelve a leer en voz alta antes de este tiempo (salvo halts). */
+const VOICE_COOLDOWN_MS = 45_000;
 
 const SCANNER_LABEL: Record<ScannerId, string> = {
   gappers: 'Top gappers',
@@ -129,7 +138,14 @@ function Workspace({ server, c }: { server: boolean; c: TrainingController }) {
   const [selected, setSelected] = useState<string | null>(null);
   const [settings, setSettings] = useState<Settings>(() => load('settings', DEFAULT_SETTINGS));
   const [watch, setWatch] = useState<string[]>([]);
-  const [prefs, setPrefs] = useState<Prefs>(() => load('prefs', DEFAULT_PREFS));
+  const [prefs, setPrefs] = useState<Prefs>(() => {
+    const p = load('prefs', DEFAULT_PREFS);
+    // Las alertas con sonido y voz pasaron a venir prendidas: se activan una vez para quien las tenía apagadas.
+    return (p.audioV ?? 1) < 2 ? { ...p, sound: true, voice: true, audioV: 2 } : p;
+  });
+  const [audioLocked, setAudioLocked] = useState(true);
+  const spokenAt = useRef(new Map<string, number>());
+  const lastVoice = useRef(0);
   const [tabs, setTabs] = useState<Record<string, string>>(() => load('tabs', { scan: 'gappers', momo: 'momentum', quote: 'quote', acct: 'pos' }));
   const [speed, setSpeed] = useState(1);
   const [mobileTab, setMobileTab] = useState<MobileTab>('scan');
@@ -143,7 +159,6 @@ function Workspace({ server, c }: { server: boolean; c: TrainingController }) {
     shares: String(c.state.settings.defaultShares),
     route: 'SMRT',
     tif: c.state.settings.defaultTif,
-    bracket: load('ticket-bracket', true),
     stop: '',
     target: '',
     setup: load('ticket-setup', 'Bull flag'),
@@ -154,7 +169,6 @@ function Workspace({ server, c }: { server: boolean; c: TrainingController }) {
   const setTicket = useCallback((patch: Partial<TicketForm>) => {
     setTicketState((t) => {
       const next = { ...t, ...patch };
-      if (patch.bracket !== undefined) save('ticket-bracket', next.bracket);
       if (patch.setup !== undefined) save('ticket-setup', next.setup);
       return next;
     });
@@ -248,32 +262,29 @@ function Workspace({ server, c }: { server: boolean; c: TrainingController }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [server, sim?.seed]);
 
+  // Alertas del escáner: un sonido y, para las de momentum, la voz ("V I O. Squeeze. Sube 45 por
+  // ciento"). Suena la más importante del grupo y la misma acción no se repite enseguida.
   function playAlerts(list: Alert[]) {
     const p = prefsRef.current;
     if (!p.sound) return;
-    for (const a of list) {
-      if (a.warmup) continue;
-      const watched = watchRef.current.includes(a.sym);
-      if (!p.soundTypes.includes(a.type)) continue;
-      if (a.score < p.soundMinScore && !watched) continue;
-      beep(a);
-      if (p.voice) speak(a, p.voiceLang);
-      break;
-    }
+    const watched = (a: Alert) => watchRef.current.includes(a.sym);
+    const cands = list.filter((a) => !a.warmup && p.soundTypes.includes(a.type) && (a.score >= p.soundMinScore || watched(a)));
+    if (!cands.length) return;
+    cands.sort((x, y) => (ALERT_PRIORITY[y.type] ?? 0) - (ALERT_PRIORITY[x.type] ?? 0) || y.score - x.score);
+    const a = cands[0];
+    beep(a);
+    if (!p.voice || !(VOICE_TYPES.has(a.type) || (a.type === 'news' && watched(a)))) return;
+    const t = performance.now();
+    const urgent = a.type === 'halt' || a.type === 'resume';
+    if (!urgent && (t - (spokenAt.current.get(a.sym) ?? -Infinity) < VOICE_COOLDOWN_MS || t - lastVoice.current < 2500)) return;
+    spokenAt.current.set(a.sym, t);
+    lastVoice.current = t;
+    speak(a, p.voiceLang);
   }
 
-  // Aviso y sonido de cada ejecución de práctica.
-  useEffect(
-    () =>
-      c.onFill(({ fill, trade }) => {
-        c.notify(c.describeFill(fill, trade), trade ? (trade.net >= 0 ? 'ok' : 'error') : 'ok');
-        if (!prefsRef.current.sound) return;
-        if (fill.side === 'buy') playFill('buy');
-        else if (trade) playFill(trade.net >= 0 ? 'win' : 'loss');
-        else playFill('sell');
-      }),
-    [c],
-  );
+  // Aviso de cada ejecución de práctica y sonidos de las órdenes (aparte del sonido de las alertas).
+  useEffect(() => c.onFill(({ fill, trade }) => c.notify(c.describeFill(fill, trade), trade ? (trade.net >= 0 ? 'ok' : 'error') : 'ok')), [c]);
+  useEffect(() => c.onSound(playOrder), [c]);
 
   // Celular o escritorio: el diario va en una pestaña o en una ventana, nunca los dos a la vez.
   useEffect(() => {
@@ -322,7 +333,10 @@ function Workspace({ server, c }: { server: boolean; c: TrainingController }) {
 
   // El audio solo se habilita después de un toque del usuario (iOS/Safari).
   useEffect(() => {
-    const f = () => unlockAudio();
+    const f = () => {
+      unlockAudio();
+      setAudioLocked(false);
+    };
     window.addEventListener('pointerdown', f);
     window.addEventListener('keydown', f);
     return () => {
@@ -340,8 +354,8 @@ function Workspace({ server, c }: { server: boolean; c: TrainingController }) {
       const t = ticketRef.current;
       c.hotkey(h, sym, {
         shares: Math.floor(Number(t.shares) || 0),
-        stop: t.bracket ? num(t.stop) : undefined,
-        target: t.bracket ? num(t.target) : undefined,
+        stop: num(t.stop),
+        target: num(t.target),
         setup: t.setup,
         route: t.route,
         tif: t.tif,
@@ -415,7 +429,7 @@ function Workspace({ server, c }: { server: boolean; c: TrainingController }) {
   const activeHalts = view.halts.filter((h) => h.halted).length;
   const quote = selected && source ? source.quote(selected) : null;
   const pos = selected ? c.broker?.position(selected) : undefined;
-  const chartPos: ChartPosition | undefined = pos ? { avgCost: pos.avgCost, shares: pos.shares, stop: pos.stop, target: pos.target } : undefined;
+  const chartPos: ChartPosition | undefined = pos ? { avgCost: pos.avgCost, shares: pos.shares, stop: pos.stop, target: pos.target, planStop: pos.planStop, planTarget: pos.planTarget } : undefined;
   const chartFills: ChartFill[] | undefined = selected
     ? c.active?.fills.filter((f) => f.sym === selected).map((f) => ({ ts: f.ts, side: f.side, price: f.price, shares: f.shares }))
     : undefined;
@@ -460,6 +474,7 @@ function Workspace({ server, c }: { server: boolean; c: TrainingController }) {
         effectiveTheme={theme}
         account={{ equity: acct.equity, dayPnl: acct.dayPnl }}
         onJournal={openJournal}
+        audioLocked={audioLocked}
       />
 
       <main className="grid">
@@ -475,6 +490,17 @@ function Workspace({ server, c }: { server: boolean; c: TrainingController }) {
           ]}
           activeTab={momoTab}
           onTab={(id) => setTab('momo', id)}
+          actions={
+            <button
+              type="button"
+              className={`chip voice-chip ${prefs.sound && prefs.voice ? 'is-active' : ''}`}
+              onClick={() => updatePrefs(prefs.sound && prefs.voice ? { voice: false } : { sound: true, voice: true })}
+              aria-pressed={prefs.sound && prefs.voice}
+              title={prefs.sound && prefs.voice ? 'Alertas con voz prendidas: tocá para apagar la voz' : 'Prender las alertas con sonido y voz'}
+            >
+              <IconVoice /> Voz
+            </button>
+          }
         >
           {momoTab === 'momentum' && <MomentumFeed alerts={alerts} minScore={prefs.momentumMinScore} selected={selected} onSelect={select} />}
           {momoTab === 'alerts' && <AlertFeed alerts={alerts} selected={selected} onSelect={select} />}
@@ -547,12 +573,19 @@ function Workspace({ server, c }: { server: boolean; c: TrainingController }) {
           className="p-pos"
           tabs={[
             { id: 'pos', label: 'Posiciones', count: c.active?.positions.length || undefined },
-            { id: 'acct', label: 'Valor de la cuenta' },
+            { id: 'trades', label: 'Trades de hoy', count: c.active?.trades.length || undefined },
+            { id: 'acct', label: 'Cuenta' },
           ]}
           activeTab={acctTab}
           onTab={(id) => setTab('acct', id)}
         >
-          {acctTab === 'pos' ? <PositionsWindow c={c} selected={selected} onSelect={select} /> : <AccountValue c={c} onSettings={() => setPracticeSettings(true)} />}
+          {acctTab === 'trades' ? (
+            <TodayTrades c={c} onSelect={select} />
+          ) : acctTab === 'acct' ? (
+            <AccountValue c={c} onSettings={() => setPracticeSettings(true)} />
+          ) : (
+            <PositionsWindow c={c} selected={selected} onSelect={select} />
+          )}
         </Panel>
         <Panel title="Actividad de órdenes" area="orders" mtab="chart" className="p-orders" count={openOrders || undefined}>
           <TradeActivity c={c} onSelect={select} />

@@ -31,7 +31,7 @@ La pantalla está armada con ventanas, como una plataforma de trading:
 | **Nivel 2 y órdenes** | El libro de órdenes por bolsa, la cinta (Time & Sales) y la entrada de órdenes de la cuenta de práctica (sección 2). |
 | **Gráfico 1 min y 5 min** | Velas (también de 10 y 30 segundos) con VWAP, EMA 9, 20 y 200, volumen y MACD; leyenda con OHLC, float y capitalización; cuenta regresiva del cierre de la vela; líneas del máximo del día, máximo del pre-market y cierre anterior; marcas de halts y de bull flag. En práctica, además, tus compras (C) y ventas (V), tu costo y tus órdenes. |
 | **Cotización** | La ficha de la acción: precio, empresa y bolsa, noticias, float, volumen, volumen relativo diario y de 5 minutos, gap, máximos, VWAP, short interest, capitalización, etiquetas de dilución de la SEC, los 5 pilares con su valor y el estado del setup (VWAP, EMA 9, MACD). Pestaña **Noticias** con todos los titulares. |
-| **Posiciones / Valor de la cuenta** | Lo que tenés abierto con el resultado no realizado y realizado; efectivo, plata sin liquidar, poder de compra y cuenta de day trades. |
+| **Posiciones / Trades de hoy / Cuenta** | Las acciones que operaste hoy (abiertas y ya cerradas) con el resultado no realizado, el realizado y el total; cada trade cerrado con lo que ganaste o perdiste y el **resultado del día**; efectivo, plata sin liquidar, poder de compra y cuenta de day trades. |
 | **Actividad de órdenes** | Todas las órdenes del día con su estado (enviada, abierta, parcial, ejecutada, cancelada o rechazada). |
 | **Cuenta y métricas** | Se abre con el botón del saldo, arriba: estadísticas, Profit Trifecta, curva de capital y trades (sección 2). |
 
@@ -56,8 +56,12 @@ retroceso de 1 a 4 velas con menos volumen que no devuelve más del 50%, sobre e
 vela que hace nuevo máximo y propone entrada, stop y objetivo 2:1), recupera / pierde el VWAP, rojo a verde,
 flush (−12% en 5 min), halt, reanudación, noticia, entra a gappers y rotación del float (volumen ≥ float).
 
-El sonido se activa con el botón del parlante (el navegador exige un toque). Con el micrófono las alertas se
-leen en voz alta ("T R O R, squeeze"). En Ajustes elegís qué alertas suenan y desde cuántos pilares.
+Las alertas suenan y las de momentum (nuevo máximo, squeeze, subida rápida, bull flag, ruptura del máximo
+del pre-market, pico de volumen) y los halts se leen en voz alta: "V I O. Squeeze. Sube 45 por ciento". Si
+llegan varias juntas suena la más importante, y la misma acción no se repite antes de 45 segundos. El
+navegador exige un toque antes de reproducir audio: al abrir la página, tocá cualquier parte. El botón
+**Voz** de *Máximos del día* y los del parlante y el micrófono, arriba, las apagan; en Ajustes elegís qué
+alertas suenan y desde cuántos pilares.
 
 ---
 
@@ -97,16 +101,27 @@ que instalar nada.
    tocando un nivel del libro se copia su precio), cantidad (de a 100; **P** pone el tamaño de tu
    posición), ruta, vigencia (**DAY+** opera también en pre-market y after-hours; **DAY** solo en la rueda)
    y **VENDER** / **COMPRAR**.
-4. Con **Stop y objetivo** tildado, la compra sale con un stop de pérdida y una venta límite en el objetivo,
-   que se cancelan entre sí (OCO). El stop propuesto va debajo del mínimo del retroceso (o en el stop del bull
-   flag si hay uno armado), nunca más pegado que el rango típico de una vela de 1 minuto, y el objetivo a 2R.
-   La propuesta acompaña al precio mientras no la cambies a mano y **Sugerir** la vuelve a calcular.
-   **Tamaño por riesgo** calcula cuántas acciones comprar para perder como mucho US$ 20 (se cambia en los
-   ajustes) si toca el stop, y la línea de abajo te dice cuántas acciones te alcanzan.
+4. **Las salidas las hacés vos.** La compra sale sola, sin stop ni objetivo automáticos: el *Stop plan* y el
+   *Obj. plan* del ticket son tu plan (el stop mental). Sirven para el **tamaño por riesgo** (cuántas
+   acciones comprar para perder como mucho US$ 20, que se cambia en los ajustes), para medir la R de cada
+   trade y se ven punteados en el gráfico, pero no se mandan como órdenes. El stop propuesto va debajo del
+   mínimo del retroceso (o en el stop del bull flag si hay uno armado), nunca más pegado que el rango típico
+   de una vela de 1 minuto, y el objetivo a 2R; acompaña al precio mientras no lo cambies a mano y
+   **Sugerir** lo vuelve a calcular.
+   Si preferís que se pongan solos, tildá **Stop y objetivo automáticos (OCO)** (o en *Ajustes de la cuenta
+   → Órdenes y costos*): la compra sale con un stop de pérdida y una venta límite en el objetivo, que se
+   cancelan entre sí.
 5. Para entrar y salir rápido están los **botones rápidos** (abajo de COMPRAR/VENDER) y los **atajos de
-   teclado**. Con una posición abierta aparecen **Stop a BE** (sube el stop a tu precio de entrada) y
-   **Aplicar stop/obj.**; en *Posiciones*, **Cerrar** vende todo.
-6. A las 15:59 ET el día se cierra solo (vende lo que quedó abierto), o lo cerrás antes con *Terminar el
+   teclado**. Con una posición abierta aparecen **Stop a BE** (pone el stop en tu precio de entrada) y
+   **Poner stop/obj.** (coloca los del ticket como órdenes); en *Posiciones*, **Cerrar** vende todo.
+6. Cada orden suena distinto, como en TradingView: compra ejecutada (dos notas que suben), venta (dos que
+   bajan), trade cerrado con ganancia o con pérdida, ejecución parcial, orden en espera, cancelada y
+   rechazada, con un aviso en pantalla. Se apagan en *Ajustes de la cuenta → Órdenes y costos*, donde también
+   podés escucharlos.
+7. En *Posiciones* quedan también las acciones que ya cerraste, con lo que ganaste o perdiste en cada una, y
+   la pestaña **Trades de hoy** lista cada trade con su resultado y el **total del día** (el saldo de arriba
+   también muestra el resultado de hoy).
+8. A las 15:59 ET el día se cierra solo (vende lo que quedó abierto), o lo cerrás antes con *Terminar el
    día*. El saldo pasa al día siguiente.
 
 ### Atajos de teclado
@@ -122,7 +137,7 @@ agregan nuevos y se elige cuáles aparecen como botón rápido.
 | ⇧3 / ⇧4 | Compra 100 / 500 acciones a Ask + 0,05 |
 | ⇧Q / ⇧W / ⇧E | Vende ¼ / ½ / toda la posición a Bid − 0,05 (⇧E también es botón rápido) |
 | ⇧R / ⇧T | Vende ½ / toda la posición en el ask (orden límite que espera) |
-| ⇧B | Mueve el stop al precio de entrada |
+| ⇧B | Pone (o mueve) el stop en tu precio de entrada |
 | Esc | Cancela las órdenes de la acción |
 
 Ask + 0,05 y Bid − 0,05 son órdenes límite que se ejecutan enseguida pero no pagan cualquier precio (así
@@ -360,7 +375,7 @@ pulso/
 | --- | --- |
 | `npm run dev` | Interfaz en modo demo con recarga en caliente (http://localhost:5173). |
 | `npm start` | Compila la interfaz y arranca el servidor (datos reales si hay claves). |
-| `npm test` | Pruebas (62): motor, alertas, bull flag, halts, Alpaca y Massive contra servidores falsos, simulador, bróker de práctica y métricas. |
+| `npm test` | Pruebas (64): motor, alertas, bull flag, halts, Alpaca y Massive contra servidores falsos, simulador, bróker de práctica y métricas. |
 | `npm run typecheck` | Chequeo de tipos de todo el proyecto. |
 | `npm run build:demo` | Página única del demo (`dist-demo/index.html`) para GitHub Pages. |
 

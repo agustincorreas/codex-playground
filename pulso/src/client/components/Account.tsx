@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { formatEtTime } from '../../engine/time';
 import { fmtMoney, fmtPx, STATUS_LABEL } from '../../trading/broker';
-import type { Order } from '../../trading/types';
+import type { Order, Trade } from '../../trading/types';
 import type { TrainingController } from '../training';
 import { Empty } from './Panel';
 
@@ -22,15 +22,39 @@ function Lbl({ long, short }: { long: string; short: string }) {
   );
 }
 
+const money = (v: number) => Math.round(v * 100) / 100;
+
+interface PosRow {
+  sym: string;
+  shares: number;
+  avgCost?: number;
+  unreal: number;
+  realized: number;
+  total: number;
+  open: boolean;
+}
+
+/**
+ * Posiciones del día, como en el simulador de Warrior: las abiertas y también las que ya cerraste,
+ * con lo que ganaste o perdiste en cada acción y el total.
+ */
 export function PositionsWindow({ c, selected, onSelect }: { c: TrainingController; selected: string | null; onSelect: (s: string) => void }) {
   const a = c.active;
   const s = c.summary();
-  const rows = (a?.positions ?? []).map((p) => {
+  // Resultado de los trades ya cerrados hoy, por acción (el más reciente primero).
+  const closed = new Map<string, number>();
+  for (const t of [...(a?.trades ?? [])].reverse()) closed.set(t.sym, money((closed.get(t.sym) ?? 0) + t.net));
+  const open: PosRow[] = (a?.positions ?? []).map((p) => {
     const last = c.marks(p.sym) ?? p.avgCost;
-    const unreal = Math.round((last - p.avgCost) * p.shares * 100) / 100;
-    return { p, last, unreal, total: Math.round((unreal + p.realized) * 100) / 100 };
+    const unreal = money((last - p.avgCost) * p.shares);
+    const realized = money(p.realized + (closed.get(p.sym) ?? 0));
+    return { sym: p.sym, shares: p.shares, avgCost: p.avgCost, unreal, realized, total: money(unreal + realized), open: true };
   });
-  const tot = rows.reduce((x, r) => ({ unreal: x.unreal + r.unreal, real: x.real + r.p.realized, total: x.total + r.total }), { unreal: 0, real: 0, total: 0 });
+  const flat: PosRow[] = [...closed]
+    .filter(([sym]) => !open.some((r) => r.sym === sym))
+    .map(([sym, net]) => ({ sym, shares: 0, unreal: 0, realized: net, total: net, open: false }));
+  const rows = [...open, ...flat];
+  const tot = rows.reduce((x, r) => ({ unreal: x.unreal + r.unreal, real: x.real + r.realized, total: x.total + r.total }), { unreal: 0, real: 0, total: 0 });
   return (
     <div className="acct">
       <div className="bp-line">
@@ -47,7 +71,7 @@ export function PositionsWindow({ c, selected, onSelect }: { c: TrainingControll
       {!a ? (
         <Empty>No hay un día de práctica activo.</Empty>
       ) : !rows.length ? (
-        <Empty>Sin posiciones abiertas.</Empty>
+        <Empty>Sin posiciones ni trades hoy.</Empty>
       ) : (
         <div className="table-wrap">
           <table className="grid-table">
@@ -69,27 +93,31 @@ export function PositionsWindow({ c, selected, onSelect }: { c: TrainingControll
               </tr>
             </thead>
             <tbody>
-              {rows.map(({ p, unreal, total }) => (
-                <tr key={p.sym} className={p.sym === selected ? 'is-selected' : ''} onClick={() => onSelect(p.sym)}>
+              {rows.map((r) => (
+                <tr key={r.sym} className={`${r.sym === selected ? 'is-selected' : ''} ${r.open ? '' : 'is-flat'}`} onClick={() => onSelect(r.sym)}>
                   <td>
-                    <button className="link sym-link">{p.sym}</button>
+                    <button className="link sym-link">{r.sym}</button>
                   </td>
-                  <td className="num">{p.shares.toLocaleString('en-US')}</td>
-                  <td className="num">{fmtPx(p.avgCost)}</td>
-                  <td className={`num ${tone(unreal)}`}>{signed(unreal)}</td>
-                  <td className={`num hide-md ${tone(p.realized)}`}>{signed(p.realized)}</td>
-                  <td className={`num ${tone(total)}`}>{signed(total)}</td>
+                  <td className="num">{r.shares.toLocaleString('en-US')}</td>
+                  <td className="num">{r.avgCost !== undefined ? fmtPx(r.avgCost) : '—'}</td>
+                  <td className={`num ${tone(r.unreal)}`}>{r.open ? signed(r.unreal) : '—'}</td>
+                  <td className={`num hide-md ${tone(r.realized)}`}>{signed(r.realized)}</td>
+                  <td className={`num ${tone(r.total)}`}>
+                    <b>{signed(r.total)}</b>
+                  </td>
                   <td className="c-extra">
-                    <button
-                      className="btn-small sell"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        c.sell(p.sym, 1);
-                      }}
-                      title="Vender toda la posición a Bid − 0,05"
-                    >
-                      Cerrar
-                    </button>
+                    {r.open && (
+                      <button
+                        className="btn-small sell"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          c.sell(r.sym, 1);
+                        }}
+                        title="Vender toda la posición a Bid − 0,05"
+                      >
+                        Cerrar
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -99,9 +127,11 @@ export function PositionsWindow({ c, selected, onSelect }: { c: TrainingControll
                 <td>Total</td>
                 <td />
                 <td />
-                <td className={`num ${tone(tot.unreal)}`}>{signed(Math.round(tot.unreal * 100) / 100)}</td>
-                <td className={`num hide-md ${tone(tot.real)}`}>{signed(Math.round(tot.real * 100) / 100)}</td>
-                <td className={`num ${tone(tot.total)}`}>{signed(Math.round(tot.total * 100) / 100)}</td>
+                <td className={`num ${tone(tot.unreal)}`}>{signed(money(tot.unreal))}</td>
+                <td className={`num hide-md ${tone(tot.real)}`}>{signed(money(tot.real))}</td>
+                <td className={`num ${tone(tot.total)}`}>
+                  <b>{signed(money(tot.total))}</b>
+                </td>
                 <td />
               </tr>
             </tfoot>
@@ -111,6 +141,91 @@ export function PositionsWindow({ c, selected, onSelect }: { c: TrainingControll
     </div>
   );
 }
+
+/** Los trades cerrados hoy, uno por uno, con lo que ganaste o perdiste en cada uno y el total del día. */
+export function TodayTrades({ c, onSelect }: { c: TrainingController; onSelect: (s: string) => void }) {
+  const trades = [...(c.active?.trades ?? [])].reverse();
+  const total = money(trades.reduce((x, t) => x + t.net, 0));
+  const wins = trades.filter((t) => t.net > 0).length;
+  const losses = trades.filter((t) => t.net < 0).length;
+  const openPnl = money((c.active?.positions ?? []).reduce((x, p) => x + ((c.marks(p.sym) ?? p.avgCost) - p.avgCost) * p.shares, 0));
+  return (
+    <div className="acct">
+      <div className="day-total">
+        <span className="day-total-label">Resultado del día</span>
+        <b className={`day-total-value ${tone(total)}`}>{signed(total)}</b>
+        <span className="t-muted small">
+          {trades.length} {trades.length === 1 ? 'trade' : 'trades'}
+          {trades.length > 0 && (
+            <>
+              {' '}
+              · <span className="t-up">
+                {wins} {wins === 1 ? 'ganador' : 'ganadores'}
+              </span>{' '}
+              · <span className="t-down">
+                {losses} {losses === 1 ? 'perdedor' : 'perdedores'}
+              </span>{' '}
+              · {Math.round((wins / trades.length) * 100)}% aciertos
+            </>
+          )}
+          {openPnl !== 0 && (
+            <>
+              {' '}
+              · abierto <span className={tone(openPnl)}>{signed(openPnl)}</span>
+            </>
+          )}
+        </span>
+      </div>
+      {!trades.length ? (
+        <Empty>Todavía no cerraste trades hoy. Cada vez que cierres una posición aparece acá con su resultado.</Empty>
+      ) : (
+        <div className="table-wrap">
+          <table className="grid-table today-trades">
+            <thead>
+              <tr>
+                <th className="hide-sm">Hora</th>
+                <th>Sím.</th>
+                <th className="num">
+                  <Lbl long="Acciones" short="Acc." />
+                </th>
+                <th className="num">Entrada</th>
+                <th className="num">Salida</th>
+                <th className="num">$ P/G</th>
+              </tr>
+            </thead>
+            <tbody>
+              {trades.map((t) => (
+                <tr key={t.id} onClick={() => onSelect(t.sym)} title={`${t.returnPct >= 0 ? '+' : ''}${t.returnPct.toFixed(1)}%${t.r !== undefined ? ` · ${t.r}R` : ''} · salió por ${EXIT_LABEL[t.exitReason]}`}>
+                  <td className="num t-muted hide-sm">{formatEtTime(t.closedAt)}</td>
+                  <td>
+                    <button className="link sym-link">{t.sym}</button>
+                  </td>
+                  <td className="num">{t.shares.toLocaleString('en-US')}</td>
+                  <td className="num">{fmtPx(t.avgEntry)}</td>
+                  <td className="num">{fmtPx(t.avgExit)}</td>
+                  <td className={`num ${tone(t.net)}`}>
+                    <b>{signed(t.net)}</b>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td className="hide-sm" />
+                <td colSpan={4}>Total del día</td>
+                <td className={`num ${tone(total)}`}>
+                  <b>{signed(total)}</b>
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const EXIT_LABEL: Record<Trade['exitReason'], string> = { manual: 'venta manual', stop: 'stop', target: 'objetivo', eod: 'cierre del día' };
 
 type Filter = 'all' | 'open' | 'filled' | 'canceled';
 

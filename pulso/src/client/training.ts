@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { etParts, REG_CLOSE, sessionDate } from '../engine/time';
 import { lastTradingDay } from '../sim/simulator';
-import { Broker, fmtMoney, fmtPx, type BrokerResult, type Marks, type OrderRequest } from '../trading/broker';
+import { Broker, describeOrder, fmtMoney, fmtPx, type BrokerResult, type Marks, type OrderRequest } from '../trading/broker';
 import { roundPx, tickOf } from '../trading/depth';
 import type { TrainingStore } from '../trading/store';
 import {
@@ -34,6 +34,9 @@ export interface FillEvent {
   trade?: Trade;
 }
 
+/** Sonidos de las órdenes (como en TradingView): ejecutada, parcial, en espera, cancelada o rechazada. */
+export type OrderSound = 'buy' | 'sell' | 'win' | 'loss' | 'partial' | 'placed' | 'canceled' | 'rejected';
+
 /** Lo que el ticket tiene cargado cuando se usa un atajo (acciones, stop, objetivo, setup, ruta y TIF). */
 export interface TicketState {
   shares: number;
@@ -62,6 +65,7 @@ export class TrainingController {
   private source: DataSource | null = null;
   private listeners = new Set<() => void>();
   private fillListeners = new Set<(e: FillEvent) => void>();
+  private soundListeners = new Set<(s: OrderSound) => void>();
   private saveTimer?: ReturnType<typeof setTimeout>;
   private noticeSeq = 0;
   /** Hubo una acción del usuario en esta sesión: recién ahí se guarda (no en la carga). */
@@ -169,6 +173,23 @@ export class TrainingController {
     return () => this.fillListeners.delete(cb);
   }
 
+  onSound(cb: (s: OrderSound) => void): () => void {
+    this.soundListeners.add(cb);
+    return () => this.soundListeners.delete(cb);
+  }
+
+  private sound(s: OrderSound): void {
+    if (!this.state.settings.orderSounds) return;
+    for (const cb of this.soundListeners) cb(s);
+  }
+
+  /** Aviso de error con el sonido de orden rechazada. */
+  private reject(res: BrokerResult): BrokerResult {
+    this.notify(res.message, 'error');
+    this.sound('rejected');
+    return res;
+  }
+
   private emit(): void {
     for (const cb of this.listeners) cb();
   }
@@ -196,7 +217,20 @@ export class TrainingController {
       this.state.settings,
       {
         onFill: (fill, trade) => {
+          const o = this.broker?.order(fill.orderId);
+          const done = !o || o.filled >= o.shares;
+          if (trade) this.sound(trade.net >= 0 ? 'win' : 'loss');
+          else this.sound(!done ? 'partial' : fill.side === 'buy' ? 'buy' : 'sell');
           for (const cb of this.fillListeners) cb({ fill, trade });
+        },
+        onOrder: (kind, o) => {
+          if (kind === 'open') {
+            this.notify(`Orden en espera: ${describeOrder(o)}.`, 'info');
+            this.sound('placed');
+          } else {
+            this.notify(`Orden cancelada: ${describeOrder(o)}${o.note ? ` · ${o.note}` : ''}.`, 'info');
+            this.sound('canceled');
+          }
         },
         onNotice: (text) => this.notify(text, 'error'),
         onChange: () => this.schedulePersist(),
@@ -275,16 +309,17 @@ export class TrainingController {
 
   place(req: OrderRequest): BrokerResult {
     const blocked = this.notReady();
-    if (blocked) {
-      this.notify(blocked.message, 'error');
-      return blocked;
-    }
+    if (blocked) return this.reject(blocked);
     const b = this.broker!;
     const src = this.source!;
     this.touched = true;
     const ctx = req.side === 'buy' ? (req.ctx ?? this.context(req.sym)) : undefined;
+    // Sin stop y objetivo automáticos, los del ticket quedan como plan: las salidas las hacés vos.
+    if (req.side === 'buy' && !this.state.settings.autoBracket && (req.stop !== undefined || req.target !== undefined)) {
+      req = { ...req, planStop: req.stop, planTarget: req.target, stop: undefined, target: undefined };
+    }
     const res = b.place({ ...req, ctx }, src.now(), src, this.marks);
-    if (!res.ok) this.notify(res.message, 'error');
+    if (!res.ok) this.reject(res);
     this.persistSoon();
     this.emit();
     return res;
@@ -295,7 +330,8 @@ export class TrainingController {
     if (blocked) return blocked;
     this.touched = true;
     const res = this.broker!.setBracket(sym, { stop, target }, this.source!.now(), this.source!.quote(sym));
-    this.notify(res.message, res.ok ? 'ok' : 'error');
+    if (res.ok) this.notify(res.message, 'ok');
+    else this.reject(res);
     this.emit();
     return res;
   }
@@ -303,11 +339,7 @@ export class TrainingController {
   /** Vender una fracción de la posición con una orden límite agresiva (Bid − 0,05), como un atajo. */
   sell(sym: string, fraction: number, ref: 'bid' | 'ask' = 'bid', offset = -0.05): BrokerResult {
     const p = this.broker?.position(sym);
-    if (!p) {
-      const res = { ok: false, message: `No tenés posición en ${sym}.`, fills: [] };
-      this.notify(res.message, 'error');
-      return res;
-    }
+    if (!p) return this.reject({ ok: false, message: `No tenés posición en ${sym}.`, fills: [] });
     const q = this.source?.quote(sym);
     if (!q) return this.place({ sym, side: 'sell', type: 'market', shares: p.shares });
     const shares = fraction >= 1 ? p.shares : Math.max(1, Math.floor(p.shares * fraction));
@@ -335,11 +367,7 @@ export class TrainingController {
     const price = roundPx(base + a.offset);
     let shares = typeof a.shares === 'number' ? a.shares : ticket.shares;
     if (a.shares === 'risk') {
-      if (!ticket.stop || ticket.stop >= price) {
-        const res = { ok: false, message: 'Para comprar por riesgo poné un stop debajo del precio en el ticket.', fills: [] };
-        this.notify(res.message, 'error');
-        return res;
-      }
+      if (!ticket.stop || ticket.stop >= price) return this.reject({ ok: false, message: 'Para comprar por riesgo poné un stop debajo del precio en el ticket.', fills: [] });
       shares = Math.max(1, Math.floor(this.state.settings.defaultRisk / (price - ticket.stop)));
     }
     return this.place({ sym, side: 'buy', type: 'limit', price, shares, tif: ticket.tif ?? 'DAY+', route: ticket.route, stop: ticket.stop, target: ticket.target, setup: ticket.setup });
@@ -347,15 +375,23 @@ export class TrainingController {
 
   cancel(id: string): void {
     if (!this.broker || !this.source) return;
+    const o = this.broker.orders().find((x) => x.id === id);
+    if (!o) return;
     this.touched = true;
     this.broker.cancel(id, this.source.now());
+    this.notify(`Cancelaste: ${describeOrder(o)}.`, 'info');
+    this.sound('canceled');
     this.emit();
   }
 
   cancelAll(sym?: string): void {
     if (!this.broker || !this.source) return;
+    const list = this.broker.orders().filter((o) => !sym || o.sym === sym);
+    if (!list.length) return;
     this.touched = true;
     this.broker.cancelAll(sym, this.source.now());
+    this.notify(list.length === 1 ? `Cancelaste: ${describeOrder(list[0])}.` : `Cancelaste ${list.length} órdenes${sym ? ` de ${sym}` : ''}.`, 'info');
+    this.sound('canceled');
     this.emit();
   }
 

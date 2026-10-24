@@ -43,6 +43,8 @@ export interface Order {
   note?: string;
   /** En compras: stop y objetivo que se colocan cuando la orden se ejecuta. */
   bracket?: { stop?: number; target?: number };
+  /** En compras sin stop automático: el stop y el objetivo del plan (no se envían como órdenes). */
+  plan?: { stop?: number; target?: number };
   setup?: string;
   ctx?: EntryContext;
 }
@@ -94,8 +96,12 @@ export interface Position {
   realized: number;
   /** Stop al momento de entrar: define el riesgo (1R) del trade. */
   initialStop?: number;
+  /** Stop y objetivo como órdenes (OCO) puestas en el mercado. */
   stop?: number;
   target?: number;
+  /** Stop y objetivo del plan, sin órdenes: las salidas las ejecuta el usuario. */
+  planStop?: number;
+  planTarget?: number;
   /** Máximo y mínimo del precio mientras la posición estuvo abierta (MFE / MAE). */
   high: number;
   low: number;
@@ -185,6 +191,13 @@ export interface TradingSettings {
   /** Hora ET (en minutos) a la que arranca cada día simulado. */
   startMinutes: number;
   defaultTif: Tif;
+  /**
+   * Al comprar, colocar el stop y el objetivo del ticket como órdenes OCO. Apagado, quedan como plan
+   * (para el tamaño por riesgo, la R y las líneas del gráfico) y las salidas las hace el usuario.
+   */
+  autoBracket: boolean;
+  /** Sonidos al ejecutarse, quedar en espera, cancelarse o rechazarse una orden. */
+  orderSounds: boolean;
   hotkeys: Hotkey[];
 }
 
@@ -231,6 +244,8 @@ export const DEFAULT_TRADING: TradingSettings = {
   defaultRisk: 20,
   startMinutes: 9 * 60 + 25,
   defaultTif: 'DAY+',
+  autoBracket: false,
+  orderSounds: true,
   hotkeys: DEFAULT_HOTKEYS,
 };
 
