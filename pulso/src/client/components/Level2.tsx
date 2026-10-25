@@ -75,6 +75,8 @@ interface Props {
   onHotkey: (h: Hotkey) => void;
   /** Para el celular: menos filas del libro y de la cinta. */
   compact?: boolean;
+  /** Abre el diálogo para elegir el próximo día. */
+  onNewDay?: () => void;
 }
 
 const NO_ROWS: BookRow[] = [];
@@ -119,7 +121,7 @@ function BookSide({ rows, side, onPick, max }: { rows: BookRow[]; side: 'bid' | 
   );
 }
 
-export function Level2({ c, source, detail, quote, now, ticket, setTicket, onSymbol, search, onHotkey, compact }: Props) {
+export function Level2({ c, source, detail, quote, now, ticket, setTicket, onSymbol, search, onHotkey, compact, onNewDay }: Props) {
   const sym = detail?.sym ?? null;
   const [symText, setSymText] = useState(sym ?? '');
   const [hits, setHits] = useState<string[]>([]);
@@ -312,9 +314,15 @@ export function Level2({ c, source, detail, quote, now, ticket, setTicket, onSym
         <div className="l2-entry">
           {!c.active || !c.broker ? (
             <div className="oe-ended">
-              <p>{c.lastEnded ? 'Terminaste el día. Revisá el resultado en Métricas o empezá otro.' : 'Preparando el día de práctica…'}</p>
-              {c.lastEnded && (
-                <button className="btn primary" onClick={() => c.newDay()}>
+              <p>
+                {c.lastEnded
+                  ? 'Terminaste el día. Revisá el resultado en Métricas o empezá otro.'
+                  : c.nyClosedUntil !== null
+                    ? 'Nueva York está cerrado: el día arranca solo con el pre-market.'
+                    : 'Preparando el día de práctica…'}
+              </p>
+              {(c.lastEnded || c.nyClosedUntil !== null) && (
+                <button className="btn primary" onClick={() => (onNewDay ? onNewDay() : c.newDay())}>
                   Empezar otro día
                 </button>
               )}

@@ -10,6 +10,10 @@ export interface SourceHandlers {
   onStatus(s: ProviderStatus): void;
   /** Cada vez que avanza el mercado (para ejecutar las órdenes de práctica). */
   onTick?(now: number): void;
+  /** Mientras se pone al día (todavía no se puede operar): trabajar las órdenes con lo que pasó. */
+  onCatchUp?(now: number): void;
+  /** Se rearmó el mercado (otro motor): las órdenes en cola vuelven a medir la cinta desde ahora. */
+  onRebuild?(): void;
 }
 
 /** Fuente de datos de la interfaz: el simulador local o el servidor en vivo. */

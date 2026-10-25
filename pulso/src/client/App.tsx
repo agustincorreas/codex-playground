@@ -1,5 +1,6 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { fmtVolume } from '../engine/alerts';
+import { formatCountdown } from '../engine/time';
 import type { Alert, AlertType, NewsItem, ProviderStatus, ScannerId, Settings, SymbolDetail, ViewModel } from '../engine/types';
 import { DEFAULT_SETTINGS } from '../engine/types';
 import { createTrainingStore, LocalTrainingStore } from '../trading/store';
@@ -10,6 +11,7 @@ import { Header, MobileTabs, SettingsModal, type MobileTab, type Prefs } from '.
 import { Detail } from './components/Detail';
 import { AlertFeed, HaltsPanel, HodBoard, MomentumFeed, NewsPanel, WatchlistPanel } from './components/Feeds';
 import { Journal } from './components/Journal';
+import { NewDayDialog } from './components/NewDayDialog';
 import { Level2, num, type TicketForm } from './components/Level2';
 import { IconVoice } from './components/Icons';
 import { DayResult, MyTrades } from './components/MyTrades';
@@ -20,6 +22,7 @@ import { WindowGrid, type PanelId } from './components/WindowGrid';
 import { DEFAULT_SOUND_TYPES } from './lib/alertMeta';
 import { beep, playOrder, speak, unlockAudio } from './lib/audio';
 import { matches, typing } from './lib/hotkeys';
+import { fmtDay, HEAT_HINT, HEAT_LABEL } from './lib/days';
 import { load, save } from './lib/storage';
 import { LocalSource, type SimConfig } from './source/local';
 import { detectServer, RemoteSource } from './source/remote';
@@ -84,6 +87,36 @@ function BootScreen({ message }: { message: string }) {
         <span className="brand-name">Pulso</span>
         <p>{message}</p>
         <span className="boot-bar" />
+      </div>
+    </div>
+  );
+}
+
+/** "Mercado ahora" con Nueva York cerrado: cuándo abre y la opción de practicar otro día. */
+function MarketClosed({ until, onPractice, onJournal, onNewDay }: { until: number; onPractice: () => void; onJournal: () => void; onNewDay: () => void }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const day = new Intl.DateTimeFormat('es-AR', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'America/New_York' }).format(until);
+  return (
+    <div className="closed-card" role="status">
+      <h2>Nueva York está cerrado</h2>
+      <p>
+        "Mercado ahora" sigue la hora real de Nueva York. El pre-market abre el <b>{day} a las 4:00 ET</b>, en <span className="mono">{formatCountdown(until - now)}</span>, y el día arranca solo.
+      </p>
+      <p className="t-muted">Mientras tanto podés practicar con un día simulado, a la hora que quieras.</p>
+      <div className="closed-actions">
+        <button className="btn primary" onClick={onPractice}>
+          Practicar con un día simulado
+        </button>
+        <button className="btn" onClick={onJournal}>
+          Ver mi cuenta y el diario
+        </button>
+        <button className="btn ghost" onClick={onNewDay}>
+          Elegir otro día…
+        </button>
       </div>
     </div>
   );
@@ -181,8 +214,9 @@ function Workspace({ server, c }: { server: boolean; c: TrainingController }) {
   const [isMobile, setIsMobile] = useState(() => !!window.matchMedia?.('(max-width: 899px)').matches);
   const [now, setNow] = useState(0);
   const [theme, setTheme] = useState<'dark' | 'light'>(() => effectiveThemeNow());
-  // La fuente del simulador se recrea solo cuando empieza un día nuevo (otra semilla).
-  const [sim, setSim] = useState<SimConfig | undefined>(() => c.simConfig);
+  // La fuente del simulador se recrea solo cuando empieza otro día (o se importa otra cuenta).
+  const [sim, setSim] = useState<{ key: string; cfg: SimConfig } | null>(() => (c.simKey && c.simConfig ? { key: c.simKey, cfg: c.simConfig } : null));
+  const [newDay, setNewDay] = useState<'ny' | 'practice' | 'any' | null>(null);
 
   const keySuffix = server ? '' : '-demo';
   const prefsRef = useRef(prefs);
@@ -196,21 +230,32 @@ function Workspace({ server, c }: { server: boolean; c: TrainingController }) {
   useEffect(
     () =>
       c.subscribe(() => {
-        const next = c.simConfig;
-        if (next && next.seed !== sim?.seed) setSim(next);
+        const key = c.simKey;
+        const cfg = c.simConfig;
+        if (key && cfg && key !== sim?.key) setSim({ key, cfg });
+        // "Mercado ahora" con Nueva York cerrado: el mercado de antes se detiene (queda la última vista).
+        else if (!key && sim && c.nyClosedUntil !== null) setSim(null);
       }),
-    [c, sim?.seed],
+    [c, sim?.key],
   );
+
+  // "Mercado ahora" con Nueva York cerrado: el día arranca solo cuando abre el pre-market.
+  const closedUntil = c.nyClosedUntil;
+  useEffect(() => {
+    if (closedUntil === null) return;
+    const id = setInterval(() => c.ensureSession(), 15_000);
+    return () => clearInterval(id);
+  }, [c, closedUntil]);
 
   // Fuente de datos: servidor de Pulso (en vivo) o simulador local con la semilla del día de práctica.
   useEffect(() => {
     if (!server && !sim) return;
     // Un día simulado nuevo trae otras acciones: la watchlist y la selección del día anterior no sirven.
-    if (!server && lastSeedRef.current !== undefined && lastSeedRef.current !== sim?.seed) {
+    if (!server && lastSeedRef.current !== undefined && lastSeedRef.current !== sim?.cfg.seed) {
       save('watch-demo', []);
       save('selected-demo', null);
     }
-    lastSeedRef.current = sim?.seed;
+    lastSeedRef.current = sim?.cfg.seed;
     const savedWatch = load<string[]>(`watch${keySuffix}`, []);
     const savedSel = load<string | null>(`selected${keySuffix}`, null);
     watchRef.current = savedWatch;
@@ -222,7 +267,7 @@ function Workspace({ server, c }: { server: boolean; c: TrainingController }) {
     setAlerts([]);
     setNews([]);
     let firstViewSeen = false;
-    const src: DataSource = server ? new RemoteSource(settings, savedWatch) : new LocalSource(settings, savedWatch, sim!);
+    const src: DataSource = server ? new RemoteSource(settings, savedWatch) : new LocalSource(settings, savedWatch, sim!.cfg);
     src.start({
       onView: (v) => {
         setView(v);
@@ -255,6 +300,8 @@ function Workspace({ server, c }: { server: boolean; c: TrainingController }) {
       onDetail: setDetail,
       onStatus: setStatus,
       onTick: (t) => c.onTick(t),
+      onCatchUp: (t) => c.catchUp(t),
+      onRebuild: () => c.rebase(),
     });
     if (selectedRef.current) src.select(selectedRef.current);
     c.attach(src);
@@ -265,7 +312,7 @@ function Workspace({ server, c }: { server: boolean; c: TrainingController }) {
     };
     // La fuente se recrea solo con un día simulado nuevo; ajustes y watchlist se envían aparte.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [server, sim?.seed]);
+  }, [server, sim?.key]);
 
   // Alertas del escáner: un sonido y, para las de momentum, la voz ("V I O. Squeeze. Sube 45 por
   // ciento"). Suena la más importante del grupo y la misma acción no se repite enseguida.
@@ -428,6 +475,35 @@ function Workspace({ server, c }: { server: boolean; c: TrainingController }) {
     return set;
   }, [view]);
 
+  const newDayDialog = newDay && <NewDayDialog c={c} initialMode={newDay === 'any' ? undefined : newDay} onClose={() => setNewDay(null)} />;
+  const journalOverlay = showJournal && (
+    <div className="journal-overlay" onClick={() => setShowJournal(false)}>
+      <div className="journal-sheet" onClick={(e) => e.stopPropagation()}>
+        <Journal c={c} onClose={() => setShowJournal(false)} onSelect={select} onSettings={() => setPracticeSettings(true)} onNewDay={() => setNewDay('any')} />
+      </div>
+    </div>
+  );
+
+  if (!view && closedUntil !== null && !sim) {
+    // Nunca hubo mercado en esta carga (por ejemplo, un sábado en "Mercado ahora").
+    return (
+      <div className="boot">
+        <MarketClosed until={closedUntil} onPractice={() => setNewDay('practice')} onJournal={() => setShowJournal(true)} onNewDay={() => setNewDay('any')} />
+        {newDayDialog}
+        {journalOverlay}
+        {practiceSettings && <PracticeSettings c={c} onClose={() => setPracticeSettings(false)} />}
+        {c.notices.length > 0 && (
+          <div className="toasts" role="status" aria-live="polite">
+            {c.notices.map((n) => (
+              <div key={n.id} className={`toast ${n.tone}`}>
+                {n.text}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
   if (!view) return <BootScreen message={status?.message ?? 'Buscando el servidor de datos…'} />;
 
   const sc = view.scanners;
@@ -458,6 +534,18 @@ function Workspace({ server, c }: { server: boolean; c: TrainingController }) {
     } else setShowJournal(true);
   };
   const search = source ? source.search.bind(source) : async () => [];
+  const realtime = source instanceof LocalSource && source.realtime;
+  const active = c.active;
+  const dayChip =
+    c.mode !== 'local'
+      ? undefined
+      : active?.clock === 'ny'
+        ? { label: 'NY ahora', tone: 'live' as const, title: `"Mercado ahora": la hora real de Nueva York${active.heat ? ` · ${HEAT_LABEL[active.heat]}` : ''}. Tocá para elegir otro día.` }
+        : active
+          ? { label: `Práctica · ${fmtDay(active.dayKey)}`, tone: 'sim' as const, title: `Día de práctica del ${fmtDay(active.dayKey, true)}${active.heat ? ` · ${HEAT_LABEL[active.heat]}: ${HEAT_HINT[active.heat]}` : ''}. Tocá para elegir otro día.` }
+          : closedUntil !== null
+            ? { label: 'NY cerrado', tone: 'off' as const, title: `Nueva York abre el ${new Date(closedUntil).toLocaleString('es-AR')}. Tocá para practicar otro día.` }
+            : { label: 'Nuevo día', tone: 'off' as const, title: 'Elegir el próximo día' };
 
   const panels: Record<PanelId, ReactNode> = {
     trades: (
@@ -529,7 +617,7 @@ function Workspace({ server, c }: { server: boolean; c: TrainingController }) {
         className="p-l2"
         help="Libro por venues (un color por nivel de precio), cinta de operaciones y ticket. Tocá un precio del libro para usarlo. Las órdenes tardan unos milisegundos en llegar y se ejecutan contra el libro; las límite esperan su turno en la cola."
       >
-        <Level2 c={c} source={source} detail={detail} quote={quote} now={now} ticket={ticket} setTicket={setTicket} onSymbol={select} search={search} onHotkey={runHotkey} compact={isMobile} />
+        <Level2 c={c} source={source} detail={detail} quote={quote} now={now} ticket={ticket} setTicket={setTicket} onSymbol={select} search={search} onHotkey={runHotkey} compact={isMobile} onNewDay={() => setNewDay('any')} />
       </Panel>
     ),
     quote: (
@@ -605,7 +693,7 @@ function Workspace({ server, c }: { server: boolean; c: TrainingController }) {
         onPrefs={updatePrefs}
         onSettings={() => setShowSettings(true)}
         onSearch={select}
-        canSpeed={source?.kind === 'local'}
+        canSpeed={source?.kind === 'local' && !realtime}
         search={search}
         effectiveTheme={theme}
         account={{ equity: acct.equity, dayPnl: acct.dayPnl }}
@@ -613,6 +701,8 @@ function Workspace({ server, c }: { server: boolean; c: TrainingController }) {
         audioLocked={audioLocked}
         layoutEditing={isMobile ? undefined : layoutEdit}
         onLayout={() => setLayoutEdit((x) => !x)}
+        day={dayChip}
+        onDay={() => setNewDay('any')}
       />
 
       {isMobile ? (
@@ -621,7 +711,7 @@ function Workspace({ server, c }: { server: boolean; c: TrainingController }) {
             <Fragment key={id}>{panels[id]}</Fragment>
           ))}
           <section className="panel journal-tab" data-tab="diario">
-            <Journal c={c} onSelect={select} onSettings={() => setPracticeSettings(true)} />
+            <Journal c={c} onSelect={select} onSettings={() => setPracticeSettings(true)} onNewDay={() => setNewDay('any')} />
           </section>
         </main>
       ) : (
@@ -667,13 +757,15 @@ function Workspace({ server, c }: { server: boolean; c: TrainingController }) {
         </div>
       )}
 
-      {showJournal && !isMobile && (
-        <div className="journal-overlay" onClick={() => setShowJournal(false)}>
-          <div className="journal-sheet" onClick={(e) => e.stopPropagation()}>
-            <Journal c={c} onClose={() => setShowJournal(false)} onSelect={select} onSettings={() => setPracticeSettings(true)} />
-          </div>
+      {!isMobile && journalOverlay}
+
+      {closedUntil !== null && !active && !showJournal && !newDay && !practiceSettings && (
+        <div className="closed-overlay">
+          <MarketClosed until={closedUntil} onPractice={() => setNewDay('practice')} onJournal={openJournal} onNewDay={() => setNewDay('any')} />
         </div>
       )}
+
+      {newDayDialog}
 
       {practiceSettings && <PracticeSettings c={c} onClose={() => setPracticeSettings(false)} />}
 

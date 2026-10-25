@@ -190,6 +190,11 @@ export interface TradingSettings {
   defaultRisk: number;
   /** Hora ET (en minutos) a la que arranca cada día simulado. */
   startMinutes: number;
+  /**
+   * Reloj de los días nuevos: 'ny' = "Mercado ahora" (la hora real de Nueva York, con pre-market y
+   * after-hours); 'practice' = un día simulado a la hora y fecha que elijas.
+   */
+  clock: 'practice' | 'ny';
   defaultTif: Tif;
   /**
    * Al comprar, colocar el stop y el objetivo del ticket como órdenes OCO. Apagado, quedan como plan
@@ -243,6 +248,7 @@ export const DEFAULT_TRADING: TradingSettings = {
   defaultShares: 100,
   defaultRisk: 20,
   startMinutes: 9 * 60 + 25,
+  clock: 'practice',
   defaultTif: 'DAY+',
   autoBracket: false,
   orderSounds: true,
@@ -250,7 +256,7 @@ export const DEFAULT_TRADING: TradingSettings = {
 };
 
 /** Versión del mercado simulado: un día guardado con otra versión no se puede reanudar igual. */
-export const SIM_VERSION = 2;
+export const SIM_VERSION = 3;
 
 export interface ActiveSession {
   id: string;
@@ -260,6 +266,10 @@ export interface ActiveSession {
   simVersion?: number;
   dayTs?: number;
   startMinutes?: number;
+  /** 'ny' = "Mercado ahora": el reloj es el de Nueva York y el día termina con el after-hours. */
+  clock?: 'ny';
+  /** Clima del día simulado (más o menos gappers y corridas). */
+  heat?: 'cold' | 'normal' | 'hot';
   dayKey: string;
   /** Número de día de práctica (calendario para la liquidación T+1 y la regla PDT). */
   dayIndex: number;
@@ -285,7 +295,12 @@ export interface ActiveSession {
 export interface SessionRecord {
   id: string;
   mode: 'sim' | 'live';
+  /** Semilla, hora de inicio y reloj del día simulado (para repetirlo igual). */
   seed?: number;
+  simVersion?: number;
+  startMinutes?: number;
+  clock?: 'ny';
+  heat?: 'cold' | 'normal' | 'hot';
   dayKey: string;
   dayIndex?: number;
   startedAt: number;

@@ -38,7 +38,10 @@ Son útiles para jugar, mejorar código y experimentar.
   simulador de Warrior Trading: cuenta de US$ 1.000 ficticios, Nivel 2 por bolsa, Time & Sales, órdenes
   con latencia, fila y ejecuciones parciales, atajos de teclado, cuenta cash T+1 o margen con PDT, tasas
   SEC/FINRA y una página de métricas con el Profit Trifecta (ganadores, perdedores, % de aciertos, relación
-  ganancia/pérdida, R, por setup, horario y precio). Datos reales vía Alpaca
+  ganancia/pérdida, R, por setup, horario y precio). Se practica con la hora real de Nueva York ("Mercado
+  ahora", con pre-market y after-hours) o en el día y la hora que elijas, con volumen de cada hora, días
+  fríos y calientes, ofertas de acciones y la opción de repetir un día; la cuenta se exporta e importa con
+  un archivo. Datos reales vía Alpaca
   (US$ 99/mes) o Massive (US$ 199/mes); el README explica costos y cómo contratarlos. Demo en
   https://agustincorreas.github.io/codex-playground/pulso/.
 

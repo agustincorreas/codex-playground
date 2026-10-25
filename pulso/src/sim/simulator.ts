@@ -1,9 +1,17 @@
 // Mercado simulado para el modo demo: ~150 acciones ficticias con gappers de pre-market, runners
-// que arrancan con una noticia (subida con volumen, pullbacks, halts LULD, fade o flush) y ruido de
-// fondo. Genera los mismos eventos que un proveedor real, así que el motor no distingue la diferencia.
+// que arrancan con una noticia (subida con volumen, pullbacks, halts LULD, fade o flush), ofertas de
+// acciones que las hunden y ruido de fondo, con el volumen de cada hora (pre-market, rueda regular y
+// after-hours). Genera los mismos eventos que un proveedor real, así que el motor no distingue la
+// diferencia.
+//
+// El camino de cada acción (precio y volumen) depende solo de la semilla y del día, no de la hora a la
+// que se empieza a mirar: cada acción tiene su propio azar, las tranquilas avanzan de a un minuto y los
+// cambios de ritmo caen en el minuto justo. Así el mercado se puede rearmar en cualquier momento (al
+// reanudar o al volver al modo "Mercado ahora") y es el mismo que ya viste. El detalle de cada operación
+// (puntas, tamaños, cinta) usa un azar aparte que no toca ese camino.
 import type { MarketEvent, ReferenceData } from '../engine/types';
-import { etParts, etWallToTs, isTradingDay, PRE_OPEN, REG_CLOSE, REG_OPEN } from '../engine/time';
-import { headline, makeCompanies, NEWS_SOURCES } from './names';
+import { etParts, etWallToTs, isTradingDay, POST_CLOSE, PRE_OPEN, REG_CLOSE, REG_OPEN, regularCloseMinutes, volumeIntensity } from '../engine/time';
+import { earningsHeadline, headline, makeCompanies, NEWS_SOURCES, offeringHeadline } from './names';
 
 const SEC = 1000;
 const MIN = 60_000;
@@ -33,6 +41,67 @@ export function lastTradingDay(ts: number): { y: number; mo: number; d: number }
   return { y: p.y, mo: p.mo, d: p.d };
 }
 
+/** Semilla del modo "Mercado ahora": la misma para todos ese día, como un mercado de verdad. */
+export function seedForDay(dateKey: string): number {
+  let h = 2166136261;
+  for (const ch of `pulso-ny-${dateKey}`) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
+  return h >>> 0;
+}
+
+function heatOf(x: number): DayHeat {
+  return x < 0.25 ? 'cold' : x < 0.75 ? 'normal' : 'hot';
+}
+
+/** Clima del día que genera una semilla (sin armar el mercado). */
+export function dayHeat(seed: number): DayHeat {
+  return heatOf(mulberry32(seed >>> 0)());
+}
+
+function uni(r: () => number, a: number, b: number): number {
+  return a + (b - a) * r();
+}
+
+function normal(r: () => number): number {
+  const u = Math.max(1e-12, r());
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * r());
+}
+
+/** Interpolación lineal en una tabla [minuto, valor]. */
+function curve(table: Array<[number, number]>, m: number): number {
+  if (m <= table[0][0]) return table[0][1];
+  for (let i = 1; i < table.length; i++) {
+    const [m1, v1] = table[i];
+    if (m <= m1) {
+      const [m0, v0] = table[i - 1];
+      return v0 + ((v1 - v0) * (m - m0)) / (m1 - m0);
+    }
+  }
+  return table[table.length - 1][1];
+}
+
+/**
+ * Atención de los traders de momentum según la hora (rueda regular): una acción en juego opera más en
+ * la primera hora, se apaga al mediodía y repunta un poco a la tarde.
+ */
+const ATTENTION: Array<[number, number]> = [
+  [REG_OPEN, 1.25],
+  [10 * 60, 1.1],
+  [11 * 60, 0.9],
+  [12 * 60, 0.75],
+  [14 * 60, 0.72],
+  [15 * 60, 0.85],
+  [REG_CLOSE, 0.9],
+];
+
+/** Clima del día: en un día caliente hay más gappers, corridas más grandes y más seguidas. */
+export type DayHeat = 'cold' | 'normal' | 'hot';
+
+const HEAT: Record<DayHeat, { gappers: [number, number]; gap: number; gain: number; every: number; go: number }> = {
+  cold: { gappers: [3, 4], gap: 0.7, gain: 0.75, every: 1.8, go: 0.4 },
+  normal: { gappers: [6, 8], gap: 1, gain: 1, every: 1, go: 0.55 },
+  hot: { gappers: [9, 12], gap: 1.3, gain: 1.25, every: 0.65, go: 0.7 },
+};
+
 interface Leg {
   kind: string;
   dur: number;
@@ -55,9 +124,20 @@ interface WarmBar {
   n: number;
 }
 
+/** Minuto planeado de una acción tranquila: de dónde a dónde va el precio y cuánto opera. */
+interface MinutePlan {
+  from: number;
+  p0: number;
+  p1: number;
+  shares: number;
+  /** Se generó antes de la cinta (ya está en las velas): en vivo no se vuelve a imprimir. */
+  warm: boolean;
+}
+
 interface SimSym {
   ref: ReferenceData;
   name: string;
+  /** Precio del camino. En una acción tranquila, el del final del minuto planeado. */
   price: number;
   anchor: number;
   sigma: number;
@@ -74,7 +154,19 @@ interface SimSym {
   halted: boolean;
   haltUntil: number;
   openPlan?: 'go' | 'fade';
+  /** Ya anunció una oferta de acciones hoy. */
+  offered?: boolean;
   bar?: WarmBar;
+  /** Azar del camino (precio y volumen) y azar del detalle (puntas, tamaños y cinta). */
+  rng: () => number;
+  micro: () => number;
+  /** Avanza de a un segundo (con tramos o en halt); si no, de a un minuto. Cambia solo en el minuto justo. */
+  fine: boolean;
+  /** Tramos que arrancan en el próximo minuto (una acción tranquila cambia de ritmo en el minuto justo). */
+  nextLegs?: Leg[];
+  plan?: MinutePlan;
+  /** Valor justo del camino segundo a segundo dentro del minuto planeado (en vivo). */
+  path: number;
   /** Mejor compra y mejor venta (NBBO) con su tamaño. 0 = sin cotización (halt o antes de empezar). */
   bid: number;
   ask: number;
@@ -91,6 +183,8 @@ export interface SimOptions {
   seed?: number;
   /** Minuto del día (ET) en que arranca la simulación en vivo. Por defecto 9:27. */
   startMinutes?: number;
+  /** Instante exacto en que arranca en vivo (gana sobre `startMinutes`). */
+  startTs?: number;
   /** Un instante del día a simular (por defecto, el último día hábil). */
   dayTs?: number;
   count?: number;
@@ -100,18 +194,28 @@ export class MarketSim {
   /** Reloj publicado: todos los eventos hasta esta hora ya se emitieron. */
   now: number;
   readonly refs: ReferenceData[] = [];
+  readonly dateKey: string;
   readonly dayStart: number;
   readonly openTs: number;
   readonly closeTs: number;
+  /** Fin del after-hours (20:00, o 17:00 en los días de cierre anticipado). */
+  readonly postTs: number;
   readonly startTs: number;
+  readonly heat: DayHeat;
+  /** Primer día después de un fin de semana o un feriado: se juntaron noticias y hay más gappers. */
+  readonly afterBreak: boolean;
+  /**
+   * Solo estas acciones generan cinta y puntas (al ponerse al día con órdenes abiertas); el resto sigue
+   * su camino sin publicar nada. `null` = todas.
+   */
+  only: Set<string> | null = null;
+  private readonly closeMinutes: number;
   private readonly syms: SimSym[] = [];
   private readonly rnd: () => number;
   /** Reloj de generación: el mercado se genera de a un segundo y se publica a medida que pasa el tiempo. */
   private t: number;
   private pending: Array<{ at: number; ev: MarketEvent }> = [];
   private head = 0;
-  /** Sin eventos de cotización (para avanzar rápido al reanudar); el estado interno sigue igual. */
-  quiet = false;
   private seq = 0;
   private live = false;
   private nextRunnerAt = 0;
@@ -122,20 +226,28 @@ export class MarketSim {
     private readonly emit: (ev: MarketEvent) => void,
     opts: SimOptions = {},
   ) {
-    this.rnd = mulberry32(opts.seed ?? Math.floor(Math.random() * 2 ** 31));
+    const seed = (opts.seed ?? Math.floor(Math.random() * 2 ** 31)) >>> 0;
+    this.rnd = mulberry32(seed);
     const day = lastTradingDay(opts.dayTs ?? Date.now());
+    this.dateKey = `${day.y}-${String(day.mo).padStart(2, '0')}-${String(day.d).padStart(2, '0')}`;
+    this.closeMinutes = regularCloseMinutes(this.dateKey);
     this.dayStart = etWallToTs(day.y, day.mo, day.d, PRE_OPEN);
     this.openTs = etWallToTs(day.y, day.mo, day.d, REG_OPEN);
-    this.closeTs = etWallToTs(day.y, day.mo, day.d, REG_CLOSE);
-    this.startTs = etWallToTs(day.y, day.mo, day.d, opts.startMinutes ?? 9 * 60 + 27);
+    this.closeTs = etWallToTs(day.y, day.mo, day.d, this.closeMinutes);
+    this.postTs = etWallToTs(day.y, day.mo, day.d, this.closeMinutes === REG_CLOSE ? POST_CLOSE : 17 * 60);
+    const start = opts.startTs ?? etWallToTs(day.y, day.mo, day.d, opts.startMinutes ?? 9 * 60 + 27);
+    this.startTs = Math.min(Math.max(start, this.dayStart), this.postTs);
     this.t = this.now = this.dayStart;
-    this.buildUniverse(opts.count ?? 150);
+    this.heat = heatOf(this.rnd());
+    const prev = lastTradingDay(this.dayStart - 12 * 3_600_000);
+    this.afterBreak = Math.round((Date.UTC(day.y, day.mo - 1, day.d) - Date.UTC(prev.y, prev.mo - 1, prev.d)) / 86_400_000) >= 3;
+    this.buildUniverse(opts.count ?? 150, seed);
   }
 
-  // ------------------------------------------------------------------ azar
+  // ------------------------------------------------------------------ azar (del día: universo y eventos)
 
   private u(a: number, b: number): number {
-    return a + (b - a) * this.rnd();
+    return uni(this.rnd, a, b);
   }
 
   private logU(a: number, b: number): number {
@@ -143,8 +255,7 @@ export class MarketSim {
   }
 
   private gauss(): number {
-    const u = Math.max(1e-12, this.rnd());
-    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * this.rnd());
+    return normal(this.rnd);
   }
 
   private pick<T>(xs: T[]): T {
@@ -157,7 +268,7 @@ export class MarketSim {
 
   // ------------------------------------------------------------------ universo
 
-  private buildUniverse(count: number): void {
+  private buildUniverse(count: number, seed: number): void {
     const companies = makeCompanies(count, this.rnd);
     companies.forEach((c, i) => {
       const large = i < Math.round(count * 0.12);
@@ -200,6 +311,10 @@ export class MarketSim {
         busy: false,
         halted: false,
         haltUntil: 0,
+        rng: mulberry32((seed ^ Math.imul(i + 1, 0x9e3779b1)) >>> 0),
+        micro: mulberry32((seed + Math.imul(i + 1, 0x85ebca6b) + 0x6a09e667) >>> 0),
+        fine: false,
+        path: open,
         bid: 0,
         ask: 0,
         bidSize: 0,
@@ -217,13 +332,13 @@ export class MarketSim {
 
   // ------------------------------------------------------------------ guiones
 
-  private news(s: SimSym, sentiment: 'bullish' | 'bearish' | 'neutral', ts = this.t): void {
+  private news(s: SimSym, sentiment: 'bullish' | 'bearish' | 'neutral', ts = this.t, text?: string): void {
     this.out({
       kind: 'news',
       item: {
         id: `demo-${++this.seq}`,
         ts,
-        headline: headline(s.name, sentiment, this.rnd),
+        headline: text ?? headline(s.name, sentiment, this.rnd),
         source: this.pick(NEWS_SOURCES),
         symbols: [s.ref.sym],
         sentiment,
@@ -234,14 +349,28 @@ export class MarketSim {
   /** Emite un evento: en vivo pasa por la cola y se publica cuando el reloj llega a `at`. */
   private out(ev: MarketEvent, at = this.t): void {
     if (!this.live) this.emit(ev);
-    else if (!(this.quiet && ev.kind === 'quote')) this.pending.push({ at, ev });
+    else this.pending.push({ at, ev });
+  }
+
+  /** ¿Esta acción publica cinta y puntas ahora? */
+  private shows(s: SimSym): boolean {
+    return !this.only || this.only.has(s.ref.sym);
+  }
+
+  /** Nuevos tramos: si la acción ya avanza de a un segundo, ya; si no, desde el próximo minuto. */
+  private assign(s: SimSym, legs: Leg[]): void {
+    if (s.fine) {
+      s.legs = legs;
+      s.legT = 0;
+      s.nextLegs = undefined;
+    } else s.nextLegs = legs;
   }
 
   private runnerLegs(firstBoost = 1): Leg[] {
     const legs: Leg[] = [];
     const n = 2 + Math.floor(this.rnd() * 3);
     for (let i = 0; i < n; i++) {
-      const gain = this.u(0.07, 0.22) * (i === 0 ? 1.4 * firstBoost : 1);
+      const gain = this.u(0.07, 0.22) * (i === 0 ? 1.4 * firstBoost : 1) * HEAT[this.heat].gain;
       legs.push({
         kind: 'up',
         dur: this.u(60, 200),
@@ -272,26 +401,59 @@ export class MarketSim {
     return legs;
   }
 
-  private startRunner(s: SimSym): void {
+  /** Una acción que arranca con una noticia (en el after-hours, casi siempre un balance). */
+  private startRunner(s: SimSym, earnings = false): void {
     s.role = 'runner';
     s.busy = true;
-    s.legs = this.runnerLegs();
-    s.legT = 0;
-    this.news(s, 'bullish');
+    this.assign(s, this.runnerLegs(earnings ? 0.8 : 1));
+    if (earnings) this.news(s, 'bullish', this.t, earningsHeadline(s.name, Number(this.dateKey.slice(5, 7)), this.rnd));
+    else this.news(s, 'bullish');
+    this.maybeOffering(s);
+  }
+
+  /**
+   * Oferta de acciones (dilución): una empresa que necesita plata aprovecha la suba para vender
+   * acciones nuevas y la acción se desploma. Más probable si tiene un shelf (S-3) o warrants.
+   */
+  private maybeOffering(s: SimSym): void {
+    const flags = s.ref.flags ?? [];
+    const p = 0.04 + (flags.includes('Shelf S-3') ? 0.1 : 0) + (flags.includes('Warrants') ? 0.05 : 0);
+    if (this.rnd() >= p) return;
+    this.schedule(this.t + this.u(8, 45) * MIN, () => this.offering(s));
+  }
+
+  private offering(s: SimSym, tries = 0): void {
+    if (s.halted) {
+      // La noticia sale cuando se reanuda la operatoria.
+      if (tries < 3) this.schedule(s.haltUntil + 5 * SEC, () => this.offering(s, tries + 1));
+      return;
+    }
+    if (s.offered || s.price / s.ref.prevClose! - 1 < 0.4 || this.t >= this.postTs - 10 * MIN) return;
+    s.offered = true;
+    s.busy = true;
+    this.news(s, 'bearish', this.t, offeringHeadline(s.name, this.rnd));
+    const regular = this.t >= this.openTs && this.t < this.closeTs;
+    this.assign(s, [
+      { kind: 'offering', dur: this.u(60, 240), ret: Math.log(1 - this.u(0.18, 0.4)), vol: this.u(60, 150), sigma: 0.006, halt: regular && this.rnd() < 0.25 },
+      { kind: 'chop', dur: this.u(600, 1500), ret: Math.log(1 + this.u(-0.05, 0.03)), vol: this.u(10, 25), sigma: 0.003 },
+    ]);
   }
 
   private setupGappers(): void {
+    const heat = HEAT[this.heat];
     const pool = this.smallCaps((s) => s.ref.prevClose! >= 1 && s.ref.prevClose! <= 15);
     pool.sort((a, b) => a.ref.float! - b.ref.float!);
     const lowFloat = pool.slice(0, Math.ceil(pool.length * 0.35));
+    const [lo, hi] = heat.gappers;
+    const count = lo + Math.floor(this.rnd() * (hi - lo + 1)) + (this.afterBreak ? 2 : 0);
     const chosen = new Set<SimSym>();
-    while (chosen.size < 7 && chosen.size < pool.length) {
+    while (chosen.size < count && chosen.size < pool.length) {
       chosen.add(this.rnd() < 0.7 ? this.pick(lowFloat) : this.pick(pool));
     }
     for (const s of chosen) {
       s.role = 'gapper';
       s.busy = true;
-      s.openPlan = this.rnd() < 0.55 ? 'go' : 'fade';
+      s.openPlan = this.rnd() < heat.go ? 'go' : 'fade';
       const overnight = this.rnd() < 0.35;
       const newsAt = overnight
         ? this.dayStart - this.u(8, 11) * 3_600_000
@@ -299,22 +461,22 @@ export class MarketSim {
       const start = Math.max(newsAt, this.dayStart + MIN);
       this.schedule(start, () => {
         this.news(s, 'bullish', newsAt);
-        const gap = this.u(0.18, 1.1);
-        s.legs = [
+        const gap = this.u(0.18, 1.1) * heat.gap;
+        this.assign(s, [
           { kind: 'gap', dur: this.u(240, 900), ret: Math.log(1 + gap), vol: this.u(60, 160), sigma: this.u(0.003, 0.0055) },
           { kind: 'pullback', dur: this.u(600, 1500), ret: -Math.log(1 + gap) * this.u(0.15, 0.35), vol: this.u(10, 25), sigma: 0.003 },
           { kind: 'chop', dur: 6 * 3600, ret: Math.log(1 + this.u(-0.05, 0.1)), vol: this.u(6, 15), sigma: 0.0025 },
-        ];
-        s.legT = 0;
+        ]);
+        this.maybeOffering(s);
       });
       this.schedule(this.openTs, () => {
-        s.legT = 0;
-        if (s.openPlan === 'go') s.legs = this.runnerLegs(0.8);
+        // Con una oferta en el pre-market, la apertura ya no tiene fuerza.
+        if (s.openPlan === 'go' && !s.offered) this.assign(s, this.runnerLegs(0.8));
         else {
-          s.legs = [
+          this.assign(s, [
             { kind: 'fade', dur: this.u(600, 1500), ret: Math.log(1 - this.u(0.15, 0.35)), vol: this.u(40, 90), sigma: 0.005 },
             { kind: 'chop', dur: this.u(600, 1200), ret: Math.log(1 + this.u(-0.05, 0.05)), vol: this.u(10, 20), sigma: 0.003 },
-          ];
+          ]);
         }
       });
     }
@@ -323,11 +485,10 @@ export class MarketSim {
       s.busy = true;
       this.schedule(this.dayStart + this.u(30, 200) * MIN, () => {
         this.news(s, 'bearish');
-        s.legs = [
+        this.assign(s, [
           { kind: 'drop', dur: this.u(300, 900), ret: Math.log(1 - this.u(0.15, 0.4)), vol: this.u(30, 80), sigma: 0.004 },
           { kind: 'chop', dur: 4 * 3600, ret: 0, vol: this.u(5, 10), sigma: 0.002 },
-        ];
-        s.legT = 0;
+        ]);
       });
     }
   }
@@ -337,50 +498,102 @@ export class MarketSim {
     this.scheduled.sort((a, b) => a.at - b.at);
   }
 
-  private maybeRunner(regular: boolean): void {
+  private maybeRunner(regular: boolean, minutes: number): void {
     if (this.t < this.nextRunnerAt) return;
-    const minutes = (this.t - this.dayStart) / MIN + PRE_OPEN;
+    const every = HEAT[this.heat].every;
     if (minutes < 7 * 60) {
       this.nextRunnerAt = this.t + 10 * MIN;
       return;
     }
-    const pool = this.smallCaps((s) => s.price >= 1 && s.price <= 20 && s.ref.float! < 30e6);
-    if (pool.length) {
-      const weighted = pool.filter((s) => s.ref.float! < 10e6);
-      this.startRunner(weighted.length && this.rnd() < 0.7 ? this.pick(weighted) : this.pick(pool));
+    if (this.t >= this.postTs - 15 * MIN) {
+      this.nextRunnerAt = Infinity;
+      return;
     }
-    this.nextRunnerAt = this.t + (regular ? this.u(150, 330) : this.u(300, 600)) * SEC;
+    const pool = this.smallCaps((s) => s.price >= 1 && s.price <= 20 && s.ref.float! < 30e6);
+    const choose = () => {
+      const weighted = pool.filter((s) => s.ref.float! < 10e6);
+      return weighted.length && this.rnd() < 0.7 ? this.pick(weighted) : this.pick(pool);
+    };
+    if (this.t >= this.closeTs) {
+      // After-hours: casi todo son balances, de vez en cuando y sobre todo en la primera hora.
+      const early = this.t < this.closeTs + 60 * MIN;
+      if (pool.length && this.rnd() < (early ? 0.55 : 0.2)) this.startRunner(choose(), true);
+      this.nextRunnerAt = this.t + (early ? this.u(900, 1500) : this.u(1800, 3000)) * SEC * every;
+      return;
+    }
+    if (pool.length) this.startRunner(choose());
+    const gap = regular ? this.u(150, 330) / curve(ATTENTION, minutes) : this.u(300, 600);
+    this.nextRunnerAt = this.t + gap * SEC * every;
   }
 
+  /** Noticias de fondo: seguido durante el día, cada vez menos después del cierre. */
   private maybeNoiseNews(): void {
     if (this.t < this.nextNoiseNewsAt) return;
     const s = this.pick(this.syms);
     this.news(s, this.rnd() < 0.7 ? 'neutral' : 'bullish');
-    this.nextNoiseNewsAt = this.t + this.u(90, 260) * SEC;
+    const late = this.t < this.closeTs ? 1 : this.t < this.closeTs + 60 * MIN ? 3 : 7;
+    this.nextNoiseNewsAt = this.t + this.u(90, 260) * SEC * late;
+  }
+
+  // ------------------------------------------------------------------ volumen por hora
+
+  /** Minuto del día (ET) del reloj de generación. */
+  private minuteOf(ts: number): number {
+    return PRE_OPEN + (ts - this.dayStart) / MIN;
+  }
+
+  /** En los días de cierre anticipado, la curva de volumen se corre al cierre de las 13:00. */
+  private curveMinute(m: number): number {
+    const close = this.closeMinutes;
+    if (close === REG_CLOSE) return m;
+    if (m >= close) return REG_CLOSE + (m - close);
+    if (m >= close - 30) return REG_CLOSE - 30 + (m - (close - 30));
+    return m;
+  }
+
+  /**
+   * Cuánto opera una acción a esta hora (1 = un minuto normal de la rueda). Las tranquilas siguen la
+   * curva en "U" del mercado; las que están en juego (con noticia o subiendo fuerte) operan mucho más
+   * en el pre-market, sobre todo cerca de la apertura, y siguen un rato en el after-hours.
+   */
+  private activity(hot: boolean, regular: boolean, m: number): number {
+    if (this.t >= this.postTs) return 0;
+    if (!hot) return volumeIntensity(this.curveMinute(m));
+    if (regular) return curve(ATTENTION, this.curveMinute(m));
+    if (this.t < this.openTs) return m < 7 * 60 ? 0.2 + (0.1 * (m - PRE_OPEN)) / 180 : 0.4 + 0.4 * Math.min(1, (m - 7 * 60) / 150);
+    return 0.06 + 0.3 * Math.exp(-(m - this.closeMinutes) / 25);
+  }
+
+  /** Volumen sin eventos: piso más alto si la acción está en juego, y lo que sobra se apaga de a poco. */
+  private idle(s: SimSym, inPlay: boolean, up: number, dt: number): number {
+    const vol = s.idleVol;
+    const floor = inPlay ? 6 + 30 * Math.min(1, (up - 0.15) / 0.85) : 1;
+    s.idleVol = s.idleVol > floor ? Math.max(floor, s.idleVol * Math.pow(0.998, dt)) : floor;
+    return vol;
   }
 
   // ------------------------------------------------------------------ simulación
 
   /**
-   * Genera el pre-market (en velas de 1 minuto) hasta la hora de inicio. Los últimos minutos ya se
-   * simulan operación por operación, así la cinta (Time & Sales) arranca con historia, como al abrir
-   * un símbolo en una plataforma real.
+   * Genera el día (en velas de 1 minuto) hasta la hora de inicio. Los últimos minutos ya se simulan
+   * operación por operación, así la cinta (Time & Sales) arranca con historia, como al abrir un
+   * símbolo en una plataforma real.
    */
   warmup(): void {
     this.setupGappers();
     this.live = false;
     this.nextRunnerAt = this.dayStart + 3 * 3600 * SEC;
     this.nextNoiseNewsAt = this.dayStart + 2 * 3600 * SEC;
-    const tapeFrom = Math.max(this.t, this.startTs - TAPE_WARM);
-    while (this.t < tapeFrom) this.step();
+    // La cinta empieza en un minuto justo: el último minuto planeado en velas termina ahí.
+    const tapeFrom = Math.max(this.t, Math.floor((this.startTs - TAPE_WARM) / MIN) * MIN);
+    while (this.t + SEC < tapeFrom) this.step();
     for (const s of this.syms) this.flushBar(s);
     this.live = true;
-    this.nextRunnerAt = this.startTs + 20 * SEC;
     // Cotización inicial de cada acción.
     const regular = this.t >= this.openTs && this.t < this.closeTs;
     for (const s of this.syms) {
-      s.fair = s.price;
-      this.requote(s, s.price, this.t, regular, true);
+      s.fair = s.path = s.price;
+      if (this.shows(s)) this.requote(s, s.price, this.t, regular, true);
     }
     while (this.t < this.startTs) this.step();
     this.now = this.t;
@@ -395,9 +608,9 @@ export class MarketSim {
     this.now = target;
   }
 
-  /** Publica las cotizaciones actuales de todas las acciones (después de avanzar en modo `quiet`). */
-  flushQuotes(): void {
-    for (const s of this.syms) if (s.bid > 0 && !s.halted) this.emit(this.quoteEvent(s, this.now));
+  /** Precio del camino de cada acción (para comprobar que el mercado no depende de la hora de inicio). */
+  pathPrices(): Record<string, number> {
+    return Object.fromEntries(this.syms.map((s) => [s.ref.sym, s.price]));
   }
 
   private release(target: number): void {
@@ -413,20 +626,29 @@ export class MarketSim {
     this.t += SEC;
     const from = this.pending.length;
     while (this.scheduled.length && this.scheduled[0].at <= this.t) this.scheduled.shift()!.fn();
+    if (this.t > this.postTs) return;
     const regular = this.t >= this.openTs && this.t < this.closeTs;
-    this.maybeRunner(regular);
+    const minutes = this.minuteOf(this.t);
+    this.maybeRunner(regular, minutes);
     if (this.t >= this.dayStart + 2 * 3600 * SEC) this.maybeNoiseNews();
-    const minuteEdge = this.t % MIN === 0;
+    const edge = this.t % MIN === 0;
     for (const s of this.syms) {
+      // El último segundo del minuto planeado se imprime antes de planear el siguiente.
+      if (this.live && !s.fine) this.microStep(s, regular);
+      if (edge) {
+        if (s.nextLegs) {
+          s.legs = s.nextLegs;
+          s.nextLegs = undefined;
+          s.legT = 0;
+        }
+        s.fine = s.legs.length > 0 || s.halted;
+      }
       if (s.halted) {
         if (this.t >= s.haltUntil) this.resume(s, regular);
         else continue;
       }
-      if (!this.live && !s.busy && !s.legs.length) {
-        if (minuteEdge) this.stepSym(s, 60, regular);
-        continue;
-      }
-      this.stepSym(s, 1, regular);
+      if (s.fine) this.stepSym(s, regular, minutes);
+      else if (edge) this.planMinute(s, regular, minutes);
     }
     // Los eventos de este segundo se publican en orden de hora (dentro de cada acción ya lo están).
     if (this.pending.length - from > 1) {
@@ -436,7 +658,8 @@ export class MarketSim {
     }
   }
 
-  private stepSym(s: SimSym, dt: number, regular: boolean): void {
+  /** Un segundo de una acción con tramos (o que termina el minuto después de sus tramos). */
+  private stepSym(s: SimSym, regular: boolean, minutes: number): void {
     const leg = s.legs[0];
     // "En juego": sube 15% o más en el día. Sigue operando con volumen alto (más cuanto más sube)
     // aunque ya no esté corriendo, como cualquier acción con noticia y volumen relativo alto.
@@ -455,20 +678,17 @@ export class MarketSim {
     } else {
       mu = -0.003 * Math.log(s.price / s.anchor);
       sigma = s.sigma;
-      vol = s.idleVol;
-      const floor = inPlay ? 6 + 30 * Math.min(1, (up - 0.15) / 0.85) : 1;
-      s.idleVol = s.idleVol > floor ? Math.max(floor, s.idleVol * 0.998) : floor;
+      vol = this.idle(s, inPlay, up, 1);
     }
-    const session = regular ? 1 : leg || s.role === 'gapper' || inPlay ? 0.5 : 0.04;
     const p0 = s.price;
-    const p1 = Math.max(0.05, p0 * Math.exp(mu * dt + sigma * Math.sqrt(dt) * this.gauss()));
-    const shares = s.baseShares * vol * session * dt * Math.exp(0.6 * this.gauss() - 0.18);
-    if (this.live) this.livePrints(s, p0, p1, shares, regular);
-    else this.prints(s, p0, p1, shares, dt);
-    s.price = p1;
+    const p1 = Math.max(0.05, p0 * Math.exp(mu + sigma * normal(s.rng)));
+    const shares = s.baseShares * vol * this.activity(!!leg || inPlay, regular, minutes) * Math.exp(0.6 * normal(s.rng) - 0.18);
+    if (!this.live) this.prints(s, p0, p1, shares, this.t - SEC, 1);
+    else if (this.shows(s)) this.livePrints(s, p0, p1, shares, regular);
+    s.price = s.path = p1;
     if (s.wide > 1) s.wide = 1 + (s.wide - 1) * 0.97;
     if (leg) {
-      s.legT += dt;
+      s.legT += 1;
       if (s.legT >= leg.dur) {
         s.legs.shift();
         s.legT = 0;
@@ -483,17 +703,50 @@ export class MarketSim {
     }
   }
 
-  /** Pre-market ya pasado: solo hacen falta las velas de 1 minuto. */
-  private prints(s: SimSym, p0: number, p1: number, shares: number, dt: number): void {
+  /** Acción tranquila: en el minuto justo se decide adónde llega el precio y cuánto opera en el minuto. */
+  private planMinute(s: SimSym, regular: boolean, minutes: number): void {
+    const up = s.price / s.ref.prevClose! - 1;
+    const inPlay = s.role !== 'large' && up >= 0.15;
+    const mu = -0.003 * Math.log(s.price / s.anchor);
+    const vol = this.idle(s, inPlay, up, 60);
+    const p0 = s.price;
+    const p1 = Math.max(0.05, p0 * Math.exp(mu * 60 + s.sigma * Math.sqrt(60) * normal(s.rng)));
+    const shares = s.baseShares * vol * this.activity(inPlay, regular, minutes + 0.5) * 60 * Math.exp(0.6 * normal(s.rng) - 0.18);
+    s.price = p1;
+    s.path = p0;
+    s.plan = { from: this.t, p0, p1, shares, warm: !this.live };
+    if (!this.live) this.prints(s, p0, p1, shares, this.t, 60);
+  }
+
+  /** En vivo, cada segundo del minuto planeado: el precio recorre un puente browniano hasta el cierre. */
+  private microStep(s: SimSym, regular: boolean): void {
+    const plan = s.plan;
+    if (!plan || plan.warm) return;
+    const k = (this.t - plan.from) / SEC;
+    if (k < 1 || k > 60) return;
+    const left = 61 - k;
+    const m = s.micro;
+    const sd = plan.p0 * s.sigma;
+    const from = s.path;
+    const to = k === 60 ? plan.p1 : Math.max(0.01, from + (plan.p1 - from) / left + sd * Math.sqrt((left - 1) / left) * normal(m));
+    s.path = to;
+    if (s.wide > 1) s.wide = 1 + (s.wide - 1) * 0.97;
+    if (!this.shows(s)) return;
+    const shares = (plan.shares / 60) * Math.exp(0.5 * normal(m) - 0.125);
+    this.livePrints(s, from, to, shares, regular);
+  }
+
+  /** Antes de la cinta: solo hacen falta las velas de 1 minuto. */
+  private prints(s: SimSym, p0: number, p1: number, shares: number, t0: number, dt: number): void {
+    const m = s.micro;
     const expected = shares / s.tradeSize;
-    const n = expected >= 1 ? Math.min(40, Math.round(expected)) : this.rnd() < expected ? 1 : 0;
+    const n = expected >= 1 ? Math.min(40, Math.round(expected)) : m() < expected ? 1 : 0;
     if (!n) return;
     const per = shares / n;
-    const t0 = this.t - dt * SEC;
     for (let i = 0; i < n; i++) {
       const f = (i + 1) / n;
-      const px = this.tick(Math.max(0.01, p0 + (p1 - p0) * f + p0 * 0.0008 * this.gauss()));
-      let size = Math.max(1, Math.round(per * Math.exp(0.7 * this.gauss() - 0.245)));
+      const px = this.tick(Math.max(0.01, p0 + (p1 - p0) * f + p0 * 0.0008 * normal(m)));
+      let size = Math.max(1, Math.round(per * Math.exp(0.7 * normal(m) - 0.245)));
       if (size >= 100) size = Math.round(size / 100) * 100;
       const ts = t0 + Math.floor(f * dt * SEC) - 1;
       this.addWarm(s, ts, px, size);
@@ -507,11 +760,12 @@ export class MarketSim {
    * en el medio del spread (dark pools), como en la cinta real.
    */
   private livePrints(s: SimSym, p0: number, p1: number, shares: number, regular: boolean): void {
+    const m = s.micro;
     const expected = shares / s.tradeSize;
-    const n = expected >= 1 ? Math.min(40, Math.round(expected)) : this.rnd() < expected ? 1 : 0;
+    const n = expected >= 1 ? Math.min(40, Math.round(expected)) : m() < expected ? 1 : 0;
     const t0 = this.t - SEC;
     if (!n) {
-      this.requote(s, p1, t0 + Math.floor(this.rnd() * SEC), regular);
+      this.requote(s, p1, t0 + Math.floor(m() * SEC), regular);
       s.fair = p1;
       return;
     }
@@ -519,19 +773,19 @@ export class MarketSim {
     let prev = s.fair;
     for (let i = 0; i < n; i++) {
       const f = (i + 1) / n;
-      const fair = Math.max(0.01, p0 + (p1 - p0) * f + p0 * 0.0008 * this.gauss());
+      const fair = Math.max(0.01, p0 + (p1 - p0) * f + p0 * 0.0008 * normal(m));
       const ts = t0 + Math.floor(f * SEC) - 1;
       this.requote(s, fair, ts, regular);
-      let size = Math.max(1, Math.round(per * Math.exp(0.7 * this.gauss() - 0.245)));
-      if (this.rnd() < 0.27) size = 1 + Math.floor(this.rnd() * 99);
+      let size = Math.max(1, Math.round(per * Math.exp(0.7 * normal(m) - 0.245)));
+      if (m() < 0.27) size = 1 + Math.floor(m() * 99);
       else if (size >= 100) size = Math.round(size / 100) * 100;
       const tick = tickOf(fair);
       const d = fair - prev;
       prev = fair;
-      const buy = Math.abs(d) < tick * 0.3 ? this.rnd() < (s.lastSide > 0 ? 0.62 : 0.38) : this.rnd() < (d > 0 ? 0.8 : 0.2);
+      const buy = Math.abs(d) < tick * 0.3 ? m() < (s.lastSide > 0 ? 0.62 : 0.38) : m() < (d > 0 ? 0.8 : 0.2);
       s.lastSide = buy ? 1 : -1;
       const width = Math.round((s.ask - s.bid) / tick);
-      if (width >= 2 && this.rnd() < 0.05) {
+      if (width >= 2 && m() < 0.05) {
         const mid = roundTo(s.bid + Math.floor(width / 2) * tick, tick);
         this.out({ kind: 'trade', sym: s.ref.sym, ts, price: mid, size }, ts);
         continue;
@@ -552,7 +806,7 @@ export class MarketSim {
       this.out({ kind: 'trade', sym: s.ref.sym, ts, price: px, size: q }, ts);
       left -= q;
       const tick = tickOf(px);
-      const jump = (this.rnd() < 0.2 ? 2 : 1) * tick;
+      const jump = (s.micro() < 0.2 ? 2 : 1) * tick;
       if (buy) {
         s.askSize -= q;
         if (s.askSize <= 0) {
@@ -587,13 +841,14 @@ export class MarketSim {
     const large = s.role === 'large';
     const pct = (large ? 0.00008 : 0.0011) + sigma * 1.4 + (regular ? 0 : large ? 0.0004 : 0.0035) + (price < 2 ? 0.0015 : 0);
     const ticks = (price * pct * s.wide) / tickOf(price);
-    return Math.max(1, Math.min(80, Math.round(ticks * Math.exp(0.35 * this.gauss()))));
+    return Math.max(1, Math.min(80, Math.round(ticks * Math.exp(0.35 * normal(s.micro)))));
   }
 
   /** Tamaño en la mejor punta: lotes redondos, a veces una orden grande ("pared"). */
   private touchSize(s: SimSym): number {
-    const big = this.rnd() < 0.06 ? this.u(5, 20) : 1;
-    return Math.max(100, Math.round((s.tradeSize * this.logU(0.4, 3.5) * big) / 100) * 100);
+    const m = s.micro;
+    const big = m() < 0.06 ? uni(m, 5, 20) : 1;
+    return Math.max(100, Math.round((s.tradeSize * Math.exp(uni(m, Math.log(0.4), Math.log(3.5))) * big) / 100) * 100);
   }
 
   /**
@@ -667,7 +922,7 @@ export class MarketSim {
   private resume(s: SimSym, regular: boolean): void {
     s.halted = false;
     this.out({ kind: 'status', sym: s.ref.sym, ts: this.t, halted: false, reason: 'LUDP', source: 'demo' });
-    s.price = this.tick(s.price * (1 + this.u(-0.12, 0.25)));
+    s.price = s.path = this.tick(s.price * (1 + uni(s.rng, -0.12, 0.25)));
     const size = Math.round((s.baseShares * 600) / 100) * 100 || 100;
     if (!this.live) {
       this.addWarm(s, this.t, s.price, size);
@@ -675,6 +930,7 @@ export class MarketSim {
     }
     s.fair = s.price;
     s.wide = 3;
+    if (!this.shows(s)) return;
     this.requote(s, s.price, this.t, regular, true);
     this.out({ kind: 'trade', sym: s.ref.sym, ts: this.t, price: s.price, size });
   }
