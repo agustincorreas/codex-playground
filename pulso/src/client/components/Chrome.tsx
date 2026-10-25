@@ -41,9 +41,12 @@ interface HeaderProps {
   /** Reacomodar ventanas (solo escritorio): estado y botón. */
   layoutEditing?: boolean;
   onLayout?: () => void;
+  /** Día simulado (o "Mercado ahora"): etiqueta y botón para elegir otro día. */
+  day?: { label: string; tone: 'live' | 'sim' | 'off'; title: string };
+  onDay?: () => void;
 }
 
-export function Header({ now, session, status, speed, onSpeed, prefs, onPrefs, onSettings, onSearch, search, effectiveTheme, canSpeed, account, onJournal, audioLocked, layoutEditing, onLayout }: HeaderProps) {
+export function Header({ now, session, status, speed, onSpeed, prefs, onPrefs, onSettings, onSearch, search, effectiveTheme, canSpeed, account, onJournal, audioLocked, layoutEditing, onLayout, day, onDay }: HeaderProps) {
   const [q, setQ] = useState('');
   const [suggest, setSuggest] = useState<string[]>([]);
   const next = now ? nextSessionChange(now) : null;
@@ -88,6 +91,12 @@ export function Header({ now, session, status, speed, onSpeed, prefs, onPrefs, o
           <span className="countdown mono">
             {next.label} {formatCountdown(next.at - now)}
           </span>
+        )}
+        {day && (
+          <button type="button" className={`day-chip d-${day.tone}`} onClick={onDay} title={day.title}>
+            {day.tone === 'live' && <span className="live-dot" aria-hidden="true" />}
+            {day.label}
+          </button>
         )}
       </div>
 

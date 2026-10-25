@@ -7,19 +7,14 @@ import { formatEtTime } from '../../engine/time';
 import { fmtMoney } from '../../trading/broker';
 import { breakdown, DAYS_PER_WEEK, DIMENSIONS, equityCurve, LEVELS, summarize, weeklyResults, type Bucket, type Dimension, type Summary, type WeekResult } from '../../trading/stats';
 import { SETUPS, type SessionRecord, type Trade } from '../../trading/types';
+import { fmtDay, fmtMinutes, HEAT_LABEL } from '../lib/days';
+import { downloadText } from '../lib/download';
 import { fmtPct, fmtPrice } from '../lib/format';
 import type { TrainingController } from '../training';
 import { IconClose } from './Icons';
 import { TradeReview } from './TradeReview';
 
 type Scope = 'today' | 'week' | 'all' | string;
-
-const START_OPTIONS: Array<[number, string]> = [
-  [7 * 60, '7:00 (pre-market)'],
-  [9 * 60, '9:00'],
-  [9 * 60 + 25, '9:25 (antes de la apertura)'],
-  [9 * 60 + 45, '9:45'],
-];
 
 function money(v: number, sign = true): string {
   return `${sign && v > 0 ? '+' : ''}${fmtMoney(v)}`;
@@ -32,10 +27,12 @@ function ratio(v: number): string {
 
 const mins = (m: number) => (m >= 60 ? `${(m / 60).toFixed(1)} h` : m >= 1 ? `${m.toFixed(1)} min` : `${Math.max(1, Math.round(m * 60))} s`);
 
-function dayLabel(rec: { dayKey: string; mode: string; startedAt: number; dayIndex?: number }): string {
+function dayLabel(rec: { dayKey: string; mode: string; startedAt: number; dayIndex?: number; clock?: 'ny'; simVersion?: number }): string {
   const d = new Date(rec.startedAt);
   const when = d.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' }) + ' ' + d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
   if (rec.mode !== 'sim') return `En vivo · ${rec.dayKey}`;
+  // Desde que se elige la fecha del día simulado, se muestra esa fecha (y si fue "Mercado ahora").
+  if (rec.simVersion) return `Día ${rec.dayIndex ?? '—'} · ${rec.clock === 'ny' ? 'NY ' : ''}${fmtDay(rec.dayKey)}`;
   return rec.dayIndex ? `Día ${rec.dayIndex} · ${when}` : `Simulador · ${when}`;
 }
 
@@ -187,27 +184,14 @@ async function exportCsv(trades: Trade[]): Promise<void> {
     .sort((a, b) => a.openedAt - b.openedAt)
     .map((t) => [new Date(t.openedAt).toISOString().slice(0, 10), formatEtTime(t.openedAt), formatEtTime(t.closedAt), t.sym, t.setup ?? '', t.shares, t.avgEntry, t.avgExit, t.gross, t.fees, t.net, t.returnPct, t.r ?? '', t.exitReason, t.note ?? ''].map(esc).join(','));
   const data = [head.join(','), ...rows].join('\n');
-  const filename = `pulso-trades-${new Date().toISOString().slice(0, 10)}.csv`;
-  const claude = (window as unknown as { claude?: { use(n: string): Promise<unknown> } }).claude;
-  const dl = claude?.use ? ((await claude.use('downloads').catch(() => null)) as { save(f: { filename: string; data: string }): Promise<unknown> } | null) : null;
-  if (dl) {
-    await dl.save({ filename, data }).catch(() => undefined);
-    return;
-  }
-  const url = URL.createObjectURL(new Blob([data], { type: 'text/csv' }));
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  await downloadText(`pulso-trades-${new Date().toISOString().slice(0, 10)}.csv`, data, 'text/csv');
 }
 
-export function Journal({ c, onClose, onSelect, onSettings }: { c: TrainingController; onClose?: () => void; onSelect: (sym: string) => void; onSettings: () => void }) {
+export function Journal({ c, onClose, onSelect, onSettings, onNewDay }: { c: TrainingController; onClose?: () => void; onSelect: (sym: string) => void; onSettings: () => void; onNewDay?: () => void }) {
   const [scope, setScope] = useState<Scope>('all');
   const [dim, setDim] = useState<Dimension>('setup');
   const [hourStep, setHourStep] = useState<'hora' | 'hora30' | 'hora15'>('hora30');
   const [review, setReview] = useState<Trade | null>(null);
-  const [startMin, setStartMin] = useState(c.state.settings.startMinutes);
   const a = c.active;
   const sessions = c.sessions;
 
@@ -280,18 +264,9 @@ export function Journal({ c, onClose, onSelect, onSettings }: { c: TrainingContr
             <span className="t-muted small">Día terminado.</span>
           )}
           {c.mode === 'local' && (
-            <div className="new-day">
-              <select id="journal-start" value={startMin} onChange={(e) => setStartMin(Number(e.target.value))} aria-label="Hora de inicio del nuevo día">
-                {START_OPTIONS.map(([m, label]) => (
-                  <option key={m} value={m}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-              <button className="btn primary" onClick={() => (c.newDay(startMin), onClose?.())}>
-                Nuevo día simulado
-              </button>
-            </div>
+            <button className="btn primary" onClick={() => (onNewDay ? onNewDay() : c.newDay())}>
+              Nuevo día…
+            </button>
           )}
           <button className="btn ghost" onClick={onSettings}>
             Ajustes de la cuenta
@@ -691,6 +666,7 @@ export function Journal({ c, onClose, onSelect, onSettings }: { c: TrainingContr
                   <th className="num">Aciertos</th>
                   <th className="num">Resultado</th>
                   <th className="num">Saldo final</th>
+                  {c.mode === 'local' && <th aria-label="Repetir" />}
                 </tr>
               </thead>
               <tbody>
@@ -698,11 +674,31 @@ export function Journal({ c, onClose, onSelect, onSettings }: { c: TrainingContr
                   const ss = summarize(x.trades);
                   return (
                     <tr key={x.id} onClick={() => setScope(x.id)} className={scope === x.id ? 'is-selected' : ''}>
-                      <td>{dayLabel(x)}</td>
+                      <td>
+                        {dayLabel(x)}
+                        {x.heat && <span className={`heat-tag h-${x.heat}`}>{HEAT_LABEL[x.heat]}</span>}
+                      </td>
                       <td className="num">{ss.trades}</td>
                       <td className="num">{ss.trades ? `${ss.winRate.toFixed(0)}%` : '—'}</td>
                       <td className={`num ${ss.net >= 0 ? 't-up' : 't-down'}`}>{money(ss.net)}</td>
                       <td className="num">{fmtMoney(x.endCash)}</td>
+                      {c.mode === 'local' && (
+                        <td className="num">
+                          {c.canReplay(x) && (
+                            <button
+                              className="btn ghost tiny"
+                              title={`Repetir el mismo mercado desde las ${fmtMinutes(x.startMinutes ?? 9 * 60 + 25)} ET`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                c.replayDay(x);
+                                onClose?.();
+                              }}
+                            >
+                              Repetir
+                            </button>
+                          )}
+                        </td>
+                      )}
                     </tr>
                   );
                 })}

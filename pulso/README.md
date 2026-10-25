@@ -94,12 +94,34 @@ que instalar nada.
 - **Halts por volatilidad** de 5 minutos y reanudación.
 - Las acciones "en juego" (suben 15% o más) siguen operando con volumen aunque ya no estén corriendo.
 - La cinta arranca con los últimos 3 minutos de operaciones, como cuando abrís un símbolo en una plataforma.
+- **El volumen de cada hora:** casi nada a las 4:00, sube hacia la apertura (más desde las 7:00, cuando se
+  suman los brókers minoristas), la apertura es lo más fuerte del día, el mediodía flojo y repunta al cierre.
+  El **after-hours** (16:00 a 20:00) es muy fino: algo en la primera hora, con **balances** que mueven a
+  alguna acción, y casi nada después. Las acciones con noticia operan mucho más en el pre-market que el resto.
+- **Días distintos:** cada día puede salir **frío** (3 o 4 gappers y corridas cortas), **normal** o
+  **caliente** (9 a 12 gappers y corridas más grandes y seguidas). Después de un fin de semana o de un
+  feriado hay 2 gappers más (se juntaron noticias). Los días de cierre anticipado (13:00) también se respetan.
+- **Ofertas de acciones (dilución):** una empresa que viene subiendo fuerte puede anunciar una oferta
+  ("Registered Direct Offering", "Public Offering"…) y la acción se desploma 20% a 40% en minutos. Es más
+  probable si tiene un shelf (S-3) o warrants, como en el mercado real: mirá las etiquetas de dilución.
 
 ### Un día de práctica
 
-1. Cada día simulado es un mercado distinto. Arranca a las 9:25 ET con el pre-market ya armado (o a las
-   7:00, 9:00 o 9:45: se elige en *Cuenta y métricas → Nuevo día simulado*). Con 2x, 5x o 10x el reloj corre
-   más rápido y con ⏸ se pausa.
+1. **Elegís cómo practicar** con el botón del día, al lado del reloj (o *Cuenta y métricas → Nuevo día*):
+   - **Mercado ahora:** la hora real de Nueva York, con pre-market desde las 4:00, la rueda de 9:30 a 16:00 y
+     el after-hours hasta las 20:00. No se puede pausar ni acelerar. Si cerrás la página (o la compu se
+     duerme), al volver el mercado se pone al día con la hora actual y es el mismo que estabas viendo; si
+     dejaste órdenes en espera, antes se repasa lo que pasó mientras no estabas, así se ejecutan (o salta el
+     stop) como en el mercado, y te avisa. Ese día el mercado es el mismo para todos los que lo usan. Fines
+     de semana, feriados y de 20:00 a 4:00 está cerrado: te dice cuándo abre y mientras tanto podés practicar
+     con un día simulado.
+   - **Día de práctica:** un día simulado en la **fecha** y a la **hora** que quieras (de 4:00 a 19:30 ET,
+     con atajos para el pre-market, la apertura, el mediodía, la última media hora y el after-hours). El
+     día arranca con todo lo anterior ya armado. Con 2x, 5x o 10x el reloj corre más rápido y con ⏸ se pausa.
+   - **Repetir un día:** el mismo mercado de un día que ya practicaste, desde la misma hora (en el diálogo o
+     con **Repetir** en *Días anteriores*). Sirve para volver a operar un día que te salió mal.
+
+   Los gappers, las noticias, los halts y las ofertas salen al azar: cada día nuevo es distinto.
 2. Elegís una acción en *Máximos del día* o en los escáneres, o escribís el símbolo en la ventana *Nivel 2
    y órdenes*.
 3. **Entrada de órdenes:** tipo (*Limit*, *Market* o *Stop*), precio (las flechas lo mueven de a un tick y
@@ -126,8 +148,9 @@ que instalar nada.
 7. En *Posiciones* quedan también las acciones que ya cerraste, con lo que ganaste o perdiste en cada una, y
    la pestaña **Trades de hoy** lista cada trade con su resultado y el **total del día** (el saldo de arriba
    también muestra el resultado de hoy).
-8. A las 15:59 ET el día se cierra solo (vende lo que quedó abierto), o lo cerrás antes con *Terminar el
-   día*. El saldo pasa al día siguiente.
+8. El día sigue en el after-hours hasta las 20:00 ET (17:00 en los días de cierre anticipado): un minuto
+   antes se cierra solo (vende lo que quedó abierto), o lo cerrás antes con *Terminar el día*. El saldo pasa
+   al día siguiente. En el after-hours solo se aceptan órdenes límite DAY+ y el spread es más ancho.
 9. **El saldo lo cambiás cuando quieras:** en la pestaña *Cuenta* (o en *Ajustes de la cuenta → Cuenta*),
    **Cambiar saldo** con el monto que quieras o con los botones de US$ 1.000 a US$ 50.000. Cuenta como un
    depósito o un retiro: el resultado del día, el total y las estadísticas no lo suman como ganancia (con una
@@ -222,8 +245,13 @@ Se abre con el botón del saldo (arriba) o con la pestaña *Métricas* en el cel
 - **En la demo de GitHub Pages o en tu computadora:** en el navegador. Si borrás los datos del sitio, se
   pierden.
 
-Si cerrás la pestaña en medio de un día, al volver se reanuda el mismo mercado en el mismo segundo, con tus
-posiciones y órdenes. Con datos reales (secciones 3 y 4) la misma cuenta de práctica opera sobre el mercado
+Si cerrás la pestaña en medio de un día de práctica, al volver se reanuda el mismo mercado en el mismo
+segundo, con tus posiciones y órdenes (en "Mercado ahora", en la hora actual de Nueva York).
+
+**Respaldo:** en *Ajustes de la cuenta → Cuenta*, **Exportar la cuenta** baja un archivo con todo (saldo,
+ajustes, el día en curso y el diario). Con **Importar un respaldo…** lo cargás en otro navegador o en otra
+computadora, por ejemplo en el link público, y seguís igual. Sirve también para no perder nada si borrás los
+datos del navegador. Con datos reales (secciones 3 y 4) la misma cuenta de práctica opera sobre el mercado
 de verdad: precios y cinta reales, pero el Nivel 2 es una estimación armada alrededor del bid y el ask,
 porque el escáner no recibe el libro de órdenes.
 
@@ -367,14 +395,17 @@ pulso/
     metrics.ts    RVOL ajustado por horario, 5 pilares, filas de los escáneres
     symbol.ts     velas de 1 min, VWAP, EMA/MACD incrementales
     time.ts       hora ET, sesiones, feriados NYSE 2025–2027, curva de volumen intradía
-  src/sim/      mercado simulado (gappers, runners con noticia, halts LULD, fades); determinista por semilla
+  src/sim/      mercado simulado (gappers, runners con noticia, ofertas, halts LULD, fades, volumen por hora,
+                días fríos y calientes); el camino de cada acción depende solo de la semilla y del día, así
+                que se rearma igual a cualquier hora
   src/trading/  cuenta de práctica (sin dependencias)
     broker.ts     órdenes a mercado, límite y stop, latencia, fila, OCO, halts, cash T+1, margen y PDT, tasas
     depth.ts      Nivel 2 por bolsa alrededor del NBBO
     stats.ts      métricas, Profit Trifecta, curva de capital y desgloses
     store.ts      guardado en el navegador o en la base del artifact de Claude
   src/client/   interfaz React + lightweight-charts (TradingView)
-    training.ts   días de práctica: crear, reanudar, terminar, cambiar el saldo y guardar
+    training.ts   días de práctica y "Mercado ahora": crear, reanudar, ponerse al día, repetir, terminar,
+                  cambiar el saldo, guardar, exportar e importar
     lib/hotkeys.ts  atajos de teclado configurables
     components/WindowGrid.tsx  ventanas reacomodables (react-grid-layout)
   server/       servidor Node: Alpaca, Massive, halts de Nasdaq, SEC, float; WebSocket hacia la interfaz
@@ -385,7 +416,7 @@ pulso/
 | --- | --- |
 | `npm run dev` | Interfaz en modo demo con recarga en caliente (http://localhost:5173). |
 | `npm start` | Compila la interfaz y arranca el servidor (datos reales si hay claves). |
-| `npm test` | Pruebas (68): motor, alertas, bull flag, halts, Alpaca y Massive contra servidores falsos, simulador, bróker de práctica y métricas. |
+| `npm test` | Pruebas (84): motor, alertas, bull flag, halts, Alpaca y Massive contra servidores falsos, simulador (el mismo mercado a cualquier hora, volumen por hora, días, ofertas, after-hours), bróker de práctica, días de práctica, respaldo y métricas. |
 | `npm run typecheck` | Chequeo de tipos de todo el proyecto. |
 | `npm run build:demo` | Página única del demo (`dist-demo/index.html`) para GitHub Pages. |
 

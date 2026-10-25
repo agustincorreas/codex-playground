@@ -145,25 +145,49 @@ export function tradingDayStart(ts: number): number {
   return etWallToTs(p.y, p.mo, p.d, PRE_OPEN);
 }
 
-// Fracción acumulada típica del volumen diario según la hora (curva en "U").
-// Sirve para un volumen relativo ajustado por horario: a las 9:00 nadie hizo todavía
-// el volumen de un día entero, así que se compara contra lo esperable a esa hora.
+// Fracción acumulada típica del volumen diario según la hora (curva en "U" de una small cap: la
+// apertura es lo más fuerte del día, el mediodía flojo y repunta al cierre). Sirve para un volumen
+// relativo ajustado por horario: a las 9:00 nadie hizo todavía el volumen de un día entero, así que
+// se compara contra lo esperable a esa hora.
 const VOLUME_CURVE: Array<[number, number]> = [
   [PRE_OPEN, 0],
   [7 * 60, 0.005],
   [8 * 60 + 30, 0.015],
   [REG_OPEN, 0.03],
-  [10 * 60, 0.12],
-  [10 * 60 + 30, 0.19],
-  [11 * 60, 0.25],
-  [12 * 60, 0.35],
-  [13 * 60, 0.44],
-  [14 * 60, 0.53],
-  [15 * 60, 0.65],
-  [15 * 60 + 30, 0.75],
+  [9 * 60 + 45, 0.12],
+  [10 * 60, 0.187],
+  [10 * 60 + 30, 0.288],
+  [11 * 60, 0.368],
+  [12 * 60, 0.487],
+  [13 * 60, 0.578],
+  [14 * 60, 0.669],
+  [15 * 60, 0.78],
+  [15 * 60 + 30, 0.853],
   [REG_CLOSE, 0.97],
+  // After-hours: algo en la primera hora (balances y lo que venía en juego), casi nada después.
+  [17 * 60, 0.99],
   [POST_CLOSE, 1],
 ];
+
+/** Promedio de volumen por minuto de la rueda regular (fracción del día). */
+const REG_RATE = (0.97 - 0.03) / (REG_CLOSE - REG_OPEN);
+
+/**
+ * Intensidad de la operatoria a esa hora, relativa al minuto promedio de la rueda regular (1 = un
+ * minuto normal): casi nada a las 4:00, sube hacia la apertura, explota a las 9:30, baja al mediodía y
+ * repunta al cierre; el after-hours es muy fino. Es la pendiente de la curva del volumen esperado.
+ */
+export function volumeIntensity(minutesOfDay: number): number {
+  if (minutesOfDay < VOLUME_CURVE[0][0] || minutesOfDay >= POST_CLOSE) return 0;
+  for (let i = 1; i < VOLUME_CURVE.length; i++) {
+    const [m1, f1] = VOLUME_CURVE[i];
+    if (minutesOfDay < m1) {
+      const [m0, f0] = VOLUME_CURVE[i - 1];
+      return (f1 - f0) / (m1 - m0) / REG_RATE;
+    }
+  }
+  return 0;
+}
 
 export function expectedVolumeFraction(minutesOfDay: number): number {
   if (minutesOfDay <= VOLUME_CURVE[0][0]) return 0.01;

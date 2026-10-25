@@ -83,4 +83,33 @@ export function headline(name: string, sentiment: 'bullish' | 'bearish' | 'neutr
   return pool[Math.floor(rnd() * pool.length)](name, rnd);
 }
 
+/** Oferta de acciones (dilución): la noticia que hace caer a una acción que venía subiendo. */
+export function offeringHeadline(name: string, rnd: () => number): string {
+  const m = money(rnd);
+  const pool = [
+    `${name} Announces $${m}M Registered Direct Offering`,
+    `${name} Announces Pricing of $${m}M Underwritten Public Offering`,
+    `${name} Prices Public Offering of Common Stock and Warrants`,
+    `${name} Announces $${m}M Private Placement Priced At-the-Market`,
+  ];
+  return pool[Math.floor(rnd() * pool.length)];
+}
+
+const QUARTER = ['Fourth', 'Fourth', 'Fourth', 'First', 'First', 'First', 'Second', 'Second', 'Second', 'Third', 'Third', 'Third'];
+
+/**
+ * Balance trimestral (las corridas del after-hours salen casi siempre de acá). El trimestre es el que
+ * se reporta en ese mes: en octubre, el tercero; en febrero, el cuarto.
+ */
+export function earningsHeadline(name: string, month: number, rnd: () => number): string {
+  const up = Math.round(40 + rnd() * 260);
+  const q = QUARTER[(month - 1) % 12];
+  const pool = [
+    `${name} Reports Record ${q} Quarter Revenue, Up ${up}% Year-over-Year`,
+    `${name} Reports ${q} Quarter Results, Raises Full-Year Guidance`,
+    `${name} Swings to Profit in ${q} Quarter; Revenue Up ${up}%`,
+  ];
+  return pool[Math.floor(rnd() * pool.length)];
+}
+
 export const NEWS_SOURCES = ['GlobeNewswire', 'PR Newswire', 'Business Wire', 'ACCESSWIRE', 'Benzinga'];

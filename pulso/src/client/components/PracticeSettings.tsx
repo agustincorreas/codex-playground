@@ -1,11 +1,13 @@
 // Ajustes de la cuenta de práctica, como el panel de ajustes del simulador de Warrior Trading:
 // cuenta (tipo, saldo, apalancamiento, reglas), órdenes (tamaño, vigencia, latencia, comisiones) y
 // atajos de teclado configurables (con botón rápido en el ticket).
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { fmtMoney } from '../../trading/broker';
 import { BalanceEditor } from './Account';
 import { DEFAULT_HOTKEYS, type Hotkey, type HotkeyAction, type Tif, type TradingSettings } from '../../trading/types';
 import { playOrder } from '../lib/audio';
+import { fmtMinutes } from '../lib/days';
+import { downloadText } from '../lib/download';
 import { fromEvent, hotkeyLabel, reserved } from '../lib/hotkeys';
 import type { TrainingController } from '../training';
 import { IconClose } from './Icons';
@@ -13,11 +15,80 @@ import { IconClose } from './Icons';
 type Section = 'cuenta' | 'ordenes' | 'atajos';
 
 const START_OPTIONS: Array<[number, string]> = [
+  [4 * 60, '4:00 (apertura del pre-market)'],
   [7 * 60, '7:00 (pre-market temprano)'],
   [9 * 60, '9:00 (pre-market)'],
   [9 * 60 + 25, '9:25 (antes de la apertura)'],
   [9 * 60 + 45, '9:45 (ya abierto)'],
+  [12 * 60, '12:00 (mediodía)'],
+  [15 * 60 + 30, '15:30 (última media hora)'],
+  [16 * 60, '16:00 (after-hours)'],
 ];
+
+/** Respaldo de la cuenta: bajarla a un archivo o reemplazarla por la de un archivo. */
+function BackupCard({ c, onImported }: { c: TrainingController; onImported: () => void }) {
+  const file = useRef<HTMLInputElement>(null);
+  const [pending, setPending] = useState<{ name: string; data: unknown; summary: string } | null>(null);
+  const [error, setError] = useState('');
+  const where = c.storeKind === 'cuenta' ? 'tu cuenta de Claude' : 'este navegador';
+  const exportNow = async () => {
+    const b = c.exportBackup();
+    const ok = await downloadText(`pulso-cuenta-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(b), 'application/json');
+    if (ok) c.notify(`Respaldo descargado: ${fmtMoney(b.state.balance)} y ${b.sessions.length} días del diario.`, 'ok');
+  };
+  const pick = async (f: File | undefined) => {
+    setError('');
+    if (!f) return;
+    try {
+      const data = JSON.parse(await f.text()) as { state?: { balance?: number }; sessions?: unknown[]; exportedAt?: number };
+      const when = data.exportedAt ? new Date(data.exportedAt).toLocaleString('es-AR') : 'fecha desconocida';
+      const days = Array.isArray(data.sessions) ? data.sessions.length : 0;
+      setPending({ name: f.name, data, summary: `${fmtMoney(Number(data.state?.balance) || 0)} y ${days} día${days === 1 ? '' : 's'} en el diario · guardado el ${when}` });
+    } catch {
+      setError('El archivo no se puede leer: tiene que ser un respaldo .json de Pulso.');
+    }
+    if (file.current) file.current.value = '';
+  };
+  return (
+    <section className="card">
+      <h3>Respaldo de la cuenta</h3>
+      <p className="field-hint">
+        La cuenta se guarda en {where}. Bajala a un archivo para tenerla guardada o para seguir en otro navegador o en otra computadora (desde el link público): ahí la importás y sigue igual, con el saldo, los ajustes, el día en curso y todo el diario.
+      </p>
+      <div className="row-end">
+        <button id="backup-export" className="btn" onClick={() => void exportNow()}>
+          Exportar la cuenta
+        </button>
+        <button className="btn" onClick={() => file.current?.click()}>
+          Importar un respaldo…
+        </button>
+        <input ref={file} id="backup-file" type="file" accept="application/json,.json" hidden onChange={(e) => void pick(e.target.files?.[0])} />
+      </div>
+      {error && <p className="t-down small">{error}</p>}
+      {pending && (
+        <div className="confirm">
+          <span>
+            ¿Reemplazar la cuenta de {where} por la de <b>{pending.name}</b> ({pending.summary})? La de ahora se borra.
+          </span>
+          <button
+            id="backup-confirm"
+            className="btn danger"
+            onClick={async () => {
+              const res = await c.importBackup(pending.data);
+              setPending(null);
+              if (res.ok) onImported();
+            }}
+          >
+            Sí, importar
+          </button>
+          <button className="btn" onClick={() => setPending(null)}>
+            No
+          </button>
+        </div>
+      )}
+    </section>
+  );
+}
 
 const fmtOffset = (o: number) => (o === 0 ? '' : ` ${o > 0 ? '+' : '−'} ${Math.abs(o).toFixed(2).replace('.', ',')}`);
 const REF_LABEL = { ask: 'Ask', bid: 'Bid', last: 'Último' } as const;
@@ -265,6 +336,7 @@ export function PracticeSettings({ c, onClose, initial = 'cuenta' }: { c: Traini
                   )}
                 </div>
               </section>
+              <BackupCard c={c} onImported={onClose} />
               <section className="card">
                 <h3>Valores actuales</h3>
                 <dl className="av-list">
@@ -325,6 +397,7 @@ export function PracticeSettings({ c, onClose, initial = 'cuenta' }: { c: Traini
                 <label className="field">
                   <span className="field-label">Hora de inicio del día simulado</span>
                   <select id="trade-set-start" value={s.startMinutes} onChange={(e) => set({ startMinutes: Number(e.target.value) })}>
+                    {!START_OPTIONS.some(([m]) => m === s.startMinutes) && <option value={s.startMinutes}>{fmtMinutes(s.startMinutes)}</option>}
                     {START_OPTIONS.map(([m, label]) => (
                       <option key={m} value={m}>
                         {label}

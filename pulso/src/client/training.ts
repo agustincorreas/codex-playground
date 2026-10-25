@@ -1,8 +1,9 @@
 // Controlador de la cuenta de práctica: días de práctica, bróker, reglas de la cuenta (T+1 y PDT),
 // atajos de teclado, guardado y avisos.
 import { useEffect, useState } from 'react';
-import { etParts, REG_CLOSE, sessionDate } from '../engine/time';
-import { lastTradingDay } from '../sim/simulator';
+import type { Session } from '../engine/types';
+import { etDateTimeToTs, etParts, etWallToTs, nextSessionChange, POST_CLOSE, REG_CLOSE, regularCloseMinutes, sessionAt, sessionDate } from '../engine/time';
+import { dayHeat, lastTradingDay, seedForDay } from '../sim/simulator';
 import { Broker, describeOrder, fmtMoney, fmtPx, type BrokerResult, type Marks, type OrderRequest } from '../trading/broker';
 import { roundPx, tickOf } from '../trading/depth';
 import type { TrainingStore } from '../trading/store';
@@ -47,12 +48,86 @@ export interface TicketState {
   tif?: Tif;
 }
 
+/** Cómo arrancar un día nuevo. */
+export interface NewDayOptions {
+  clock: 'practice' | 'ny';
+  /** Práctica: fecha (AAAA-MM-DD; si no es día hábil, el hábil anterior) y hora de inicio (minutos ET). */
+  date?: string;
+  startMinutes?: number;
+  /** Repetir un día: la misma semilla, el mismo mercado. */
+  seed?: number;
+}
+
+/** Respaldo de la cuenta de práctica (para llevarla a otro navegador o guardarla). */
+export interface AccountBackup {
+  app: 'pulso';
+  kind: 'cuenta-de-practica';
+  version: 1;
+  exportedAt: number;
+  state: TrainingState;
+  sessions: SessionRecord[];
+}
+
 const money = (v: number) => Math.round(v * 100) / 100;
 /** Días de la ventana de la regla PDT (el de hoy incluido). */
 const PDT_WINDOW = 5;
 
 function newSessionId(): string {
   return `s${Date.now().toString(36)}${Math.floor(Math.random() * 1e6).toString(36)}`;
+}
+
+/** Fin del día simulado: el cierre del after-hours (17:00 en los días de cierre anticipado). */
+export function postEndMinutes(dayKey: string): number {
+  return regularCloseMinutes(dayKey) === REG_CLOSE ? POST_CLOSE : 17 * 60;
+}
+
+/**
+ * El mercado de Nueva York ahora mismo (para el modo "Mercado ahora"). En el último minuto del
+ * after-hours ya no se arranca un día: el próximo abre con el pre-market siguiente.
+ */
+export function nyMarket(now = Date.now()): { open: boolean; session: Session; dateKey: string; nextOpen: number } {
+  const p = etParts(now);
+  const session = sessionAt(now);
+  const end = postEndMinutes(p.dateKey);
+  const open = session !== 'closed' && p.minutes < end - 1;
+  const nextOpen = open ? now : nextSessionChange(session === 'closed' ? now : etWallToTs(p.y, p.mo, p.d, end) + 1000).at;
+  return { open, session, dateKey: p.dateKey, nextOpen };
+}
+
+/** Un día de "Mercado ahora" que ya terminó (es de otra fecha o ya cerró el after-hours). */
+function nyDayOver(a: ActiveSession, now = Date.now()): boolean {
+  const p = etParts(now);
+  return p.dateKey !== a.dayKey || p.minutes >= postEndMinutes(a.dayKey);
+}
+
+function normalizeState(st: TrainingState | null): TrainingState {
+  const base: TrainingState = { version: 1, settings: DEFAULT_TRADING, balance: DEFAULT_TRADING.startingBalance, dayIndex: 0, dayTrades: [], updatedAt: Date.now() };
+  const s = st ?? base;
+  return {
+    ...base,
+    ...s,
+    dayIndex: s.dayIndex ?? 0,
+    dayTrades: s.dayTrades ?? [],
+    settings: { ...DEFAULT_TRADING, ...s.settings, hotkeys: s.settings?.hotkeys?.length ? s.settings.hotkeys : DEFAULT_TRADING.hotkeys },
+  };
+}
+
+/** Revisa un archivo de respaldo: devuelve el respaldo o un mensaje de por qué no sirve. */
+export function parseBackup(raw: unknown): AccountBackup | string {
+  if (!raw || typeof raw !== 'object') return 'El archivo no es un respaldo de Pulso.';
+  const b = raw as Partial<AccountBackup>;
+  if (b.app !== 'pulso' || b.kind !== 'cuenta-de-practica') return 'El archivo no es un respaldo de la cuenta de práctica de Pulso.';
+  if (typeof b.version !== 'number' || b.version > 1) return 'El respaldo es de una versión más nueva de Pulso: actualizá la página y probá de nuevo.';
+  const st = b.state;
+  if (!st || typeof st !== 'object' || typeof st.balance !== 'number' || !Number.isFinite(st.balance) || !st.settings || typeof st.settings !== 'object') {
+    return 'Al respaldo le falta la cuenta (saldo y ajustes).';
+  }
+  if (!Array.isArray(b.sessions)) return 'Al respaldo le falta el historial de días.';
+  const sessions = b.sessions.filter((x): x is SessionRecord => !!x && typeof x === 'object' && typeof x.id === 'string' && typeof x.dayKey === 'string' && Array.isArray(x.trades));
+  const state = { ...st };
+  const a = state.active;
+  if (a && (typeof a !== 'object' || !Array.isArray(a.positions) || !Array.isArray(a.orders) || !Array.isArray(a.trades) || !Array.isArray(a.fills) || typeof a.cash !== 'number')) delete state.active;
+  return { app: 'pulso', kind: 'cuenta-de-practica', version: 1, exportedAt: Number(b.exportedAt) || Date.now(), state, sessions };
 }
 
 export class TrainingController {
@@ -71,40 +146,74 @@ export class TrainingController {
   /** Hubo una acción del usuario en esta sesión: recién ahí se guarda (no en la carga). */
   private touched = false;
   private trackedKey = '';
+  /** Ejecuciones mientras el mercado se ponía al día (se avisan juntas al terminar). */
+  private away: { fills: number; trades: Trade[] } | null = null;
+  /** Cambia al importar una cuenta: la página rearma el mercado aunque el día sea el mismo. */
+  private reloads = 0;
 
   constructor(
     private readonly store: TrainingStore,
     loaded: { state: TrainingState | null; sessions: SessionRecord[] },
     readonly mode: 'local' | 'remote',
   ) {
-    const base: TrainingState = { version: 1, settings: DEFAULT_TRADING, balance: DEFAULT_TRADING.startingBalance, dayIndex: 0, dayTrades: [], updatedAt: Date.now() };
-    const st = loaded.state ?? base;
-    this.state = {
-      ...base,
-      ...st,
-      dayIndex: st.dayIndex ?? 0,
-      dayTrades: st.dayTrades ?? [],
-      settings: { ...DEFAULT_TRADING, ...st.settings, hotkeys: st.settings?.hotkeys?.length ? st.settings.hotkeys : DEFAULT_TRADING.hotkeys },
-    };
+    this.state = normalizeState(loaded.state);
     this.sessions = [...loaded.sessions].sort((a, b) => b.endedAt - a.endedAt);
-    const wanted = mode === 'local' ? 'sim' : 'live';
+    this.settle();
+    store.onFallback = () => {
+      this.notify('No se pudo guardar en tu cuenta de Claude: por ahora se guarda en este navegador.', 'error');
+      this.emit();
+    };
+  }
+
+  /**
+   * Revisa el día guardado al cargar: uno de otro modo, de otra fecha o de otra versión del simulador
+   * no se puede seguir y se archiva tal como quedó (las posiciones vuelven al efectivo a su costo). Un
+   * día de "Mercado ahora" que ya terminó sin nada abierto se archiva; con órdenes o posiciones se
+   * deja, así el mercado se pone al día hasta el cierre y las cierra ahí.
+   */
+  private settle(): void {
+    const wanted = this.mode === 'local' ? 'sim' : 'live';
     const a = this.state.active;
     const today = sessionDate(Date.now()).dateKey;
-    const stale = a && (a.mode !== wanted || (a.mode === 'live' && a.dayKey !== today) || (a.mode === 'sim' && a.simVersion !== SIM_VERSION) || !a.history);
+    const stale =
+      a &&
+      (a.mode !== wanted ||
+        (a.mode === 'live' && a.dayKey !== today) ||
+        (a.mode === 'sim' && a.simVersion !== SIM_VERSION) ||
+        !a.history ||
+        (a.clock === 'ny' && nyDayOver(a) && !a.positions.length && !a.orders.length));
     if (a && stale) {
-      // Un día de otro modo, de otra fecha o de otra versión del simulador no se puede seguir: se
-      // archiva tal como quedó y las posiciones abiertas vuelven al efectivo a su costo.
       const back = money(a.cash + a.positions.reduce((v, p) => v + p.shares * p.avgCost, 0));
       this.archive(a, a.simNow ?? a.marketStart, back);
       this.state.balance = back;
       this.state.active = undefined;
     }
     if (a && this.state.active) this.touched = true;
-    if (!this.state.active) this.state.active = this.createSession();
-    store.onFallback = () => {
-      this.notify('No se pudo guardar en tu cuenta de Claude: por ahora se guarda en este navegador.', 'error');
-      this.emit();
-    };
+    if (!this.state.active) this.ensureFresh();
+  }
+
+  /** Sin día activo: arranca uno (en "Mercado ahora", solo si Nueva York está abierto). */
+  private ensureFresh(): void {
+    if (this.mode === 'local' && this.state.settings.clock === 'ny' && !nyMarket().open) return;
+    this.state.active = this.createSession({ clock: this.state.settings.clock });
+  }
+
+  /**
+   * "Mercado ahora" sin día activo y con Nueva York abierto: arranca el día de hoy. Devuelve si arrancó
+   * (la página lo llama cada tanto mientras muestra el mercado cerrado).
+   */
+  ensureSession(): boolean {
+    if (this.state.active || this.mode !== 'local' || this.state.settings.clock !== 'ny' || !nyMarket().open) return false;
+    this.startFresh({ clock: 'ny' });
+    this.emit();
+    return true;
+  }
+
+  /** "Mercado ahora" con Nueva York cerrado y sin día activo: cuándo abre el pre-market. */
+  get nyClosedUntil(): number | null {
+    if (this.mode !== 'local' || this.state.active || this.state.settings.clock !== 'ny') return null;
+    const m = nyMarket();
+    return m.open ? null : m.nextOpen;
   }
 
   get storeKind() {
@@ -124,26 +233,57 @@ export class TrainingController {
     return this.source?.depthIsReal ?? false;
   }
 
+  /** Identifica el mercado que tiene que mostrar la página: cambia con cada día nuevo. */
+  get simKey(): string | null {
+    const a = this.state.active;
+    return a && a.mode === 'sim' ? `${a.id}:${this.reloads}` : null;
+  }
+
   /** Configuración del simulador para la sesión actual (semilla, día y punto de reanudación). */
   get simConfig(): SimConfig | undefined {
     const a = this.state.active;
     if (!a || a.mode !== 'sim' || a.seed === undefined) return undefined;
-    return { seed: a.seed, dayTs: a.dayTs ?? Date.now(), startMinutes: a.startMinutes ?? this.state.settings.startMinutes, resumeAt: this.touched ? a.simNow : undefined };
+    const base = { sessionId: a.id, seed: a.seed, dayTs: a.dayTs ?? Date.now(), startMinutes: a.startMinutes ?? this.state.settings.startMinutes };
+    if (a.clock === 'ny') {
+      // Solo las órdenes en espera necesitan repasar lo que pasó; las posiciones toman el precio de ahora.
+      return { ...base, realtime: true, catchUpFrom: this.touched && a.orders.length > 0 ? a.simNow : undefined };
+    }
+    return { ...base, resumeAt: this.touched ? a.simNow : undefined };
   }
 
-  private createSession(startMinutes = this.state.settings.startMinutes): ActiveSession {
+  private createSession(opts: NewDayOptions): ActiveSession {
     const live = this.mode === 'remote';
-    const dayTs = Date.now();
-    const d = live ? sessionDate(dayTs) : lastTradingDay(dayTs);
-    const dayKey = `${d.y}-${String(d.mo).padStart(2, '0')}-${String(d.d).padStart(2, '0')}`;
+    const now = Date.now();
+    let dayTs = now;
+    let dayKey: string;
+    let seed: number | undefined;
+    let startMinutes: number | undefined;
+    let clock: 'ny' | undefined;
+    if (live) dayKey = sessionDate(now).dateKey;
+    else if (opts.clock === 'ny') {
+      // El mercado de hoy es el mismo para todos (la semilla sale de la fecha), como uno de verdad.
+      const p = etParts(now);
+      dayKey = p.dateKey;
+      seed = seedForDay(dayKey);
+      startMinutes = Math.floor(p.minutes);
+      clock = 'ny';
+    } else {
+      if (opts.date) dayTs = etDateTimeToTs(opts.date, '12:00');
+      const d = lastTradingDay(dayTs);
+      dayKey = `${d.y}-${String(d.mo).padStart(2, '0')}-${String(d.d).padStart(2, '0')}`;
+      seed = opts.seed ?? Math.floor(Math.random() * 2 ** 31);
+      startMinutes = opts.startMinutes ?? this.state.settings.startMinutes;
+    }
     this.state.dayIndex += 1;
     return {
       id: newSessionId(),
       mode: live ? 'live' : 'sim',
-      seed: live ? undefined : Math.floor(Math.random() * 2 ** 31),
+      seed,
       simVersion: live ? undefined : SIM_VERSION,
       dayTs: live ? undefined : dayTs,
-      startMinutes: live ? undefined : startMinutes,
+      startMinutes,
+      clock,
+      heat: seed === undefined ? undefined : dayHeat(seed),
       dayKey,
       dayIndex: this.state.dayIndex,
       startedAt: Date.now(),
@@ -217,6 +357,11 @@ export class TrainingController {
       this.state.settings,
       {
         onFill: (fill, trade) => {
+          if (this.away) {
+            this.away.fills++;
+            if (trade) this.away.trades.push(trade);
+            return;
+          }
           const o = this.broker?.order(fill.orderId);
           const done = !o || o.filled >= o.shares;
           if (trade) this.sound(trade.net >= 0 ? 'win' : 'loss');
@@ -224,6 +369,7 @@ export class TrainingController {
           for (const cb of this.fillListeners) cb({ fill, trade });
         },
         onOrder: (kind, o) => {
+          if (this.away) return;
           if (kind === 'open') {
             this.notify(`Orden en espera: ${describeOrder(o)}.`, 'info');
             this.sound('placed');
@@ -257,21 +403,59 @@ export class TrainingController {
     return this.state.dayTrades.filter((d) => d > today - PDT_WINDOW && d < today).length;
   }
 
-  /** Cada avance del mercado: trabajar las órdenes y, en el simulador, cerrar al final de la rueda. */
+  /** Cada avance del mercado: trabajar las órdenes y, en el simulador, cerrar al final del after-hours. */
   onTick(now: number): void {
     const b = this.broker;
     const src = this.source;
     if (!b || !src?.ready) return;
     if (this.state.active && !this.state.active.marketStart) this.state.active.marketStart = now;
     b.process(now, src, this.marks);
-    if (this.mode === 'local' && this.state.active && etParts(now).minutes >= REG_CLOSE - 1) {
-      const hadActivity = this.state.active.trades.length > 0 || this.state.active.positions.length > 0;
-      if (hadActivity) {
-        this.endDay();
-        this.notify('Cierre de la rueda: se cerraron las posiciones y se guardó el día en el diario.', 'info');
-      }
-    }
+    this.checkDayEnd(now);
     this.syncTracked();
+  }
+
+  /**
+   * Mientras el mercado se pone al día (al volver a "Mercado ahora" con órdenes o posiciones): las
+   * órdenes se trabajan con lo que pasó, en silencio, y al final se avisa qué se ejecutó.
+   */
+  catchUp(now: number): void {
+    const b = this.broker;
+    const src = this.source;
+    if (!b || !src || !this.state.active) return;
+    if (!this.away) this.away = { fills: 0, trades: [] };
+    b.process(now, src, this.marks);
+    this.checkDayEnd(now);
+  }
+
+  /** El mercado se rearmó con otro motor: las órdenes en cola vuelven a medir la cinta desde ahora. */
+  rebase(): void {
+    this.broker?.rebase();
+    this.flushAway();
+  }
+
+  private flushAway(): void {
+    const away = this.away;
+    this.away = null;
+    if (!away?.fills) return;
+    const net = money(away.trades.reduce((x, t) => x + t.net, 0));
+    const closed = away.trades.length ? ` y cerraste ${away.trades.length} trade${away.trades.length > 1 ? 's' : ''} (${fmtMoney(net)})` : '';
+    const fills = away.fills === 1 ? 'una ejecución' : `${away.fills} ejecuciones`;
+    this.notify(`Mientras no estabas hubo ${fills} de tus órdenes${closed}. Mirá el detalle en la actividad del día.`, net < 0 ? 'error' : 'info');
+    this.emit();
+  }
+
+  /** Al final del after-hours se cierra todo y el día va al diario ("Mercado ahora" siempre termina ahí). */
+  private checkDayEnd(now: number): void {
+    const a = this.state.active;
+    if (this.mode !== 'local' || !a || etParts(now).minutes < postEndMinutes(a.dayKey) - 1) return;
+    const open = a.positions.length > 0;
+    const hadActivity = a.trades.length > 0 || open;
+    if (!hadActivity && a.clock !== 'ny') return;
+    this.endDay();
+    const ny = a.clock === 'ny' ? ' de Nueva York' : '';
+    const what = open ? ': se cerraron las posiciones y se guardó el día en el diario' : hadActivity ? ': se guardó el día en el diario' : '';
+    this.notify(`Terminó el after-hours${ny}${what}.`, 'info');
+    if (a.clock === 'ny') this.ensureSession();
   }
 
   private syncTracked(): void {
@@ -402,6 +586,7 @@ export class TrainingController {
     const now = this.source?.now() ?? Date.now();
     if (this.broker && this.source) this.broker.flatten(now, this.source, this.marks);
     const rec = this.archive(a, now);
+    this.flushAway();
     this.state.balance = a.cash;
     this.state.dayTrades = [...this.state.dayTrades, ...a.trades.map(() => a.dayIndex)].filter((d) => d > a.dayIndex - 10);
     this.state.active = undefined;
@@ -419,6 +604,10 @@ export class TrainingController {
       id: a.id,
       mode: a.mode,
       seed: a.seed,
+      simVersion: a.simVersion,
+      startMinutes: a.startMinutes,
+      clock: a.clock,
+      heat: a.heat,
       dayKey: a.dayKey,
       dayIndex: a.dayIndex,
       startedAt: a.startedAt,
@@ -440,8 +629,8 @@ export class TrainingController {
    * Arranca un día nuevo (en el simulador, otro mercado). En el simulador la página arma la fuente
    * del mercado nuevo, así que la vieja se suelta acá: su hora ya no es la de esta sesión.
    */
-  private startFresh(startMinutes?: number): void {
-    this.state.active = this.createSession(startMinutes);
+  private startFresh(opts: NewDayOptions = { clock: this.state.settings.clock }): void {
+    this.state.active = this.createSession(opts);
     this.broker = null;
     this.lastEnded = null;
     if (this.mode === 'remote' && this.source) this.attach(this.source);
@@ -451,12 +640,40 @@ export class TrainingController {
     this.persistNow();
   }
 
-  /** Empezar otro día simulado (o una sesión nueva en vivo). */
-  newDay(startMinutes?: number): void {
+  /**
+   * Empezar otro día: "Mercado ahora" (la hora de Nueva York) o un día simulado con la fecha y la hora
+   * que elijas (o una sesión nueva en vivo). Lo elegido queda para los días siguientes.
+   */
+  newDay(opts: NewDayOptions = { clock: this.state.settings.clock }): void {
     if (this.state.active && (this.state.active.positions.length || this.state.active.trades.length)) this.endDay();
-    if (startMinutes) this.state.settings = { ...this.state.settings, startMinutes };
-    this.startFresh(startMinutes);
+    const patch: Partial<TradingSettings> = { clock: opts.clock };
+    if (opts.clock === 'practice' && opts.startMinutes !== undefined && opts.seed === undefined) patch.startMinutes = Math.round(opts.startMinutes);
+    this.state.settings = { ...this.state.settings, ...patch };
+    if (this.broker) this.broker.settings = this.state.settings;
+    if (this.mode === 'local' && opts.clock === 'ny' && !nyMarket().open) {
+      // Nueva York está cerrado: queda elegido y el día arranca solo cuando abra el pre-market.
+      this.state.active = undefined;
+      this.broker = null;
+      this.lastEnded = null;
+      this.source = null;
+      this.touched = true;
+      this.persistNow();
+      this.emit();
+      return;
+    }
+    this.startFresh(opts);
     this.emit();
+  }
+
+  /** Repetir un día: el mismo mercado (misma semilla y fecha) desde la misma hora, como día de práctica. */
+  replayDay(day: { seed?: number; dayKey: string; startMinutes?: number }): void {
+    if (day.seed === undefined) return;
+    this.newDay({ clock: 'practice', date: day.dayKey, startMinutes: day.startMinutes ?? this.state.settings.startMinutes, seed: day.seed });
+  }
+
+  /** ¿Ese día se puede repetir igual? (con la versión actual del simulador). */
+  canReplay(day: { seed?: number; simVersion?: number; mode: 'sim' | 'live' }): boolean {
+    return this.mode === 'local' && day.mode === 'sim' && day.seed !== undefined && day.simVersion === SIM_VERSION;
   }
 
   /** Plata puesta en la cuenta (saldo inicial más depósitos y retiros): base del resultado total. */
@@ -505,7 +722,13 @@ export class TrainingController {
       this.sessions = [];
       void this.store.clear();
     }
-    this.startFresh();
+    this.ensureFresh();
+    this.broker = null;
+    this.lastEnded = null;
+    if (this.mode === 'remote' && this.source) this.attach(this.source);
+    else this.source = null;
+    this.touched = true;
+    this.persistNow();
     this.notify(`Cuenta reiniciada con ${fmtMoney(this.state.balance)}.`, 'info');
     this.emit();
   }
@@ -535,6 +758,45 @@ export class TrainingController {
     this.sessions = this.sessions.map((s, i) => (i === idx ? rec : s));
     void this.store.saveSession(rec);
     this.emit();
+  }
+
+  // ------------------------------------------------------------------ respaldo
+
+  /** Todo lo de la cuenta (saldo, ajustes, día en curso e historial) para guardarlo en un archivo. */
+  exportBackup(): AccountBackup {
+    this.persistNow();
+    return { app: 'pulso', kind: 'cuenta-de-practica', version: 1, exportedAt: Date.now(), state: structuredClone(this.state), sessions: structuredClone(this.sessions) };
+  }
+
+  /**
+   * Reemplaza la cuenta por la de un respaldo (la de este navegador o de tu cuenta de Claude se borra).
+   * El día en curso del respaldo sigue donde estaba si se puede; si no, se archiva como al cargar.
+   */
+  async importBackup(raw: unknown): Promise<BrokerResult> {
+    const b = parseBackup(raw);
+    if (typeof b === 'string') return this.reject({ ok: false, message: b, fills: [] });
+    this.state = normalizeState(b.state);
+    this.sessions = [...b.sessions].sort((x, y) => y.endedAt - x.endedAt);
+    this.broker = null;
+    this.source = null;
+    this.lastEnded = null;
+    this.touched = false;
+    this.reloads++;
+    this.settle();
+    this.touched = true;
+    this.state.updatedAt = Date.now();
+    try {
+      await this.store.clear();
+      await this.store.saveState(this.state);
+      for (const rec of this.sessions) await this.store.saveSession(rec);
+    } catch {
+      this.notify('No se pudo guardar todo el respaldo: revisá el historial.', 'error');
+    }
+    const days = this.sessions.length;
+    const message = `Cuenta importada: ${fmtMoney(this.state.balance)} y ${days} día${days === 1 ? '' : 's'} en el diario.`;
+    this.notify(message, 'ok');
+    this.emit();
+    return { ok: true, message, fills: [] };
   }
 
   // ------------------------------------------------------------------ guardado

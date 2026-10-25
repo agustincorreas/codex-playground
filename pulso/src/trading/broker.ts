@@ -133,6 +133,12 @@ export class Broker {
   /** Último print de la cinta que vio el bróker (para que las órdenes nuevas miren desde ahí). */
   private seqNow?: () => number;
 
+  /** El mercado se rearmó con otro motor: las órdenes en cola empiezan a medir la cinta de nuevo. */
+  rebase(): void {
+    for (const o of this.session.orders) o.tapeSeq = undefined;
+    this.seqNow = undefined;
+  }
+
   // ------------------------------------------------------------------ consultas
 
   position(sym: string): Position | undefined {
