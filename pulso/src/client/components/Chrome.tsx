@@ -66,6 +66,8 @@ export function Header({ now, session, status, speed, onSpeed, prefs, onPrefs, o
   let badge = { cls: 'muted', text: 'Conectando…' };
   if (status) {
     if (status.mode === 'demo') badge = { cls: 'accent', text: 'DEMO · datos simulados' };
+    // Mientras el proveedor carga (lista de acciones, cierres, volumen promedio) no es un corte: avisa que está en eso.
+    else if (!status.connected && /^(Alpaca|Massive|Iniciando)/.test(status.message) && !/^Error|incorrect|límite/i.test(status.message)) badge = { cls: 'warn', text: 'CONECTANDO…' };
     else if (!status.connected) badge = { cls: 'down', text: 'SIN CONEXIÓN' };
     else if (status.badge) badge = { cls: 'up', text: status.badge };
     else if (!status.realtime) badge = { cls: 'warn', text: `DEMORADO · ${status.provider}` };
@@ -82,6 +84,7 @@ export function Header({ now, session, status, speed, onSpeed, prefs, onPrefs, o
         <span className={`mode-badge ${badge.cls}`} title={status?.message}>
           {badge.text}
         </span>
+        {status && !status.connected && status.mode === 'live' && <span className="conn-msg">{status.message}</span>}
       </div>
 
       <div className="clock">

@@ -201,6 +201,10 @@ export class AlpacaProvider implements Provider {
     this.limiter = cfg.feed === 'sip' ? new RateLimiter(150, 1000) : new RateLimiter(180, 60_000);
   }
 
+  private liveMessage(): string {
+    return this.layered ? 'Alpaca gratis: precio en vivo (IEX); volumen, máximos y escáneres del mercado completo con 15 min de demora.' : `Conectado a ${this.label}.`;
+  }
+
   /** Etiqueta del encabezado: en capas, aclara qué es en vivo y qué viene con demora. */
   get badge(): string | undefined {
     return this.layered ? 'EN VIVO (IEX) · MERCADO COMPLETO −15 MIN' : undefined;
@@ -246,11 +250,20 @@ export class AlpacaProvider implements Provider {
     }
     log('info', `Alpaca: universo de ${ctx.universe.size} acciones entre $${universeMin} y $${universeMax}.`);
 
-    ctx.setStatus({ message: `Alpaca: volumen promedio de ${ctx.universe.size} acciones…` });
-    const avg = await this.avgVolumes([...ctx.universe]);
-    for (const r of refs) r.avgVolume = avg.get(r.sym);
+    // El volumen promedio (30 días de 10.000 acciones) es lo que más tarda la primera vez: se carga en
+    // segundo plano, así el mercado se ve enseguida y el RVOL aparece cuando termina.
     engine.setReference(refs);
     engine.applySnapshot(days);
+    void this.avgVolumes([...ctx.universe], (done, total) => {
+      if (this.ctx?.engine() === engine) ctx.setStatus({ message: `Alpaca: volumen promedio de ${total} acciones… ${Math.round((done / total) * 100)} %` });
+    })
+      .then((avg) => {
+        if (this.ctx?.engine() !== engine) return;
+        for (const [sym, v] of avg) engine.updateReference(sym, { avgVolume: v });
+        log('info', `Alpaca: volumen promedio de ${avg.size} acciones.`);
+        if (this.stream) ctx.setStatus({ message: this.liveMessage() });
+      })
+      .catch((e) => log('warn', `Alpaca volumen promedio: ${(e as Error).message}`));
     if (this.layered) {
       // El estado inicial viene del mercado completo con demora: queda marcado como consolidado.
       const delayed: DelayedSnapshot[] = [];
@@ -360,7 +373,7 @@ export class AlpacaProvider implements Provider {
     return out;
   }
 
-  private async avgVolumes(symbols: string[]): Promise<Map<string, number>> {
+  private async avgVolumes(symbols: string[], progress?: (done: number, total: number) => void): Promise<Map<string, number>> {
     const cacheName = `alpaca-avgvol-${this.session.dateKey}.json`;
     const cached = await readCache<Array<[string, number]>>(cacheName);
     if (cached) return new Map(cached);
@@ -369,7 +382,10 @@ export class AlpacaProvider implements Provider {
     const start = days[days.length - 1].dateKey;
     const end = days[0].dateKey;
     const sums = new Map<string, { v: number; n: number }>();
-    for (const group of chunk(symbols, 100)) {
+    let done = 0;
+    for (const group of chunk(symbols, 200)) {
+      done += group.length;
+      if (done % 1000 < 200) progress?.(done, symbols.length);
       let token: string | undefined;
       do {
         const url =
@@ -451,10 +467,7 @@ export class AlpacaProvider implements Provider {
             this.hot.clear();
             this.stream!.send({ action: 'subscribe', bars: ['*'], updatedBars: ['*'], statuses: ['*'], lulds: ['*'] });
             this.syncHot();
-            ctx.setStatus({
-              connected: true,
-              message: this.layered ? 'Alpaca gratis: precio en vivo (IEX); volumen, máximos y escáneres del mercado completo con 15 min de demora.' : `Conectado a ${this.label}.`,
-            });
+            ctx.setStatus({ connected: true, message: this.liveMessage() });
           } else if (m.T === 'error') {
             this.onStreamError(m.code as number, m.msg as string);
           } else if (m.T === 'subscription') {

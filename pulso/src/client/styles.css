@@ -3838,3 +3838,18 @@ table.scan th .sort-arrow {
   padding: 4px 10px;
   font-size: 12px;
 }
+
+/* Mientras el proveedor de datos carga o falla, el motivo se ve al lado del cartel (no solo abajo). */
+.conn-msg {
+  font-size: 11px;
+  color: var(--muted);
+  max-width: 420px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@media (max-width: 1199px) {
+  .conn-msg {
+    display: none;
+  }
+}

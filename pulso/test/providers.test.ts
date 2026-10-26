@@ -165,7 +165,6 @@ describe('AlpacaProvider contra un servidor falso', () => {
     expect([...ctx.universe]).toEqual(['RUNR']);
     const runr = engine.get('RUNR')!;
     expect(runr.prevClose).toBe(2.0);
-    expect(runr.ref.avgVolume).toBeGreaterThan(1_000_000);
     expect(runr.ref.name).toBe('Runner Inc');
     // Velas del día cargadas (máximo de pre-market y volumen).
     expect(runr.pmHigh).toBe(3.1);
@@ -175,6 +174,8 @@ describe('AlpacaProvider contra un servidor falso', () => {
     expect(runr.last).toBe(3.2);
     expect(engine.get('BIGG')).toBeUndefined();
     expect(engine.halts.get('RUNR')).toMatchObject({ halted: true, reason: 'T1', reasonText: 'Noticia pendiente' });
+    // El volumen promedio se carga en segundo plano, después de conectar.
+    await waitFor(() => (runr.ref.avgVolume ?? 0) > 1_000_000);
     expect(seen).toContain('/v2/stocks/bars:1Min');
     provider.stop();
   });

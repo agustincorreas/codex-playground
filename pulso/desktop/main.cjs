@@ -1,7 +1,7 @@
 // Pulso de escritorio: una ventana propia que arranca el servidor de Pulso como proceso hijo, pide las
 // claves la primera vez (quedan en el perfil del usuario, nunca en el código) y muestra la interfaz.
 // Sin claves corre el simulador; con las de Alpaca (gratis) muestra el mercado real.
-const { app, BrowserWindow, Menu, dialog, ipcMain, shell, utilityProcess, clipboard } = require('electron');
+const { app, BrowserWindow, Menu, dialog, ipcMain, screen, shell, utilityProcess, clipboard } = require('electron');
 const fs = require('node:fs');
 const http = require('node:http');
 const os = require('node:os');
@@ -204,9 +204,11 @@ function showStatus() {
 }
 
 function createWindow() {
+  // Que entre en la pantalla (en una notebook, 920 px de alto tapaban la barra de estado con el Dock).
+  const area = screen.getPrimaryDisplay().workAreaSize;
   win = new BrowserWindow({
-    width: 1500,
-    height: 920,
+    width: Math.min(1500, area.width),
+    height: Math.min(920, area.height),
     minWidth: 360,
     minHeight: 600,
     title: 'Pulso',
