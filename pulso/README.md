@@ -34,7 +34,7 @@ en un monitor grande todo se agranda) y otra para notebook.
 | **Máximos del día** | El escáner de momentum: cada señal en una fila, la más nueva arriba (nuevo máximo, squeeze, subida rápida, bull flag, ruptura del máximo del pre-market, pico de volumen), con hora, precio, volumen, float, volumen relativo y % del día. El color de la fila dice cuántos pilares cumple y las celdas que pasan el corte (float bajo, RVOL 5x, +10%) se resaltan. Pestañas **Alertas** (todas, con filtros) y **Halts** (motivo, cuenta regresiva de 5 minutos y % de la reanudación). |
 | **Escáneres** | **Top gappers** (suben 5%+ contra el cierre anterior, precio $1–$20, volumen desde 50K), **5 pilares** (cumplen 4 o 5: `$` precio, `%` suba, `V` volumen relativo, `N` noticia, `F` float), **Subiendo** (lo que más sube en 5 minutos), **Low float**, **Volumen relativo**, **Se desinflan** (subieron 20%+ y ya están 15%+ abajo del máximo), **Watchlist** (tus estrellas) y **Rango del día**. |
 | **Nivel 2 y órdenes** | El sector de la empresa, el libro de órdenes por bolsa, la cinta (Time & Sales) y la entrada de órdenes de la cuenta de práctica (sección 2). |
-| **Gráfico 1 min y 5 min** | Velas de 10 s, 30 s, 1 min, 5 min, 4 horas, diarias (D), semanales (S) y mensuales (M), con historia hacia atrás (todo el día en 10 s con datos reales, 5 días en 1 y 5 min, 100 días en 4 h, desde 2016 en D, S y M), con VWAP, EMA 9, 20 y 200, volumen y MACD; leyenda con OHLC, float y capitalización; cuenta regresiva del cierre de la vela; líneas del máximo del día, máximo del pre-market y cierre anterior; marcas de halts y de bull flag. En práctica, además, tus compras (C) y ventas (V), tu costo y tus órdenes. |
+| **Gráfico 1 min y 5 min** | Velas de 10 s, 30 s, 1 min, 5 min, 4 horas, diarias (D), semanales (S) y mensuales (M), con historia hacia atrás (todo el día en 10 s con datos reales, 5 días en 1 y 5 min, 100 días en 4 h, desde 2016 en D, S y M), **líneas dibujadas** (horizontales, de tendencia y **alertas de precio** que suenan y se leen cuando el precio las cruza; se guardan por acción en el navegador), con VWAP, EMA 9, 20 y 200, volumen y MACD; leyenda con OHLC, float y capitalización; cuenta regresiva del cierre de la vela; líneas del máximo del día, máximo del pre-market y cierre anterior; marcas de halts y de bull flag. En práctica, además, tus compras (C) y ventas (V), tu costo y tus órdenes. |
 | **Cotización** | La ficha de la acción: precio, empresa y bolsa, noticias, float, volumen, volumen relativo diario y de 5 minutos, gap, máximos, VWAP, short interest, capitalización, etiquetas de dilución de la SEC, los 5 pilares con su valor y el estado del setup (VWAP, EMA 9, MACD). Pestaña **Noticias** con todos los titulares. |
 | **Posiciones / Trades de hoy / Cuenta** | Las acciones que operaste hoy (abiertas y ya cerradas) con el resultado no realizado, el realizado y el total; cada trade cerrado con lo que ganaste o perdiste y el **resultado del día**; efectivo, plata sin liquidar, poder de compra, cuenta de day trades y **Cambiar saldo**. |
 | **Actividad de órdenes** | Todas las órdenes del día con su estado (enviada, abierta, parcial, ejecutada, cancelada o rechazada). |
@@ -66,6 +66,12 @@ cinta.
 | Float | Menos de 10M de acciones | Poca oferta: el precio se mueve rápido. Hasta 20M es aceptable. |
 
 ### Alertas
+
+**Alertas de precio tuyas:** en el gráfico, el botón 🔔 pone una línea en el precio que toques; cuando el precio
+la cruza (hacia arriba o hacia abajo) suena, se lee en voz alta y entra en la lista de alertas, una sola vez. Con
+─ se dibuja una línea horizontal sin alerta y con ╱ una línea de tendencia (dos toques), en blanco; *Líneas* las
+lista, les prende o apaga la alerta y las borra. Esc cancela el dibujo. Las acciones con alerta se siguen aunque no
+estén en ningún escáner.
 
 Nuevo máximo del día (con o sin volumen), cerca del máximo, subida rápida (+5% en 2 min), squeeze (cada
 +10% en 15 min), pico de volumen (5x el promedio del minuto), compras apiladas (10 subas seguidas),
@@ -486,7 +492,7 @@ pulso/
 | --- | --- |
 | `npm run dev` | Interfaz en modo demo con recarga en caliente (http://localhost:5173). |
 | `npm start` | Compila la interfaz y arranca el servidor (datos reales si hay claves). |
-| `npm test` | Pruebas (108): motor, alertas, bull flag, halts, Alpaca y Massive contra servidores falsos, simulador (el mismo mercado a cualquier hora, volumen por hora, días, ofertas, after-hours), el plan gratis de Alpaca en capas, la detección del plan, bróker de práctica, días de práctica, respaldo, la cuenta guardada en el servidor, riesgo según la cuenta, temporalidades largas e historia y métricas. |
+| `npm test` | Pruebas (109): motor, alertas, bull flag, halts, Alpaca y Massive contra servidores falsos, simulador (el mismo mercado a cualquier hora, volumen por hora, días, ofertas, after-hours), el plan gratis de Alpaca en capas, la detección del plan, bróker de práctica, días de práctica, respaldo, la cuenta guardada en el servidor, riesgo según la cuenta, temporalidades largas e historia, líneas y alertas de precio, y métricas. |
 | `npm run typecheck` | Chequeo de tipos de todo el proyecto. |
 | `npm run build:demo` | Página única del demo (`dist-demo/index.html`) para GitHub Pages. |
 | `npm run build:desktop` | Interfaz + servidor en un solo archivo para la app de escritorio (`desktop/app/`). |

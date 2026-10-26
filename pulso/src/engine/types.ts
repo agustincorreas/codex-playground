@@ -151,7 +151,9 @@ export type AlertType =
   | 'stacking'
   | 'flush'
   | 'gapper'
-  | 'rotation';
+  | 'rotation'
+  /** El precio cruzó una línea con alerta que dibujaste en el gráfico. */
+  | 'priceLine';
 
 export type Tone = 'up' | 'down' | 'info' | 'warn';
 

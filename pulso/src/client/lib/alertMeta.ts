@@ -27,6 +27,7 @@ export const ALERT_META: Record<AlertType, AlertMeta> = {
   news: { label: 'Noticia', short: 'Noticia', group: 'info' },
   gapper: { label: 'Entra a gappers', short: 'Gapper', group: 'info' },
   rotation: { label: 'Rotación de float', short: 'Rotación', group: 'info' },
+  priceLine: { label: 'Alerta de precio', short: 'Precio', group: 'info' },
 };
 
 export const GROUP_LABEL: Record<AlertGroup | 'all', string> = {
@@ -40,4 +41,4 @@ export const GROUP_LABEL: Record<AlertGroup | 'all', string> = {
 /** Tipos que alimentan el panel "Momentum" (el equivalente al scanner de máximos del día). */
 export const MOMENTUM_TYPES: AlertType[] = ['hod', 'squeeze', 'running', 'bullFlag', 'pmhBreak', 'volume'];
 
-export const DEFAULT_SOUND_TYPES: AlertType[] = ['hod', 'squeeze', 'running', 'bullFlag', 'halt', 'resume', 'news', 'pmhBreak'];
+export const DEFAULT_SOUND_TYPES: AlertType[] = ['hod', 'squeeze', 'running', 'bullFlag', 'halt', 'resume', 'news', 'pmhBreak', 'priceLine'];

@@ -73,6 +73,7 @@ const EN_LABEL: Partial<Record<AlertType, string>> = {
   stacking: 'buyers stacking',
   pmhBreak: 'pre-market high break',
   level: 'breaking a round number',
+  priceLine: 'price alert',
   bullFlag: 'bull flag',
   vwapReclaim: 'VWAP reclaim',
   vwapLoss: 'lost VWAP',
