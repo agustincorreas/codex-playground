@@ -306,8 +306,11 @@ Con la cuenta gratis Pulso arma el mercado con dos capas:
 
 El motor junta las dos: el volumen del día es el consolidado hasta hace 15 minutos más lo que vio IEX
 después, y para el volumen de los últimos 5 minutos escala lo de IEX según cuánto representó del
-mercado ese mismo día. Las velas de los símbolos calientes se reemplazan por las consolidadas a medida
-que pasan los 15 minutos. En el encabezado dice **EN VIVO (IEX) · MERCADO COMPLETO −15 MIN**.
+mercado en los minutos anteriores de esa misma acción (IEX ve ~2 % en el pre-market y apenas 0,5 % en
+una small cap caliente en la rueda regular, así que la escala se calibra por acción, minuto a minuto).
+Las velas de 1 minuto de todas las acciones se van reemplazando por las consolidadas a medida que pasan
+los 15 minutos. En el encabezado dice **EN VIVO (IEX) · MERCADO COMPLETO −15 MIN**, y
+`http://localhost:8787/api/symbol?sym=XXXX` muestra cómo se combinan las dos capas para una acción.
 
 Lo que no tiene: el volumen de los últimos 15 minutos es una estimación (IEX ve poco en acciones
 ilíquidas), un máximo nuevo del mercado completo tarda 15 minutos en aparecer si IEX no lo vio, y la
