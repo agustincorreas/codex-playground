@@ -194,7 +194,9 @@ export class Engine implements AlertSink {
    * Datos consolidados demorados sobre un feed parcial en vivo: el volumen del día pasa a ser el del
    * mercado completo hasta esa hora más lo que el feed vio después; los máximos y mínimos se completan
    * en silencio (sin alertas: ya pasaron) y las acciones sin prints en el feed toman el último precio
-   * demorado. También se calibra cuánto representa el mercado respecto del feed.
+   * demorado. La vela consolidada de cada minuto, comparada con la del feed de ese mismo minuto, calibra
+   * cuánto representa el mercado respecto del feed (el volumen del día no sirve para eso: el feed puede
+   * haber arrancado a mitad del día).
    */
   /**
    * Feed parcial: cuánto representa el mercado completo respecto del feed mientras una acción no tenga
@@ -220,11 +222,6 @@ export class Engine implements AlertSink {
         st.upsertMinuteBar(d.minute);
         if (d.minute.h > st.hod) st.hod = d.minute.h;
         if (d.minute.l < st.lod) st.lod = d.minute.l;
-      }
-      const feedSoFar = st.feedVolumeAt(d.ts);
-      if (feedSoFar > 0 && d.volume > 0) {
-        st.volumeScale = Math.min(500, Math.max(1, d.volume / feedSoFar));
-        st.scaleSamples++;
       }
       const after = st.volumeAfter(d.ts);
       const volume = d.volume + after.v;

@@ -44,9 +44,8 @@ export class SymbolState {
   volumeScale = 1;
   /** Muestras de calibración recibidas (la primera reemplaza el valor inicial; las demás se promedian). */
   scaleSamples = 0;
-  /** Volumen acumulado del día que llegó por el feed en vivo, con marcas por minuto para calibrar. */
+  /** Volumen acumulado del día que llegó por el feed en vivo (diagnóstico). */
   feedVolume = 0;
-  private feedMarks: Array<[number, number]> = [];
   /** Hasta qué hora hay datos consolidados del mercado completo (0 = el feed ya es completo). */
   consolidatedTs = 0;
   bars: Bar[] = [];
@@ -315,27 +314,8 @@ export class SymbolState {
     return high;
   }
 
-  /** Suma volumen del feed en vivo y guarda cuánto llevaba al cerrar cada minuto. */
-  addFeedVolume(ts: number, size: number): void {
+  addFeedVolume(_ts: number, size: number): void {
     this.feedVolume += size;
-    const t = Math.floor(ts / MIN) * MIN;
-    const last = this.feedMarks[this.feedMarks.length - 1];
-    if (last && last[0] === t) last[1] = this.feedVolume;
-    else {
-      this.feedMarks.push([t, this.feedVolume]);
-      if (this.feedMarks.length > 60) this.feedMarks.splice(0, this.feedMarks.length - 60);
-    }
-  }
-
-  /** Volumen del feed en vivo acumulado hasta el fin del minuto que contiene a `ts`. */
-  feedVolumeAt(ts: number): number {
-    const t = Math.floor(ts / MIN) * MIN;
-    let v = 0;
-    for (const [mt, cum] of this.feedMarks) {
-      if (mt > t) break;
-      v = cum;
-    }
-    return v;
   }
 
   /** Volumen de las velas posteriores al minuto que contiene a `ts`. */

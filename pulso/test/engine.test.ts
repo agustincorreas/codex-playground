@@ -199,7 +199,7 @@ describe('motor: feed parcial en vivo + mercado completo demorado', () => {
     engine.applyDelayed([{ sym: 'RUNR', ts: t(9 * 60 + 30, 59), last: 3.05, high: 3.4, low: 2.9, volume: 30_000, vwap: 3.02 }]);
     expect(st.last).toBe(3.1); // el feed en vivo tiene un print más nuevo: manda
     expect(st.volume).toBe(30_400); // consolidado hasta las 9:30 + lo del feed en 9:31
-    expect(st.volumeScale).toBe(50);
+    expect(st.volumeScale).toBe(1); // sin vela consolidada del minuto no hay calibración
     expect(st.hod).toBe(3.4); // el máximo consolidado se completa sin alerta
     expect(st.lod).toBe(2.9);
     // Un tramo consolidado posterior al último print del feed trae el último precio real de ese momento.
@@ -273,13 +273,13 @@ describe('motor: feed parcial en vivo + mercado completo demorado', () => {
     const engine = make();
     const now = t(9 * 60 + 40, 30);
     engine.ingest({ kind: 'trade', sym: 'RUNR', ts: t(9 * 60 + 36, 10), price: 3, size: 100 });
-    engine.applyDelayed([{ sym: 'RUNR', ts: t(9 * 60 + 36, 59), last: 3, high: 3, low: 3, volume: 2_000 }]);
+    engine.applyDelayed([{ sym: 'RUNR', ts: t(9 * 60 + 36, 59), last: 3, high: 3, low: 3, volume: 2_000, minute: { t: t(9 * 60 + 36), o: 3, h: 3, l: 3, c: 3, v: 2_000, pv: 6_000, n: 20 } }]);
     engine.ingest({ kind: 'trade', sym: 'RUNR', ts: t(9 * 60 + 38, 10), price: 3, size: 50 });
     engine.tick(now);
     const st = engine.get('RUNR')!;
     expect(st.volumeScale).toBe(20);
-    // 5 minutos promedio = 390_000 / 390 * 5 = 5_000. Estimado: 100 (consolidado) + 50 × 20 = 1_100.
-    expect(engine.row('RUNR')!.rvol5m).toBeCloseTo(1100 / 5000, 5);
+    // 5 minutos promedio = 390_000 / 390 * 5 = 5_000. Estimado: 2_000 (consolidado) + 50 × 20 = 3_000.
+    expect(engine.row('RUNR')!.rvol5m).toBeCloseTo(3000 / 5000, 5);
   });
 
   it('las velas consolidadas reemplazan a las del feed y el volumen se recalcula', () => {
