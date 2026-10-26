@@ -7,6 +7,7 @@
 // completo con 15 minutos de demora (snapshots `delayed_sip` de todo el universo cada un minuto y
 // velas consolidadas de los símbolos calientes). El escáner ve el volumen real con un rato de atraso y
 // los precios en vivo; el motor estima los últimos minutos escalando lo que vio IEX.
+import type { HistoryTf } from '../src/engine/history';
 import type { Bar, DaySnapshot, DelayedSnapshot, MarketEvent, NewsItem, ReferenceData } from '../src/engine/types';
 import { etParts, previousTradingDays, sessionDate, tradingDayStart, type EtDate } from '../src/engine/time';
 import type { Config } from './config';
@@ -617,33 +618,75 @@ export class AlpacaProvider implements Provider {
   }
 
   /**
-   * Velas de 10 s de las últimas dos horas a partir de las operaciones consolidadas (con el plan gratis,
-   * hasta hace 16 minutos; lo último lo completan los prints en vivo).
+   * Historia para el gráfico: 1 min de los últimos 5 días hábiles, 1 hora de los últimos 100 días o
+   * diaria desde 2016 (ajustada por splits). Con el plan gratis, hasta hace 16 minutos.
    */
-  async backfillSec(sym: string): Promise<Bar[] | null> {
+  async history(sym: string, tf: HistoryTf): Promise<Bar[] | null> {
+    const now = Date.now();
+    const paid = this.feed === 'sip';
+    const end = paid ? '' : `&end=${new Date(now - 16 * 60_000).toISOString()}`;
+    const fiveDays = previousTradingDays(this.session, 5);
+    const start =
+      tf === 'minute'
+        ? tradingDayStart(Date.parse(`${fiveDays[fiveDays.length - 1].dateKey}T16:00:00Z`))
+        : tf === 'hour'
+          ? now - 100 * 24 * 3_600_000
+          : Date.UTC(2016, 0, 1);
+    const timeframe = tf === 'minute' ? '1Min' : tf === 'hour' ? '1Hour' : '1Day';
+    const out: Bar[] = [];
+    let token: string | undefined;
+    for (let page = 0; page < 12; page++) {
+      const url =
+        `${this.cfg.dataUrl}/v2/stocks/bars?symbols=${encodeURIComponent(sym)}&timeframe=${timeframe}&start=${new Date(start).toISOString()}${end}` +
+        `&limit=10000&adjustment=split&feed=sip${token ? `&page_token=${encodeURIComponent(token)}` : ''}`;
+      const res = (await this.get(url)) as { bars: Record<string, AlpacaBar[]>; next_page_token?: string | null };
+      out.push(...(res.bars?.[sym] ?? []).map(barFromAlpaca));
+      token = res.next_page_token ?? undefined;
+      if (!token) break;
+    }
+    return out;
+  }
+
+  /**
+   * Velas de 10 s a partir de las operaciones consolidadas, del presente hacia atrás: con SIP, todo el
+   * día desde las 4:00 ET (hasta 60 páginas de 10.000 operaciones); con el plan gratis, las últimas dos
+   * horas hasta hace 16 minutos (lo último lo completan los prints en vivo). Cada página que llega se
+   * entrega a `onBars` sin la vela más vieja, que puede seguir en la página siguiente.
+   */
+  async backfillSec(sym: string, onBars?: (bars: Bar[]) => void): Promise<Bar[] | null> {
     const paid = this.feed === 'sip';
     const end = paid ? Date.now() : Date.now() - 16 * 60_000;
-    const start = end - 2 * 3_600_000;
+    const start = paid ? tradingDayStart(Date.parse(`${this.session.dateKey}T16:00:00Z`)) : end - 2 * 3_600_000;
     const bars = new Map<number, Bar>();
+    const sorted = () => [...bars.values()].sort((a, b) => a.t - b.t);
     let token: string | undefined;
-    for (let page = 0; page < 8; page++) {
+    for (let page = 0; page < (paid ? 60 : 8); page++) {
       const url =
         `${this.cfg.dataUrl}/v2/stocks/${encodeURIComponent(sym)}/trades?start=${new Date(start).toISOString()}&end=${new Date(end).toISOString()}` +
-        `&limit=10000&feed=sip&sort=asc${token ? `&page_token=${encodeURIComponent(token)}` : ''}`;
+        `&limit=10000&feed=sip&sort=desc${token ? `&page_token=${encodeURIComponent(token)}` : ''}`;
       const res = (await this.get(url)) as { trades: Array<{ t: string; p: number; s: number; c?: string[] }>; next_page_token?: string | null };
-      for (const tr of res.trades ?? []) {
+      // Vienen del presente hacia atrás: dentro de la vela se procesan en orden de tiempo.
+      for (const tr of (res.trades ?? []).slice().reverse()) {
         const ts = Date.parse(tr.t);
         const t = Math.floor(ts / 10_000) * 10_000;
         const price = (tr.c ?? []).some((c) => NO_PRICE_CONDITIONS.has(c)) ? undefined : tr.p;
-        const b = bars.get(t);
+        const b = bars.get(t) as (Bar & { firstTs?: number; lastTs?: number }) | undefined;
         if (!b) {
-          bars.set(t, { t, o: price ?? tr.p, h: price ?? tr.p, l: price ?? tr.p, c: price ?? tr.p, v: tr.s, pv: tr.p * tr.s, n: 1 });
+          bars.set(t, { t, o: price ?? tr.p, h: price ?? tr.p, l: price ?? tr.p, c: price ?? tr.p, v: tr.s, pv: tr.p * tr.s, n: 1, firstTs: ts, lastTs: ts } as Bar);
           continue;
         }
         if (price !== undefined) {
           if (price > b.h) b.h = price;
           if (price < b.l) b.l = price;
-          b.c = price;
+          // La vela del borde entre páginas recibe trades más viejos después: apertura y cierre van por tiempo.
+          if (ts >= (b.lastTs ?? 0)) {
+            b.c = price;
+            b.lastTs = ts;
+          }
+          if (ts < (b.firstTs ?? Infinity)) {
+            b.o = price;
+            b.firstTs = ts;
+          }
         }
         b.v += tr.s;
         b.pv += tr.p * tr.s;
@@ -651,8 +694,9 @@ export class AlpacaProvider implements Provider {
       }
       token = res.next_page_token ?? undefined;
       if (!token) break;
+      if (onBars && bars.size > 1) onBars(sorted().slice(1));
     }
-    return bars.size ? [...bars.values()].sort((a, b) => a.t - b.t) : null;
+    return bars.size ? sorted() : null;
   }
 
   stop(): void {

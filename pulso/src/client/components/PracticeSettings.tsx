@@ -216,6 +216,7 @@ export function PracticeSettings({ c, onClose, initial = 'cuenta' }: { c: Traini
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
+  const equity = c.summary().equity;
   const set = (patch: Partial<TradingSettings>) => {
     setS((x) => ({ ...x, ...patch }));
     setDirty(true);
@@ -385,8 +386,33 @@ export function PracticeSettings({ c, onClose, initial = 'cuenta' }: { c: Traini
             <div className="settings-grid">
               <section className="card">
                 <h3>Ticket</h3>
-                {field('defaultShares', 'Acciones por defecto', '100')}
-                {field('defaultRisk', 'Riesgo por trade (US$)', '5', 'Para "tamaño por riesgo" y el atajo de compra por riesgo')}
+                <label className="field">
+                  <span className="field-label">Acciones y riesgo por defecto</span>
+                  <select id="trade-set-sizing" value={s.sizing} onChange={(e) => set({ sizing: e.target.value as TradingSettings['sizing'] })}>
+                    <option value="cuenta">Según el tamaño de la cuenta (recomendado)</option>
+                    <option value="fijo">Fijos</option>
+                  </select>
+                  <span className="field-hint">
+                    {s.sizing === 'cuenta'
+                      ? 'Crecen y bajan con la cuenta: no es lo mismo arriesgar $20 con $1.000 que con $10.000.'
+                      : 'Siempre las mismas acciones y el mismo riesgo, sin importar el saldo.'}
+                  </span>
+                </label>
+                {s.sizing === 'cuenta' ? (
+                  <>
+                    {field('riskPct', 'Riesgo por trade (% de la cuenta)', '0.5', 'Para "tamaño por riesgo" y el atajo de compra por riesgo. Ross Cameron sugiere 1 a 2 %.')}
+                    {field('sizePct', 'Tamaño de una posición (% de la cuenta)', '5', 'Las acciones que propone el ticket al elegir una acción, según su precio.')}
+                    <p className="field-hint">
+                      Con tu cuenta de {fmtMoney(equity)}: riesgo {fmtMoney(Math.max(1, (equity * s.riskPct) / 100))} por trade; a $5 por acción, el ticket propone{' '}
+                      {Math.max(1, Math.floor(((equity * s.sizePct) / 100 / 5) / 5) * 5)} acciones.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    {field('defaultShares', 'Acciones por defecto', '100')}
+                    {field('defaultRisk', 'Riesgo por trade (US$)', '5', 'Para "tamaño por riesgo" y el atajo de compra por riesgo')}
+                  </>
+                )}
                 <label className="field">
                   <span className="field-label">Vigencia por defecto (TIF)</span>
                   <select id="trade-set-tif" value={s.defaultTif} onChange={(e) => set({ defaultTif: e.target.value as Tif })}>

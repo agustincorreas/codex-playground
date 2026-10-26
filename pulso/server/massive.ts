@@ -3,6 +3,7 @@
 // mercado, velas del día) y streaming de agregados por segundo de todas las acciones (A.*).
 import type { Bar, DaySnapshot, MarketEvent, NewsItem, ReferenceData } from '../src/engine/types';
 import { previousTradingDays, sessionDate, tradingDayStart, type EtDate } from '../src/engine/time';
+import type { HistoryTf } from '../src/engine/history';
 import type { Config } from './config';
 import { massivePaged } from './fundamentals';
 import { ReconnectingSocket, type Provider, type ProviderContext } from './provider';
@@ -309,6 +310,19 @@ export class MassiveProvider implements Provider {
     const from = tradingDayStart(Date.parse(`${this.session.dateKey}T16:00:00Z`));
     const res = await getJson<{ results?: Array<{ t: number; o: number; h: number; l: number; c: number; v: number; vw?: number; n?: number }> }>(
       this.url(`/v2/aggs/ticker/${encodeURIComponent(sym)}/range/1/minute/${from}/${Date.now()}?adjusted=true&sort=asc&limit=50000`),
+      { limiter: this.limiter },
+    );
+    return (res.results ?? []).map((b) => ({ t: b.t, o: b.o, h: b.h, l: b.l, c: b.c, v: b.v, pv: (b.vw ?? b.c) * b.v, n: b.n ?? 1 }));
+  }
+
+  /** Historia para el gráfico: 1 min de 5 días, 1 hora de 100 días o diaria desde 2016. */
+  async history(sym: string, tf: HistoryTf): Promise<Bar[] | null> {
+    const now = Date.now();
+    const fiveDays = previousTradingDays(this.session, 5);
+    const from =
+      tf === 'minute' ? tradingDayStart(Date.parse(`${fiveDays[fiveDays.length - 1].dateKey}T16:00:00Z`)) : tf === 'hour' ? now - 100 * 24 * 3_600_000 : Date.UTC(2016, 0, 1);
+    const res = await getJson<{ results?: Array<{ t: number; o: number; h: number; l: number; c: number; v: number; vw?: number; n?: number }> }>(
+      this.url(`/v2/aggs/ticker/${encodeURIComponent(sym)}/range/1/${tf}/${from}/${now}?adjusted=true&sort=asc&limit=50000`),
       { limiter: this.limiter },
     );
     return (res.results ?? []).map((b) => ({ t: b.t, o: b.o, h: b.h, l: b.l, c: b.c, v: b.v, pv: (b.vw ?? b.c) * b.v, n: b.n ?? 1 }));

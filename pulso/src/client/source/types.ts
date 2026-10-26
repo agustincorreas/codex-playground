@@ -1,4 +1,5 @@
-import type { Alert, NewsItem, ProviderStatus, Quote, ScanRow, Session, Settings, SymbolDetail, TapePrint, ViewModel } from '../../engine/types';
+import type { Alert, Bar, NewsItem, ProviderStatus, Quote, ScanRow, Session, Settings, SymbolDetail, TapePrint, ViewModel } from '../../engine/types';
+import type { HistoryTf } from '../../engine/history';
 import type { DepthBook } from '../../trading/depth';
 
 export interface SourceHandlers {
@@ -46,4 +47,6 @@ export interface DataSource {
   printsSince(sym: string, seq: number): TapePrint[];
   lastSeq(): number;
   session(now: number): Session;
+  /** Historia para el gráfico (días anteriores, horas o días), ordenada; [] si no hay. */
+  history?(sym: string, tf: HistoryTf): Promise<Bar[]>;
 }

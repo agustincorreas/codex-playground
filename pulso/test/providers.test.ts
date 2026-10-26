@@ -8,8 +8,8 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { WebSocketServer } from 'ws';
 import { Engine } from '../src/engine/engine';
-import { etWallToTs, previousTradingDays, sessionDate } from '../src/engine/time';
-import type { ProviderStatus } from '../src/engine/types';
+import { etWallToTs, previousTradingDays, sessionDate, tradingDayStart } from '../src/engine/time';
+import type { Bar, ProviderStatus } from '../src/engine/types';
 import { AlpacaProvider } from '../server/alpaca';
 import { MassiveProvider } from '../server/massive';
 import type { ProviderContext } from '../server/provider';
@@ -381,6 +381,43 @@ describe('AlpacaProvider con feed automático', () => {
     await waitFor(() => runr.ask === 3.03);
     expect(runr).toMatchObject({ bid: 3.01, ask: 3.03, bidSize: 400, askSize: 1200 });
     provider.stop();
+  });
+});
+
+describe('AlpacaProvider: velas de 10 s de todo el día con SIP', () => {
+  it('pagina las operaciones del presente hacia atrás, entrega lo acumulado y arma bien la vela del borde', async () => {
+    // Dos páginas: la primera (más nueva) termina a mitad de la vela de las 9:30:00; la segunda la completa.
+    const t0 = at(9 * 60 + 30);
+    const page1 = [
+      { t: iso(t0 + 15_000), p: 3.3, s: 100, c: ['@'] },
+      { t: iso(t0 + 6_000), p: 3.2, s: 100, c: ['@'] }, // vela 9:30:00, trade más nuevo (cierre)
+    ];
+    const page2 = [
+      { t: iso(t0 + 2_000), p: 3.0, s: 100, c: ['@'] }, // vela 9:30:00, trade más viejo (apertura)
+      { t: iso(t0 - 20_000), p: 2.9, s: 100, c: ['@'] },
+    ];
+    const starts: string[] = [];
+    server = createServer((req, res) => {
+      const url = new URL(req.url!, 'http://x');
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      if (url.pathname !== '/v2/stocks/RUNR/trades') return res.end('{}');
+      starts.push(url.searchParams.get('start')!);
+      expect(url.searchParams.get('sort')).toBe('desc');
+      if (!url.searchParams.get('page_token')) return res.end(JSON.stringify({ trades: page1, next_page_token: 'p2' }));
+      res.end(JSON.stringify({ trades: page2, next_page_token: null }));
+    });
+    const port = await listen(server);
+    const base = `http://127.0.0.1:${port}`;
+    const provider = new AlpacaProvider({ keyId: 'KEY', secret: 'SECRET', feed: 'sip', tradingUrl: base, dataUrl: base, newsStreamUrl: '', hotLimit: 0, delayedPollMs: 60_000, hotRefreshMs: 60_000 });
+    const partial: Bar[][] = [];
+    const bars = (await provider.backfillSec('RUNR', (b) => partial.push(b)))!;
+    // Con SIP se pide desde las 4:00 ET del día.
+    expect(Date.parse(starts[0])).toBe(tradingDayStart(t0));
+    expect(bars.map((b) => b.t)).toEqual([t0 - 20_000, t0, t0 + 10_000]);
+    expect(bars[1]).toMatchObject({ o: 3.0, c: 3.2, v: 200 });
+    // Tras la primera página se entregó lo acumulado sin la vela más vieja (podía seguir en la siguiente).
+    expect(partial).toHaveLength(1);
+    expect(partial[0].map((b) => b.t)).toEqual([t0 + 10_000]);
   });
 });
 

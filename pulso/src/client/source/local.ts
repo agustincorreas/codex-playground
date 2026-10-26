@@ -5,8 +5,10 @@
 // volver se arma en la hora actual y, si dejaste órdenes o posiciones, antes se repasa lo que pasó
 // mientras no estabas para que se ejecuten como en el mercado.
 import { Engine } from '../../engine/engine';
+import type { HistoryTf } from '../../engine/history';
+import { synthHistory } from '../../sim/history';
 import { formatEtTime, sessionAt } from '../../engine/time';
-import type { Alert, NewsItem, Quote, ScanRow, Session, Settings, TapePrint } from '../../engine/types';
+import type { Bar, Alert, NewsItem, Quote, ScanRow, Session, Settings, TapePrint } from '../../engine/types';
 import { MarketSim, type DayHeat } from '../../sim/simulator';
 import { MarketBooks, type DepthBook } from '../../trading/depth';
 import type { DataSource, SourceHandlers } from './types';
@@ -271,6 +273,12 @@ export class LocalSource implements DataSource {
 
   async search(prefix: string): Promise<string[]> {
     return this.engine.search(prefix);
+  }
+
+  /** Historia inventada, determinista por símbolo, que termina en el cierre anterior. */
+  async history(sym: string, tf: HistoryTf): Promise<Bar[]> {
+    const ref = this.engine.get(sym)?.ref;
+    return ref ? synthHistory(sym, ref.prevClose, ref.avgVolume, tf, this.sim.now) : [];
   }
 
   now(): number {

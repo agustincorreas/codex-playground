@@ -1,6 +1,7 @@
 // Modo en vivo: la interfaz se conecta por WebSocket al servidor de Pulso (que habla con el proveedor).
 import { sessionAt } from '../../engine/time';
-import type { Quote, ScanRow, Session, Settings, SymbolDetail, TapePrint } from '../../engine/types';
+import type { HistoryTf } from '../../engine/history';
+import type { Bar, Quote, ScanRow, Session, Settings, SymbolDetail, TapePrint } from '../../engine/types';
 import { MarketBooks, type DepthBook } from '../../trading/depth';
 import type { DataSource, SourceHandlers } from './types';
 
@@ -144,6 +145,20 @@ export class RemoteSource implements DataSource {
   reviewBars(sym: string, from: number, to: number): number[][] | undefined {
     if (this.detail?.sym !== sym) return undefined;
     return this.detail.bars.filter((b) => b.t >= from && b.t <= to).slice(-60).map((b) => [b.t, b.o, b.h, b.l, b.c, Math.round(b.v)]);
+  }
+
+  private histCache = new Map<string, { at: number; bars: Promise<Bar[]> }>();
+
+  /** Historia del servidor, con caché corta (la diaria media hora; el resto, cinco minutos). */
+  history(sym: string, tf: HistoryTf): Promise<Bar[]> {
+    const key = `${sym}:${tf}`;
+    const hit = this.histCache.get(key);
+    if (hit && Date.now() - hit.at < (tf === 'day' ? 30 : 5) * 60_000) return hit.bars;
+    const bars = fetch(`/api/history?sym=${encodeURIComponent(sym)}&tf=${tf}`)
+      .then(async (r) => (r.ok ? ((await r.json()) as Bar[]) : []))
+      .catch(() => [] as Bar[]);
+    this.histCache.set(key, { at: Date.now(), bars });
+    return bars;
   }
 
   async search(prefix: string): Promise<string[]> {

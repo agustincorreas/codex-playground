@@ -6,7 +6,8 @@ import { extname, join, normalize } from 'node:path';
 import { WebSocketServer, WebSocket } from 'ws';
 import { Engine } from '../src/engine/engine';
 import { sessionDate, tradingDayStart } from '../src/engine/time';
-import type { Alert, NewsItem, ProviderStatus, Settings } from '../src/engine/types';
+import type { HistoryTf } from '../src/engine/history';
+import type { Alert, Bar, NewsItem, ProviderStatus, Settings } from '../src/engine/types';
 import { AccountStore, isSessionRecord, isTrainingState } from './account';
 import { AlpacaProvider } from './alpaca';
 import { loadConfig, type Config } from './config';
@@ -15,6 +16,7 @@ import { HaltsPoller } from './halts';
 import { MassiveProvider } from './massive';
 import { DemoProvider, type Provider, type ProviderContext } from './provider';
 import { SecData } from './sec';
+import { SectorLookup } from './sector';
 import { log, RateLimiter, recentLogs, ROOT } from './util';
 
 const cfg = loadConfig();
@@ -51,6 +53,27 @@ let pendingAlerts: Alert[] = [];
 let pendingNews: NewsItem[] = [];
 const backfilled = new Set<string>();
 const sec = cfg.secUserAgent && cfg.provider !== 'demo' ? new SecData(cfg.secUserAgent, log) : null;
+/** Sector de cada acción (Massive o SEC), pedido al elegirla y de a poco para las calientes. */
+const sectors =
+  cfg.provider === 'demo'
+    ? null
+    : new SectorLookup(
+        cfg.massive.key ? { restUrl: cfg.massive.restUrl, key: cfg.massive.key, limiter: cfg.massive.plan === 'basic' ? new RateLimiter(4, 61_000) : new RateLimiter(10, 1000) } : null,
+        sec,
+        log,
+      );
+const sectorRequested = new Set<string>();
+
+/** Pide el sector de un símbolo (una vez) y lo pone en los datos de referencia. */
+function wantSector(sym: string): void {
+  if (!sectors?.available || sectorRequested.has(sym) || !engine.get(sym)) return;
+  sectorRequested.add(sym);
+  void sectors.get(sym).then((industry) => {
+    if (!industry) return;
+    engine.updateReference(sym, { industry });
+    for (const c of clients) if (c.selected === sym) send(c, { t: 'detail', detail: engine.detail(sym) });
+  });
+}
 const secRequested = new Set<string>();
 
 function makeEngine(): Engine {
@@ -182,6 +205,12 @@ setInterval(() => {
   for (const c of clients) if (c.selected) add(c.selected);
   for (const rows of Object.values(view.scanners)) for (const r of rows) add(r.sym);
   provider.setHot(hot);
+  // El sector de las calientes, de a una por vez (el plan gratis de Massive admite pocas consultas).
+  if (sectors?.available) {
+    const next = hot.find((s) => !sectorRequested.has(s) && !sectors.has(s));
+    if (next) wantSector(next);
+    for (const s of hot) if (sectors.has(s) && !sectorRequested.has(s)) wantSector(s);
+  }
   if (sec?.ready) {
     for (const sym of hot.slice(0, 80)) {
       if (secRequested.has(sym)) continue;
@@ -258,6 +287,20 @@ function accountChanged(rev: number, origin: string | undefined): void {
   for (const c of clients) if (!origin || c.id !== origin) send(c, { t: 'account', rev, origin });
 }
 
+/** Historia para el gráfico, con caché en memoria (la diaria cambia poco; la de minutos, cada rato). */
+const historyCache = new Map<string, { at: number; bars: Promise<Bar[]> }>();
+function history(sym: string, tf: HistoryTf): Promise<Bar[]> {
+  const key = `${sym}:${tf}`;
+  const ttl = tf === 'day' ? 30 * 60_000 : 5 * 60_000;
+  const hit = historyCache.get(key);
+  if (hit && Date.now() - hit.at < ttl) return hit.bars;
+  const bars = provider.history ? provider.history(sym, tf).then((b) => b ?? []) : Promise.resolve([]);
+  historyCache.set(key, { at: Date.now(), bars });
+  bars.catch(() => historyCache.delete(key));
+  if (historyCache.size > 400) historyCache.delete(historyCache.keys().next().value!);
+  return bars;
+}
+
 /** GET/PUT/DELETE de la cuenta de práctica. Devuelve false si la ruta no es de la cuenta. */
 function handleAccount(req: IncomingMessage, res: ServerResponse, pathname: string): boolean {
   const origin = typeof req.headers['x-pulso-client'] === 'string' ? req.headers['x-pulso-client'] : undefined;
@@ -321,6 +364,18 @@ const server = createServer((req, res) => {
     });
   }
   if (url.pathname === '/api/search') return json(res, engine.search(url.searchParams.get('q') ?? ''));
+  if (url.pathname === '/api/history') {
+    const sym = (url.searchParams.get('sym') ?? '').toUpperCase();
+    const tf = url.searchParams.get('tf') as HistoryTf;
+    if (!sym || !['minute', 'hour', 'day'].includes(tf)) return json(res, { error: 'faltan sym o tf (minute, hour, day)' }, 400);
+    void history(sym, tf)
+      .then((bars) => json(res, bars))
+      .catch((e: Error) => {
+        log('warn', `Historia de ${sym} (${tf}): ${e.message}`);
+        json(res, { error: e.message }, 502);
+      });
+    return;
+  }
   if (url.pathname === '/api/symbol') {
     // Diagnóstico de una acción: cómo se combinan el feed en vivo y el mercado completo demorado.
     const st = engine.get((url.searchParams.get('sym') ?? '').toUpperCase());
@@ -364,6 +419,7 @@ wss.on('connection', (ws) => {
       const sym = client.selected;
       if (sym) {
         send(client, { t: 'detail', detail: engine.detail(sym) });
+        wantSector(sym);
         void maybeBackfill(sym, client);
       }
     } else if (msg.t === 'settings' && msg.settings) {
@@ -402,11 +458,12 @@ async function maybeBackfill(sym: string, client: Client): Promise<void> {
   }
   if (provider.backfillSec) {
     try {
-      const sec = await provider.backfillSec(sym);
-      if (sec?.length) {
-        engine.setSecBars(sym, sec);
-        send(client, { t: 'detail', detail: engine.detail(sym) });
-      }
+      const push = (bars: Bar[]) => {
+        engine.setSecBars(sym, bars);
+        if (client.selected === sym) send(client, { t: 'detail', detail: engine.detail(sym) });
+      };
+      const sec = await provider.backfillSec(sym, push);
+      if (sec?.length) push(sec);
     } catch (e) {
       log('warn', `Velas de 10 s de ${sym}: ${(e as Error).message}`);
     }

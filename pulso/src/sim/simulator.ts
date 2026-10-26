@@ -287,6 +287,7 @@ export class MarketSim {
         sym: c.sym,
         name: c.name,
         exchange: c.exchange,
+        industry: c.industry,
         prevClose,
         avgVolume,
         float,

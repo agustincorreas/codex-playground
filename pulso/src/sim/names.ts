@@ -17,7 +17,28 @@ export interface FakeCompany {
   name: string;
   kind: string;
   exchange: string;
+  /** Sector en castellano, según el tipo de empresa. */
+  industry: string;
 }
+
+const INDUSTRY: Record<string, string> = {
+  Therapeutics: 'Farmacéutica',
+  Biosciences: 'Biotecnología',
+  Holdings: 'Servicios financieros',
+  Energy: 'Energía',
+  Robotics: 'Maquinaria',
+  'AI Corp': 'Software',
+  Mining: 'Minería',
+  Pharma: 'Farmacéutica',
+  Technologies: 'Hardware',
+  Medical: 'Dispositivos médicos',
+  Networks: 'Telecomunicaciones',
+  'Quantum Inc': 'Semiconductores',
+  Logistics: 'Transporte y logística',
+  Aerospace: 'Aviación',
+  Genomics: 'Biotecnología',
+  Solar: 'Energía',
+};
 
 export function makeCompanies(count: number, rnd: () => number): FakeCompany[] {
   const used = new Set<string>();
@@ -40,6 +61,7 @@ export function makeCompanies(count: number, rnd: () => number): FakeCompany[] {
       name: `${pre}${suf} ${kind}`,
       kind,
       exchange: rnd() < 0.8 ? 'NASDAQ' : rnd() < 0.5 ? 'NYSE American' : 'NYSE',
+      industry: INDUSTRY[kind] ?? 'Servicios',
     });
   }
   return out;

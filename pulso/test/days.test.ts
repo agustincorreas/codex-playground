@@ -204,6 +204,22 @@ describe('respaldo de la cuenta', () => {
     expect(a.ready).toBe(true);
   });
 
+  it('el riesgo y las acciones por defecto van con el tamaño de la cuenta (o fijos si se elige)', () => {
+    const c = new TrainingController(memoryStore(), { state: null, sessions: [] }, 'local');
+    c.setBalance(10_000);
+    expect(c.riskAmount()).toBe(200); // 2 % de $10.000
+    expect(c.defaultShares(5)).toBe(500); // 25 % de la cuenta a $5, en lotes de 100
+    expect(c.defaultShares(0.8)).toBe(3100);
+    c.setBalance(1000);
+    expect(c.riskAmount()).toBe(20);
+    expect(c.defaultShares(5)).toBe(50); // lotes de 10
+    expect(c.defaultShares(37)).toBe(6); // menos de 20: de a una
+    expect(c.defaultShares()).toBe(100); // sin precio no hay cálculo
+    c.updateSettings({ sizing: 'fijo', defaultShares: 300, defaultRisk: 15 });
+    expect(c.riskAmount()).toBe(15);
+    expect(c.defaultShares(5)).toBe(300);
+  });
+
   it('rechaza archivos que no son un respaldo de Pulso', () => {
     expect(parseBackup(null)).toMatch(/no es un respaldo/);
     expect(parseBackup({ app: 'otra' })).toMatch(/no es un respaldo/);

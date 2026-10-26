@@ -1,5 +1,7 @@
 // Interfaz común de los proveedores de datos y el proveedor demo (simulador en el servidor).
 import WebSocket from 'ws';
+import type { HistoryTf } from '../src/engine/history';
+import { synthHistory } from '../src/sim/history';
 import type { Engine } from '../src/engine/engine';
 import type { Bar, ProviderStatus } from '../src/engine/types';
 import { MarketSim } from '../src/sim/simulator';
@@ -30,8 +32,13 @@ export interface Provider {
   setHot(syms: string[]): void;
   /** Velas de 1 minuto del día para un símbolo (cuando el motor no las tiene completas). */
   backfill(sym: string): Promise<Bar[] | null>;
-  /** Velas de 10 s de las últimas horas, armadas con las operaciones históricas (gráficos de 10 s y 30 s). */
-  backfillSec?(sym: string): Promise<Bar[] | null>;
+  /**
+   * Velas de 10 s armadas con las operaciones históricas (gráficos de 10 s y 30 s). `onBars` recibe lo
+   * acumulado a medida que llega (del presente hacia atrás), así el gráfico se completa sin esperar.
+   */
+  backfillSec?(sym: string, onBars?: (bars: Bar[]) => void): Promise<Bar[] | null>;
+  /** Historia para el gráfico: velas de 1 min de los últimos días, de 1 hora de los últimos meses o diarias. */
+  history?(sym: string, tf: HistoryTf): Promise<Bar[] | null>;
 }
 
 export class DemoProvider implements Provider {
@@ -39,8 +46,10 @@ export class DemoProvider implements Provider {
   readonly realtime = false;
   private sim?: MarketSim;
   private timer?: ReturnType<typeof setInterval>;
+  private ctx?: ProviderContext;
 
   async start(ctx: ProviderContext): Promise<void> {
+    this.ctx = ctx;
     const engine = ctx.engine();
     const sim = new MarketSim((ev) => ctx.engine().ingest(ev));
     this.sim = sim;
@@ -70,6 +79,13 @@ export class DemoProvider implements Provider {
 
   async backfill(): Promise<Bar[] | null> {
     return null;
+  }
+
+  /** Historia inventada, determinista por símbolo, que termina en el cierre anterior. */
+  async history(sym: string, tf: HistoryTf): Promise<Bar[] | null> {
+    const ref = this.ctx?.engine().get(sym)?.ref;
+    if (!ref) return null;
+    return synthHistory(sym, ref.prevClose, ref.avgVolume, tf, this.now());
   }
 }
 

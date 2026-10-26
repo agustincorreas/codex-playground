@@ -33,8 +33,8 @@ en un monitor grande todo se agranda) y otra para notebook.
 | **Mis trades** | Arriba del Nivel 2: tu trade abierto en vivo (acciones, precio promedio, ganancia o pérdida en US$ y en %, R, tiempo en el trade y una barra con el precio entre tu stop y tu objetivo) y los trades que ya cerraste hoy con su resultado, más lo realizado en el día. |
 | **Máximos del día** | El escáner de momentum: cada señal en una fila, la más nueva arriba (nuevo máximo, squeeze, subida rápida, bull flag, ruptura del máximo del pre-market, pico de volumen), con hora, precio, volumen, float, volumen relativo y % del día. El color de la fila dice cuántos pilares cumple y las celdas que pasan el corte (float bajo, RVOL 5x, +10%) se resaltan. Pestañas **Alertas** (todas, con filtros) y **Halts** (motivo, cuenta regresiva de 5 minutos y % de la reanudación). |
 | **Escáneres** | **Top gappers** (suben 5%+ contra el cierre anterior, precio $1–$20, volumen desde 50K), **5 pilares** (cumplen 4 o 5: `$` precio, `%` suba, `V` volumen relativo, `N` noticia, `F` float), **Subiendo** (lo que más sube en 5 minutos), **Low float**, **Volumen relativo**, **Se desinflan** (subieron 20%+ y ya están 15%+ abajo del máximo), **Watchlist** (tus estrellas) y **Rango del día**. |
-| **Nivel 2 y órdenes** | El libro de órdenes por bolsa, la cinta (Time & Sales) y la entrada de órdenes de la cuenta de práctica (sección 2). |
-| **Gráfico 1 min y 5 min** | Velas (también de 10 y 30 segundos) con VWAP, EMA 9, 20 y 200, volumen y MACD; leyenda con OHLC, float y capitalización; cuenta regresiva del cierre de la vela; líneas del máximo del día, máximo del pre-market y cierre anterior; marcas de halts y de bull flag. En práctica, además, tus compras (C) y ventas (V), tu costo y tus órdenes. |
+| **Nivel 2 y órdenes** | El sector de la empresa, el libro de órdenes por bolsa, la cinta (Time & Sales) y la entrada de órdenes de la cuenta de práctica (sección 2). |
+| **Gráfico 1 min y 5 min** | Velas de 10 s, 30 s, 1 min, 5 min, 4 horas, diarias (D), semanales (S) y mensuales (M), con historia hacia atrás (todo el día en 10 s con datos reales, 5 días en 1 y 5 min, 100 días en 4 h, desde 2016 en D, S y M), con VWAP, EMA 9, 20 y 200, volumen y MACD; leyenda con OHLC, float y capitalización; cuenta regresiva del cierre de la vela; líneas del máximo del día, máximo del pre-market y cierre anterior; marcas de halts y de bull flag. En práctica, además, tus compras (C) y ventas (V), tu costo y tus órdenes. |
 | **Cotización** | La ficha de la acción: precio, empresa y bolsa, noticias, float, volumen, volumen relativo diario y de 5 minutos, gap, máximos, VWAP, short interest, capitalización, etiquetas de dilución de la SEC, los 5 pilares con su valor y el estado del setup (VWAP, EMA 9, MACD). Pestaña **Noticias** con todos los titulares. |
 | **Posiciones / Trades de hoy / Cuenta** | Las acciones que operaste hoy (abiertas y ya cerradas) con el resultado no realizado, el realizado y el total; cada trade cerrado con lo que ganaste o perdiste y el **resultado del día**; efectivo, plata sin liquidar, poder de compra, cuenta de day trades y **Cambiar saldo**. |
 | **Actividad de órdenes** | Todas las órdenes del día con su estado (enviada, abierta, parcial, ejecutada, cancelada o rechazada). |
@@ -143,7 +143,9 @@ que instalar nada.
    y **VENDER** / **COMPRAR**.
 4. **Las salidas las hacés vos.** La compra sale sola, sin stop ni objetivo automáticos: el *Stop plan* y el
    *Obj. plan* del ticket son tu plan (el stop mental). Sirven para el **tamaño por riesgo** (cuántas
-   acciones comprar para perder como mucho US$ 20, que se cambia en los ajustes), para medir la R de cada
+   acciones comprar para perder como mucho tu riesgo por trade, que por defecto es el 2 % de la cuenta
+   y crece y baja con ella; las acciones que propone el ticket también salen de la cuenta, el 25 % de su
+   valor al precio de la acción; los dos se cambian en los ajustes, o se fijan en un número), para medir la R de cada
    trade y se ven punteados en el gráfico, pero no se mandan como órdenes. El stop propuesto va debajo del
    mínimo del retroceso (o en el stop del bull flag si hay uno armado), nunca más pegado que el rango típico
    de una vela de 1 minuto, y el objetivo a 2R; acompaña al precio mientras no lo cambies a mano y
@@ -429,6 +431,8 @@ Cada día a las 4:00 ET el servidor recarga los cierres y el volumen promedio so
 | Noticias | Benzinga en tiempo real (websocket) | API de noticias de Massive (cada 3 min) |
 | Float / short interest | Massive gratis, FMP o CSV; si no hay, acciones en circulación de la SEC (≈) | Massive |
 | Dilución | SEC EDGAR (si definís `SEC_USER_AGENT`) | SEC EDGAR |
+| Sector | Massive gratis (ficha del ticker) o SEC EDGAR | Massive |
+| Historia del gráfico | Velas de 1 min, 1 hora y diarias (ajustadas por splits) | Agregados de 1 min, 1 hora y diarios |
 
 ---
 
@@ -482,7 +486,7 @@ pulso/
 | --- | --- |
 | `npm run dev` | Interfaz en modo demo con recarga en caliente (http://localhost:5173). |
 | `npm start` | Compila la interfaz y arranca el servidor (datos reales si hay claves). |
-| `npm test` | Pruebas (101): motor, alertas, bull flag, halts, Alpaca y Massive contra servidores falsos, simulador (el mismo mercado a cualquier hora, volumen por hora, días, ofertas, after-hours), el plan gratis de Alpaca en capas, la detección del plan, bróker de práctica, días de práctica, respaldo, la cuenta guardada en el servidor y métricas. |
+| `npm test` | Pruebas (108): motor, alertas, bull flag, halts, Alpaca y Massive contra servidores falsos, simulador (el mismo mercado a cualquier hora, volumen por hora, días, ofertas, after-hours), el plan gratis de Alpaca en capas, la detección del plan, bróker de práctica, días de práctica, respaldo, la cuenta guardada en el servidor, riesgo según la cuenta, temporalidades largas e historia y métricas. |
 | `npm run typecheck` | Chequeo de tipos de todo el proyecto. |
 | `npm run build:demo` | Página única del demo (`dist-demo/index.html`) para GitHub Pages. |
 | `npm run build:desktop` | Interfaz + servidor en un solo archivo para la app de escritorio (`desktop/app/`). |

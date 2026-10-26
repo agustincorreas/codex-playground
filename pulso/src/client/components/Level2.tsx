@@ -133,7 +133,8 @@ export function Level2({ c, source, detail, quote, now, ticket, setTicket, onSym
   useEffect(() => {
     if (!detail) return;
     if (ticket.sym !== detail.sym) {
-      setTicket({ sym: detail.sym, edited: false, levelsEdited: false, ...suggestTicket(detail, quote) });
+      // Las acciones por defecto dependen del precio y del tamaño de la cuenta.
+      setTicket({ sym: detail.sym, edited: false, levelsEdited: false, ...suggestTicket(detail, quote), shares: String(c.defaultShares(quote?.ask || detail.row.price)) });
       return;
     }
     if (!ticket.edited && !pos) setTicket(suggestTicket(detail, quote));
@@ -228,7 +229,7 @@ export function Level2({ c, source, detail, quote, now, ticket, setTicket, onSym
   };
   const sizeByRisk = () => {
     if (!(stopV && entry > stopV)) return c.notify('Para calcular el tamaño por riesgo poné un stop debajo de la entrada.', 'error');
-    setTicket({ shares: String(Math.max(1, Math.floor(settings.defaultRisk / (entry - stopV)))) });
+    setTicket({ shares: String(Math.max(1, Math.floor(c.riskAmount() / (entry - stopV)))) });
   };
 
   const onSymInput = async (v: string) => {
@@ -269,7 +270,13 @@ export function Level2({ c, source, detail, quote, now, ticket, setTicket, onSym
         )}
         {r && detail && (
           <span className="l2-facts">
-            Exch <b>{(detail.ref.exchange ?? 'NSDQ').replace('NASDAQ', 'NSDQ').slice(0, 4)}</b> Float <b>{r.float !== undefined ? fmtVolume(r.float) : '—'}</b> Vol <b>{fmtVolume(r.volume)}</b> High <b>{fmtPx(r.hod)}</b> Low <b>{fmtPx(r.lod)}</b>
+            Exch <b>{(detail.ref.exchange ?? 'NSDQ').replace('NASDAQ', 'NSDQ').slice(0, 4)}</b>{' '}
+            {detail.ref.industry && (
+              <>
+                Sector <b title={detail.ref.industry}>{detail.ref.industry.length > 22 ? `${detail.ref.industry.slice(0, 21)}…` : detail.ref.industry}</b>{' '}
+              </>
+            )}
+            Float <b>{r.float !== undefined ? fmtVolume(r.float) : '—'}</b> Vol <b>{fmtVolume(r.volume)}</b> High <b>{fmtPx(r.hod)}</b> Low <b>{fmtPx(r.lod)}</b>
           </span>
         )}
       </div>
@@ -431,7 +438,7 @@ export function Level2({ c, source, detail, quote, now, ticket, setTicket, onSym
                 {stopV !== undefined && quote && stopV >= quote.bid && <span className="t-down"> · el stop quedó arriba del bid: tocá Sugerir</span>}
                 {!auto && <span className="t-muted"> · salidas manuales</span>}
                 {' · '}
-                <button type="button" className="link" onClick={sizeByRisk} title={`Acciones para arriesgar ${fmtMoney(settings.defaultRisk)} hasta el stop`}>
+                <button type="button" className="link" onClick={sizeByRisk} title={`Acciones para arriesgar ${fmtMoney(c.riskAmount())} hasta el stop${settings.sizing === 'cuenta' ? ` (${settings.riskPct} % de la cuenta)` : ''}`}>
                   tamaño por riesgo
                 </button>
               </p>

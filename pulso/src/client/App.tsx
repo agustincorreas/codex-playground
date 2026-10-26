@@ -27,6 +27,7 @@ import { fmtDay, HEAT_HINT, HEAT_LABEL } from './lib/days';
 import { load, save } from './lib/storage';
 import { LocalSource, type SimConfig } from './source/local';
 import { detectServer, RemoteSource } from './source/remote';
+import type { HistoryTf } from '../engine/history';
 import type { DataSource } from './source/types';
 import { TrainingController, useTrainingVersion } from './training';
 
@@ -179,6 +180,8 @@ export function App() {
 function Workspace({ server, c }: { server: boolean; c: TrainingController }) {
   useTrainingVersion(c);
   const [source, setSource] = useState<DataSource | null>(null);
+  // Historia para los gráficos (días anteriores y temporalidades largas): la da la fuente de datos.
+  const loadHistory = useMemo(() => (source?.history ? (sym: string, tf: HistoryTf) => source.history!(sym, tf) : undefined), [source]);
   const [view, setView] = useState<ViewModel | null>(null);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [news, setNews] = useState<NewsItem[]>([]);
@@ -219,7 +222,7 @@ function Workspace({ server, c }: { server: boolean; c: TrainingController }) {
     sym: null,
     type: 'limit',
     price: '',
-    shares: String(c.state.settings.defaultShares),
+    shares: String(c.defaultShares()),
     route: 'SMRT',
     tif: c.state.settings.defaultTif,
     stop: '',
@@ -666,12 +669,12 @@ function Workspace({ server, c }: { server: boolean; c: TrainingController }) {
     ),
     chart1: (
       <Panel title="Gráfico 1 min" area="chart1" mtab="chart" className="p-chart p-chart1">
-        <Chart id="a" defaultTf={60} detail={detail} alerts={alerts} themeKey={theme} now={now} position={chartPos} fills={chartFills} orders={chartOrders} />
+        <Chart id="a" defaultTf={60} detail={detail} alerts={alerts} themeKey={theme} now={now} position={chartPos} fills={chartFills} orders={chartOrders} loadHistory={loadHistory} />
       </Panel>
     ),
     chart5: (
       <Panel title="Gráfico 5 min" area="chart5" mtab="news" className="p-chart p-chart5">
-        <Chart id="b" defaultTf={300} detail={detail} alerts={alerts} themeKey={theme} now={now} position={chartPos} fills={chartFills} orders={chartOrders} />
+        <Chart id="b" defaultTf={300} detail={detail} alerts={alerts} themeKey={theme} now={now} position={chartPos} fills={chartFills} orders={chartOrders} loadHistory={loadHistory} />
       </Panel>
     ),
     pos: (
