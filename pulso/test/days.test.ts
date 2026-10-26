@@ -184,6 +184,26 @@ describe('respaldo de la cuenta', () => {
     expect(store.sessions).toHaveLength(1);
   });
 
+  it('con la cuenta en el servidor, un cambio desde otro dispositivo se recarga sin perder la fuente', async () => {
+    const shared = memoryStore();
+    const a = new TrainingController(shared, { state: null, sessions: [] }, 'remote');
+    const src = fakeSource({ now: Date.now() });
+    a.attach(src);
+    expect(a.ready).toBe(true);
+    // "Otro dispositivo" (b) cambia el saldo y cierra un día sobre el mismo almacenamiento.
+    const b = new TrainingController(shared, await shared.load(), 'remote');
+    b.setBalance(4200);
+    b.active!.trades.push({ id: 't9', sessionId: b.active!.id, net: 5 } as never);
+    b.endDay();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(a.state.balance).not.toBe(4200);
+    await a.reload();
+    expect(a.state.balance).toBe(4200);
+    expect(a.sessions.map((s) => s.id)).toEqual(b.sessions.map((s) => s.id));
+    // Sigue enganchado a la misma fuente de datos: se puede operar enseguida.
+    expect(a.ready).toBe(true);
+  });
+
   it('rechaza archivos que no son un respaldo de Pulso', () => {
     expect(parseBackup(null)).toMatch(/no es un respaldo/);
     expect(parseBackup({ app: 'otra' })).toMatch(/no es un respaldo/);

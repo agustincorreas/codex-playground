@@ -24,6 +24,8 @@ export class RemoteSource implements DataSource {
   constructor(
     private settings: Settings,
     private watch: string[],
+    /** Identifica esta página ante el servidor (cuenta de práctica guardada ahí). */
+    private readonly clientId?: string,
   ) {}
 
   start(h: SourceHandlers): void {
@@ -37,6 +39,7 @@ export class RemoteSource implements DataSource {
     this.ws = ws;
     ws.onopen = () => {
       this.retry = 0;
+      if (this.clientId) this.send({ t: 'client', id: this.clientId });
       this.send({ t: 'settings', settings: this.settings });
       this.send({ t: 'watchlist', syms: this.watch });
       this.send({ t: 'tracked', syms: this.tracked });
@@ -75,6 +78,9 @@ export class RemoteSource implements DataSource {
           break;
         case 'status':
           h.onStatus(msg.status);
+          break;
+        case 'account':
+          h.onAccount?.(msg.rev as number);
           break;
       }
     };

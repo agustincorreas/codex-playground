@@ -7,6 +7,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { Engine } from '../src/engine/engine';
 import { sessionDate, tradingDayStart } from '../src/engine/time';
 import type { Alert, NewsItem, ProviderStatus, Settings } from '../src/engine/types';
+import { AccountStore, isSessionRecord, isTrainingState } from './account';
 import { AlpacaProvider } from './alpaca';
 import { loadConfig, type Config } from './config';
 import { fmpFloat, loadFloatCsv, massiveFloat, massiveShortInterest } from './fundamentals';
@@ -19,10 +20,16 @@ import { log, RateLimiter, recentLogs, ROOT } from './util';
 const cfg = loadConfig();
 /** Interfaz compilada (la app de escritorio la ubica con PULSO_DIST_DIR). */
 const DIST = process.env.PULSO_DIST_DIR?.trim() || join(ROOT, 'dist');
+/** Datos propios (la cuenta de práctica); la app de escritorio los ubica con PULSO_DATA_DIR. */
+const DATA_DIR = process.env.PULSO_DATA_DIR?.trim() || join(ROOT, 'data');
+/** La cuenta de práctica: una sola para todos los dispositivos que abran este servidor. */
+const account = new AccountStore(join(DATA_DIR, 'cuenta-de-practica.json'));
 
 interface Client {
   ws: WebSocket;
   selected: string | null;
+  /** Identificador que manda la página: al que cambió la cuenta no se le avisa. */
+  id?: string;
 }
 
 const clients = new Set<Client>();
@@ -221,6 +228,66 @@ function json(res: ServerResponse, body: unknown, code = 200): void {
   res.end(JSON.stringify(body));
 }
 
+/** Cuerpo JSON de un pedido (hasta 64 MB: el historial lleva las velas de cada trade). */
+function readJson(req: IncomingMessage): Promise<unknown> {
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    let size = 0;
+    req.on('data', (c: Buffer) => {
+      size += c.length;
+      if (size > 64 * 1024 * 1024) {
+        reject(new Error('demasiado grande'));
+        req.destroy();
+        return;
+      }
+      chunks.push(c);
+    });
+    req.on('end', () => {
+      try {
+        resolve(JSON.parse(Buffer.concat(chunks).toString('utf8')));
+      } catch {
+        reject(new Error('JSON inválido'));
+      }
+    });
+    req.on('error', reject);
+  });
+}
+
+/** La cuenta cambió: aviso a los demás dispositivos (no al que la cambió) para que la vuelvan a leer. */
+function accountChanged(rev: number, origin: string | undefined): void {
+  for (const c of clients) if (!origin || c.id !== origin) send(c, { t: 'account', rev, origin });
+}
+
+/** GET/PUT/DELETE de la cuenta de práctica. Devuelve false si la ruta no es de la cuenta. */
+function handleAccount(req: IncomingMessage, res: ServerResponse, pathname: string): boolean {
+  const origin = typeof req.headers['x-pulso-client'] === 'string' ? req.headers['x-pulso-client'] : undefined;
+  const write = (fn: (body: unknown) => number | string) => {
+    void readJson(req)
+      .then((body) => {
+        const out = fn(body);
+        if (typeof out === 'string') return json(res, { error: out }, 400);
+        accountChanged(out, origin);
+        json(res, { rev: out });
+      })
+      .catch((e: Error) => {
+        log('warn', `Cuenta de práctica: ${e.message}`);
+        json(res, { error: e.message }, e.message === 'JSON inválido' || e.message === 'demasiado grande' ? 400 : 500);
+      });
+  };
+  if (pathname === '/api/account') {
+    if (req.method === 'GET') return json(res, account.snapshot()), true;
+    if (req.method === 'DELETE') {
+      const rev = account.clear();
+      accountChanged(rev, origin);
+      return json(res, { rev }), true;
+    }
+    return false;
+  }
+  if (pathname === '/api/account/state' && req.method === 'PUT') return write((b) => (isTrainingState(b) ? account.saveState(b) : 'estado inválido')), true;
+  if (pathname === '/api/account/session' && req.method === 'PUT') return write((b) => (isSessionRecord(b) ? account.saveSession(b) : 'día inválido')), true;
+  return false;
+}
+
 function serveStatic(req: IncomingMessage, res: ServerResponse): void {
   if (!existsSync(DIST)) {
     res.writeHead(503, { 'Content-Type': 'text/html; charset=utf-8' });
@@ -274,6 +341,7 @@ const server = createServer((req, res) => {
     });
   }
   if (url.pathname === '/api/logs') return json(res, recentLogs());
+  if (url.pathname.startsWith('/api/account') && handleAccount(req, res, url.pathname)) return;
   serveStatic(req, res);
 });
 
@@ -283,13 +351,15 @@ wss.on('connection', (ws) => {
   clients.add(client);
   hello(client);
   ws.on('message', (raw) => {
-    let msg: { t: string; sym?: string | null; settings?: Settings; syms?: string[] };
+    let msg: { t: string; sym?: string | null; settings?: Settings; syms?: string[]; id?: string };
     try {
       msg = JSON.parse(raw.toString());
     } catch {
       return;
     }
-    if (msg.t === 'select') {
+    if (msg.t === 'client' && typeof msg.id === 'string') {
+      client.id = msg.id.slice(0, 64);
+    } else if (msg.t === 'select') {
       client.selected = msg.sym ? String(msg.sym).toUpperCase() : null;
       const sym = client.selected;
       if (sym) {

@@ -160,7 +160,12 @@ export class TrainingController {
     this.sessions = [...loaded.sessions].sort((a, b) => b.endedAt - a.endedAt);
     this.settle();
     store.onFallback = () => {
-      this.notify('No se pudo guardar en tu cuenta de Claude: por ahora se guarda en este navegador.', 'error');
+      this.notify(
+        store.kind === 'servidor'
+          ? 'No se pudo guardar en el servidor de Pulso: queda en este navegador y se vuelve a intentar.'
+          : 'No se pudo guardar en tu cuenta de Claude: por ahora se guarda en este navegador.',
+        'error',
+      );
       this.emit();
     };
   }
@@ -218,6 +223,11 @@ export class TrainingController {
 
   get storeKind() {
     return this.store.kind;
+  }
+
+  /** Identificador de esta página ante el servidor (si la cuenta se guarda ahí). */
+  get storeClientId(): string | undefined {
+    return this.store.clientId;
   }
 
   get active(): ActiveSession | undefined {
@@ -778,14 +788,7 @@ export class TrainingController {
   async importBackup(raw: unknown): Promise<BrokerResult> {
     const b = parseBackup(raw);
     if (typeof b === 'string') return this.reject({ ok: false, message: b, fills: [] });
-    this.state = normalizeState(b.state);
-    this.sessions = [...b.sessions].sort((x, y) => y.endedAt - x.endedAt);
-    this.broker = null;
-    this.source = null;
-    this.lastEnded = null;
-    this.touched = false;
-    this.reloads++;
-    this.settle();
+    this.replace(b.state, b.sessions);
     this.touched = true;
     this.state.updatedAt = Date.now();
     try {
@@ -800,6 +803,36 @@ export class TrainingController {
     this.notify(message, 'ok');
     this.emit();
     return { ok: true, message, fills: [] };
+  }
+
+  /**
+   * Otro dispositivo cambió la cuenta en el servidor: se vuelve a leer y la página sigue con ella (lo
+   * que haya en pantalla de la versión vieja se descarta, igual que al importar un respaldo).
+   */
+  async reload(): Promise<void> {
+    let loaded: { state: TrainingState | null; sessions: SessionRecord[] };
+    try {
+      loaded = await this.store.load();
+    } catch {
+      return;
+    }
+    this.replace(loaded.state, loaded.sessions);
+    this.emit();
+  }
+
+  /** Reemplaza la cuenta entera (respaldo importado o cambio hecho desde otro dispositivo). */
+  private replace(state: TrainingState | null, sessions: SessionRecord[]): void {
+    const src = this.source;
+    this.state = normalizeState(state);
+    this.sessions = [...sessions].sort((x, y) => y.endedAt - x.endedAt);
+    this.broker = null;
+    this.source = null;
+    this.lastEnded = null;
+    this.touched = false;
+    this.reloads++;
+    this.settle();
+    // Con datos reales la fuente no cambia (no hay día simulado que rearmar): se vuelve a enganchar.
+    if (src && this.mode === 'remote') this.attach(src);
   }
 
   // ------------------------------------------------------------------ guardado

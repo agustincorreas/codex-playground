@@ -4,6 +4,7 @@ dist-demo/
 .cache/
 .env
 data/float.csv
+data/cuenta-de-practica.json*
 *.log
 desktop/node_modules/
 desktop/app/

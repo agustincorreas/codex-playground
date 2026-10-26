@@ -1,10 +1,13 @@
-// Dónde se guarda la cuenta de práctica: en la base del artifact (por persona, privada) cuando la página
-// corre dentro de Claude, o en el navegador (localStorage) cuando corre suelta o en tu computadora.
+// Dónde se guarda la cuenta de práctica: en el servidor de Pulso (tu computadora) cuando hay uno, así es
+// la misma desde cualquier dispositivo; en la base del artifact (por persona, privada) cuando la página
+// corre dentro de Claude; o en el navegador (localStorage) cuando corre suelta.
 import type { ActiveSession, SessionRecord, Trade, TrainingState } from './types';
 
 export interface TrainingStore {
-  /** 'cuenta' = base de datos de Claude (sigue en otros dispositivos); 'navegador' = este navegador. */
-  readonly kind: 'cuenta' | 'navegador';
+  /** 'servidor' = el servidor de Pulso; 'cuenta' = base de datos de Claude; 'navegador' = este navegador. */
+  readonly kind: 'servidor' | 'cuenta' | 'navegador';
+  /** Identifica esta página ante el servidor (para que no le avise de sus propios cambios). */
+  readonly clientId?: string;
   /** Avisa cuando la cuenta de Claude deja de aceptar escrituras y se pasa a guardar en el navegador. */
   onFallback?: () => void;
   load(): Promise<{ state: TrainingState | null; sessions: SessionRecord[] }>;
@@ -252,6 +255,112 @@ export class DbTrainingStore implements TrainingStore {
       this.onFallback?.();
     }
     return false;
+  }
+}
+
+/**
+ * La cuenta en el servidor de Pulso (`/api/account`): una sola para la computadora, el celular y
+ * cualquier navegador que lo abra. Si el servidor no responde (se está reiniciando), lo que no se pudo
+ * guardar queda en este navegador y se vuelve a intentar con el próximo guardado; al cargar gana el
+ * estado más nuevo de los dos y los días que el servidor no tiene se le agregan.
+ */
+export class ServerTrainingStore implements TrainingStore {
+  readonly kind = 'servidor' as const;
+  onFallback?: () => void;
+  readonly clientId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+  /** Última revisión conocida del servidor. */
+  rev = 0;
+  private readonly local = new LocalTrainingStore('pulso:training-respaldo-servidor');
+  private writing: Promise<void> = Promise.resolve();
+  private slot: { state: TrainingState | null; started: boolean } | null = null;
+  private sessionWrites: Promise<void> = Promise.resolve();
+  private warned = false;
+
+  private async request(path: string, method: string, body?: unknown): Promise<Response> {
+    const res = await fetch(path, {
+      method,
+      cache: 'no-store',
+      headers: { 'Content-Type': 'application/json', 'X-Pulso-Client': this.clientId },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res;
+  }
+
+  async load() {
+    const res = await this.request('/api/account', 'GET');
+    const d = (await res.json()) as { rev: number; state: TrainingState | null; sessions: SessionRecord[] };
+    this.rev = d.rev;
+    const local = await this.local.load();
+    const state = local.state && (!d.state || local.state.updatedAt > d.state.updatedAt) ? local.state : d.state;
+    const ids = new Set(d.sessions.map((x) => x.id));
+    const pending = local.sessions.filter((x) => !ids.has(x.id));
+    // Lo que quedó en el navegador mientras el servidor no respondía se le sube ahora.
+    if (local.state && state === local.state) void this.saveState(local.state);
+    for (const rec of pending) void this.saveSession(rec);
+    if (!pending.length && state !== local.state) await this.local.clear();
+    return { state, sessions: [...d.sessions, ...pending] };
+  }
+
+  saveState(state: TrainingState): Promise<void> {
+    if (this.slot && !this.slot.started) {
+      this.slot.state = state;
+      return this.writing;
+    }
+    const slot = { state: state as TrainingState | null, started: false };
+    this.slot = slot;
+    this.writing = this.writing.then(async () => {
+      slot.started = true;
+      const next = slot.state;
+      if (!next) return;
+      if (!(await this.write('/api/account/state', next))) await this.local.saveState(next);
+    });
+    return this.writing;
+  }
+
+  saveSession(rec: SessionRecord): Promise<void> {
+    this.sessionWrites = this.sessionWrites.then(async () => {
+      if (!(await this.write('/api/account/session', rec))) await this.local.saveSession(rec);
+    });
+    return this.sessionWrites;
+  }
+
+  clear(): Promise<void> {
+    if (this.slot && !this.slot.started) this.slot.state = null;
+    this.slot = null;
+    this.writing = this.writing.then(async () => {
+      await this.local.clear();
+      try {
+        const res = await this.request('/api/account', 'DELETE');
+        this.rev = ((await res.json()) as { rev: number }).rev;
+      } catch (e) {
+        console.warn('No se pudo borrar la cuenta del servidor', e);
+      }
+    });
+    this.sessionWrites = this.sessionWrites.then(() => this.writing);
+    return this.writing;
+  }
+
+  private async write(path: string, body: unknown): Promise<boolean> {
+    for (let attempt = 0; ; attempt++) {
+      try {
+        const res = await this.request(path, 'PUT', body);
+        this.rev = ((await res.json()) as { rev: number }).rev;
+        this.warned = false;
+        return true;
+      } catch (e) {
+        if (attempt === 0) {
+          await new Promise((r) => setTimeout(r, 1000));
+          continue;
+        }
+        console.warn('No se pudo guardar en el servidor de Pulso', e);
+        if (!this.warned) {
+          this.warned = true;
+          this.onFallback?.();
+        }
+        return false;
+      }
+    }
   }
 }
 

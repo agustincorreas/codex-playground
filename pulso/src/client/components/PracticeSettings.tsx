@@ -30,7 +30,7 @@ function BackupCard({ c, onImported }: { c: TrainingController; onImported: () =
   const file = useRef<HTMLInputElement>(null);
   const [pending, setPending] = useState<{ name: string; data: unknown; summary: string } | null>(null);
   const [error, setError] = useState('');
-  const where = c.storeKind === 'cuenta' ? 'tu cuenta de Claude' : 'este navegador';
+  const where = c.storeKind === 'servidor' ? 'el servidor de Pulso (tu computadora)' : c.storeKind === 'cuenta' ? 'tu cuenta de Claude' : 'este navegador';
   const exportNow = async () => {
     const b = c.exportBackup();
     const ok = await downloadText(`pulso-cuenta-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(b), 'application/json');
