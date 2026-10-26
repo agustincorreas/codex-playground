@@ -181,3 +181,124 @@ describe('indicadores', () => {
     expect(agg[0]).toMatchObject({ o: 1, h: 5, l: 1, c: 5, v: 50 });
   });
 });
+
+describe('motor: feed parcial en vivo + mercado completo demorado', () => {
+  const t = (m: number, s = 0) => etWallToTs(2026, 10, 23, m) + s * 1000;
+  function make() {
+    const engine = new Engine({ allSecBars: true });
+    engine.setReference([{ sym: 'RUNR', prevClose: 2, avgVolume: 390_000 }]);
+    return engine;
+  }
+
+  it('el volumen del día pasa a ser el consolidado más lo del feed después, sin tocar el precio en vivo', () => {
+    const engine = make();
+    engine.ingest({ kind: 'trade', sym: 'RUNR', ts: t(9 * 60 + 30, 10), price: 3, size: 600 });
+    engine.ingest({ kind: 'trade', sym: 'RUNR', ts: t(9 * 60 + 31, 10), price: 3.1, size: 400 });
+    const st = engine.get('RUNR')!;
+    expect(st.volume).toBe(1000);
+    engine.applyDelayed([{ sym: 'RUNR', ts: t(9 * 60 + 30, 59), last: 3.05, high: 3.4, low: 2.9, volume: 30_000, vwap: 3.02 }]);
+    expect(st.last).toBe(3.1); // el feed en vivo tiene un print más nuevo: manda
+    expect(st.volume).toBe(30_400); // consolidado hasta las 9:30 + lo del feed en 9:31
+    expect(st.volumeScale).toBe(1); // sin vela consolidada del minuto no hay calibración
+    expect(st.hod).toBe(3.4); // el máximo consolidado se completa sin alerta
+    expect(st.lod).toBe(2.9);
+    // Un tramo consolidado posterior al último print del feed trae el último precio real de ese momento.
+    engine.applyDelayed([{ sym: 'RUNR', ts: t(9 * 60 + 31, 59), last: 3.05, high: 3.4, low: 2.9, volume: 50_000, vwap: 3.02 }]);
+    expect(st.last).toBe(3.05);
+    expect(st.volume).toBe(50_000);
+    // Lo que el feed ve después del tramo consolidado se suma.
+    engine.ingest({ kind: 'trade', sym: 'RUNR', ts: t(9 * 60 + 33, 5), price: 3.2, size: 100 });
+    expect(st.volume).toBe(50_100);
+    // Un snapshot viejo no pisa nada; uno más nuevo con menos volumen tampoco baja el total.
+    engine.applyDelayed([{ sym: 'RUNR', ts: t(9 * 60 + 31), last: 2, high: 3, low: 2.9, volume: 10 }]);
+    expect(st.volume).toBe(50_100);
+    engine.applyDelayed([{ sym: 'RUNR', ts: t(9 * 60 + 33, 59), last: 3.15, high: 3.4, low: 2.9, volume: 55_000, vwap: 3.05 }]);
+    expect(st.volume).toBe(55_000);
+    expect(st.consolidatedTs).toBe(t(9 * 60 + 33, 59));
+  });
+
+  it('la vela consolidada del minuto reemplaza a la del feed y calibra la escala (también en pre-market)', () => {
+    const engine = make();
+    engine.ingest({ kind: 'trade', sym: 'RUNR', ts: t(8 * 60 + 10, 5), price: 3, size: 200 });
+    engine.ingest({ kind: 'trade', sym: 'RUNR', ts: t(8 * 60 + 11, 5), price: 3.1, size: 100 });
+    // Pre-market: el snapshot demorado todavía no trae volumen del día, pero sí la vela del minuto.
+    engine.applyDelayed([{ sym: 'RUNR', ts: t(8 * 60 + 10, 59), last: 3.02, high: 3.05, low: 2.95, volume: 0, minute: { t: t(8 * 60 + 10), o: 2.98, h: 3.05, l: 2.95, c: 3.02, v: 8_000, pv: 24_000, n: 60 } }]);
+    const st = engine.get('RUNR')!;
+    expect(st.bars.map((b) => [b.t, b.v])).toEqual([
+      [t(8 * 60 + 10), 8_000],
+      [t(8 * 60 + 11), 100],
+    ]);
+    expect(st.volume).toBe(8_100);
+    expect(st.volumeScale).toBe(40);
+    expect(st.lod).toBe(2.95);
+  });
+
+  it('una vela consolidada muchos minutos atrás reemplaza a la del feed, sin duplicarla', () => {
+    const engine = make();
+    for (let i = 0; i < 30; i++) engine.ingest({ kind: 'trade', sym: 'RUNR', ts: t(9 * 60 + 30 + i, 5), price: 3, size: 10 });
+    const st = engine.get('RUNR')!;
+    expect(st.bars).toHaveLength(30);
+    engine.applyDelayed([{ sym: 'RUNR', ts: t(9 * 60 + 44, 59), last: 3, high: 3, low: 3, volume: 0, minute: { t: t(9 * 60 + 44), o: 3, h: 3, l: 3, c: 3, v: 5_000, pv: 15_000, n: 40 } }]);
+    expect(st.bars).toHaveLength(30);
+    expect(st.bars.filter((b) => b.t === t(9 * 60 + 44)).map((b) => b.v)).toEqual([5_000]);
+    expect(st.volume).toBe(29 * 10 + 5_000);
+    engine.mergeBars('RUNR', [{ t: t(9 * 60 + 31), o: 3, h: 3.5, l: 3, c: 3, v: 7_000, pv: 21_000, n: 50 }]);
+    expect(st.bars).toHaveLength(30);
+    expect(st.volume).toBe(28 * 10 + 5_000 + 7_000);
+    expect(st.hod).toBe(3.5);
+  });
+
+  it('sin calibración propia, la escala arranca en la del feed y la primera muestra la reemplaza', () => {
+    const engine = make();
+    engine.feedScale = 35;
+    engine.ingest({ kind: 'trade', sym: 'RUNR', ts: t(8 * 60 + 12, 5), price: 3, size: 100 });
+    engine.applyDelayed([{ sym: 'RUNR', ts: t(8 * 60 + 10, 59), last: 3, high: 3, low: 3, volume: 0 }]);
+    const st = engine.get('RUNR')!;
+    expect(st.volumeScale).toBe(35);
+    expect(st.volumeSinceEstimated(t(8 * 60 + 13), 5)).toBe(3500);
+    engine.applyDelayed([{ sym: 'RUNR', ts: t(8 * 60 + 12, 59), last: 3, high: 3, low: 3, volume: 0, minute: { t: t(8 * 60 + 12), o: 3, h: 3, l: 3, c: 3, v: 2_000, pv: 6_000, n: 20 } }]);
+    expect(st.volumeScale).toBe(20);
+  });
+
+  it('sin prints en el feed, el último precio demorado vale más que nada', () => {
+    const engine = make();
+    engine.applyDelayed([{ sym: 'RUNR', ts: t(9 * 60 + 40), last: 2.8, high: 2.9, low: 2.1, volume: 120_000, open: 2.3 }]);
+    const st = engine.get('RUNR')!;
+    expect(st.last).toBe(2.8);
+    expect(st.changePct).toBeCloseTo(40);
+    expect(st.dayOpen).toBe(2.3);
+  });
+
+  it('el volumen de 5 minutos escala lo que vio el feed parcial y respeta lo ya consolidado', () => {
+    const engine = make();
+    const now = t(9 * 60 + 40, 30);
+    engine.ingest({ kind: 'trade', sym: 'RUNR', ts: t(9 * 60 + 36, 10), price: 3, size: 100 });
+    engine.applyDelayed([{ sym: 'RUNR', ts: t(9 * 60 + 36, 59), last: 3, high: 3, low: 3, volume: 2_000, minute: { t: t(9 * 60 + 36), o: 3, h: 3, l: 3, c: 3, v: 2_000, pv: 6_000, n: 20 } }]);
+    engine.ingest({ kind: 'trade', sym: 'RUNR', ts: t(9 * 60 + 38, 10), price: 3, size: 50 });
+    engine.tick(now);
+    const st = engine.get('RUNR')!;
+    expect(st.volumeScale).toBe(20);
+    // 5 minutos promedio = 390_000 / 390 * 5 = 5_000. Estimado: 2_000 (consolidado) + 50 × 20 = 3_000.
+    expect(engine.row('RUNR')!.rvol5m).toBeCloseTo(3000 / 5000, 5);
+  });
+
+  it('las velas consolidadas reemplazan a las del feed y el volumen se recalcula', () => {
+    const engine = make();
+    engine.ingest({ kind: 'trade', sym: 'RUNR', ts: t(9 * 60 + 30, 10), price: 3, size: 600 });
+    engine.ingest({ kind: 'trade', sym: 'RUNR', ts: t(9 * 60 + 50, 10), price: 3.1, size: 400 });
+    engine.mergeBars('RUNR', [
+      { t: t(9 * 60 + 29), o: 2.9, h: 2.95, l: 2.85, c: 2.9, v: 20_000, pv: 58_000, n: 50 },
+      { t: t(9 * 60 + 30), o: 2.9, h: 3.3, l: 2.9, c: 3.2, v: 80_000, pv: 248_000, n: 300 },
+    ]);
+    const st = engine.get('RUNR')!;
+    expect(st.bars.map((b) => [b.t, b.v])).toEqual([
+      [t(9 * 60 + 29), 20_000],
+      [t(9 * 60 + 30), 80_000],
+      [t(9 * 60 + 50), 400],
+    ]);
+    expect(st.volume).toBe(100_400);
+    expect(st.hod).toBe(3.3);
+    expect(st.consolidatedTs).toBe(t(9 * 60 + 31) - 1);
+  });
+});
+

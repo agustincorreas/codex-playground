@@ -20,6 +20,8 @@ export interface ProviderContext {
 export interface Provider {
   readonly label: string;
   readonly realtime: boolean;
+  /** Etiqueta del encabezado cuando "en vivo" o "demorado" no alcanzan para describirlo. */
+  readonly badge?: string;
   start(ctx: ProviderContext): Promise<void>;
   stop(): void;
   /** Hora de mercado (en el demo, la del reloj simulado). */

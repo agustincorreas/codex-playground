@@ -36,6 +36,18 @@ export class SymbolState {
   volume = 0;
   pv = 0;
   ticks = 0;
+  /**
+   * Fuente parcial (por ejemplo, solo la bolsa IEX): cuánto representa el mercado completo respecto de
+   * lo que llega por el feed en vivo (1 = el feed ya es el mercado completo). Se calibra con los datos
+   * consolidados demorados y sirve para estimar el volumen de los últimos minutos.
+   */
+  volumeScale = 1;
+  /** Muestras de calibración recibidas (la primera reemplaza el valor inicial; las demás se promedian). */
+  scaleSamples = 0;
+  /** Volumen acumulado del día que llegó por el feed en vivo (diagnóstico). */
+  feedVolume = 0;
+  /** Hasta qué hora hay datos consolidados del mercado completo (0 = el feed ya es completo). */
+  consolidatedTs = 0;
   bars: Bar[] = [];
   /** Velas de 10 segundos de las últimas ~2 horas. */
   secBars: Bar[] = [];
@@ -206,6 +218,34 @@ export class SymbolState {
     return { dv: bar.v };
   }
 
+  /**
+   * Reemplaza (o inserta en su lugar) una vela de 1 minuto buscándola en todo el día: para las velas
+   * consolidadas que llegan con demora, que pueden estar muchos minutos atrás. Devuelve la diferencia
+   * de volumen respecto de la vela que había.
+   */
+  upsertMinuteBar(bar: Bar): number {
+    let lo = 0;
+    let hi = this.bars.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (this.bars[mid].t < bar.t) lo = mid + 1;
+      else hi = mid;
+    }
+    const cur = this.bars[lo];
+    if (cur && cur.t === bar.t) {
+      const dv = bar.v - cur.v;
+      this.volume += dv;
+      this.pv += bar.pv - cur.pv;
+      this.bars[lo] = { ...bar };
+      return dv;
+    }
+    this.volume += bar.v;
+    this.pv += bar.pv;
+    if (lo === this.bars.length) this.closeBarsBefore(bar.t);
+    this.bars.splice(lo, 0, { ...bar });
+    return bar.v;
+  }
+
   private findBar(t: number): number {
     for (let i = this.bars.length - 1; i >= Math.max(0, this.bars.length - 10); i--) {
       if (this.bars[i].t === t) return i;
@@ -274,6 +314,24 @@ export class SymbolState {
     return high;
   }
 
+  addFeedVolume(_ts: number, size: number): void {
+    this.feedVolume += size;
+  }
+
+  /** Volumen de las velas posteriores al minuto que contiene a `ts`. */
+  volumeAfter(ts: number): { v: number; pv: number } {
+    const t = Math.floor(ts / MIN) * MIN;
+    let v = 0;
+    let pv = 0;
+    for (let i = this.bars.length - 1; i >= 0; i--) {
+      const b = this.bars[i];
+      if (b.t <= t) break;
+      v += b.v;
+      pv += b.pv;
+    }
+    return { v, pv };
+  }
+
   volumeSince(now: number, minutes: number): number {
     const from = now - minutes * MIN;
     let v = 0;
@@ -281,6 +339,23 @@ export class SymbolState {
       const b = this.bars[i];
       if (b.t + MIN <= from) break;
       v += b.v;
+    }
+    return v;
+  }
+
+  /**
+   * Volumen de los últimos minutos estimado para el mercado completo: las velas ya consolidadas van tal
+   * cual y las que solo tienen lo del feed parcial se escalan con la calibración.
+   */
+  volumeSinceEstimated(now: number, minutes: number): number {
+    if (!this.consolidatedTs || this.volumeScale <= 1) return this.volumeSince(now, minutes);
+    const from = now - minutes * MIN;
+    const consolidated = Math.floor(this.consolidatedTs / MIN) * MIN;
+    let v = 0;
+    for (let i = this.bars.length - 1; i >= 0; i--) {
+      const b = this.bars[i];
+      if (b.t + MIN <= from) break;
+      v += b.t > consolidated ? b.v * this.volumeScale : b.v;
     }
     return v;
   }

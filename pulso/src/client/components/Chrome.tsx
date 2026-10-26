@@ -67,6 +67,7 @@ export function Header({ now, session, status, speed, onSpeed, prefs, onPrefs, o
   if (status) {
     if (status.mode === 'demo') badge = { cls: 'accent', text: 'DEMO · datos simulados' };
     else if (!status.connected) badge = { cls: 'down', text: 'SIN CONEXIÓN' };
+    else if (status.badge) badge = { cls: 'up', text: status.badge };
     else if (!status.realtime) badge = { cls: 'warn', text: `DEMORADO · ${status.provider}` };
     else badge = { cls: 'up', text: `EN VIVO · ${status.provider}` };
   }

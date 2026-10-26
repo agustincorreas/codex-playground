@@ -6,6 +6,11 @@ import { fileURLToPath } from 'node:url';
 export const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 export const CACHE_DIR = join(ROOT, '.cache');
 
+/** Carpeta de la caché (PULSO_CACHE_DIR la cambia: las pruebas usan una temporal). */
+function cacheDir(): string {
+  return process.env.PULSO_CACHE_DIR?.trim() || CACHE_DIR;
+}
+
 export type Level = 'info' | 'warn' | 'error';
 
 export interface Log {
@@ -124,7 +129,7 @@ export class RateLimiter {
 
 export async function readCache<T>(name: string): Promise<T | null> {
   try {
-    return JSON.parse(await readFile(join(CACHE_DIR, name), 'utf8')) as T;
+    return JSON.parse(await readFile(join(cacheDir(), name), 'utf8')) as T;
   } catch {
     return null;
   }
@@ -132,7 +137,7 @@ export async function readCache<T>(name: string): Promise<T | null> {
 
 export async function writeCache(name: string, data: unknown): Promise<void> {
   try {
-    const path = join(CACHE_DIR, name);
+    const path = join(cacheDir(), name);
     await mkdir(dirname(path), { recursive: true });
     await writeFile(path, JSON.stringify(data));
   } catch (e) {
