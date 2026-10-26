@@ -12,6 +12,7 @@ import { etWallToTs, previousTradingDays, sessionDate, tradingDayStart } from '.
 import type { Bar, ProviderStatus } from '../src/engine/types';
 import { AlpacaProvider } from '../server/alpaca';
 import { MassiveProvider } from '../server/massive';
+import { ReconnectingSocket } from '../server/provider';
 import type { ProviderContext } from '../server/provider';
 
 // La caché de los proveedores va a una carpeta temporal: la real es la del servidor con datos de verdad.
@@ -418,6 +419,33 @@ describe('AlpacaProvider: velas de 10 s de todo el día con SIP', () => {
     // Tras la primera página se entregó lo acumulado sin la vela más vieja (podía seguir en la siguiente).
     expect(partial).toHaveLength(1);
     expect(partial[0].map((b) => b.t)).toEqual([t0 + 10_000]);
+  });
+});
+
+describe('ReconnectingSocket: vigilancia de la conexión', () => {
+  it('una conexión muda en horario de mercado se corta y se vuelve a conectar sola', async () => {
+    let connections = 0;
+    server = createServer();
+    const wss = new WebSocketServer({ server });
+    wss.on('connection', (ws) => {
+      connections++;
+      // La primera conexión no manda nada; la segunda avisa que está viva.
+      if (connections > 1) ws.send(JSON.stringify({ hola: true }));
+    });
+    const port = await listen(server);
+    const got: unknown[] = [];
+    const logs: string[] = [];
+    const sock = new ReconnectingSocket(`ws://127.0.0.1:${port}/`, 'prueba', (_l, m) => logs.push(m), {
+      onMessage: (d) => got.push(d),
+      idleMs: 250,
+      expectData: () => true,
+      watchEveryMs: 100,
+    });
+    sock.connect();
+    await waitFor(() => got.length > 0, 6000);
+    expect(connections).toBe(2);
+    expect(logs.some((m) => /sin datos hace \d+ s\. Reconecto/.test(m))).toBe(true);
+    sock.close();
   });
 });
 

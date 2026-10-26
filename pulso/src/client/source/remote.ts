@@ -14,6 +14,12 @@ export class RemoteSource implements DataSource {
   private closed = false;
   private clockOffset = 0;
   private tracked: string[] = [];
+  /** Último mensaje del servidor (manda una vista por segundo: si se calla, la conexión murió). */
+  private lastMessage = 0;
+  private watchTimer?: ReturnType<typeof setInterval>;
+  private readonly onVisible = () => {
+    if (document.visibilityState === 'visible') this.checkAlive(true);
+  };
   /** Última fila conocida de cada símbolo (de las vistas y de la ficha) para cotizar órdenes. */
   private rows = new Map<string, ScanRow>();
   private detail: SymbolDetail | null = null;
@@ -32,6 +38,26 @@ export class RemoteSource implements DataSource {
   start(h: SourceHandlers): void {
     this.h = h;
     this.connect();
+    this.watchTimer = setInterval(() => this.checkAlive(false), 5000);
+    document.addEventListener('visibilitychange', this.onVisible);
+  }
+
+  /** Si el servidor no habla hace 15 s (o al volver a la pestaña), se corta y se vuelve a conectar. */
+  private checkAlive(force: boolean): void {
+    const ws = this.ws;
+    if (!ws || this.closed || ws.readyState !== WebSocket.OPEN) return;
+    const quiet = Date.now() - this.lastMessage;
+    if (quiet < (force ? 5000 : 15_000)) return;
+    console.warn(`Pulso: sin noticias del servidor hace ${Math.round(quiet / 1000)} s; reconecto.`);
+    ws.onclose = null;
+    ws.onmessage = null;
+    try {
+      ws.close();
+    } catch {
+      // Ya estaba muerta.
+    }
+    this.h?.onStatus({ mode: 'live', provider: 'Servidor', connected: false, realtime: false, message: 'Sin conexión con el servidor de Pulso. Reintentando…' });
+    this.connect();
   }
 
   private connect(): void {
@@ -40,6 +66,7 @@ export class RemoteSource implements DataSource {
     this.ws = ws;
     ws.onopen = () => {
       this.retry = 0;
+      this.lastMessage = Date.now();
       if (this.clientId) this.send({ t: 'client', id: this.clientId });
       this.send({ t: 'settings', settings: this.settings });
       this.send({ t: 'watchlist', syms: this.watch });
@@ -47,6 +74,7 @@ export class RemoteSource implements DataSource {
       if (this.selected) this.send({ t: 'select', sym: this.selected });
     };
     ws.onmessage = (m) => {
+      this.lastMessage = Date.now();
       const h = this.h;
       if (!h) return;
       const msg = JSON.parse(String(m.data));
@@ -105,6 +133,8 @@ export class RemoteSource implements DataSource {
 
   stop(): void {
     this.closed = true;
+    if (this.watchTimer) clearInterval(this.watchTimer);
+    document.removeEventListener('visibilitychange', this.onVisible);
     this.ws?.close();
   }
 

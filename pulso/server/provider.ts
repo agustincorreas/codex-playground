@@ -95,6 +95,11 @@ export class ReconnectingSocket {
   private closed = false;
   private retry = 0;
   private stableTimer?: ReturnType<typeof setTimeout>;
+  private watchTimer?: ReturnType<typeof setInterval>;
+  /** Último mensaje o pong recibido (la conexión está viva). */
+  private lastAlive = 0;
+  /** Último mensaje de datos. */
+  private lastMessage = 0;
 
   constructor(
     private readonly url: string,
@@ -104,6 +109,15 @@ export class ReconnectingSocket {
       onOpen?: (ws: WebSocket) => void;
       onMessage: (data: unknown, ws: WebSocket) => void;
       onClose?: () => void;
+      /**
+       * Vigilancia de datos: si en este lapso no llega ningún mensaje mientras `expectData()` dice que
+       * tendrían que llegar (horario de mercado), se reconecta. Aparte, siempre se hace ping cada 15 s
+       * y una conexión que no contesta en 45 s se da por muerta (pasa al dormir la computadora).
+       */
+      idleMs?: number;
+      expectData?: () => boolean;
+      /** Cada cuánto se vigila (15 s; las pruebas lo acortan). */
+      watchEveryMs?: number;
     },
     private readonly options: WebSocket.ClientOptions = {},
   ) {}
@@ -116,9 +130,15 @@ export class ReconnectingSocket {
       this.log('info', `${this.label}: conectado.`);
       // Si la conexión dura un minuto, se considera estable y se reinicia la espera entre intentos.
       this.stableTimer = setTimeout(() => (this.retry = 0), 60_000);
+      this.lastAlive = this.lastMessage = Date.now();
+      this.watchTimer = setInterval(() => this.watch(ws), this.handlers.watchEveryMs ?? 15_000);
       this.handlers.onOpen?.(ws);
     });
+    ws.on('pong', () => {
+      this.lastAlive = Date.now();
+    });
     ws.on('message', (raw) => {
+      this.lastAlive = this.lastMessage = Date.now();
       let data: unknown;
       try {
         data = JSON.parse(raw.toString());
@@ -130,12 +150,33 @@ export class ReconnectingSocket {
     ws.on('error', (e) => this.log('warn', `${this.label}: ${e.message}`));
     ws.on('close', (code) => {
       if (this.stableTimer) clearTimeout(this.stableTimer);
+      if (this.watchTimer) clearInterval(this.watchTimer);
+      this.watchTimer = undefined;
       this.handlers.onClose?.();
       if (this.closed) return;
       const wait = Math.min(60_000, 1000 * 2 ** this.retry++);
       this.log('warn', `${this.label}: conexión cerrada (${code}). Reintento en ${Math.round(wait / 1000)} s.`);
       setTimeout(() => this.connect(), wait);
     });
+  }
+
+  /** Cada 15 s: una conexión muda o que no contesta el ping se corta (y se reconecta sola). */
+  private watch(ws: WebSocket): void {
+    if (ws !== this.ws || ws.readyState !== WebSocket.OPEN) return;
+    const now = Date.now();
+    const idle = this.handlers.idleMs ?? 0;
+    const dead = now - this.lastAlive > (this.handlers.watchEveryMs ?? 15_000) * 3;
+    const mute = idle > 0 && now - this.lastMessage > idle && (this.handlers.expectData?.() ?? true);
+    if (dead || mute) {
+      this.log('warn', `${this.label}: ${dead ? 'no contesta' : 'sin datos'} hace ${Math.round((now - (dead ? this.lastAlive : this.lastMessage)) / 1000)} s. Reconecto.`);
+      ws.terminate();
+      return;
+    }
+    try {
+      ws.ping();
+    } catch {
+      // Se cierra sola si falla.
+    }
   }
 
   send(msg: unknown): void {
@@ -152,6 +193,7 @@ export class ReconnectingSocket {
   /** Corta la reconexión (por ejemplo, ante una clave inválida). */
   close(): void {
     this.closed = true;
+    if (this.watchTimer) clearInterval(this.watchTimer);
     this.ws?.close();
   }
 }
