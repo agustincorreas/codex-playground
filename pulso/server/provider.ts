@@ -126,6 +126,13 @@ export class ReconnectingSocket {
     if (this.ws?.readyState === WebSocket.OPEN) this.ws.send(JSON.stringify(msg));
   }
 
+  /** Cierra la conexión actual y vuelve a conectar con espera (sin cortar la reconexión). */
+  reconnect(): void {
+    if (this.closed) return;
+    if (this.ws && this.ws.readyState !== WebSocket.CLOSED) this.ws.close();
+    else this.connect();
+  }
+
   /** Corta la reconexión (por ejemplo, ante una clave inválida). */
   close(): void {
     this.closed = true;

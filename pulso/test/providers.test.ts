@@ -341,7 +341,7 @@ describe('AlpacaProvider con feed automático', () => {
     // El servidor falso también atiende el WebSocket: se apunta la URL del stream a él una vez detectado el feed.
     Object.defineProperty(provider, 'streamUrl', { get: () => `ws://127.0.0.1:${port}/v2/${provider.feed}` });
     await provider.start(ctx);
-    // Con 403 se insiste tres veces (el plan recién contratado tarda en propagarse) y recién ahí se asume el gratis.
+    // Ante el 403 se insiste tres veces (un plan recién contratado tarda en propagarse) y recién ahí se asume el gratis.
     expect(probes).toHaveLength(3);
     expect(Date.now() - Date.parse(probes[0])).toBeLessThan(15 * 60_000);
     expect(provider.feed).toBe('iex');
