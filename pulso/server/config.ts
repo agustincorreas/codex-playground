@@ -19,11 +19,14 @@ export interface Config {
   alpaca: {
     keyId?: string;
     secret?: string;
-    feed: 'sip' | 'iex' | 'delayed_sip';
+    /** `auto`: al arrancar se prueba el SIP y, si el plan no lo permite, se usa el gratis en capas. */
+    feed: 'auto' | 'sip' | 'iex' | 'delayed_sip';
     tradingUrl: string;
     dataUrl: string;
-    streamUrl: string;
+    /** Solo si se fuerza por variable de entorno (si no, depende del feed detectado). */
+    streamUrl?: string;
     newsStreamUrl: string;
+    /** 0 = según el plan (25 con IEX, 400 con SIP). */
     hotLimit: number;
     /** Plan gratis: cada cuánto se piden al mercado completo (demorado) los datos de todo el universo. */
     delayedPollMs: number;
@@ -62,7 +65,7 @@ export function loadConfig(): Config {
   const alpacaSecret = env('ALPACA_SECRET_KEY') ?? env('APCA_API_SECRET_KEY');
   const massiveKey = env('MASSIVE_API_KEY') ?? env('POLYGON_API_KEY');
   const massivePlan = (env('MASSIVE_PLAN') ?? 'advanced').toLowerCase() as MassivePlan;
-  const feed = (env('ALPACA_FEED') ?? 'iex').toLowerCase() as Config['alpaca']['feed'];
+  const feed = (env('ALPACA_FEED') ?? 'auto').toLowerCase() as Config['alpaca']['feed'];
 
   let provider = (env('DATA_PROVIDER') ?? 'auto').toLowerCase() as ProviderName | 'auto';
   if (provider === 'auto') {
@@ -93,12 +96,12 @@ export function loadConfig(): Config {
     alpaca: {
       keyId: alpacaKey,
       secret: alpacaSecret,
-      feed: ['sip', 'iex', 'delayed_sip'].includes(feed) ? feed : 'iex',
+      feed: ['auto', 'sip', 'iex', 'delayed_sip'].includes(feed) ? feed : 'auto',
       tradingUrl: env('ALPACA_TRADING_URL') ?? 'https://paper-api.alpaca.markets',
       dataUrl: env('ALPACA_DATA_URL') ?? 'https://data.alpaca.markets',
-      streamUrl: env('ALPACA_STREAM_URL') ?? `wss://stream.data.alpaca.markets/v2/${['sip', 'iex', 'delayed_sip'].includes(feed) ? feed : 'iex'}`,
+      streamUrl: env('ALPACA_STREAM_URL'),
       newsStreamUrl: env('ALPACA_NEWS_URL') ?? 'wss://stream.data.alpaca.markets/v1beta1/news',
-      hotLimit: num('ALPACA_HOT_SYMBOLS', feed === 'iex' ? 25 : 400),
+      hotLimit: num('ALPACA_HOT_SYMBOLS', 0),
       delayedPollMs: num('ALPACA_DELAYED_POLL_SEC', 60) * 1000,
       hotRefreshMs: num('ALPACA_HOT_REFRESH_SEC', 300) * 1000,
     },

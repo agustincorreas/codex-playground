@@ -275,6 +275,115 @@ describe('AlpacaProvider plan gratis en capas (IEX en vivo + mercado completo de
   }, 10_000);
 });
 
+describe('AlpacaProvider con feed automático', () => {
+  // Un servidor mínimo: con `sip` el plan responde 403 a cualquier consulta reciente (plan gratis) o 200 (Plus).
+  function fakeAlpaca(plus: boolean, onSubscribe: (m: Record<string, unknown>) => void) {
+    const probes: string[] = [];
+    server = createServer((req, res) => {
+      const url = new URL(req.url!, 'http://x');
+      const send = (body: unknown, code = 200) => {
+        res.writeHead(code, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(body));
+      };
+      if (url.pathname === '/v2/stocks/bars' && url.searchParams.get('feed') === 'sip' && url.searchParams.get('symbols') === 'SPY') {
+        probes.push(url.searchParams.get('start')!);
+        return plus ? send({ bars: { SPY: [] }, next_page_token: null }) : send({ message: 'subscription does not permit querying recent SIP data' }, 403);
+      }
+      if (url.pathname === '/v2/assets') return send([{ symbol: 'RUNR', name: 'Runner Inc', exchange: 'NASDAQ', tradable: true, status: 'active' }]);
+      if (url.pathname === '/v2/stocks/snapshots') {
+        return send({ RUNR: { latestTrade: { t: iso(at(9 * 60 + 40)), p: 3.0, s: 100 }, dailyBar: { t: dayIso(session.dateKey), o: 2.2, h: 3.1, l: 2.1, c: 3.0, v: 40_000 }, prevDailyBar: { t: dayIso(prevDay.dateKey), o: 1.9, h: 2.1, l: 1.8, c: 2.0, v: 800_000 } } });
+      }
+      if (url.pathname === '/v2/stocks/bars') return send({ bars: {}, next_page_token: null });
+      if (url.pathname === '/v1beta1/news') return send({ news: [], next_page_token: null });
+      res.writeHead(404);
+      res.end();
+    });
+    const wss = new WebSocketServer({ server });
+    wss.on('connection', (ws, req) => {
+      const news = req.url?.includes('news');
+      ws.send(JSON.stringify([{ T: 'success', msg: 'connected' }]));
+      ws.on('message', (raw) => {
+        const m = JSON.parse(raw.toString());
+        if (m.action === 'auth') ws.send(JSON.stringify([{ T: 'success', msg: 'authenticated' }]));
+        else if (m.action === 'subscribe' && !news) {
+          onSubscribe({ ...m, path: req.url });
+          if (m.trades) ws.send(JSON.stringify([{ T: 'q', S: 'RUNR', bp: 3.01, bs: 4, ap: 3.03, as: 12, t: iso(Date.now()), z: 'C' }]));
+        }
+      });
+    });
+    return probes;
+  }
+
+  function autoProvider(port: number) {
+    const base = `http://127.0.0.1:${port}`;
+    return new AlpacaProvider({
+      keyId: 'KEY',
+      secret: 'SECRET',
+      feed: 'auto',
+      tradingUrl: base,
+      dataUrl: base,
+      streamUrl: undefined,
+      newsStreamUrl: `ws://127.0.0.1:${port}/v1beta1/news`,
+      hotLimit: 0,
+      delayedPollMs: 600_000,
+      hotRefreshMs: 600_000,
+    });
+  }
+
+  it('con el plan gratis queda en capas (IEX)', async () => {
+    const subs: Array<Record<string, unknown>> = [];
+    const probes = fakeAlpaca(false, (m) => subs.push(m));
+    const port = await listen(server!);
+    const provider = autoProvider(port);
+    // Antes de arrancar no se sabe: se asume el gratis.
+    expect(provider.layered).toBe(true);
+    const { ctx, statuses } = makeCtx();
+    // El servidor falso también atiende el WebSocket: se apunta la URL del stream a él una vez detectado el feed.
+    Object.defineProperty(provider, 'streamUrl', { get: () => `ws://127.0.0.1:${port}/v2/${provider.feed}` });
+    await provider.start(ctx);
+    // Con 403 se insiste tres veces (el plan recién contratado tarda en propagarse) y recién ahí se asume el gratis.
+    expect(probes).toHaveLength(3);
+    expect(Date.now() - Date.parse(probes[0])).toBeLessThan(15 * 60_000);
+    expect(provider.feed).toBe('iex');
+    expect(provider.layered).toBe(true);
+    expect(provider.label).toBe('Alpaca gratis');
+    expect(provider['cfg'].hotLimit).toBe(25);
+    expect(statuses.some((s) => s.badge?.includes('IEX') && s.provider === 'Alpaca gratis')).toBe(true);
+    provider.setHot(['RUNR']);
+    await waitFor(() => subs.some((m) => m.trades));
+    // Con IEX no se piden cotizaciones (su libro no es el del mercado).
+    expect(subs.find((m) => m.trades)).not.toHaveProperty('quotes');
+    expect(subs[0].path).toBe('/v2/iex');
+    provider.stop();
+  });
+
+  it('con Algo Trader Plus usa el SIP en tiempo real y pide la cotización de los calientes', async () => {
+    const subs: Array<Record<string, unknown>> = [];
+    fakeAlpaca(true, (m) => subs.push(m));
+    const port = await listen(server!);
+    const provider = autoProvider(port);
+    Object.defineProperty(provider, 'streamUrl', { get: () => `ws://127.0.0.1:${port}/v2/${provider.feed}` });
+    const { ctx, engine, statuses } = makeCtx();
+    await provider.start(ctx);
+    expect(provider.feed).toBe('sip');
+    expect(provider.layered).toBe(false);
+    expect(provider.realtime).toBe(true);
+    expect(provider.label).toBe('Alpaca SIP');
+    expect(provider.badge).toBeUndefined();
+    expect(provider['cfg'].hotLimit).toBe(400);
+    expect(statuses.some((s) => s.provider === 'Alpaca SIP' && s.realtime === true)).toBe(true);
+    provider.setHot(['RUNR']);
+    await waitFor(() => subs.some((m) => m.trades));
+    expect(subs.find((m) => m.trades)).toMatchObject({ trades: ['RUNR'], quotes: ['RUNR'] });
+    expect(subs[0].path).toBe('/v2/sip');
+    // La cotización del stream (tamaños en lotes de 100) llega al motor.
+    const runr = engine.get('RUNR')!;
+    await waitFor(() => runr.ask === 3.03);
+    expect(runr).toMatchObject({ bid: 3.01, ask: 3.03, bidSize: 400, askSize: 1200 });
+    provider.stop();
+  });
+});
+
 describe('MassiveProvider contra un servidor falso', () => {
   it('arranca con cierres agrupados, snapshot y velas, y procesa A.* del websocket', async () => {
     let subscribedTo = '';

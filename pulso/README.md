@@ -325,7 +325,7 @@ cinta es solo la de IEX. Para operar en serio sigue haciendo falta el SIP en tie
    Alpaca no publica una lista de países; si te rechaza el país, escribí a support@alpaca.markets.
 3. En el dashboard: **Plans & Features → Market Data → Algo Trader Plus**. Se paga con tarjeta internacional
    en dólares (tu banco puede sumar percepciones por consumos en el exterior).
-4. Copiá las claves al archivo `.env` y poné `ALPACA_FEED=sip`. Si el feed SIP no te autoriza con las
+4. Las claves son las mismas: reiniciá Pulso y detecta solo el plan (`ALPACA_FEED=auto`). Si el feed SIP no te autoriza con las
    claves de paper, generá las de la cuenta real (Pulso detecta solo a qué servidor corresponden).
 
 ### Cómo sacar Massive (US$ 199/mes, o gratis solo para el float)
@@ -401,7 +401,7 @@ celular conectado a la misma red Wi-Fi.
 
 | Variable | Para qué |
 | --- | --- |
-| `ALPACA_KEY_ID`, `ALPACA_SECRET_KEY`, `ALPACA_FEED` | Alpaca (`iex` = plan gratis en capas, `sip` = pago). |
+| `ALPACA_KEY_ID`, `ALPACA_SECRET_KEY`, `ALPACA_FEED` | Alpaca (`auto` = detecta el plan al arrancar, `iex` = plan gratis en capas, `sip` = pago). |
 | `ALPACA_DELAYED_POLL_SEC`, `ALPACA_HOT_REFRESH_SEC` | Plan gratis: cada cuánto se repasa el mercado completo demorado (60) y se completan las velas consolidadas de los símbolos calientes (300). |
 | `MASSIVE_API_KEY`, `MASSIVE_PLAN` | Massive (`basic`, `starter`, `developer` o `advanced`). |
 | `SEC_USER_AGENT` | "Tu Nombre tu@email.com": activa las etiquetas de dilución de la SEC (S-1, shelf S-3, 424B, 8-K 3.02) y las acciones en circulación. |
@@ -474,7 +474,7 @@ pulso/
 | --- | --- |
 | `npm run dev` | Interfaz en modo demo con recarga en caliente (http://localhost:5173). |
 | `npm start` | Compila la interfaz y arranca el servidor (datos reales si hay claves). |
-| `npm test` | Pruebas (93): motor, alertas, bull flag, halts, Alpaca y Massive contra servidores falsos, simulador (el mismo mercado a cualquier hora, volumen por hora, días, ofertas, after-hours), el plan gratis de Alpaca en capas, bróker de práctica, días de práctica, respaldo y métricas. |
+| `npm test` | Pruebas (97): motor, alertas, bull flag, halts, Alpaca y Massive contra servidores falsos, simulador (el mismo mercado a cualquier hora, volumen por hora, días, ofertas, after-hours), el plan gratis de Alpaca en capas, la detección del plan, bróker de práctica, días de práctica, respaldo y métricas. |
 | `npm run typecheck` | Chequeo de tipos de todo el proyecto. |
 | `npm run build:demo` | Página única del demo (`dist-demo/index.html`) para GitHub Pages. |
 | `npm run build:desktop` | Interfaz + servidor en un solo archivo para la app de escritorio (`desktop/app/`). |
