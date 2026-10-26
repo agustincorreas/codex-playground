@@ -56,6 +56,7 @@
   --chart-down: #ff1f19;
   /* Línea del máximo del día: un verde distinto al de las velas y al precio actual. */
   --chart-hod: #2ec4b6;
+  --chart-draw: #ffffff;
   --chart-vwap: #fe902a;
   --chart-ema9: #c9ccd4;
   --chart-float: #f0d34a;
@@ -106,6 +107,7 @@
     --chart-up: #089981;
     --chart-down: #f23645;
     --chart-hod: #0f766e;
+    --chart-draw: #111827;
     --chart-ema9: #5d6273;
     --chart-float: #9a7400;
     --chart-mcap: #2563c9;
@@ -145,6 +147,7 @@
   --chart-up: #089981;
   --chart-down: #f23645;
   --chart-hod: #0f766e;
+  --chart-draw: #111827;
   --chart-ema9: #5d6273;
   --chart-float: #9a7400;
   --chart-mcap: #2563c9;
@@ -780,6 +783,10 @@ li.is-old {
 .badge.b-resume {
   color: var(--warn);
   background: color-mix(in srgb, var(--warn) 16%, transparent);
+}
+.badge.b-priceLine {
+  color: var(--text);
+  background: color-mix(in srgb, var(--text) 16%, transparent);
 }
 .badge.b-news,
 .badge.b-gapper,
@@ -3852,4 +3859,49 @@ table.scan th .sort-arrow {
   .conn-msg {
     display: none;
   }
+}
+
+/* ---------------------------------------------------------------- dibujo en el gráfico */
+.seg.draw button {
+  padding: 0 7px;
+  font-size: 13px;
+}
+.draw-hint {
+  position: absolute;
+  top: 6px;
+  right: 64px;
+  z-index: 4;
+  font-size: 11px;
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 2px 9px;
+  pointer-events: none;
+}
+.chart-host.is-drawing {
+  cursor: crosshair;
+}
+.draw-list {
+  position: absolute;
+  top: 6px;
+  right: 64px;
+  z-index: 4;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 6px 10px;
+  font-size: 11.5px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 60%;
+  overflow: auto;
+  font-variant-numeric: tabular-nums;
+}
+.draw-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
 }

@@ -25,7 +25,9 @@ import { daily, fourHour, historyFor, monthly, TF_4H, TF_DAY, TF_MONTH, TF_WEEK,
 import { aggregateBars, aggregateSpan, emaSeries, macdSeries, vwapSeries } from '../../engine/indicators';
 import { etOffset, etParts, POST_CLOSE, PRE_OPEN, REG_CLOSE, REG_OPEN } from '../../engine/time';
 import type { Alert, Bar, SymbolDetail } from '../../engine/types';
+import { addDrawing, clearDrawings, removeDrawing, toggleAlert, useDrawings, type TLine } from '../lib/drawings';
 import { load, save } from '../lib/storage';
+import { TrendLinesPrimitive } from './TrendLines';
 
 interface Series {
   session: ISeriesApi<'Histogram'>;
@@ -65,6 +67,7 @@ function palette() {
     up: css('--chart-up'),
     down: css('--chart-down'),
     hod: css('--chart-hod'),
+    draw: css('--chart-draw'),
     vwap: css('--chart-vwap'),
     ema9: css('--chart-ema9'),
     ema20: css('--chart-ema20'),
@@ -258,6 +261,19 @@ export function Chart({ id, defaultTf, detail, alerts, themeKey, now, position, 
   const [hover, setHover] = useState<number | null>(null);
   const [labelY, setLabelY] = useState<number | null>(null);
   const [scaleW, setScaleW] = useState(56);
+  // Dibujo: línea horizontal, alerta de precio o línea de tendencia (dos puntos); Esc cancela.
+  const [tool, setTool] = useState<'h' | 'alert' | 't' | null>(null);
+  const [pending, setPending] = useState<{ t: number; price: number } | null>(null);
+  const [showList, setShowList] = useState(false);
+  const toolRef = useRef(tool);
+  toolRef.current = tool;
+  const pendingRef = useRef(pending);
+  pendingRef.current = pending;
+  const symRef = useRef<string | null>(null);
+  symRef.current = detail?.sym ?? null;
+  const primRef = useRef<TrendLinesPrimitive | null>(null);
+  const userLinesRef = useRef<IPriceLine[]>([]);
+  const drawings = useDrawings(detail?.sym);
   const [hist, setHist] = useState<HistoryBars | null>(null);
   const histRef = useRef<HistoryBars | null>(null);
   histRef.current = hist;
@@ -308,6 +324,42 @@ export function Chart({ id, defaultTf, detail, alerts, themeKey, now, position, 
     const ema20 = chart.addSeries(LineSeries, { ...LINE, color: p.ema20 });
     const ema9 = chart.addSeries(LineSeries, { ...LINE, color: p.ema9 });
     const markers = createSeriesMarkers(candles, []);
+    // Líneas de tendencia dibujadas sobre las velas.
+    const prim = new TrendLinesPrimitive(() => {
+      const bars = barsRef.current;
+      if (!bars.length) return null;
+      return { first: toTime(bars[0].t), last: toTime(bars[bars.length - 1].t), lastIndex: bars.length - 1, tf: stateRef.current.tf };
+    });
+    candles.attachPrimitive(prim);
+    primRef.current = prim;
+    chart.subscribeClick((param) => {
+      const tool = toolRef.current;
+      const sym = symRef.current;
+      if (!tool || !sym || !param.point) return;
+      const raw = candles.coordinateToPrice(param.point.y);
+      if (raw === null || raw <= 0) return;
+      const price = raw >= 1 ? Math.round(raw * 100) / 100 : Math.round(raw * 10000) / 10000;
+      if (tool === 'h' || tool === 'alert') {
+        addDrawing(sym, { kind: 'h', price, alert: tool === 'alert' });
+        setTool(null);
+        return;
+      }
+      // Línea de tendencia: el instante del clic, también a la derecha de la última vela.
+      let t: number | null = typeof param.time === 'number' ? param.time : null;
+      if (t === null && param.logical !== undefined) {
+        const bars = barsRef.current;
+        if (bars.length) t = toTime(bars[bars.length - 1].t) + (param.logical - (bars.length - 1)) * stateRef.current.tf;
+      }
+      if (t === null) return;
+      const p = pendingRef.current;
+      if (!p) {
+        setPending({ t, price });
+        return;
+      }
+      addDrawing(sym, { kind: 't', a: p, b: { t, price } });
+      setPending(null);
+      setTool(null);
+    });
     // El símbolo y la temporalidad de fondo, como en las plataformas de day trading.
     const watermark = createTextWatermark(chart.panes()[0], {
       horzAlign: 'center',
@@ -340,6 +392,41 @@ export function Chart({ id, defaultTf, detail, alerts, themeKey, now, position, 
     if (chartRef.current && seriesRef.current) applyTheme(chartRef.current, seriesRef.current);
     stateRef.current.len = -1;
   }, [themeKey]);
+
+  // Tus líneas: las horizontales como líneas de precio (con la campana si tienen alerta) y las de
+  // tendencia en el dibujo sobre las velas.
+  useEffect(() => {
+    const s = seriesRef.current;
+    if (!s) return;
+    for (const l of userLinesRef.current) s.candles.removePriceLine(l);
+    userLinesRef.current = [];
+    const color = css('--chart-draw');
+    const sym = detail?.sym;
+    const tlines: TLine[] = [];
+    if (sym) {
+      for (const d of drawings) {
+        if (d.kind === 't') tlines.push(d);
+        else {
+          userLinesRef.current.push(
+            s.candles.createPriceLine({ price: d.price, color, lineWidth: 1, lineStyle: LineStyle.Solid, axisLabelVisible: true, title: d.alert ? (d.fired ? '🔔 ✓' : '🔔') : '' }),
+          );
+        }
+      }
+    }
+    primRef.current?.update(tlines, color, pending);
+  }, [drawings, detail?.sym, themeKey, pending]);
+
+  useEffect(() => {
+    if (!tool) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setTool(null);
+        setPending(null);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [tool]);
 
   useEffect(() => {
     const chart = chartRef.current;
@@ -475,9 +562,10 @@ export function Chart({ id, defaultTf, detail, alerts, themeKey, now, position, 
     const marks: SeriesMarker<Time>[] = [];
     for (const a of alerts) {
       if (a.sym !== detail.sym || a.ts < first) continue;
-      if (a.type !== 'halt' && a.type !== 'bullFlag' && a.type !== 'resume') continue;
+      if (a.type !== 'halt' && a.type !== 'bullFlag' && a.type !== 'resume' && a.type !== 'priceLine') continue;
       const time = toTime(bucket(a.ts));
-      if (a.type === 'halt') marks.push({ time, position: 'aboveBar', color: p.warn, shape: 'square', text: 'H' });
+      if (a.type === 'priceLine') marks.push({ time, position: 'aboveBar', color: p.draw, shape: 'circle', text: '🔔' });
+      else if (a.type === 'halt') marks.push({ time, position: 'aboveBar', color: p.warn, shape: 'square', text: 'H' });
       else if (a.type === 'resume') marks.push({ time, position: 'aboveBar', color: p.info, shape: 'circle', text: 'R' });
       else marks.push({ time, position: 'belowBar', color: p.up, shape: 'arrowUp', text: 'BF' });
     }
@@ -502,6 +590,10 @@ export function Chart({ id, defaultTf, detail, alerts, themeKey, now, position, 
   const changeTf = (x: number) => {
     setTf(x);
     save(`chart-tf-${id}`, x);
+  };
+  const pick = (x: 'h' | 'alert' | 't') => {
+    setPending(null);
+    setTool((cur) => (cur === x ? null : x));
   };
   const toggleMacd = () => {
     setShowMacd((v) => {
@@ -537,9 +629,53 @@ export function Chart({ id, defaultTf, detail, alerts, themeKey, now, position, 
         <button className={`chip ${showMacd ? 'is-active' : ''}`} onClick={toggleMacd} aria-pressed={showMacd}>
           MACD
         </button>
+        <div className="seg draw" role="group" aria-label="Dibujar">
+          <button className={tool === 'h' ? 'is-active' : ''} onClick={() => pick('h')} title="Línea horizontal: después tocá el precio en el gráfico" aria-pressed={tool === 'h'}>
+            ─
+          </button>
+          <button className={tool === 'alert' ? 'is-active' : ''} onClick={() => pick('alert')} title="Alerta de precio: una línea que suena y avisa cuando el precio la cruza" aria-pressed={tool === 'alert'}>
+            🔔
+          </button>
+          <button className={tool === 't' ? 'is-active' : ''} onClick={() => pick('t')} title="Línea de tendencia: tocá dos puntos" aria-pressed={tool === 't'}>
+            ╱
+          </button>
+        </div>
+        {drawings.length > 0 && (
+          <button className={`chip ${showList ? 'is-active' : ''}`} onClick={() => setShowList((v) => !v)} aria-pressed={showList} title="Tus líneas en esta acción">
+            Líneas {drawings.length}
+          </button>
+        )}
       </div>
       <div className="chart-wrap">
-        <div className="chart-host" ref={host} />
+        <div className={`chart-host${tool ? ' is-drawing' : ''}`} ref={host} />
+        {tool && <span className="draw-hint">{tool === 't' ? (pending ? 'Tocá el segundo punto' : 'Tocá el primer punto') : tool === 'alert' ? 'Tocá el precio de la alerta' : 'Tocá el precio'} · Esc cancela</span>}
+        {showList && detail && (
+          <div className="draw-list" role="dialog" aria-label="Tus líneas">
+            {drawings.map((d) => (
+              <div key={d.id} className="draw-row">
+                <span>{d.kind === 'h' ? `${d.alert ? '🔔' : '─'} ${fmt(d.price)}${d.fired ? ' · sonó' : ''}` : `╱ ${fmt(d.a.price)} → ${fmt(d.b.price)}`}</span>
+                {d.kind === 'h' && (
+                  <button type="button" className="link" onClick={() => toggleAlert(detail.sym, d.id)}>
+                    {d.alert ? 'Sin alerta' : 'Alerta'}
+                  </button>
+                )}
+                <button type="button" className="link" onClick={() => removeDrawing(detail.sym, d.id)}>
+                  Borrar
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              className="link"
+              onClick={() => {
+                clearDrawings(detail.sym);
+                setShowList(false);
+              }}
+            >
+              Borrar todas
+            </button>
+          </div>
+        )}
         {detail && lg && (
           <div className="chart-legend">
             <div className="lg-row">

@@ -487,8 +487,16 @@ export class TrainingController {
     if (a.clock === 'ny') this.ensureSession();
   }
 
+  /** Símbolos que la página quiere seguir aparte de los de la cuenta (alertas de precio dibujadas). */
+  private extraTracked: string[] = [];
+
+  setExtraTracked(syms: string[]): void {
+    this.extraTracked = syms;
+    this.syncTracked();
+  }
+
   private syncTracked(): void {
-    const syms = this.broker?.symbols() ?? [];
+    const syms = [...new Set([...(this.broker?.symbols() ?? []), ...this.extraTracked])];
     const key = syms.join(',');
     if (key !== this.trackedKey) {
       this.trackedKey = key;

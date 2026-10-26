@@ -24,6 +24,7 @@ import { DEFAULT_SOUND_TYPES } from './lib/alertMeta';
 import { beep, playOrder, speak, unlockAudio } from './lib/audio';
 import { matches, typing } from './lib/hotkeys';
 import { fmtDay, HEAT_HINT, HEAT_LABEL } from './lib/days';
+import { crossAlerts, subscribeDrawings, symbolsWithAlerts } from './lib/drawings';
 import { load, save } from './lib/storage';
 import { LocalSource, type SimConfig } from './source/local';
 import { detectServer, RemoteSource } from './source/remote';
@@ -43,9 +44,9 @@ const DEFAULT_PREFS: Prefs = {
 };
 
 /** Señales que se leen en voz alta: las de momentum (algo que se está moviendo ahora) y los halts. */
-const VOICE_TYPES = new Set<AlertType>(['hod', 'squeeze', 'running', 'bullFlag', 'pmhBreak', 'volume', 'halt', 'resume']);
+const VOICE_TYPES = new Set<AlertType>(['hod', 'squeeze', 'running', 'bullFlag', 'pmhBreak', 'volume', 'halt', 'resume', 'priceLine']);
 /** Si llegan varias juntas, suena la más importante. */
-const ALERT_PRIORITY: Partial<Record<AlertType, number>> = { halt: 9, resume: 8, squeeze: 7, bullFlag: 6, running: 5, pmhBreak: 4, hod: 3, volume: 2 };
+const ALERT_PRIORITY: Partial<Record<AlertType, number>> = { halt: 9, priceLine: 9, resume: 8, squeeze: 7, bullFlag: 6, running: 5, pmhBreak: 4, hod: 3, volume: 2 };
 /** La misma acción no se vuelve a leer en voz alta antes de este tiempo (salvo halts). */
 const VOICE_COOLDOWN_MS = 45_000;
 
@@ -299,6 +300,7 @@ function Workspace({ server, c }: { server: boolean; c: TrainingController }) {
     src.start({
       onView: (v) => {
         setView(v);
+        checkLineAlerts(src);
         // Sin selección (o con una que ya no existe en el simulador), mostrar el primer gapper.
         const cur = selectedRef.current;
         const known = !!cur && !!src.row(cur);
@@ -345,6 +347,44 @@ function Workspace({ server, c }: { server: boolean; c: TrainingController }) {
 
   // Alertas del escáner: un sonido y, para las de momentum, la voz ("V I O. Squeeze. Sube 45 por
   // ciento"). Suena la más importante del grupo y la misma acción no se repite enseguida.
+  // Alertas de precio dibujadas en el gráfico: cuando el precio de una acción cruza una de tus líneas
+  // con campana, suena, se lee y entra en las alertas (una sola vez por línea).
+  const linePriceRef = useRef(new Map<string, number>());
+  useEffect(() => {
+    const sync = () => c.setExtraTracked(symbolsWithAlerts());
+    sync();
+    return subscribeDrawings(sync);
+  }, [c]);
+  function checkLineAlerts(src: DataSource) {
+    for (const sym of symbolsWithAlerts()) {
+      const r = src.row(sym);
+      const price = r?.price;
+      if (!price) continue;
+      const prev = linePriceRef.current.get(sym);
+      linePriceRef.current.set(sym, price);
+      if (prev === undefined) continue;
+      const now = src.now();
+      for (const l of crossAlerts(sym, prev, price, now)) {
+        const upward = price >= l.price;
+        const a: Alert = {
+          id: `line-${sym}-${l.id}`,
+          ts: now,
+          sym,
+          type: 'priceLine',
+          text: `Cruzó tu línea de $${l.price >= 1 ? l.price.toFixed(2) : l.price.toFixed(4)} ${upward ? 'hacia arriba' : 'hacia abajo'}`,
+          price,
+          changePct: r.changePct,
+          volume: r.volume,
+          rvol: r.rvol,
+          score: r.score,
+          tone: upward ? 'up' : 'down',
+        };
+        setAlerts((prev) => [...prev, a].slice(-600));
+        playAlerts([a]);
+        c.notify(`${sym}: ${a.text}.`, upward ? 'ok' : 'error');
+      }
+    }
+  }
   function playAlerts(list: Alert[]) {
     const p = prefsRef.current;
     if (!p.sound) return;
