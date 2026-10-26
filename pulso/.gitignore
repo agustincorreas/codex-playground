@@ -5,3 +5,6 @@ dist-demo/
 .env
 data/float.csv
 *.log
+desktop/node_modules/
+desktop/app/
+desktop/release/

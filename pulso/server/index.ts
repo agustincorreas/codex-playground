@@ -17,7 +17,8 @@ import { SecData } from './sec';
 import { log, RateLimiter, recentLogs, ROOT } from './util';
 
 const cfg = loadConfig();
-const DIST = join(ROOT, 'dist');
+/** Interfaz compilada (la app de escritorio la ubica con PULSO_DIST_DIR). */
+const DIST = process.env.PULSO_DIST_DIR?.trim() || join(ROOT, 'dist');
 
 interface Client {
   ws: WebSocket;
