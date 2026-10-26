@@ -30,6 +30,8 @@ export interface Provider {
   setHot(syms: string[]): void;
   /** Velas de 1 minuto del día para un símbolo (cuando el motor no las tiene completas). */
   backfill(sym: string): Promise<Bar[] | null>;
+  /** Velas de 10 s de las últimas horas, armadas con las operaciones históricas (gráficos de 10 s y 30 s). */
+  backfillSec?(sym: string): Promise<Bar[] | null>;
 }
 
 export class DemoProvider implements Provider {

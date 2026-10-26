@@ -184,6 +184,15 @@ export class SymbolState {
     if (this.secBars.length > MAX_SEC_BARS + 120) this.secBars.splice(0, this.secBars.length - MAX_SEC_BARS);
   }
 
+  /** Velas de 10 s anteriores a las propias (historia que se consigue después, p. ej. de las operaciones). */
+  prependSecBars(bars: Bar[]): void {
+    const firstOwn = this.secBars.length ? this.secBars[0].t : Infinity;
+    const older = bars.filter((b) => b.t < firstOwn).map((b) => ({ ...b }));
+    if (!older.length) return;
+    this.secBars = [...older, ...this.secBars];
+    if (this.secBars.length > MAX_SEC_BARS) this.secBars.splice(0, this.secBars.length - MAX_SEC_BARS);
+  }
+
   /** Volumen típico por minuto: promedio de las últimas 5 velas cerradas (o la actual si no hay). */
   volumePerMinute(): number {
     const n = this.bars.length;

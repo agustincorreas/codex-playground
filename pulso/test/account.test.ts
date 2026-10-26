@@ -52,3 +52,24 @@ describe('saldo de la cuenta', () => {
     expect(parseMoney('abc')).toBeUndefined();
   });
 });
+
+describe('análisis de cómo te está yendo', () => {
+  it('redacta párrafos con los números clave y maneja la cuenta vacía', async () => {
+    const { buildFacts, narrative, reviewPrompt } = await import('../src/client/lib/review');
+    const { summarize } = await import('../src/trading/stats');
+    const mk = (i: number, net: number, r?: number) =>
+      ({ id: `t${i}`, sessionId: `s${i % 3}`, sym: 'RUN', shares: 100, avgEntry: 3, avgExit: 3 + net / 100, openedAt: 1_700_000_000_000 + i * 60_000, closedAt: 1_700_000_000_000 + i * 60_000 + 90_000, gross: net, fees: 0, net, returnPct: net / 3, r, exitReason: 'manual', setup: i % 2 ? 'Bull flag' : 'Gap and go' }) as never;
+    const trades = [mk(1, 40, 2), mk(2, -20, -1), mk(3, 60, 3), mk(4, -25, -1), mk(5, 30, 1.5), mk(6, -15)];
+    const facts = buildFacts(trades, summarize(trades), [], 1000, (t) => Number(t.sessionId.slice(1)) + 1);
+    expect(facts.trades).toBe(6);
+    expect(facts.days).toBe(3);
+    expect(facts.net).toBe(70);
+    const text = narrative(facts).join(' ');
+    expect(text).toMatch(/6 trades/);
+    expect(text).toMatch(/\$70\.00/);
+    expect(text).toMatch(/50 %/);
+    expect(reviewPrompt(facts)).toMatch(/voseo/);
+    expect(narrative(buildFacts([], summarize([]), [], 1000, () => undefined))[0]).toMatch(/Todavía no hay trades/);
+  });
+});
+

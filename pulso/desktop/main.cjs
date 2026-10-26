@@ -43,6 +43,32 @@ function hasKeys(s) {
   return !!(s.alpacaKey && s.alpacaSecret);
 }
 
+/**
+ * Versión privada: las claves vienen dentro de la app (app/defaults.json, generado al compilar con
+ * las claves del dueño). La primera vez se copian a los ajustes y no se pide nada.
+ */
+function applyDefaults() {
+  const s = readSettings();
+  if (hasKeys(s) || s.setupSeen) return s;
+  try {
+    const d = JSON.parse(fs.readFileSync(path.join(APP_DIR, 'defaults.json'), 'utf8'));
+    if (!d || !d.alpacaKey || !d.alpacaSecret) return s;
+    const next = {
+      ...s,
+      alpacaKey: String(d.alpacaKey),
+      alpacaSecret: String(d.alpacaSecret),
+      alpacaFeed: d.alpacaFeed === 'sip' ? 'sip' : 'iex',
+      massiveKey: String(d.massiveKey || ''),
+      massivePlan: d.massivePlan || 'basic',
+      setupSeen: true,
+    };
+    writeSettings(next);
+    return next;
+  } catch {
+    return s;
+  }
+}
+
 function pushLog(line) {
   const text = line.replace(/\s+$/, '');
   if (!text) return;
@@ -363,7 +389,7 @@ if (!app.requestSingleInstanceLock()) {
   app.whenReady().then(() => {
     buildMenu();
     createWindow();
-    const s = readSettings();
+    const s = applyDefaults();
     startServer();
     if (!hasKeys(s) && !s.setupSeen) openSetup();
     app.on('activate', () => {
