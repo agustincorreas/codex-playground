@@ -230,19 +230,15 @@ export class AlpacaProvider implements Provider {
 
   /** ¿El plan permite el SIP en tiempo real? (El gratis responde 403 a cualquier consulta SIP reciente.) */
   private async hasSip(): Promise<boolean> {
-    // Recién contratado el plan, Alpaca tarda unos minutos en habilitarlo en todos sus servidores: se
-    // prueba hasta tres veces y con un "sí" alcanza (el plan gratis nunca responde 200).
-    for (let attempt = 0; attempt < 3; attempt++) {
-      const start = new Date(Date.now() - 10 * 60_000).toISOString();
-      try {
-        await this.get(`${this.cfg.dataUrl}/v2/stocks/bars?symbols=SPY&timeframe=1Min&start=${start}&limit=1&feed=sip`);
-        return true;
-      } catch (e) {
-        if (!(e instanceof HttpError && e.status === 403)) throw e;
-      }
-      await new Promise((r) => setTimeout(r, 400));
+    // `get` insiste tres veces ante el 403; con un "sí" alcanza (el plan gratis nunca responde 200).
+    const start = new Date(Date.now() - 10 * 60_000).toISOString();
+    try {
+      await this.get(`${this.cfg.dataUrl}/v2/stocks/bars?symbols=SPY&timeframe=1Min&start=${start}&limit=1&feed=sip`);
+      return true;
+    } catch (e) {
+      if (e instanceof HttpError && e.status === 403) return false;
+      throw e;
     }
-    return false;
   }
 
   private liveMessage(): string {
@@ -258,8 +254,19 @@ export class AlpacaProvider implements Provider {
     return { 'APCA-API-KEY-ID': this.cfg.keyId!, 'APCA-API-SECRET-KEY': this.cfg.secret! };
   }
 
-  private get(url: string) {
-    return getJson<unknown>(url, { headers: this.headers, limiter: this.limiter });
+  /**
+   * GET con reintento cuando Alpaca contesta 403 "subscription does not permit": recién contratado el
+   * plan, durante unos minutos algunos de sus servidores lo tienen y otros no.
+   */
+  private async get(url: string): Promise<unknown> {
+    for (let attempt = 0; ; attempt++) {
+      try {
+        return await getJson<unknown>(url, { headers: this.headers, limiter: this.limiter });
+      } catch (e) {
+        if (attempt >= 2 || !(e instanceof HttpError && e.status === 403 && /subscription/i.test(e.body))) throw e;
+        await new Promise((r) => setTimeout(r, 500));
+      }
+    }
   }
 
   now(): number {
@@ -546,7 +553,10 @@ export class AlpacaProvider implements Provider {
     const hint = hints[code] ?? msg;
     log('error', `Alpaca stream: error ${code} (${msg}). ${hint}`);
     setStatus({ connected: false, message: hint });
-    if (code === 402 || code === 409) this.stream?.close();
+    // Con 402 (clave mala) no tiene sentido insistir. Con 409 sí: recién contratado el plan, algunos
+    // servidores de Alpaca todavía no lo ven; la reconexión con espera cae en otro.
+    if (code === 402) this.stream?.close();
+    if (code === 409) this.stream?.reconnect();
     if (code === 405) {
       this.cfg.hotLimit = Math.max(5, Math.floor(this.cfg.hotLimit / 2));
       this.syncHot();
