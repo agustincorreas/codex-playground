@@ -1,7 +1,10 @@
 // Prueba de punta a punta de los adaptadores contra servidores falsos que imitan los protocolos
 // documentados de Alpaca y Massive (REST + WebSocket).
+import { mkdtempSync } from 'node:fs';
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { WebSocketServer } from 'ws';
 import { Engine } from '../src/engine/engine';
@@ -10,6 +13,9 @@ import type { ProviderStatus } from '../src/engine/types';
 import { AlpacaProvider } from '../server/alpaca';
 import { MassiveProvider } from '../server/massive';
 import type { ProviderContext } from '../server/provider';
+
+// La caché de los proveedores va a una carpeta temporal: la real es la del servidor con datos de verdad.
+process.env.PULSO_CACHE_DIR = mkdtempSync(join(tmpdir(), 'pulso-cache-'));
 
 const session = sessionDate(Date.now());
 const at = (minutes: number) => etWallToTs(session.y, session.mo, session.d, minutes);

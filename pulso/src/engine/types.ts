@@ -58,6 +58,8 @@ export interface DelayedSnapshot {
   volume: number;
   vwap?: number;
   open?: number;
+  /** Última vela de 1 minuto consolidada (reemplaza a la del feed parcial de ese minuto). */
+  minute?: Bar;
 }
 
 export interface NewsItem {

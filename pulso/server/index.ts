@@ -253,6 +253,25 @@ const server = createServer((req, res) => {
     });
   }
   if (url.pathname === '/api/search') return json(res, engine.search(url.searchParams.get('q') ?? ''));
+  if (url.pathname === '/api/symbol') {
+    // Diagnóstico de una acción: cómo se combinan el feed en vivo y el mercado completo demorado.
+    const st = engine.get((url.searchParams.get('sym') ?? '').toUpperCase());
+    if (!st) return json(res, { error: 'símbolo desconocido' }, 404);
+    return json(res, {
+      sym: st.sym,
+      last: st.last,
+      lastTs: st.lastTs,
+      volume: st.volume,
+      feedVolume: st.feedVolume,
+      volumeScale: st.volumeScale,
+      consolidatedTs: st.consolidatedTs,
+      avgVolume: st.ref.avgVolume,
+      float: st.ref.float,
+      bars: st.bars.length,
+      lastBars: st.bars.slice(-8).map((b) => [new Date(b.t).toISOString().slice(11, 16), b.v]),
+      rvol5m: engine.row(st.sym)?.rvol5m,
+    });
+  }
   if (url.pathname === '/api/logs') return json(res, recentLogs());
   serveStatic(req, res);
 });

@@ -171,7 +171,8 @@ export function delayedFromSnapshot(sym: string, s: AlpacaSnapshot, session: EtD
   const start = tradingDayStart(Date.parse(`${session.dateKey}T16:00:00Z`));
   if (!(ts >= start)) return null;
   const db = s.dailyBar && etParts(Date.parse(s.dailyBar.t)).dateKey === session.dateKey ? s.dailyBar : undefined;
-  return { sym, ts, last: lt.p, high: Math.max(db?.h ?? 0, lt.p), low: Math.min(db?.l ?? Infinity, lt.p), volume: db?.v ?? 0, vwap: db?.vw, open: db?.o };
+  const mb = s.minuteBar && Date.parse(s.minuteBar.t) >= start ? barFromAlpaca(s.minuteBar) : undefined;
+  return { sym, ts, last: lt.p, high: Math.max(db?.h ?? 0, lt.p), low: Math.min(db?.l ?? Infinity, lt.p), volume: db?.v ?? 0, vwap: db?.vw, open: db?.o, minute: mb };
 }
 
 export class AlpacaProvider implements Provider {
@@ -231,6 +232,7 @@ export class AlpacaProvider implements Provider {
     ctx.setStatus({ message: `Alpaca: snapshots de ${listed.length} acciones…` });
     const snaps = await this.snapshots(listed.map((a) => a.symbol));
     const engine = ctx.engine();
+    if (this.layered) engine.feedScale = 35;
     const refs: ReferenceData[] = [];
     const days: DaySnapshot[] = [];
     const { universeMin, universeMax } = ctx;

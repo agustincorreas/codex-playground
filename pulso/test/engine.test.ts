@@ -217,6 +217,49 @@ describe('motor: feed parcial en vivo + mercado completo demorado', () => {
     expect(st.consolidatedTs).toBe(t(9 * 60 + 33, 59));
   });
 
+  it('la vela consolidada del minuto reemplaza a la del feed y calibra la escala (también en pre-market)', () => {
+    const engine = make();
+    engine.ingest({ kind: 'trade', sym: 'RUNR', ts: t(8 * 60 + 10, 5), price: 3, size: 200 });
+    engine.ingest({ kind: 'trade', sym: 'RUNR', ts: t(8 * 60 + 11, 5), price: 3.1, size: 100 });
+    // Pre-market: el snapshot demorado todavía no trae volumen del día, pero sí la vela del minuto.
+    engine.applyDelayed([{ sym: 'RUNR', ts: t(8 * 60 + 10, 59), last: 3.02, high: 3.05, low: 2.95, volume: 0, minute: { t: t(8 * 60 + 10), o: 2.98, h: 3.05, l: 2.95, c: 3.02, v: 8_000, pv: 24_000, n: 60 } }]);
+    const st = engine.get('RUNR')!;
+    expect(st.bars.map((b) => [b.t, b.v])).toEqual([
+      [t(8 * 60 + 10), 8_000],
+      [t(8 * 60 + 11), 100],
+    ]);
+    expect(st.volume).toBe(8_100);
+    expect(st.volumeScale).toBe(40);
+    expect(st.lod).toBe(2.95);
+  });
+
+  it('una vela consolidada muchos minutos atrás reemplaza a la del feed, sin duplicarla', () => {
+    const engine = make();
+    for (let i = 0; i < 30; i++) engine.ingest({ kind: 'trade', sym: 'RUNR', ts: t(9 * 60 + 30 + i, 5), price: 3, size: 10 });
+    const st = engine.get('RUNR')!;
+    expect(st.bars).toHaveLength(30);
+    engine.applyDelayed([{ sym: 'RUNR', ts: t(9 * 60 + 44, 59), last: 3, high: 3, low: 3, volume: 0, minute: { t: t(9 * 60 + 44), o: 3, h: 3, l: 3, c: 3, v: 5_000, pv: 15_000, n: 40 } }]);
+    expect(st.bars).toHaveLength(30);
+    expect(st.bars.filter((b) => b.t === t(9 * 60 + 44)).map((b) => b.v)).toEqual([5_000]);
+    expect(st.volume).toBe(29 * 10 + 5_000);
+    engine.mergeBars('RUNR', [{ t: t(9 * 60 + 31), o: 3, h: 3.5, l: 3, c: 3, v: 7_000, pv: 21_000, n: 50 }]);
+    expect(st.bars).toHaveLength(30);
+    expect(st.volume).toBe(28 * 10 + 5_000 + 7_000);
+    expect(st.hod).toBe(3.5);
+  });
+
+  it('sin calibración propia, la escala arranca en la del feed y la primera muestra la reemplaza', () => {
+    const engine = make();
+    engine.feedScale = 35;
+    engine.ingest({ kind: 'trade', sym: 'RUNR', ts: t(8 * 60 + 12, 5), price: 3, size: 100 });
+    engine.applyDelayed([{ sym: 'RUNR', ts: t(8 * 60 + 10, 59), last: 3, high: 3, low: 3, volume: 0 }]);
+    const st = engine.get('RUNR')!;
+    expect(st.volumeScale).toBe(35);
+    expect(st.volumeSinceEstimated(t(8 * 60 + 13), 5)).toBe(3500);
+    engine.applyDelayed([{ sym: 'RUNR', ts: t(8 * 60 + 12, 59), last: 3, high: 3, low: 3, volume: 0, minute: { t: t(8 * 60 + 12), o: 3, h: 3, l: 3, c: 3, v: 2_000, pv: 6_000, n: 20 } }]);
+    expect(st.volumeScale).toBe(20);
+  });
+
   it('sin prints en el feed, el último precio demorado vale más que nada', () => {
     const engine = make();
     engine.applyDelayed([{ sym: 'RUNR', ts: t(9 * 60 + 40), last: 2.8, high: 2.9, low: 2.1, volume: 120_000, open: 2.3 }]);

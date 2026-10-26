@@ -449,7 +449,7 @@ pulso/
 | --- | --- |
 | `npm run dev` | Interfaz en modo demo con recarga en caliente (http://localhost:5173). |
 | `npm start` | Compila la interfaz y arranca el servidor (datos reales si hay claves). |
-| `npm test` | Pruebas (90): motor, alertas, bull flag, halts, Alpaca y Massive contra servidores falsos, simulador (el mismo mercado a cualquier hora, volumen por hora, días, ofertas, after-hours), el plan gratis de Alpaca en capas, bróker de práctica, días de práctica, respaldo y métricas. |
+| `npm test` | Pruebas (93): motor, alertas, bull flag, halts, Alpaca y Massive contra servidores falsos, simulador (el mismo mercado a cualquier hora, volumen por hora, días, ofertas, after-hours), el plan gratis de Alpaca en capas, bróker de práctica, días de práctica, respaldo y métricas. |
 | `npm run typecheck` | Chequeo de tipos de todo el proyecto. |
 | `npm run build:demo` | Página única del demo (`dist-demo/index.html`) para GitHub Pages. |
 

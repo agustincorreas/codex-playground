@@ -42,6 +42,8 @@ export class SymbolState {
    * consolidados demorados y sirve para estimar el volumen de los últimos minutos.
    */
   volumeScale = 1;
+  /** Muestras de calibración recibidas (la primera reemplaza el valor inicial; las demás se promedian). */
+  scaleSamples = 0;
   /** Volumen acumulado del día que llegó por el feed en vivo, con marcas por minuto para calibrar. */
   feedVolume = 0;
   private feedMarks: Array<[number, number]> = [];
@@ -215,6 +217,34 @@ export class SymbolState {
     if (pos === this.bars.length) this.closeBarsBefore(bar.t);
     this.bars.splice(pos, 0, { ...bar });
     return { dv: bar.v };
+  }
+
+  /**
+   * Reemplaza (o inserta en su lugar) una vela de 1 minuto buscándola en todo el día: para las velas
+   * consolidadas que llegan con demora, que pueden estar muchos minutos atrás. Devuelve la diferencia
+   * de volumen respecto de la vela que había.
+   */
+  upsertMinuteBar(bar: Bar): number {
+    let lo = 0;
+    let hi = this.bars.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (this.bars[mid].t < bar.t) lo = mid + 1;
+      else hi = mid;
+    }
+    const cur = this.bars[lo];
+    if (cur && cur.t === bar.t) {
+      const dv = bar.v - cur.v;
+      this.volume += dv;
+      this.pv += bar.pv - cur.pv;
+      this.bars[lo] = { ...bar };
+      return dv;
+    }
+    this.volume += bar.v;
+    this.pv += bar.pv;
+    if (lo === this.bars.length) this.closeBarsBefore(bar.t);
+    this.bars.splice(lo, 0, { ...bar });
+    return bar.v;
   }
 
   private findBar(t: number): number {

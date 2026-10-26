@@ -196,14 +196,36 @@ export class Engine implements AlertSink {
    * en silencio (sin alertas: ya pasaron) y las acciones sin prints en el feed toman el último precio
    * demorado. También se calibra cuánto representa el mercado respecto del feed.
    */
+  /**
+   * Feed parcial: cuánto representa el mercado completo respecto del feed mientras una acción no tenga
+   * su propia calibración (IEX ve ~2–3 % del volumen: unas 35 veces menos).
+   */
+  feedScale = 1;
+
   applyDelayed(list: DelayedSnapshot[]): void {
     for (const d of list) {
       const st = this.ensure(d.sym, d.last);
       if (!st || !(d.ts > 0)) continue;
       if (d.ts <= st.consolidatedTs) continue;
       st.consolidatedTs = d.ts;
+      if (!st.scaleSamples && st.volumeScale === 1) st.volumeScale = this.feedScale;
+      // La vela consolidada del minuto reemplaza a la del feed; la relación entre las dos calibra la escala.
+      if (d.minute && d.minute.v > 0) {
+        const own = st.bars.find((b) => b.t === d.minute!.t);
+        if (own && own.v > 0) {
+          const sample = Math.min(500, Math.max(1, d.minute.v / own.v));
+          st.volumeScale = st.scaleSamples ? st.volumeScale * 0.7 + sample * 0.3 : sample;
+          st.scaleSamples++;
+        }
+        st.upsertMinuteBar(d.minute);
+        if (d.minute.h > st.hod) st.hod = d.minute.h;
+        if (d.minute.l < st.lod) st.lod = d.minute.l;
+      }
       const feedSoFar = st.feedVolumeAt(d.ts);
-      if (feedSoFar > 0 && d.volume > 0) st.volumeScale = Math.min(500, Math.max(1, d.volume / feedSoFar));
+      if (feedSoFar > 0 && d.volume > 0) {
+        st.volumeScale = Math.min(500, Math.max(1, d.volume / feedSoFar));
+        st.scaleSamples++;
+      }
       const after = st.volumeAfter(d.ts);
       const volume = d.volume + after.v;
       if (volume > st.volume) {
@@ -235,7 +257,7 @@ export class Engine implements AlertSink {
     this.setBars(sym, bars);
     for (const b of bars) {
       if (!st.bars.length || b.t < st.bars[0].t) continue;
-      st.setMinuteBar({ ...b });
+      st.upsertMinuteBar(b);
     }
     // Consolidado hasta el último milisegundo de la última vela recibida.
     const covered = bars[bars.length - 1].t + 60_000 - 1;
