@@ -540,6 +540,45 @@ export class AlpacaProvider implements Provider {
     return res.get(sym) ?? null;
   }
 
+  /**
+   * Velas de 10 s de las últimas dos horas a partir de las operaciones consolidadas (con el plan gratis,
+   * hasta hace 16 minutos; lo último lo completan los prints en vivo).
+   */
+  async backfillSec(sym: string): Promise<Bar[] | null> {
+    const paid = this.cfg.feed === 'sip';
+    const end = paid ? Date.now() : Date.now() - 16 * 60_000;
+    const start = end - 2 * 3_600_000;
+    const bars = new Map<number, Bar>();
+    let token: string | undefined;
+    for (let page = 0; page < 8; page++) {
+      const url =
+        `${this.cfg.dataUrl}/v2/stocks/${encodeURIComponent(sym)}/trades?start=${new Date(start).toISOString()}&end=${new Date(end).toISOString()}` +
+        `&limit=10000&feed=sip&sort=asc${token ? `&page_token=${encodeURIComponent(token)}` : ''}`;
+      const res = (await this.get(url)) as { trades: Array<{ t: string; p: number; s: number; c?: string[] }>; next_page_token?: string | null };
+      for (const tr of res.trades ?? []) {
+        const ts = Date.parse(tr.t);
+        const t = Math.floor(ts / 10_000) * 10_000;
+        const price = (tr.c ?? []).some((c) => NO_PRICE_CONDITIONS.has(c)) ? undefined : tr.p;
+        const b = bars.get(t);
+        if (!b) {
+          bars.set(t, { t, o: price ?? tr.p, h: price ?? tr.p, l: price ?? tr.p, c: price ?? tr.p, v: tr.s, pv: tr.p * tr.s, n: 1 });
+          continue;
+        }
+        if (price !== undefined) {
+          if (price > b.h) b.h = price;
+          if (price < b.l) b.l = price;
+          b.c = price;
+        }
+        b.v += tr.s;
+        b.pv += tr.p * tr.s;
+        b.n++;
+      }
+      token = res.next_page_token ?? undefined;
+      if (!token) break;
+    }
+    return bars.size ? [...bars.values()].sort((a, b) => a.t - b.t) : null;
+  }
+
   stop(): void {
     this.stream?.close();
     this.news?.close();

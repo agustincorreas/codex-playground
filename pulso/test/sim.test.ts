@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { Engine } from '../src/engine/engine';
 import { dayHeat, lastTradingDay, MarketSim, seedForDay } from '../src/sim/simulator';
-import { etParts, volumeIntensity } from '../src/engine/time';
+import { etParts, etWallToTs, volumeIntensity } from '../src/engine/time';
 import type { Alert } from '../src/engine/types';
 
 const FRIDAY = Date.parse('2026-10-23T15:00:00Z');
@@ -100,6 +100,21 @@ describe('el mismo mercado a cualquier hora', () => {
     expect(traded.tracked).toBeGreaterThan(0);
     const other = full.sim.refs.find((r) => r.sym !== sym && (full.engine.get(r.sym)?.tape.length ?? 0) > 0)!;
     expect(only.engine.get(other.sym)?.tape.length ?? 0).toBe(0);
+  }, 20_000);
+});
+
+describe('velas de 10 segundos con historia', () => {
+  it('las acciones en juego arrancan con velas de 10 s de las últimas dos horas', () => {
+    const { engine } = market(42, 9 * 60 + 29);
+    const top = engine.view().scanners.gappers[0];
+    const st = engine.get(top.sym)!;
+    expect(st.secBars.length).toBeGreaterThan(300);
+    // Desde que empezó a moverse (o desde dos horas antes del inicio, lo que sea más tarde).
+    expect(st.secBars[0].t).toBeLessThanOrEqual(etWallToTs(2026, 10, 23, 9 * 60));
+    // Las velas de 1 minuto se arman con las de 10 s: el mismo volumen por minuto.
+    const minute = st.bars.find((b) => b.t === etWallToTs(2026, 10, 23, 9 * 60))!;
+    const fromSec = st.secBars.filter((b) => b.t >= minute.t && b.t < minute.t + 60_000).reduce((v, b) => v + b.v, 0);
+    expect(fromSec).toBe(minute.v);
   }, 20_000);
 });
 

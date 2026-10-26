@@ -2,13 +2,15 @@
 // tus aptitudes (ganancias y pérdidas, ganadores, perdedores), la "Profit Trifecta" de Ross Cameron
 // (constancia, % de aciertos y relación ganancia/pérdida), la rentabilidad por precio, horario, gap,
 // volumen y volumen relativo, el rendimiento por semana, la curva de capital y todos los trades.
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { formatEtTime } from '../../engine/time';
 import { fmtMoney } from '../../trading/broker';
 import { breakdown, DAYS_PER_WEEK, DIMENSIONS, equityCurve, LEVELS, summarize, weeklyResults, type Bucket, type Dimension, type Summary, type WeekResult } from '../../trading/stats';
 import { SETUPS, type SessionRecord, type Trade } from '../../trading/types';
 import { fmtDay, fmtMinutes, HEAT_LABEL } from '../lib/days';
 import { downloadText } from '../lib/download';
+import { buildFacts, claudeSampler, narrative, reviewPrompt, type ReviewFacts } from '../lib/review';
+import { load, save } from '../lib/storage';
 import { fmtPct, fmtPrice } from '../lib/format';
 import type { TrainingController } from '../training';
 import { IconClose } from './Icons';
@@ -187,6 +189,61 @@ async function exportCsv(trades: Trade[]): Promise<void> {
   await downloadText(`pulso-trades-${new Date().toISOString().slice(0, 10)}.csv`, data, 'text/csv');
 }
 
+/**
+ * "Análisis de la IA": dentro de Claude le pide a Claude un análisis de los números; en la página pública
+ * o en la app, el mismo análisis redactado con reglas (sin IA).
+ */
+function AiReview({ facts }: { facts: ReviewFacts }) {
+  const key = `ai-review-${facts.trades}-${Math.round(facts.net * 100)}`;
+  const [ai, setAi] = useState<{ ok: boolean; text?: string } | null>(() => load<{ ok: boolean; text?: string } | null>(key, null));
+  const [available, setAvailable] = useState<boolean | null>(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    void claudeSampler().then((s) => alive && setAvailable(!!s));
+    return () => {
+      alive = false;
+    };
+  }, []);
+  useEffect(() => setAi(load(key, null)), [key]);
+  const ask = async () => {
+    const sample = await claudeSampler();
+    if (!sample) return;
+    setBusy(true);
+    try {
+      const res = await sample(reviewPrompt(facts));
+      const next = { ok: true, text: res.text.trim() };
+      setAi(next);
+      save(key, next);
+    } catch {
+      setAi({ ok: false });
+    } finally {
+      setBusy(false);
+    }
+  };
+  const paragraphs = ai?.ok && ai.text ? ai.text.split(/\n\s*\n/) : narrative(facts);
+  return (
+    <section className="journal-block ai-review">
+      <div className="ai-head">
+        <h3 className="sub">Análisis de la IA</h3>
+        {available ? (
+          <button className="btn small" onClick={() => void ask()} disabled={busy || facts.trades === 0}>
+            {busy ? 'Analizando…' : ai?.ok ? 'Volver a analizar' : 'Pedirle a Claude'}
+          </button>
+        ) : (
+          <span className="t-muted small">{available === null ? '' : 'Análisis automático (con Claude, dentro de Claude, es más fino).'}</span>
+        )}
+      </div>
+      {ai && !ai.ok && <p className="t-down small">No se pudo consultar a Claude. Abajo va el análisis automático.</p>}
+      {paragraphs.map((t, i) => (
+        <p key={i} className="ai-text">
+          {t}
+        </p>
+      ))}
+    </section>
+  );
+}
+
 export function Journal({ c, onClose, onSelect, onSettings, onNewDay }: { c: TrainingController; onClose?: () => void; onSelect: (sym: string) => void; onSettings: () => void; onNewDay?: () => void }) {
   const [scope, setScope] = useState<Scope>('all');
   const [dim, setDim] = useState<Dimension>('setup');
@@ -218,6 +275,14 @@ export function Journal({ c, onClose, onSelect, onSettings, onNewDay }: { c: Tra
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessions, a, a?.trades.length]);
   const lastWeek = weeks[weeks.length - 1];
+  const facts = useMemo(() => {
+    const dayOf = new Map<string, number>();
+    for (const x of sessions) if (x.dayIndex) dayOf.set(x.id, x.dayIndex);
+    if (a) dayOf.set(a.id, a.dayIndex);
+    const all = [...(a?.trades ?? []), ...sessions.flatMap((x) => x.trades)];
+    return buildFacts(all, summarize(all), weeks, c.capital, (t) => dayOf.get(t.sessionId));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessions, a, a?.trades.length, weeks, c.capital]);
 
   const s = summarize(trades);
   const gross = trades.reduce((x, t) => x + t.gross, 0);
@@ -273,6 +338,8 @@ export function Journal({ c, onClose, onSelect, onSettings, onNewDay }: { c: Tra
           </button>
         </div>
       </section>
+
+      <AiReview facts={facts} />
 
       <div className="chips scope" role="group" aria-label="Período">
         {(

@@ -114,6 +114,8 @@ interface Leg {
 }
 
 interface WarmBar {
+  /** Vela de 10 s (acción en juego en las últimas dos horas antes del inicio) o de 1 minuto. */
+  fine: boolean;
   t: number;
   o: number;
   h: number;
@@ -881,9 +883,13 @@ export class MarketSim {
   }
 
   private addWarm(s: SimSym, ts: number, px: number, size: number): void {
-    const t = Math.floor(ts / MIN) * MIN;
+    // Las acciones en juego de las últimas dos horas antes del inicio llevan velas de 10 segundos, así
+    // los gráficos de 10 s y 30 s arrancan con historia (como los de 1 min).
+    const fine = ts >= this.startTs - 2 * 3_600_000 && (s.busy || s.legs.length > 0 || s.price / s.ref.prevClose! - 1 >= 0.15);
+    const span = fine ? 10_000 : MIN;
+    const t = Math.floor(ts / span) * span;
     const b = s.bar;
-    if (b && b.t === t) {
+    if (b && b.t === t && b.fine === fine) {
       if (px > b.h) b.h = px;
       if (px < b.l) b.l = px;
       b.c = px;
@@ -893,14 +899,15 @@ export class MarketSim {
       return;
     }
     this.flushBar(s);
-    s.bar = { t, o: px, h: px, l: px, c: px, v: size, pv: px * size, n: 1 };
+    s.bar = { fine, t, o: px, h: px, l: px, c: px, v: size, pv: px * size, n: 1 };
   }
 
   private flushBar(s: SimSym): void {
     const b = s.bar;
     if (!b) return;
     s.bar = undefined;
-    this.emit({ kind: 'bar', span: 'minute', sym: s.ref.sym, ts: b.t, o: b.o, h: b.h, l: b.l, c: b.c, v: b.v, vw: b.pv / b.v, n: b.n });
+    // Las velas de 10 s van como agregados de segundos: el motor arma con ellas la de 1 min y la de 10 s.
+    this.emit({ kind: 'bar', span: b.fine ? 'second' : 'minute', sym: s.ref.sym, ts: b.t, o: b.o, h: b.h, l: b.l, c: b.c, v: b.v, vw: b.pv / b.v, n: b.n });
   }
 
   private halt(s: SimSym): void {

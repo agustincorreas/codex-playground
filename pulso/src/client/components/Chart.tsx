@@ -7,6 +7,7 @@ import {
   ColorType,
   createChart,
   createSeriesMarkers,
+  createTextWatermark,
   CrosshairMode,
   HistogramSeries,
   LineSeries,
@@ -44,6 +45,16 @@ function css(name: string): string {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || '#888';
 }
 
+/** "#rrggbb" → "rgba(r, g, b, a)" (si no es un hex, se devuelve tal cual). */
+function withAlpha(hex: string, a: number): string {
+  const m = /^#([0-9a-f]{6})$/i.exec(hex);
+  if (!m) return hex;
+  const n = parseInt(m[1], 16);
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
+}
+
+const WATERMARK_LABEL: Record<number, string> = { 10: '10 SEG', 30: '30 SEG', 60: '1 MIN', 300: '5 MIN' };
+
 /** Colores del gráfico (cambian con el tema claro u oscuro). */
 function palette() {
   return {
@@ -52,6 +63,7 @@ function palette() {
     grid: css('--chart-grid'),
     up: css('--chart-up'),
     down: css('--chart-down'),
+    hod: css('--chart-hod'),
     vwap: css('--chart-vwap'),
     ema9: css('--chart-ema9'),
     ema20: css('--chart-ema20'),
@@ -204,6 +216,7 @@ export function Chart({ id, defaultTf, detail, alerts, themeKey, now, position, 
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<Series | null>(null);
   const linesRef = useRef<IPriceLine[]>([]);
+  const watermarkRef = useRef<{ applyOptions(o: { lines: Array<{ text: string; color?: string }> }): void } | null>(null);
   const stateRef = useRef<{ sym: string; tf: number; len: number; first: number }>({ sym: '', tf: 1, len: 0, first: 0 });
   const legendsRef = useRef<Legend[]>([]);
   const barsRef = useRef<Bar[]>([]);
@@ -245,6 +258,13 @@ export function Chart({ id, defaultTf, detail, alerts, themeKey, now, position, 
     const ema20 = chart.addSeries(LineSeries, { ...LINE, color: p.ema20 });
     const ema9 = chart.addSeries(LineSeries, { ...LINE, color: p.ema9 });
     const markers = createSeriesMarkers(candles, []);
+    // El símbolo y la temporalidad de fondo, como en las plataformas de day trading.
+    const watermark = createTextWatermark(chart.panes()[0], {
+      horzAlign: 'center',
+      vertAlign: 'center',
+      lines: [{ text: '', color: withAlpha(p.text, 0.1), fontSize: 46, fontStyle: 'bold', fontFamily: "'Roboto', system-ui, sans-serif" }],
+    });
+    watermarkRef.current = watermark;
     chartRef.current = chart;
     seriesRef.current = { session, candles, volume, vwap, ema9, ema20, ema200, markers };
     // Oculto, el gráfico mide 0 de ancho y el encuadre comprimiría las velas: se hace al aparecer.
@@ -289,6 +309,7 @@ export function Chart({ id, defaultTf, detail, alerts, themeKey, now, position, 
       for (const series of [s.session, s.candles, s.volume, s.vwap, s.ema9, s.ema20, s.ema200]) series.setData([]);
       if (s.macd) for (const series of [s.macd.macd, s.macd.signal, s.macd.hist]) series.setData([]);
       stateRef.current = { sym: '', tf, len: 0, first: 0 };
+      watermarkRef.current?.applyOptions({ lines: [{ text: '' }] });
       barsRef.current = [];
       legendsRef.current = [];
       setLabelY(null);
@@ -350,6 +371,7 @@ export function Chart({ id, defaultTf, detail, alerts, themeKey, now, position, 
       }
     }
     stateRef.current = { sym: detail.sym, tf, len: bars.length, first: bars[0].t };
+    watermarkRef.current?.applyOptions({ lines: [{ text: `${detail.sym}  ${WATERMARK_LABEL[tf] ?? ''}`, color: withAlpha(palette().text, 0.1) }] });
     barsRef.current = bars;
     legendsRef.current = bars.map((b, i) => {
       const prev = i > 0 ? bars[i - 1].c : b.o;
@@ -363,7 +385,7 @@ export function Chart({ id, defaultTf, detail, alerts, themeKey, now, position, 
     const add = (price: number, color: string, title: string, style: LineStyle, width: 1 | 2 = 1) => {
       if (price > 0) lines.push(s.candles.createPriceLine({ price, color, title, lineStyle: style, lineWidth: width, axisLabelVisible: true }));
     };
-    add(detail.row.hod, p.up, 'HOD', LineStyle.Dashed);
+    add(detail.row.hod, p.hod, 'HOD', LineStyle.Dashed);
     if (detail.pmHigh > 0 && Math.abs(detail.pmHigh - detail.row.hod) > 1e-9) add(detail.pmHigh, p.accent, 'PMH', LineStyle.Dotted);
     add(detail.row.prevClose, p.faint, 'Cierre ant.', LineStyle.Dotted);
     if (position) {

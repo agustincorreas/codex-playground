@@ -54,6 +54,8 @@
   --chart-text: #a9adb8;
   --chart-up: #00fd3b;
   --chart-down: #ff1f19;
+  /* Línea del máximo del día: un verde distinto al de las velas y al precio actual. */
+  --chart-hod: #2ec4b6;
   --chart-vwap: #fe902a;
   --chart-ema9: #c9ccd4;
   --chart-float: #f0d34a;
@@ -103,6 +105,7 @@
     --chart-text: #4f5a72;
     --chart-up: #089981;
     --chart-down: #f23645;
+    --chart-hod: #0f766e;
     --chart-ema9: #5d6273;
     --chart-float: #9a7400;
     --chart-mcap: #2563c9;
@@ -141,6 +144,7 @@
   --chart-text: #4f5a72;
   --chart-up: #089981;
   --chart-down: #f23645;
+  --chart-hod: #0f766e;
   --chart-ema9: #5d6273;
   --chart-float: #9a7400;
   --chart-mcap: #2563c9;
@@ -3788,4 +3792,49 @@ legend {
 .mtb-buy:disabled,
 .mtb-sell:disabled {
   opacity: 0.45;
+}
+
+/* ---------------------------------------------------------------- escáneres: ordenar por columna */
+table.scan th.sortable {
+  cursor: pointer;
+  user-select: none;
+}
+table.scan th.sortable:hover {
+  color: var(--accent);
+}
+table.scan th.is-sorted {
+  color: var(--accent);
+}
+table.scan th .sort-arrow {
+  font-size: 9px;
+  margin-left: 3px;
+  opacity: 0.9;
+}
+
+/* ---------------------------------------------------------------- diario: análisis de la IA */
+.ai-review {
+  margin: 10px 0 2px;
+  padding: 10px 14px 6px;
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--line));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+.ai-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.ai-head h3 {
+  margin: 0;
+}
+.ai-text {
+  margin: 8px 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.btn.small {
+  padding: 4px 10px;
+  font-size: 12px;
 }

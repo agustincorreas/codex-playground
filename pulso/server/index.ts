@@ -309,22 +309,37 @@ wss.on('connection', (ws) => {
   ws.on('close', () => clients.delete(client));
 });
 
-/** Si el motor no tiene las velas del día completas de un símbolo, se piden al proveedor. */
+/**
+ * Al elegir un símbolo: si el motor no tiene las velas del día completas se piden al proveedor, y las
+ * velas de 10 s de las últimas horas se arman con las operaciones históricas (una vez por símbolo).
+ */
 async function maybeBackfill(sym: string, client: Client): Promise<void> {
   if (backfilled.has(sym) || cfg.provider === 'demo') return;
   const st = engine.get(sym);
   if (!st) return;
-  const sessionStart = tradingDayStart(Date.parse(`${sessionKey}T16:00:00Z`));
-  if (st.bars.length && st.bars[0].t <= sessionStart + 30 * 60_000) return;
   backfilled.add(sym);
-  try {
-    const bars = await provider.backfill(sym);
-    if (bars?.length) {
-      engine.setBars(sym, bars);
-      send(client, { t: 'detail', detail: engine.detail(sym) });
+  const sessionStart = tradingDayStart(Date.parse(`${sessionKey}T16:00:00Z`));
+  if (!(st.bars.length && st.bars[0].t <= sessionStart + 30 * 60_000)) {
+    try {
+      const bars = await provider.backfill(sym);
+      if (bars?.length) {
+        engine.setBars(sym, bars);
+        send(client, { t: 'detail', detail: engine.detail(sym) });
+      }
+    } catch (e) {
+      log('warn', `Velas de ${sym}: ${(e as Error).message}`);
     }
-  } catch (e) {
-    log('warn', `Velas de ${sym}: ${(e as Error).message}`);
+  }
+  if (provider.backfillSec) {
+    try {
+      const sec = await provider.backfillSec(sym);
+      if (sec?.length) {
+        engine.setSecBars(sym, sec);
+        send(client, { t: 'detail', detail: engine.detail(sym) });
+      }
+    } catch (e) {
+      log('warn', `Velas de 10 s de ${sym}: ${(e as Error).message}`);
+    }
   }
 }
 

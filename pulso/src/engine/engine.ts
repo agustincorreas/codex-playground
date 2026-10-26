@@ -273,6 +273,13 @@ export class Engine implements AlertSink {
     st.resetIndicators();
   }
 
+  /** Velas de 10 s hacia atrás (armadas con las operaciones históricas) para los gráficos de 10 s y 30 s. */
+  setSecBars(sym: string, bars: Bar[]): void {
+    const st = this.symbols.get(sym);
+    if (!st || !bars.length) return;
+    st.prependSecBars(bars);
+  }
+
   /** Completa las velas del día (backfill) sin alterar volumen/máximos ya cargados por snapshot. */
   setBars(sym: string, bars: Bar[]): void {
     const st = this.symbols.get(sym);

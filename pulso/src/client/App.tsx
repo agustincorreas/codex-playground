@@ -611,7 +611,7 @@ function Workspace({ server, c }: { server: boolean; c: TrainingController }) {
       >
         {scanIds.includes(scanTab as ScannerId) &&
           (sc[scanTab as ScannerId].length ? (
-            <ScannerTable rows={sc[scanTab as ScannerId]} columns={SCANNER_COLUMNS[scanTab as ScannerId]} selected={selected} onSelect={select} />
+            <ScannerTable rows={sc[scanTab as ScannerId]} columns={SCANNER_COLUMNS[scanTab as ScannerId]} selected={selected} onSelect={select} sortKey={scanTab} />
           ) : (
             <Empty>Nada cumple este criterio por ahora.</Empty>
           ))}
