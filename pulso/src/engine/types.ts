@@ -44,6 +44,22 @@ export interface DaySnapshot {
   prevClose?: number;
 }
 
+/**
+ * Estado del día de un símbolo según el mercado completo pero con demora (por ejemplo, el SIP con 15
+ * minutos de atraso del plan gratis de Alpaca). Complementa a un feed parcial en tiempo real.
+ */
+export interface DelayedSnapshot {
+  sym: string;
+  /** Hora hasta la que llegan estos datos. */
+  ts: number;
+  last: number;
+  high: number;
+  low: number;
+  volume: number;
+  vwap?: number;
+  open?: number;
+}
+
 export interface NewsItem {
   id: string;
   ts: number;
@@ -331,6 +347,8 @@ export interface ProviderStatus {
   connected: boolean;
   message: string;
   realtime: boolean;
+  /** Texto de la etiqueta del encabezado (si no, se arma con `realtime` y `provider`). */
+  badge?: string;
   /** Velocidad de la simulación (solo demo). */
   speed?: number;
 }

@@ -1,7 +1,12 @@
 // Proveedor Alpaca: plan Algo Trader Plus (feed SIP, US$ 99/mes) o plan gratis (feed IEX).
 // Arranque por REST (activos, snapshots, volumen promedio, velas del día) y luego streaming:
 // velas de 1 minuto de todo el mercado + prints de los símbolos calientes + halts + LULD + noticias.
-import type { Bar, DaySnapshot, MarketEvent, NewsItem, ReferenceData } from '../src/engine/types';
+//
+// Plan gratis en capas: IEX en tiempo real (precio al segundo, ~2–3 % del volumen) más el mercado
+// completo con 15 minutos de demora (snapshots `delayed_sip` de todo el universo cada un minuto y
+// velas consolidadas de los símbolos calientes). El escáner ve el volumen real con un rato de atraso y
+// los precios en vivo; el motor estima los últimos minutos escalando lo que vio IEX.
+import type { Bar, DaySnapshot, DelayedSnapshot, MarketEvent, NewsItem, ReferenceData } from '../src/engine/types';
 import { etParts, previousTradingDays, sessionDate, tradingDayStart, type EtDate } from '../src/engine/time';
 import type { Config } from './config';
 import { ReconnectingSocket, type Provider, type ProviderContext } from './provider';
@@ -158,9 +163,22 @@ export function fromSnapshot(sym: string, s: AlpacaSnapshot, session: EtDate): {
   };
 }
 
+/** Snapshot demorado del mercado completo → estado consolidado para el motor. */
+export function delayedFromSnapshot(sym: string, s: AlpacaSnapshot, session: EtDate): DelayedSnapshot | null {
+  const lt = s.latestTrade;
+  if (!lt) return null;
+  const ts = Date.parse(lt.t);
+  const start = tradingDayStart(Date.parse(`${session.dateKey}T16:00:00Z`));
+  if (!(ts >= start)) return null;
+  const db = s.dailyBar && etParts(Date.parse(s.dailyBar.t)).dateKey === session.dateKey ? s.dailyBar : undefined;
+  return { sym, ts, last: lt.p, high: Math.max(db?.h ?? 0, lt.p), low: Math.min(db?.l ?? Infinity, lt.p), volume: db?.v ?? 0, vwap: db?.vw, open: db?.o };
+}
+
 export class AlpacaProvider implements Provider {
   readonly label: string;
   readonly realtime: boolean;
+  /** Plan gratis: IEX en vivo más el mercado completo demorado (ver el encabezado del archivo). */
+  readonly layered: boolean;
   private stream?: ReconnectingSocket;
   private news?: ReconnectingSocket;
   private hot = new Set<string>();
@@ -168,11 +186,23 @@ export class AlpacaProvider implements Provider {
   private limiter: RateLimiter;
   private ctx?: ProviderContext;
   private session: EtDate = sessionDate(Date.now());
+  private timers: Array<ReturnType<typeof setInterval>> = [];
+  private polling = false;
+  private refreshing = false;
+  /** Símbolos calientes que todavía no tienen velas consolidadas (se piden enseguida). */
+  private pendingBars = new Set<string>();
+  private pendingTimer?: ReturnType<typeof setTimeout>;
 
   constructor(private readonly cfg: Config['alpaca']) {
-    this.label = cfg.feed === 'sip' ? 'Alpaca SIP' : cfg.feed === 'iex' ? 'Alpaca IEX' : 'Alpaca (demorado)';
-    this.realtime = cfg.feed === 'sip';
+    this.layered = cfg.feed === 'iex';
+    this.label = cfg.feed === 'sip' ? 'Alpaca SIP' : this.layered ? 'Alpaca gratis' : 'Alpaca (demorado)';
+    this.realtime = cfg.feed === 'sip' || this.layered;
     this.limiter = cfg.feed === 'sip' ? new RateLimiter(150, 1000) : new RateLimiter(180, 60_000);
+  }
+
+  /** Etiqueta del encabezado: en capas, aclara qué es en vivo y qué viene con demora. */
+  get badge(): string | undefined {
+    return this.layered ? 'EN VIVO (IEX) · MERCADO COMPLETO −15 MIN' : undefined;
   }
 
   private get headers() {
@@ -219,6 +249,16 @@ export class AlpacaProvider implements Provider {
     for (const r of refs) r.avgVolume = avg.get(r.sym);
     engine.setReference(refs);
     engine.applySnapshot(days);
+    if (this.layered) {
+      // El estado inicial viene del mercado completo con demora: queda marcado como consolidado.
+      const delayed: DelayedSnapshot[] = [];
+      for (const [sym, snap] of snaps) {
+        if (!ctx.universe.has(sym)) continue;
+        const d = delayedFromSnapshot(sym, snap, this.session);
+        if (d) delayed.push(d);
+      }
+      engine.applyDelayed(delayed);
+    }
 
     // Velas del día para las que ya se mueven (sus máximos de pre-market y el gráfico).
     const candidates = days
@@ -243,6 +283,44 @@ export class AlpacaProvider implements Provider {
 
     this.connectStream();
     this.connectNews();
+    if (this.layered) {
+      this.timers.push(setInterval(() => void this.pollDelayed(), this.cfg.delayedPollMs));
+      this.timers.push(setInterval(() => void this.refreshHot([...this.hot]), this.cfg.hotRefreshMs));
+    }
+  }
+
+  /** Plan gratis: el estado del día de todo el universo según el mercado completo (15 min atrás). */
+  private async pollDelayed(): Promise<void> {
+    const ctx = this.ctx;
+    if (!ctx || this.polling) return;
+    this.polling = true;
+    try {
+      const snaps = await this.snapshots([...ctx.universe]);
+      const delayed: DelayedSnapshot[] = [];
+      for (const [sym, snap] of snaps) {
+        const d = delayedFromSnapshot(sym, snap, this.session);
+        if (d) delayed.push(d);
+      }
+      ctx.engine().applyDelayed(delayed);
+    } catch (e) {
+      ctx.log('warn', `Alpaca mercado completo (demorado): ${(e as Error).message}`);
+    } finally {
+      this.polling = false;
+    }
+  }
+
+  /** Plan gratis: velas consolidadas (hasta hace 16 min) de los símbolos calientes, sobre las de IEX. */
+  private async refreshHot(syms: string[]): Promise<void> {
+    const ctx = this.ctx;
+    if (!ctx || this.refreshing || !syms.length) return;
+    this.refreshing = true;
+    try {
+      const bars = await this.dayBars(syms.slice(0, 60));
+      const engine = ctx.engine();
+      for (const [sym, list] of bars) engine.mergeBars(sym, list);
+    } finally {
+      this.refreshing = false;
+    }
   }
 
   /** Las claves de paper funcionan con paper-api y las de la cuenta real con api: se prueban ambas. */
@@ -260,7 +338,8 @@ export class AlpacaProvider implements Provider {
 
   private async snapshots(symbols: string[]): Promise<Map<string, AlpacaSnapshot>> {
     const out = new Map<string, AlpacaSnapshot>();
-    const feed = this.cfg.feed === 'delayed_sip' ? 'delayed_sip' : this.cfg.feed;
+    // Con el plan gratis, el estado del día se pide al mercado completo demorado (no a IEX sola).
+    const feed = this.cfg.feed === 'sip' ? 'sip' : 'delayed_sip';
     for (const group of chunk(symbols, 400)) {
       let list = group;
       // Un símbolo inválido hace fallar todo el lote: se quita y se reintenta.
@@ -370,7 +449,10 @@ export class AlpacaProvider implements Provider {
             this.hot.clear();
             this.stream!.send({ action: 'subscribe', bars: ['*'], updatedBars: ['*'], statuses: ['*'], lulds: ['*'] });
             this.syncHot();
-            ctx.setStatus({ connected: true, message: `Conectado a ${this.label}.` });
+            ctx.setStatus({
+              connected: true,
+              message: this.layered ? 'Alpaca gratis: precio en vivo (IEX); volumen, máximos y escáneres del mercado completo con 15 min de demora.' : `Conectado a ${this.label}.`,
+            });
           } else if (m.T === 'error') {
             this.onStreamError(m.code as number, m.msg as string);
           } else if (m.T === 'subscription') {
@@ -428,6 +510,18 @@ export class AlpacaProvider implements Provider {
     this.syncHot();
   }
 
+  /** Plan gratis: un símbolo nuevo entre los calientes recibe sus velas consolidadas enseguida. */
+  private queueBars(syms: string[]): void {
+    if (!this.layered) return;
+    for (const s of syms) this.pendingBars.add(s);
+    if (this.pendingTimer) clearTimeout(this.pendingTimer);
+    this.pendingTimer = setTimeout(() => {
+      const list = [...this.pendingBars];
+      this.pendingBars.clear();
+      void this.refreshHot(list);
+    }, 1500);
+  }
+
   private syncHot(): void {
     if (!this.stream) return;
     const add = [...this.wantedHot].filter((s) => !this.hot.has(s) && this.ctx?.universe.has(s));
@@ -436,6 +530,7 @@ export class AlpacaProvider implements Provider {
     if (add.length) this.stream.send({ action: 'subscribe', trades: add });
     for (const s of remove) this.hot.delete(s);
     for (const s of add) this.hot.add(s);
+    if (add.length) this.queueBars(add);
   }
 
   async backfill(sym: string): Promise<Bar[] | null> {
@@ -446,5 +541,8 @@ export class AlpacaProvider implements Provider {
   stop(): void {
     this.stream?.close();
     this.news?.close();
+    for (const t of this.timers) clearInterval(t);
+    this.timers = [];
+    if (this.pendingTimer) clearTimeout(this.pendingTimer);
   }
 }

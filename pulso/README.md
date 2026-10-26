@@ -282,7 +282,7 @@ octubre de 2026:
 | **Alpaca — Algo Trader Plus** | **99** | Sí, SIP (todas las bolsas) | **La opción más barata que cubre todo el mercado.** Incluye halts, LULD y noticias Benzinga en tiempo real. |
 | **Massive — Stocks Advanced** | **199** (20% menos pagando anual) | Sí | La más completa: agregados de cada segundo de todas las acciones, snapshot desde las 4:00 ET, float y short interest. Las noticias de Benzinga son un agregado de US$ 99. |
 | Massive — Stocks Starter | 29 | No (15 min de demora) | Para probar todo el sistema con datos reales, demorados. |
-| Alpaca — Basic | 0 | Solo la bolsa IEX (~2–3% del volumen) | Para probar la conexión. El volumen y el RVOL quedan incompletos: no sirve para operar. |
+| **Alpaca — Basic** | **0** | **En capas:** precio en tiempo real de la bolsa IEX (~2–3% del volumen) + el mercado completo con 15 min de demora | **Para ver el mercado real sin pagar.** Los escáneres, el volumen, el RVOL y los máximos usan el mercado completo (con 15 min de atraso); el precio, las alertas y la cinta de IEX van al segundo. Ver "El plan gratis en capas". |
 | Massive — Basic | 0 | No (fin del día) | **Float y short interest gratis**: conviene cargar esta clave aunque uses Alpaca. |
 | Interactive Brokers | 4,50 (no profesional) | Sí, hasta 100 símbolos a la vez | Excelente como bróker, pero no alcanza para escanear todo el mercado. |
 
@@ -293,6 +293,25 @@ Stocks Advanced (US$ 199) funciona solo.
 Para comparar con herramientas hechas: Arcane Monitor cuesta US$ 35/mes y no pide una suscripción de datos aparte; Day Trade
 Dash de Warrior Trading, US$ 147–197/mes; Trade Ideas, US$ 127–254/mes; Benzinga Pro, US$ 37–197/mes. Armar
 el escáner propio sale más en datos que Arcane, pero es tuyo: sin límites, configurable y extensible.
+
+### El plan gratis de Alpaca, en capas
+
+Con la cuenta gratis Pulso arma el mercado con dos capas:
+
+1. **El mercado completo, con 15 minutos de demora** (el SIP demorado que Alpaca da gratis): de ahí salen
+   el universo (cierres anteriores), el volumen del día, los máximos y mínimos y, cada un minuto, un
+   repaso de todas las acciones. Con eso los escáneres (gappers, RVOL, 5 pilares) ven el volumen real.
+2. **La bolsa IEX en tiempo real:** velas de 1 minuto de todas las acciones y prints tick a tick de hasta
+   30 símbolos calientes. De ahí salen el precio, las alertas de momentum y la cinta, al segundo.
+
+El motor junta las dos: el volumen del día es el consolidado hasta hace 15 minutos más lo que vio IEX
+después, y para el volumen de los últimos 5 minutos escala lo de IEX según cuánto representó del
+mercado ese mismo día. Las velas de los símbolos calientes se reemplazan por las consolidadas a medida
+que pasan los 15 minutos. En el encabezado dice **EN VIVO (IEX) · MERCADO COMPLETO −15 MIN**.
+
+Lo que no tiene: el volumen de los últimos 15 minutos es una estimación (IEX ve poco en acciones
+ilíquidas), un máximo nuevo del mercado completo tarda 15 minutos en aparecer si IEX no lo vio, y la
+cinta es solo la de IEX. Para operar en serio sigue haciendo falta el SIP en tiempo real (abajo).
 
 ### Cómo sacar Alpaca (US$ 99/mes)
 
@@ -358,7 +377,8 @@ celular conectado a la misma red Wi-Fi.
 
 | Variable | Para qué |
 | --- | --- |
-| `ALPACA_KEY_ID`, `ALPACA_SECRET_KEY`, `ALPACA_FEED` | Alpaca (`iex` gratis o `sip` pago). |
+| `ALPACA_KEY_ID`, `ALPACA_SECRET_KEY`, `ALPACA_FEED` | Alpaca (`iex` = plan gratis en capas, `sip` = pago). |
+| `ALPACA_DELAYED_POLL_SEC`, `ALPACA_HOT_REFRESH_SEC` | Plan gratis: cada cuánto se repasa el mercado completo demorado (60) y se completan las velas consolidadas de los símbolos calientes (300). |
 | `MASSIVE_API_KEY`, `MASSIVE_PLAN` | Massive (`basic`, `starter`, `developer` o `advanced`). |
 | `SEC_USER_AGENT` | "Tu Nombre tu@email.com": activa las etiquetas de dilución de la SEC (S-1, shelf S-3, 424B, 8-K 3.02) y las acciones en circulación. |
 | `FMP_API_KEY`, `FLOAT_CSV` | Fuentes alternativas de float (Financial Modeling Prep o tu propio CSV). |
@@ -429,13 +449,14 @@ pulso/
 | --- | --- |
 | `npm run dev` | Interfaz en modo demo con recarga en caliente (http://localhost:5173). |
 | `npm start` | Compila la interfaz y arranca el servidor (datos reales si hay claves). |
-| `npm test` | Pruebas (85): motor, alertas, bull flag, halts, Alpaca y Massive contra servidores falsos, simulador (el mismo mercado a cualquier hora, volumen por hora, días, ofertas, after-hours), bróker de práctica, días de práctica, respaldo y métricas. |
+| `npm test` | Pruebas (90): motor, alertas, bull flag, halts, Alpaca y Massive contra servidores falsos, simulador (el mismo mercado a cualquier hora, volumen por hora, días, ofertas, after-hours), el plan gratis de Alpaca en capas, bróker de práctica, días de práctica, respaldo y métricas. |
 | `npm run typecheck` | Chequeo de tipos de todo el proyecto. |
 | `npm run build:demo` | Página única del demo (`dist-demo/index.html`) para GitHub Pages. |
 
 ### Límites conocidos
 
-- Con el plan gratis de Alpaca (IEX) el volumen en vivo es solo de esa bolsa: sirve para probar, no para operar.
+- Con el plan gratis de Alpaca, el volumen de los últimos 15 minutos es una estimación a partir de IEX y la
+  cinta es solo la de esa bolsa: sirve para ver el mercado real y practicar, no para operar con plata.
 - El float de los proveedores se actualiza con demora; después de un split inverso o una oferta puede estar
   desactualizado unos días. Las acciones en circulación de la SEC no se ajustan por splits (se muestran con ≈).
 - Las etiquetas de dilución son heurísticas sobre los formularios presentados a la SEC: confirmá leyendo el filing.

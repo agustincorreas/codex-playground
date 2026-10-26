@@ -11,6 +11,7 @@ import {
   type AlertType,
   type Bar,
   type DaySnapshot,
+  type DelayedSnapshot,
   type HaltRow,
   type MarketEvent,
   type NewsItem,
@@ -189,6 +190,70 @@ export class Engine implements AlertSink {
     }
   }
 
+  /**
+   * Datos consolidados demorados sobre un feed parcial en vivo: el volumen del día pasa a ser el del
+   * mercado completo hasta esa hora más lo que el feed vio después; los máximos y mínimos se completan
+   * en silencio (sin alertas: ya pasaron) y las acciones sin prints en el feed toman el último precio
+   * demorado. También se calibra cuánto representa el mercado respecto del feed.
+   */
+  applyDelayed(list: DelayedSnapshot[]): void {
+    for (const d of list) {
+      const st = this.ensure(d.sym, d.last);
+      if (!st || !(d.ts > 0)) continue;
+      if (d.ts <= st.consolidatedTs) continue;
+      st.consolidatedTs = d.ts;
+      const feedSoFar = st.feedVolumeAt(d.ts);
+      if (feedSoFar > 0 && d.volume > 0) st.volumeScale = Math.min(500, Math.max(1, d.volume / feedSoFar));
+      const after = st.volumeAfter(d.ts);
+      const volume = d.volume + after.v;
+      if (volume > st.volume) {
+        st.pv = (d.vwap ?? d.last) * d.volume + after.pv;
+        st.volume = volume;
+      }
+      if (d.high > st.hod) {
+        st.hod = d.high;
+        st.hodTs = d.ts;
+      }
+      if (d.low > 0 && d.low < st.lod) st.lod = d.low;
+      if (d.open && !st.dayOpen) st.dayOpen = d.open;
+      if (d.ts > st.lastTs && d.last > 0) {
+        st.prevPrice = st.last || d.last;
+        st.last = d.last;
+        st.lastTs = d.ts;
+      }
+    }
+  }
+
+  /**
+   * Reemplaza velas de 1 minuto por las consolidadas (demoradas) y completa las anteriores. Después,
+   * el volumen del día se recalcula desde las velas (consolidadas hasta donde llegan y del feed en
+   * vivo de ahí en más).
+   */
+  mergeBars(sym: string, bars: Bar[]): void {
+    const st = this.symbols.get(sym);
+    if (!st || !bars.length) return;
+    this.setBars(sym, bars);
+    for (const b of bars) {
+      if (!st.bars.length || b.t < st.bars[0].t) continue;
+      st.setMinuteBar({ ...b });
+    }
+    // Consolidado hasta el último milisegundo de la última vela recibida.
+    const covered = bars[bars.length - 1].t + 60_000 - 1;
+    if (covered > st.consolidatedTs) st.consolidatedTs = covered;
+    let v = 0;
+    let pv = 0;
+    for (const b of st.bars) {
+      v += b.v;
+      pv += b.pv;
+    }
+    if (v > 0) {
+      st.volume = v;
+      st.pv = pv;
+    }
+    for (const b of bars) if (b.h > st.hod) st.hod = b.h;
+    st.resetIndicators();
+  }
+
   /** Completa las velas del día (backfill) sin alterar volumen/máximos ya cargados por snapshot. */
   setBars(sym: string, bars: Bar[]): void {
     const st = this.symbols.get(sym);
@@ -298,6 +363,7 @@ export class Engine implements AlertSink {
     st.volume += size;
     st.pv += price * size;
     st.ticks++;
+    st.addFeedVolume(ts, size);
     const barsBefore = st.bars.length;
     st.addToBar(ts, price, price, price, price, size, price * size, 1);
     if (this.allSecBars || st.eligible || this.isWatched(sym)) {
@@ -318,7 +384,8 @@ export class Engine implements AlertSink {
     const pv = (ev.vw ?? (ev.o + ev.h + ev.l + ev.c) / 4) * ev.v;
     const barsBefore = st.bars.length;
     if (ev.span === 'minute') {
-      st.setMinuteBar({ t: Math.floor(ev.ts / MIN) * MIN, o: ev.o, h: ev.h, l: ev.l, c: ev.c, v: ev.v, pv, n: ev.n ?? 1 });
+      const { dv } = st.setMinuteBar({ t: Math.floor(ev.ts / MIN) * MIN, o: ev.o, h: ev.h, l: ev.l, c: ev.c, v: ev.v, pv, n: ev.n ?? 1 });
+      if (dv > 0) st.addFeedVolume(ev.ts, dv);
       st.ticks += ev.n ?? 1;
       if (st.bars.length > barsBefore && barsBefore > 0) onBarClosed(st, this);
       // La vela oficial puede llegar después de prints más nuevos: no retroceder el último precio.
@@ -344,6 +411,7 @@ export class Engine implements AlertSink {
       st.volume += ev.v;
       st.pv += pv;
     }
+    st.addFeedVolume(ev.ts, ev.v);
     st.ticks += ev.n ?? 1;
     if (ev.h > st.hod && ev.h > ev.c) this.afterPrice(st, ev.h, end);
     this.afterPrice(st, ev.c, end);

@@ -25,6 +25,10 @@ export interface Config {
     streamUrl: string;
     newsStreamUrl: string;
     hotLimit: number;
+    /** Plan gratis: cada cuánto se piden al mercado completo (demorado) los datos de todo el universo. */
+    delayedPollMs: number;
+    /** Plan gratis: cada cuánto se completan las velas consolidadas de los símbolos calientes. */
+    hotRefreshMs: number;
   };
   massive: {
     key?: string;
@@ -95,6 +99,8 @@ export function loadConfig(): Config {
       streamUrl: env('ALPACA_STREAM_URL') ?? `wss://stream.data.alpaca.markets/v2/${['sip', 'iex', 'delayed_sip'].includes(feed) ? feed : 'iex'}`,
       newsStreamUrl: env('ALPACA_NEWS_URL') ?? 'wss://stream.data.alpaca.markets/v1beta1/news',
       hotLimit: num('ALPACA_HOT_SYMBOLS', feed === 'iex' ? 25 : 400),
+      delayedPollMs: num('ALPACA_DELAYED_POLL_SEC', 60) * 1000,
+      hotRefreshMs: num('ALPACA_HOT_REFRESH_SEC', 300) * 1000,
     },
     massive: {
       key: massiveKey,

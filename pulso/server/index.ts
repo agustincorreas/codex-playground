@@ -36,6 +36,7 @@ let status: ProviderStatus = {
   provider: provider.label,
   connected: false,
   realtime: provider.realtime,
+  badge: provider.badge,
   message: 'Iniciando…',
 };
 let pendingAlerts: Alert[] = [];

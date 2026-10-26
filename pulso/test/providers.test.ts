@@ -151,6 +151,8 @@ describe('AlpacaProvider contra un servidor falso', () => {
       streamUrl: `ws://127.0.0.1:${port}/v2/sip`,
       newsStreamUrl: `ws://127.0.0.1:${port}/v1beta1/news`,
       hotLimit: 10,
+      delayedPollMs: 60_000,
+      hotRefreshMs: 300_000,
     });
     await provider.start(ctx);
     // Universo: RUNR ($2) entra; BIGG ($250) queda afuera por precio; BAD1 se descarta del lote.
@@ -170,6 +172,100 @@ describe('AlpacaProvider contra un servidor falso', () => {
     expect(seen).toContain('/v2/stocks/bars:1Min');
     provider.stop();
   });
+});
+
+describe('AlpacaProvider plan gratis en capas (IEX en vivo + mercado completo demorado)', () => {
+  it('usa el mercado completo para el universo, lo repasa cada tanto y completa las velas consolidadas', async () => {
+    const snapshotFeeds: string[] = [];
+    const barEnds: string[] = [];
+    let polls = 0;
+    server = createServer((req, res) => {
+      const url = new URL(req.url!, 'http://x');
+      const send = (body: unknown) => {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(body));
+      };
+      if (url.pathname === '/v2/assets') return send([{ symbol: 'RUNR', name: 'Runner Inc', exchange: 'NASDAQ', tradable: true, status: 'active' }]);
+      if (url.pathname === '/v2/stocks/snapshots') {
+        const feed = url.searchParams.get('feed')!;
+        snapshotFeeds.push(feed);
+        if (feed !== 'delayed_sip') return send({ RUNR: { latestTrade: { t: iso(at(9 * 60 + 40)), p: 3.0, s: 100 }, dailyBar: { t: dayIso(session.dateKey), o: 2.2, h: 3.1, l: 2.1, c: 3.0, v: 40_000 } } });
+        // Cada repaso llega un minuto más tarde y con más volumen consolidado.
+        const n = polls++;
+        return send({
+          RUNR: {
+            latestTrade: { t: iso(at(9 * 60 + 40 + n)), p: 3.0 + n * 0.01, s: 100 },
+            dailyBar: { t: dayIso(session.dateKey), o: 2.2, h: 3.1, l: 2.1, c: 3.0, v: 2_000_000 + n * 100_000, vw: 2.7 },
+            prevDailyBar: { t: dayIso(prevDay.dateKey), o: 1.9, h: 2.1, l: 1.8, c: 2.0, v: 800_000 },
+          },
+        });
+      }
+      if (url.pathname === '/v2/stocks/bars' && url.searchParams.get('timeframe') === '1Day') {
+        return send({ bars: { RUNR: Array.from({ length: 10 }, () => ({ t: dayIso(prevDay.dateKey), o: 2, h: 2, l: 2, c: 2, v: 1_000_000 })) }, next_page_token: null });
+      }
+      if (url.pathname === '/v2/stocks/bars' && url.searchParams.get('timeframe') === '1Min') {
+        barEnds.push(url.searchParams.get('end') ?? '');
+        return send({
+          bars: { RUNR: [{ t: iso(at(9 * 60 + 30)), o: 2.9, h: 3.3, l: 2.9, c: 3.2, v: 300_000, vw: 3.1, n: 900 }] },
+          next_page_token: null,
+        });
+      }
+      if (url.pathname === '/v1beta1/news') return send({ news: [], next_page_token: null });
+      res.writeHead(404);
+      res.end();
+    });
+    const wss = new WebSocketServer({ server });
+    wss.on('connection', (ws, req) => {
+      const news = req.url?.includes('news');
+      ws.send(JSON.stringify([{ T: 'success', msg: 'connected' }]));
+      ws.on('message', (raw) => {
+        const m = JSON.parse(raw.toString());
+        if (m.action === 'auth') ws.send(JSON.stringify([{ T: 'success', msg: 'authenticated' }]));
+        else if (m.action === 'subscribe' && news) ws.send(JSON.stringify([{ T: 'subscription', news: ['*'] }]));
+        else if (m.action === 'subscribe' && m.bars) {
+          ws.send(JSON.stringify([{ T: 'subscription', trades: [], bars: ['*'] }]));
+          // IEX en vivo: un print nuevo (más nuevo que lo demorado) y poco volumen.
+          ws.send(JSON.stringify([{ T: 't', S: 'RUNR', i: 1, x: 'V', p: 3.3, s: 500, c: ['@'], t: iso(at(9 * 60 + 58)), z: 'C' }]));
+        }
+      });
+    });
+    const port = await listen(server);
+    const base = `http://127.0.0.1:${port}`;
+    const { ctx, engine } = makeCtx();
+    const provider = new AlpacaProvider({
+      keyId: 'KEY',
+      secret: 'SECRET',
+      feed: 'iex',
+      tradingUrl: base,
+      dataUrl: base,
+      streamUrl: `ws://127.0.0.1:${port}/v2/iex`,
+      newsStreamUrl: `ws://127.0.0.1:${port}/v1beta1/news`,
+      hotLimit: 10,
+      delayedPollMs: 120,
+      hotRefreshMs: 600_000,
+    });
+    expect(provider.realtime).toBe(true);
+    expect(provider.badge).toMatch(/IEX/);
+    await provider.start(ctx);
+    const runr = engine.get('RUNR')!;
+    // El universo y el estado inicial salen del mercado completo demorado, no de IEX.
+    expect(snapshotFeeds[0]).toBe('delayed_sip');
+    expect(runr.prevClose).toBe(2.0);
+    expect(runr.volume).toBe(2_000_000);
+    expect(runr.consolidatedTs).toBe(at(9 * 60 + 40));
+    // El print de IEX manda en el precio; el repaso demorado sube el piso de volumen sin pisarlo.
+    await waitFor(() => runr.last === 3.3 && polls >= 3);
+    expect(runr.volume).toBeGreaterThanOrEqual(2_100_000 + 500);
+    expect(runr.last).toBe(3.3);
+    expect(runr.consolidatedTs).toBeGreaterThanOrEqual(at(9 * 60 + 41));
+    // Al volverse caliente recibe las velas consolidadas (pedidas hasta hace 16 minutos).
+    provider.setHot(['RUNR']);
+    await waitFor(() => runr.bars.some((b) => b.t === at(9 * 60 + 30) && b.v === 300_000), 6000);
+    expect(barEnds[0]).not.toBe('');
+    expect(Date.parse(barEnds[0])).toBeLessThanOrEqual(Date.now() - 15 * 60_000);
+    expect(runr.volume).toBeGreaterThanOrEqual(300_000 + 500);
+    provider.stop();
+  }, 10_000);
 });
 
 describe('MassiveProvider contra un servidor falso', () => {

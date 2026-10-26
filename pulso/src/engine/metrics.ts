@@ -50,7 +50,8 @@ export function rvolOf(st: SymbolState, volFrac: number): number {
 export function rvol5mOf(st: SymbolState, now: number): number {
   const avg = st.ref.avgVolume;
   if (!avg || avg <= 0) return 0;
-  return st.volumeSince(now, 5) / ((avg / 390) * 5);
+  // Con un feed parcial, los últimos minutos solo tienen lo que vio esa bolsa: se escalan al mercado.
+  return st.volumeSinceEstimated(now, 5) / ((avg / 390) * 5);
 }
 
 export function hasRecentNews(st: SymbolState, now: number, settings: Settings): boolean {
