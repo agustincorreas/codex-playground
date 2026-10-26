@@ -29,6 +29,8 @@ export interface ReferenceData {
   shortInterest?: number;
   /** Etiquetas de contexto: "Shelf S-3", "Oferta 424B", "Pérdidas", etc. */
   flags?: string[];
+  /** Sector o industria ("Farmacéutica", "Software"…). */
+  industry?: string;
 }
 
 /** Estado del día al arrancar a mitad de rueda (snapshot del proveedor). */

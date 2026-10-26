@@ -96,6 +96,12 @@ export function Detail({ detail, settings: s, now, watched, onToggleWatch }: Pro
       </section>
 
       <dl className="kv">
+        {ref.industry && (
+          <div>
+            <dt>Sector</dt>
+            <dd>{ref.industry}</dd>
+          </div>
+        )}
         <div>
           <dt>Float</dt>
           <dd title={ref.floatSource ? `Fuente: ${ref.floatSource}` : undefined}>

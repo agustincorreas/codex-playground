@@ -21,6 +21,7 @@ import {
   type UTCTimestamp,
 } from 'lightweight-charts';
 import { fmtVolume } from '../../engine/alerts';
+import { daily, fourHour, historyFor, monthly, TF_4H, TF_DAY, TF_MONTH, TF_WEEK, todayBar, vwapByDay, weekly, withPastDays, type HistoryTf } from '../../engine/history';
 import { aggregateBars, aggregateSpan, emaSeries, macdSeries, vwapSeries } from '../../engine/indicators';
 import { etOffset, etParts, POST_CLOSE, PRE_OPEN, REG_CLOSE, REG_OPEN } from '../../engine/time';
 import type { Alert, Bar, SymbolDetail } from '../../engine/types';
@@ -53,7 +54,7 @@ function withAlpha(hex: string, a: number): string {
   return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
 }
 
-const WATERMARK_LABEL: Record<number, string> = { 10: '10 SEG', 30: '30 SEG', 60: '1 MIN', 300: '5 MIN' };
+const WATERMARK_LABEL: Record<number, string> = { 10: '10 SEG', 30: '30 SEG', 60: '1 MIN', 300: '5 MIN', [TF_4H]: '4 HORAS', [TF_DAY]: 'DIARIO', [TF_WEEK]: 'SEMANAL', [TF_MONTH]: 'MENSUAL' };
 
 /** Colores del gráfico (cambian con el tema claro u oscuro). */
 function palette() {
@@ -155,21 +156,49 @@ interface Props {
   position?: ChartPosition;
   fills?: ChartFill[];
   orders?: ChartOrder[];
+  /** Historia (días anteriores, horas, días) para las temporalidades que la necesitan. */
+  loadHistory?: (sym: string, tf: HistoryTf) => Promise<Bar[]>;
 }
 
-/** Temporalidades en segundos: las de 10 y 30 s salen de las velas de 10 s. */
+/** Historia cargada para un símbolo, por tipo. */
+interface HistoryBars {
+  sym: string;
+  minute?: Bar[];
+  hour?: Bar[];
+  day?: Bar[];
+}
+
+/**
+ * Temporalidades en segundos: las de 10 y 30 s salen de las velas de 10 s; 1 y 5 min, de las velas de 1
+ * min (con los días anteriores de la historia); 4 h, diaria, semanal y mensual, de la historia más el día.
+ */
 const TIMEFRAMES: Array<[number, string]> = [
   [10, '10s'],
   [30, '30s'],
   [60, '1m'],
   [300, '5m'],
+  [TF_4H, '4h'],
+  [TF_DAY, 'D'],
+  [TF_WEEK, 'S'],
+  [TF_MONTH, 'M'],
 ];
 
-/** Velas de la temporalidad elegida y su VWAP (siempre el del día completo, calculado en velas de 1 min). */
-function framed(detail: SymbolDetail, tf: number): { bars: Bar[]; vwap: number[] } {
+/** Velas de la temporalidad elegida y su VWAP (el del día, reiniciado cada día; sin VWAP en las diarias). */
+function framed(detail: SymbolDetail, tf: number, hist: HistoryBars | null, now: number): { bars: Bar[]; vwap: number[] } {
+  const h = hist && hist.sym === detail.sym ? hist : null;
+  if (tf >= TF_DAY) {
+    const r = detail.row;
+    const today = todayBar({ open: detail.open, high: r.hod, low: detail.lod, last: r.price, volume: r.volume, vwap: r.vwap, ts: now });
+    const d = daily(h?.day ?? [], today);
+    return { bars: tf >= TF_MONTH ? monthly(d) : tf >= TF_WEEK ? weekly(d) : d, vwap: [] };
+  }
+  if (tf >= TF_4H) {
+    const bars = fourHour(h?.hour ?? [], detail.bars);
+    return { bars, vwap: vwapByDay(bars) };
+  }
   if (tf >= 60) {
-    const bars = aggregateBars(detail.bars, tf / 60);
-    return { bars, vwap: vwapSeries(bars) };
+    const bars = aggregateBars(withPastDays(h?.minute ?? [], detail.bars), tf / 60);
+    return { bars, vwap: vwapByDay(bars) };
   }
   const bars = tf === 10 ? detail.secBars : aggregateSpan(detail.secBars, tf * 1000);
   const dayVwap = vwapSeries(detail.bars);
@@ -206,12 +235,13 @@ interface Legend {
   vwap?: number;
 }
 
-/** Muestra las últimas velas (unas 110 de 1 minuto o menos, 70 de 5 minutos) con un margen a la derecha. */
+/** Muestra las últimas velas (unas 110 de 1 minuto o menos, 70 de 5 minutos, más en las largas) con un margen a la derecha. */
 function frameLast(chart: IChartApi, n: number, tf: number): void {
-  if (n) chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, n - (tf === 300 ? 70 : 110)), to: n + 4 });
+  const count = tf === 300 ? 70 : tf >= TF_DAY ? 160 : tf >= TF_4H ? 120 : 110;
+  if (n) chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, n - count), to: n + 4 });
 }
 
-export function Chart({ id, defaultTf, detail, alerts, themeKey, now, position, fills, orders }: Props) {
+export function Chart({ id, defaultTf, detail, alerts, themeKey, now, position, fills, orders, loadHistory }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<Series | null>(null);
@@ -228,6 +258,26 @@ export function Chart({ id, defaultTf, detail, alerts, themeKey, now, position, 
   const [hover, setHover] = useState<number | null>(null);
   const [labelY, setLabelY] = useState<number | null>(null);
   const [scaleW, setScaleW] = useState(56);
+  const [hist, setHist] = useState<HistoryBars | null>(null);
+  const histRef = useRef<HistoryBars | null>(null);
+  histRef.current = hist;
+
+  // La historia se pide una vez por símbolo y tipo, recién cuando una temporalidad la necesita.
+  useEffect(() => {
+    const sym = detail?.sym;
+    const need = historyFor(tf);
+    if (!sym || !need || !loadHistory) return;
+    const cur = histRef.current;
+    if (cur && cur.sym === sym && cur[need]) return;
+    let alive = true;
+    void loadHistory(sym, need).then((bars) => {
+      if (!alive) return;
+      setHist((h) => ({ ...(h && h.sym === sym ? h : { sym }), [need]: bars }));
+    });
+    return () => {
+      alive = false;
+    };
+  }, [detail?.sym, tf, loadHistory]);
 
   useEffect(() => {
     if (!host.current) return;
@@ -304,7 +354,7 @@ export function Chart({ id, defaultTf, detail, alerts, themeKey, now, position, 
     const s = seriesRef.current;
     const chart = chartRef.current;
     if (!s || !chart) return;
-    const frame = detail ? framed(detail, tf) : null;
+    const frame = detail ? framed(detail, tf, hist, now) : null;
     if (!detail || !frame || !frame.bars.length) {
       for (const series of [s.session, s.candles, s.volume, s.vwap, s.ema9, s.ema20, s.ema200]) series.setData([]);
       if (s.macd) for (const series of [s.macd.macd, s.macd.signal, s.macd.hist]) series.setData([]);
@@ -315,10 +365,12 @@ export function Chart({ id, defaultTf, detail, alerts, themeKey, now, position, 
       setLabelY(null);
       return;
     }
-    chart.applyOptions({ timeScale: { secondsVisible: tf < 60 } });
+    chart.applyOptions({ timeScale: { secondsVisible: tf < 60, timeVisible: tf < TF_DAY } });
     const bars: Bar[] = frame.bars;
     const closes = bars.map((b) => b.c);
     const vw = frame.vwap;
+    const hasVwap = vw.length === bars.length;
+    const shade = (b: Bar) => (tf < TF_4H ? sessionColor(b.t, p) : 'rgba(0,0,0,0)');
     const e9 = emaSeries(closes, 9);
     const e20 = emaSeries(closes, 20);
     const e200 = emaSeries(closes, 200);
@@ -334,10 +386,10 @@ export function Chart({ id, defaultTf, detail, alerts, themeKey, now, position, 
 
     if (!same) {
       s.candles.applyOptions({ priceFormat: { type: 'price', precision, minMove: precision === 2 ? 0.01 : 0.0001 } });
-      s.session.setData(bars.map((b) => ({ time: toTime(b.t), value: 1, color: sessionColor(b.t, p) })));
+      s.session.setData(bars.map((b) => ({ time: toTime(b.t), value: 1, color: shade(b) })));
       s.candles.setData(bars.map((b) => ({ time: toTime(b.t), open: b.o, high: b.h, low: b.l, close: b.c })));
       s.volume.setData(bars.map((b) => ({ time: toTime(b.t), value: b.v, color: volColor(b) })));
-      s.vwap.setData(bars.map((b, i) => ({ time: toTime(b.t), value: vw[i] })));
+      s.vwap.setData(hasVwap ? bars.map((b, i) => ({ time: toTime(b.t), value: vw[i] })) : []);
       s.ema9.setData(bars.map((b, i) => ({ time: toTime(b.t), value: e9[i] })));
       s.ema20.setData(bars.map((b, i) => ({ time: toTime(b.t), value: e20[i] })));
       s.ema200.setData(bars.flatMap((b, i) => (e200At(i) === undefined ? [] : [{ time: toTime(b.t), value: e200[i] }])));
@@ -346,7 +398,9 @@ export function Chart({ id, defaultTf, detail, alerts, themeKey, now, position, 
         s.macd.signal.setData(bars.map((b, i) => ({ time: toTime(b.t), value: m.signal[i] })));
         s.macd.hist.setData(bars.map((b, i) => ({ time: toTime(b.t), value: m.hist[i], color: histColor(m.hist[i], m.hist[i - 1] ?? 0) })));
       }
-      if (st.sym !== detail.sym || st.tf !== tf) {
+      // Se vuelve a encuadrar al cambiar de acción o temporalidad y cuando llega historia por delante
+      // (si no, la vista quedaría parada en las velas más viejas); no cuando el motor recorta las viejas.
+      if (st.sym !== detail.sym || st.tf !== tf || bars[0].t < st.first) {
         if ((host.current?.clientWidth ?? 0) < 20) pendingRange.current = true;
         else frameLast(chart, bars.length, tf);
       }
@@ -356,10 +410,10 @@ export function Chart({ id, defaultTf, detail, alerts, themeKey, now, position, 
       for (let i = Math.max(0, from); i < bars.length; i++) {
         const b = bars[i];
         const time = toTime(b.t);
-        s.session.update({ time, value: 1, color: sessionColor(b.t, p) });
+        s.session.update({ time, value: 1, color: shade(b) });
         s.candles.update({ time, open: b.o, high: b.h, low: b.l, close: b.c });
         s.volume.update({ time, value: b.v, color: volColor(b) });
-        s.vwap.update({ time, value: vw[i] });
+        if (hasVwap) s.vwap.update({ time, value: vw[i] });
         s.ema9.update({ time, value: e9[i] });
         s.ema20.update({ time, value: e20[i] });
         if (e200At(i) !== undefined) s.ema200.update({ time, value: e200[i] });
@@ -375,7 +429,7 @@ export function Chart({ id, defaultTf, detail, alerts, themeKey, now, position, 
     barsRef.current = bars;
     legendsRef.current = bars.map((b, i) => {
       const prev = i > 0 ? bars[i - 1].c : b.o;
-      return { o: b.o, h: b.h, l: b.l, c: b.c, chg: b.c - prev, chgPct: prev ? ((b.c - prev) / prev) * 100 : 0, vol: b.v, e9: e9[i], e20: e20[i], e200: e200At(i), vwap: vw[i] };
+      return { o: b.o, h: b.h, l: b.l, c: b.c, chg: b.c - prev, chgPct: prev ? ((b.c - prev) / prev) * 100 : 0, vol: b.v, e9: e9[i], e20: e20[i], e200: e200At(i), vwap: hasVwap ? vw[i] : undefined };
     });
 
     // Líneas de precio: máximo del día, máximo pre-market, cierre anterior, el plan del bull flag,
@@ -406,18 +460,30 @@ export function Chart({ id, defaultTf, detail, alerts, themeKey, now, position, 
     // Marcas de halts y bull flags del símbolo, y tus compras (C) y ventas (V).
     const first = bars[0].t;
     const span = tf * 1000;
+    // En las temporalidades largas la vela que contiene un instante es la última que empieza antes.
+    const bucket = (ts: number): number => {
+      if (tf < TF_4H) return Math.floor(ts / span) * span;
+      let lo = 0;
+      let hi = bars.length - 1;
+      while (lo < hi) {
+        const mid = (lo + hi + 1) >> 1;
+        if (bars[mid].t <= ts) lo = mid;
+        else hi = mid - 1;
+      }
+      return bars[lo].t;
+    };
     const marks: SeriesMarker<Time>[] = [];
     for (const a of alerts) {
       if (a.sym !== detail.sym || a.ts < first) continue;
       if (a.type !== 'halt' && a.type !== 'bullFlag' && a.type !== 'resume') continue;
-      const time = toTime(Math.floor(a.ts / span) * span);
+      const time = toTime(bucket(a.ts));
       if (a.type === 'halt') marks.push({ time, position: 'aboveBar', color: p.warn, shape: 'square', text: 'H' });
       else if (a.type === 'resume') marks.push({ time, position: 'aboveBar', color: p.info, shape: 'circle', text: 'R' });
       else marks.push({ time, position: 'belowBar', color: p.up, shape: 'arrowUp', text: 'BF' });
     }
     for (const f of fills ?? []) {
       if (f.ts < first) continue;
-      const time = toTime(Math.floor(f.ts / span) * span);
+      const time = toTime(bucket(f.ts));
       marks.push(
         f.side === 'buy'
           ? { time, position: 'belowBar', color: p.info, shape: 'arrowUp', text: `C ${f.shares}` }
@@ -431,7 +497,7 @@ export function Chart({ id, defaultTf, detail, alerts, themeKey, now, position, 
     const y = s.candles.priceToCoordinate(bars[bars.length - 1].c);
     setLabelY(y === null ? null : y);
     setScaleW(chart.priceScale('right').width());
-  }, [detail, alerts, tf, themeKey, showMacd, position, fills, orders]);
+  }, [detail, alerts, tf, themeKey, showMacd, position, fills, orders, hist]);
 
   const changeTf = (x: number) => {
     setTf(x);
@@ -500,8 +566,13 @@ export function Chart({ id, defaultTf, detail, alerts, themeKey, now, position, 
             </div>
             {legendOpen && (
               <>
-                {(detail.row.float !== undefined || mcap !== undefined) && (
+                {(detail.row.float !== undefined || mcap !== undefined || ref?.industry) && (
                   <div className="lg-row">
+                    {ref?.industry && (
+                      <>
+                        Sector <em className="lg-sector">{ref.industry}</em>{' '}
+                      </>
+                    )}
                     {detail.row.float !== undefined && (
                       <>
                         Float <em className="lg-float">{fmtVolume(detail.row.float)}</em>
@@ -526,7 +597,7 @@ export function Chart({ id, defaultTf, detail, alerts, themeKey, now, position, 
             )}
           </div>
         )}
-        {detail && labelY !== null && lastBar && (
+        {detail && labelY !== null && lastBar && tf < TF_4H && (
           <span className="chart-countdown mono" style={{ top: labelY + 10, width: scaleW }} title="Tiempo para que cierre la vela">
             {countdown}
           </span>

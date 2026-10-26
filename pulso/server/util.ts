@@ -7,7 +7,7 @@ export const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 export const CACHE_DIR = join(ROOT, '.cache');
 
 /** Carpeta de la caché (PULSO_CACHE_DIR la cambia: las pruebas usan una temporal). */
-function cacheDir(): string {
+export function cacheDir(): string {
   return process.env.PULSO_CACHE_DIR?.trim() || CACHE_DIR;
 }
 

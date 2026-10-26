@@ -9,6 +9,7 @@ export interface RecentFilings {
 }
 
 interface Submissions {
+  sicDescription?: string;
   filings: { recent: RecentFilings };
 }
 
@@ -42,7 +43,8 @@ export class SecData {
   private readonly limiter = new RateLimiter(5, 1000);
   private cikByTicker = new Map<string, number>();
   private flagCache = new Map<string, string[]>();
-  private inFlight = new Set<string>();
+  private subCache = new Map<string, Submissions | null>();
+  private inFlight = new Map<string, Promise<Submissions | null>>();
   ready = false;
 
   constructor(
@@ -114,26 +116,45 @@ export class SecData {
   }
 
   /** Presentaciones recientes de una empresa → etiquetas de dilución (con caché del día). */
+  /** La ficha de presentaciones de la empresa (una descarga por símbolo; se guarda en memoria). */
+  private async submissions(sym: string): Promise<Submissions | null> {
+    const hit = this.subCache.get(sym);
+    if (hit !== undefined) return hit;
+    const cik = this.cikByTicker.get(sym);
+    if (!cik) return null;
+    const pending = this.inFlight.get(sym);
+    if (pending) return pending;
+    const p = getJson<Submissions>(`https://data.sec.gov/submissions/CIK${String(cik).padStart(10, '0')}.json`, {
+      headers: this.headers,
+      limiter: this.limiter,
+      retries: 1,
+    })
+      .then((sub) => {
+        this.subCache.set(sym, sub);
+        return sub;
+      })
+      .catch((e: Error) => {
+        this.log('warn', `SEC ${sym}: ${e.message}`);
+        this.subCache.set(sym, null);
+        return null;
+      })
+      .finally(() => this.inFlight.delete(sym));
+    this.inFlight.set(sym, p);
+    return p;
+  }
+
   async flags(sym: string, dayKey: string): Promise<string[] | null> {
     if (this.flagCache.has(sym)) return this.flagCache.get(sym)!;
-    const cik = this.cikByTicker.get(sym);
-    if (!cik || this.inFlight.has(sym)) return null;
-    this.inFlight.add(sym);
-    try {
-      const sub = await getJson<Submissions>(`https://data.sec.gov/submissions/CIK${String(cik).padStart(10, '0')}.json`, {
-        headers: this.headers,
-        limiter: this.limiter,
-        retries: 1,
-      });
-      const flags = dilutionFlags(sub.filings.recent, dayKey);
-      this.flagCache.set(sym, flags);
-      return flags;
-    } catch (e) {
-      this.log('warn', `SEC ${sym}: ${(e as Error).message}`);
-      this.flagCache.set(sym, []);
-      return null;
-    } finally {
-      this.inFlight.delete(sym);
-    }
+    const sub = await this.submissions(sym);
+    if (!sub) return null;
+    const flags = dilutionFlags(sub.filings.recent, dayKey);
+    this.flagCache.set(sym, flags);
+    return flags;
+  }
+
+  /** Industria según la SEC (descripción del código SIC), o null si no la tiene. */
+  async industry(sym: string): Promise<string | null> {
+    const sub = await this.submissions(sym);
+    return sub?.sicDescription || null;
   }
 }

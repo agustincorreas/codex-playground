@@ -185,6 +185,15 @@ export interface TradingSettings {
   latencyMs: number;
   /** Pérdida máxima del día: bloquea nuevas compras (0 = sin límite). */
   maxDailyLoss: number;
+  /**
+   * Cómo se calculan las acciones y el riesgo por defecto: 'cuenta' = un porcentaje del valor de la
+   * cuenta (crecen y bajan con ella); 'fijo' = `defaultShares` y `defaultRisk` tal cual.
+   */
+  sizing: 'cuenta' | 'fijo';
+  /** Riesgo por trade como % de la cuenta (sizing 'cuenta'). */
+  riskPct: number;
+  /** Tamaño de una posición por defecto como % de la cuenta (sizing 'cuenta'). */
+  sizePct: number;
   defaultShares: number;
   /** Riesgo en US$ para el tamaño "por riesgo" (acciones = riesgo / (entrada − stop)). */
   defaultRisk: number;
@@ -245,6 +254,9 @@ export const DEFAULT_TRADING: TradingSettings = {
   regFees: true,
   latencyMs: 150,
   maxDailyLoss: 0,
+  sizing: 'cuenta',
+  riskPct: 2,
+  sizePct: 25,
   defaultShares: 100,
   defaultRisk: 20,
   startMinutes: 9 * 60 + 25,

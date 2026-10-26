@@ -225,6 +225,25 @@ export class TrainingController {
     return this.store.kind;
   }
 
+  /** Riesgo por trade en US$: un porcentaje del valor de la cuenta, o el monto fijo de los ajustes. */
+  riskAmount(): number {
+    const s = this.state.settings;
+    if (s.sizing === 'fijo') return s.defaultRisk;
+    return Math.max(1, Math.round(this.summary().equity * (s.riskPct / 100) * 100) / 100);
+  }
+
+  /**
+   * Acciones por defecto del ticket: con el tamaño según la cuenta, lo que compra un porcentaje de
+   * ella al precio dado (redondeado a un lote cómodo); si no, el número fijo de los ajustes.
+   */
+  defaultShares(price?: number): number {
+    const s = this.state.settings;
+    if (s.sizing === 'fijo' || !price || price <= 0) return s.defaultShares;
+    const raw = (this.summary().equity * (s.sizePct / 100)) / price;
+    const lot = raw >= 1000 ? 100 : raw >= 100 ? 10 : raw >= 20 ? 5 : 1;
+    return Math.max(1, Math.floor(raw / lot) * lot);
+  }
+
   /** Identificador de esta página ante el servidor (si la cuenta se guarda ahí). */
   get storeClientId(): string | undefined {
     return this.store.clientId;
@@ -565,7 +584,7 @@ export class TrainingController {
     let shares = typeof a.shares === 'number' ? a.shares : ticket.shares;
     if (a.shares === 'risk') {
       if (!ticket.stop || ticket.stop >= price) return this.reject({ ok: false, message: 'Para comprar por riesgo poné un stop debajo del precio en el ticket.', fills: [] });
-      shares = Math.max(1, Math.floor(this.state.settings.defaultRisk / (price - ticket.stop)));
+      shares = Math.max(1, Math.floor(this.riskAmount() / (price - ticket.stop)));
     }
     return this.place({ sym, side: 'buy', type: 'limit', price, shares, tif: ticket.tif ?? 'DAY+', route: ticket.route, stop: ticket.stop, target: ticket.target, setup: ticket.setup });
   }
