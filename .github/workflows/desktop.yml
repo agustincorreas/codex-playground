@@ -1,0 +1,72 @@
+# Arma los instaladores de la app de escritorio de Pulso (Windows .exe y Mac .dmg) y los publica como
+# Release de GitHub cada vez que se sube un tag "pulso-vX.Y.Z" (o a mano desde Actions).
+name: Instaladores de Pulso (Windows y Mac)
+
+on:
+  push:
+    tags: ['pulso-v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: pulso/package-lock.json
+      - name: Compilar la interfaz y el servidor
+        working-directory: pulso
+        run: |
+          npm ci
+          npm run build:desktop
+      - name: Empaquetar con Electron
+        working-directory: pulso/desktop
+        env:
+          # Sin certificados: las apps salen sin firmar (Windows y Mac avisan la primera vez).
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: |
+          npm ci
+          npx electron-builder --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pulso-${{ matrix.os }}
+          path: |
+            pulso/desktop/release/*.exe
+            pulso/desktop/release/*.dmg
+          if-no-files-found: error
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/pulso-v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: instaladores
+          merge-multiple: true
+      - name: Publicar el Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Pulso ${{ github.ref_name }}
+          files: instaladores/*
+          body: |
+            ## Pulso para escritorio
+
+            - **Windows:** bajá `Pulso-…-Windows-instalador.exe` y abrilo. Si aparece "Windows protegió tu PC",
+              tocá *Más información → Ejecutar de todas formas* (la app no está firmada; pasa una sola vez).
+            - **Mac (Intel o Apple Silicon):** bajá `Pulso-…-Mac.dmg`, arrastrá Pulso a Aplicaciones y la primera
+              vez abrila con **clic derecho → Abrir**. Si macOS la bloquea igual, andá a *Ajustes del Sistema →
+              Privacidad y seguridad* y tocá *Abrir de todos modos*.
+
+            Al abrir pide las claves de Alpaca (gratis) para ver el mercado real; sin claves corre el simulador.
+            Las claves quedan guardadas solo en tu computadora.

@@ -1,0 +1,83 @@
+{
+  "name": "pulso-desktop",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Pulso: escáner de momentum y simulador de práctica, como app de escritorio",
+  "author": "Agustín Correas",
+  "main": "main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder",
+    "dist:dir": "electron-builder --dir"
+  },
+  "devDependencies": {
+    "electron": "44.9.2",
+    "electron-builder": "26.0.12"
+  },
+  "build": {
+    "appId": "com.agustincorreas.pulso",
+    "productName": "Pulso",
+    "copyright": "Pulso",
+    "asar": false,
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.cjs",
+      "preload.cjs",
+      "loading.html",
+      "setup.html",
+      "app/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "Pulso-${version}-Windows-instalador.${ext}"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "shortcutName": "Pulso",
+      "deleteAppDataOnUninstall": false
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "universal"
+          ]
+        }
+      ],
+      "category": "public.app-category.finance",
+      "identity": null,
+      "hardenedRuntime": false,
+      "artifactName": "Pulso-${version}-Mac.${ext}"
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "category": "Office",
+      "artifactName": "Pulso-${version}-Linux.${ext}"
+    },
+    "publish": null
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/agustincorreas/codex-playground.git"
+  }
+}

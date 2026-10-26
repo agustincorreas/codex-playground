@@ -356,7 +356,28 @@ Fuentes: [Alpaca, planes de datos](https://docs.alpaca.markets/docs/about-market
 
 ---
 
-## 4. Instalación (una vez, ~10 minutos)
+## 4. Instalación
+
+### La forma fácil: la app de escritorio (Windows y Mac)
+
+En [Releases](https://github.com/agustincorreas/codex-playground/releases) está el instalador: `Pulso-…-Windows-instalador.exe`
+o `Pulso-…-Mac.dmg` (sirve para Intel y Apple Silicon). Se instala como cualquier programa, abre una
+ventana propia y arranca el servidor solo. La primera vez pide las claves (Alpaca gratis para el mercado
+real, Massive gratis para el float); sin claves corre el simulador. Las claves y la caché quedan en tu
+perfil de usuario, nunca en la app. Desde el menú *Pulso*: cambiar las claves, reiniciar el servidor,
+copiar la dirección para el celular (misma Wi-Fi) y ver el registro.
+
+La app no está firmada (firmarla cuesta ~US$ 99 por año en cada plataforma), así que la primera vez:
+
+- **Windows:** "Windows protegió tu PC" → *Más información* → *Ejecutar de todas formas*.
+- **Mac:** arrastrá Pulso a Aplicaciones y abrila con **clic derecho → Abrir**. Si igual la bloquea,
+  *Ajustes del Sistema → Privacidad y seguridad → Abrir de todos modos*.
+
+Para armar los instaladores: un tag `pulso-vX.Y.Z` dispara el workflow `desktop.yml`, que los compila en
+GitHub Actions (Windows y Mac) y los publica en el Release. A mano: `npm run build:desktop` y, en
+`desktop/`, `npm ci && npx electron-builder`.
+
+### A mano, con Node (una vez, ~10 minutos)
 
 1. Instalá **Node.js 20 o más nuevo** desde https://nodejs.org (botón "LTS").
 2. Bajá el código (botón verde **Code → Download ZIP** en GitHub, o `git clone`) y abrí una terminal en la
@@ -445,6 +466,7 @@ pulso/
     lib/hotkeys.ts  atajos de teclado configurables
     components/WindowGrid.tsx  ventanas reacomodables (react-grid-layout)
   server/       servidor Node: Alpaca, Massive, halts de Nasdaq, SEC, float; WebSocket hacia la interfaz
+  desktop/      app de escritorio (Electron): ventana, servidor como proceso hijo, pantalla de claves; electron-builder
   test/         pruebas (motor, adaptadores con mensajes de la documentación oficial, servidores falsos)
 ```
 
@@ -455,6 +477,7 @@ pulso/
 | `npm test` | Pruebas (93): motor, alertas, bull flag, halts, Alpaca y Massive contra servidores falsos, simulador (el mismo mercado a cualquier hora, volumen por hora, días, ofertas, after-hours), el plan gratis de Alpaca en capas, bróker de práctica, días de práctica, respaldo y métricas. |
 | `npm run typecheck` | Chequeo de tipos de todo el proyecto. |
 | `npm run build:demo` | Página única del demo (`dist-demo/index.html`) para GitHub Pages. |
+| `npm run build:desktop` | Interfaz + servidor en un solo archivo para la app de escritorio (`desktop/app/`). |
 
 ### Límites conocidos
 

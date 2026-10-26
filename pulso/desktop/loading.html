@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>Pulso</title>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background: #0c1019;
+        color: #9aa4b8;
+        font: 14px/1.5 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      }
+      .card {
+        width: min(720px, calc(100vw - 48px));
+        text-align: center;
+      }
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        color: #e6eaf2;
+        font: 700 28px system-ui, sans-serif;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+      .brand svg {
+        color: #5b9aff;
+      }
+      .bar {
+        display: block;
+        margin: 14px auto 0;
+        width: 220px;
+        height: 2px;
+        background: linear-gradient(90deg, transparent, #5b9aff, transparent);
+        background-size: 200% 100%;
+        animation: boot 1.2s linear infinite;
+      }
+      @keyframes boot {
+        from {
+          background-position: 100% 0;
+        }
+        to {
+          background-position: -100% 0;
+        }
+      }
+      .status {
+        margin: 14px 0 0;
+        color: #e6eaf2;
+      }
+      .error {
+        color: #ff5a52;
+      }
+      pre {
+        text-align: left;
+        margin: 16px auto 0;
+        max-height: 220px;
+        overflow: auto;
+        background: #1a2030;
+        border: 1px solid #2c364c;
+        border-radius: 8px;
+        padding: 10px 12px;
+        font: 12px ui-monospace, Menlo, Consolas, monospace;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      .actions {
+        margin-top: 12px;
+        display: flex;
+        gap: 8px;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+      button {
+        border-radius: 6px;
+        padding: 8px 14px;
+        border: 1px solid #2c364c;
+        background: none;
+        color: #e6eaf2;
+        font: 600 13px system-ui, sans-serif;
+        cursor: pointer;
+      }
+      button.primary {
+        background: #5b9aff;
+        border-color: #5b9aff;
+        color: #0c1019;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="brand">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M2 12h4l2-6 4 12 3-8 2 2h5" />
+        </svg>
+        Pulso
+      </div>
+      <span class="bar" id="bar"></span>
+      <p class="status" id="status">Arrancando el servidor…</p>
+      <pre id="log"></pre>
+      <div class="actions">
+        <button type="button" class="primary" id="setup">Claves y conexión…</button>
+        <button type="button" id="restart">Reiniciar el servidor</button>
+        <button type="button" id="openLog">Ver el registro</button>
+      </div>
+    </div>
+    <script>
+      const $ = (id) => document.getElementById(id);
+      const lines = [];
+      const render = () => ($('log').textContent = lines.slice(-14).join('\n'));
+      const error = new URLSearchParams(location.search).get('error');
+      if (error) {
+        $('status').textContent = error;
+        $('status').classList.add('error');
+        $('bar').style.display = 'none';
+      }
+      window.pulso.getLog().then((l) => {
+        lines.push(...l);
+        render();
+      });
+      window.pulso.onLog((line) => {
+        lines.push(line);
+        if (lines.length > 200) lines.splice(0, lines.length - 200);
+        if (!error) {
+          const m = /Estado: (.*)$/.exec(line);
+          if (m) $('status').textContent = m[1];
+        }
+        render();
+      });
+      $('setup').addEventListener('click', () => window.pulso.openSetup());
+      $('restart').addEventListener('click', () => window.pulso.restartServer());
+      $('openLog').addEventListener('click', () => window.pulso.openLog());
+    </script>
+  </body>
+</html>
