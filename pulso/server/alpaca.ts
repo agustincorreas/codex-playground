@@ -1,4 +1,5 @@
-// Proveedor Alpaca: plan Algo Trader Plus (feed SIP, US$ 99/mes) o plan gratis (feed IEX).
+// Proveedor Alpaca: plan Algo Trader Plus (feed SIP, US$ 99/mes) o plan gratis (feed IEX). Con
+// `feed: 'auto'` se prueba una consulta SIP reciente al arrancar: si el plan la permite, SIP; si no, IEX.
 // Arranque por REST (activos, snapshots, volumen promedio, velas del día) y luego streaming:
 // velas de 1 minuto de todo el mercado + prints de los símbolos calientes + halts + LULD + noticias.
 //
@@ -89,6 +90,17 @@ export function alpacaToEvent(m: Record<string, unknown>): MarketEvent | null {
         updatesPrice: !conds.some((c) => NO_PRICE_CONDITIONS.has(c)),
       };
     }
+    case 'q':
+      // Tamaños en lotes de 100 acciones.
+      return {
+        kind: 'quote',
+        sym: m.S as string,
+        ts: Date.parse(m.t as string),
+        bid: m.bp as number,
+        ask: m.ap as number,
+        bidSize: ((m.bs as number) ?? 0) * 100,
+        askSize: ((m.as as number) ?? 0) * 100,
+      };
     case 'b':
     case 'u': {
       const b = m as unknown as AlpacaBar & { S: string };
@@ -176,15 +188,18 @@ export function delayedFromSnapshot(sym: string, s: AlpacaSnapshot, session: EtD
 }
 
 export class AlpacaProvider implements Provider {
-  readonly label: string;
-  readonly realtime: boolean;
+  label = '';
+  realtime = false;
   /** Plan gratis: IEX en vivo más el mercado completo demorado (ver el encabezado del archivo). */
-  readonly layered: boolean;
+  layered = false;
+  /** Feed en uso (con `auto`, el que se detectó al arrancar). */
+  feed: 'sip' | 'iex' | 'delayed_sip' = 'iex';
+  private readonly hotLimitFixed: boolean;
   private stream?: ReconnectingSocket;
   private news?: ReconnectingSocket;
   private hot = new Set<string>();
   private wantedHot = new Set<string>();
-  private limiter: RateLimiter;
+  private limiter = new RateLimiter(180, 60_000);
   private ctx?: ProviderContext;
   private session: EtDate = sessionDate(Date.now());
   private timers: Array<ReturnType<typeof setInterval>> = [];
@@ -195,10 +210,39 @@ export class AlpacaProvider implements Provider {
   private pendingTimer?: ReturnType<typeof setTimeout>;
 
   constructor(private readonly cfg: Config['alpaca']) {
-    this.layered = cfg.feed === 'iex';
-    this.label = cfg.feed === 'sip' ? 'Alpaca SIP' : this.layered ? 'Alpaca gratis' : 'Alpaca (demorado)';
-    this.realtime = cfg.feed === 'sip' || this.layered;
-    this.limiter = cfg.feed === 'sip' ? new RateLimiter(150, 1000) : new RateLimiter(180, 60_000);
+    this.hotLimitFixed = cfg.hotLimit > 0;
+    this.applyFeed(cfg.feed === 'auto' ? 'iex' : cfg.feed);
+  }
+
+  private applyFeed(feed: 'sip' | 'iex' | 'delayed_sip'): void {
+    this.feed = feed;
+    this.layered = feed === 'iex';
+    this.label = feed === 'sip' ? 'Alpaca SIP' : this.layered ? 'Alpaca gratis' : 'Alpaca (demorado)';
+    this.realtime = feed === 'sip' || this.layered;
+    // Algo Trader Plus permite 10.000 consultas por minuto; el plan gratis, 200.
+    this.limiter = feed === 'sip' ? new RateLimiter(150, 1000) : new RateLimiter(180, 60_000);
+    if (!this.hotLimitFixed) this.cfg.hotLimit = feed === 'iex' ? 25 : 400;
+  }
+
+  private get streamUrl(): string {
+    return this.cfg.streamUrl ?? `wss://stream.data.alpaca.markets/v2/${this.feed}`;
+  }
+
+  /** ¿El plan permite el SIP en tiempo real? (El gratis responde 403 a cualquier consulta SIP reciente.) */
+  private async hasSip(): Promise<boolean> {
+    // Recién contratado el plan, Alpaca tarda unos minutos en habilitarlo en todos sus servidores: se
+    // prueba hasta tres veces y con un "sí" alcanza (el plan gratis nunca responde 200).
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const start = new Date(Date.now() - 10 * 60_000).toISOString();
+      try {
+        await this.get(`${this.cfg.dataUrl}/v2/stocks/bars?symbols=SPY&timeframe=1Min&start=${start}&limit=1&feed=sip`);
+        return true;
+      } catch (e) {
+        if (!(e instanceof HttpError && e.status === 403)) throw e;
+      }
+      await new Promise((r) => setTimeout(r, 400));
+    }
+    return false;
   }
 
   private liveMessage(): string {
@@ -226,6 +270,13 @@ export class AlpacaProvider implements Provider {
     this.ctx = ctx;
     const { log } = ctx;
     this.session = sessionDate(Date.now());
+    if (this.cfg.feed === 'auto') {
+      ctx.setStatus({ connected: false, message: 'Alpaca: detectando el plan de datos…' });
+      const sip = await this.hasSip();
+      this.applyFeed(sip ? 'sip' : 'iex');
+      ctx.setStatus({ provider: this.label, realtime: this.realtime, badge: this.badge });
+      log('info', sip ? 'Alpaca: la cuenta tiene Algo Trader Plus: todo el mercado en tiempo real (SIP).' : 'Alpaca: plan gratis: IEX en vivo más el mercado completo con 15 min de demora.');
+    }
     ctx.setStatus({ connected: false, message: 'Alpaca: descargando la lista de acciones…' });
 
     const assets = await this.assets();
@@ -354,7 +405,7 @@ export class AlpacaProvider implements Provider {
   private async snapshots(symbols: string[]): Promise<Map<string, AlpacaSnapshot>> {
     const out = new Map<string, AlpacaSnapshot>();
     // Con el plan gratis, el estado del día se pide al mercado completo demorado (no a IEX sola).
-    const feed = this.cfg.feed === 'sip' ? 'sip' : 'delayed_sip';
+    const feed = this.feed === 'sip' ? 'sip' : 'delayed_sip';
     for (const group of chunk(symbols, 400)) {
       let list = group;
       // Un símbolo inválido hace fallar todo el lote: se quita y se reintenta.
@@ -414,7 +465,7 @@ export class AlpacaProvider implements Provider {
     const out = new Map<string, Bar[]>();
     if (!symbols.length) return out;
     const start = new Date(tradingDayStart(Date.parse(`${this.session.dateKey}T16:00:00Z`))).toISOString();
-    const paid = this.cfg.feed === 'sip';
+    const paid = this.feed === 'sip';
     const end = paid ? '' : `&end=${new Date(Date.now() - 16 * 60_000).toISOString()}`;
     for (const group of chunk(symbols, 50)) {
       let token: string | undefined;
@@ -456,7 +507,7 @@ export class AlpacaProvider implements Provider {
   private connectStream(): void {
     const ctx = this.ctx!;
     const { log } = ctx;
-    this.stream = new ReconnectingSocket(this.cfg.streamUrl, `Alpaca stream (${this.cfg.feed})`, log, {
+    this.stream = new ReconnectingSocket(this.streamUrl, `Alpaca stream (${this.feed})`, log, {
       onMessage: (data) => {
         const arr = Array.isArray(data) ? data : [data];
         const engine = ctx.engine();
@@ -489,7 +540,7 @@ export class AlpacaProvider implements Provider {
     const hints: Record<number, string> = {
       402: 'Clave o secreto de Alpaca incorrectos. Revisá ALPACA_KEY_ID y ALPACA_SECRET_KEY.',
       406: 'Ya hay otra conexión abierta con esta clave (Alpaca permite una sola). Cerrá la otra app o servidor.',
-      409: 'Tu plan de Alpaca no incluye este feed. Con la cuenta gratis usá ALPACA_FEED=iex; para SIP contratá Algo Trader Plus.',
+      409: 'Tu plan de Alpaca no incluye este feed. Dejá ALPACA_FEED=auto (o iex con la cuenta gratis); para SIP contratá Algo Trader Plus.',
       405: 'Superaste el límite de símbolos del plan gratis (30). Bajá ALPACA_HOT_SYMBOLS.',
     };
     const hint = hints[code] ?? msg;
@@ -541,8 +592,10 @@ export class AlpacaProvider implements Provider {
     if (!this.stream) return;
     const add = [...this.wantedHot].filter((s) => !this.hot.has(s) && this.ctx?.universe.has(s));
     const remove = [...this.hot].filter((s) => !this.wantedHot.has(s));
-    if (remove.length) this.stream.send({ action: 'unsubscribe', trades: remove });
-    if (add.length) this.stream.send({ action: 'subscribe', trades: add });
+    // Con SIP también la cotización (NBBO) de los calientes; con IEX no (su libro no es el del mercado).
+    const quotes = this.feed === 'sip';
+    if (remove.length) this.stream.send(quotes ? { action: 'unsubscribe', trades: remove, quotes: remove } : { action: 'unsubscribe', trades: remove });
+    if (add.length) this.stream.send(quotes ? { action: 'subscribe', trades: add, quotes: add } : { action: 'subscribe', trades: add });
     for (const s of remove) this.hot.delete(s);
     for (const s of add) this.hot.add(s);
     if (add.length) this.queueBars(add);
@@ -558,7 +611,7 @@ export class AlpacaProvider implements Provider {
    * hasta hace 16 minutos; lo último lo completan los prints en vivo).
    */
   async backfillSec(sym: string): Promise<Bar[] | null> {
-    const paid = this.cfg.feed === 'sip';
+    const paid = this.feed === 'sip';
     const end = paid ? Date.now() : Date.now() - 16 * 60_000;
     const start = end - 2 * 3_600_000;
     const bars = new Map<number, Bar>();
