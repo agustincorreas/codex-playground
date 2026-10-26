@@ -104,6 +104,7 @@ function serverEnv(s) {
     MASSIVE_PLAN: s.massivePlan || 'basic',
     SEC_USER_AGENT: s.secUserAgent || '',
     PULSO_CACHE_DIR: path.join(userData(), 'cache'),
+    PULSO_DATA_DIR: userData(),
     PULSO_DIST_DIR: path.join(APP_DIR, 'dist'),
     PULSO_DESKTOP: '1',
   };

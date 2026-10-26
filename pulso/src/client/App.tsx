@@ -3,7 +3,7 @@ import { fmtVolume } from '../engine/alerts';
 import { formatCountdown } from '../engine/time';
 import type { Alert, AlertType, NewsItem, ProviderStatus, ScannerId, Settings, SymbolDetail, ViewModel } from '../engine/types';
 import { DEFAULT_SETTINGS } from '../engine/types';
-import { createTrainingStore, LocalTrainingStore } from '../trading/store';
+import { createTrainingStore, LocalTrainingStore, ServerTrainingStore, type TrainingStore } from '../trading/store';
 import type { Hotkey } from '../trading/types';
 import { AccountValue, PositionsWindow, TodayTrades, TradeActivity } from './components/Account';
 import { Chart, type ChartFill, type ChartOrder, type ChartPosition } from './components/Chart';
@@ -133,26 +133,39 @@ export function App() {
       const server = await detectServer();
       if (!alive) return;
       setMsg('Cargando tu cuenta de práctica…');
-      let store = await createTrainingStore();
+      // Con servidor, la cuenta vive ahí (una sola para todos los dispositivos); si no, en Claude o acá.
+      let store: TrainingStore = server ? new ServerTrainingStore() : await createTrainingStore();
       let loaded;
       let failed = false;
+      let moved = false;
       try {
         loaded = await store.load();
       } catch {
-        // Un error momentáneo de la base: se reintenta una vez.
+        // Un error momentáneo de la base o del servidor: se reintenta una vez.
         await new Promise((r) => setTimeout(r, 800 + Math.random() * 1200));
         try {
           loaded = await store.load();
         } catch {
           // Sin la base, se practica en este navegador (con claves propias: no reemplaza la cuenta de Claude).
-          failed = store.kind === 'cuenta';
-          store = new LocalTrainingStore(failed ? 'pulso:training-sin-cuenta' : 'pulso:training');
+          failed = store.kind !== 'navegador';
+          store = new LocalTrainingStore(store.kind === 'cuenta' ? 'pulso:training-sin-cuenta' : 'pulso:training');
           loaded = await store.load();
+        }
+      }
+      // Primera vez con el servidor: la cuenta que este navegador ya tenía pasa al servidor.
+      if (store.kind === 'servidor' && !loaded.state && !loaded.sessions.length) {
+        const old = await new LocalTrainingStore().load();
+        if (old.state) {
+          await store.saveState(old.state);
+          for (const rec of old.sessions) await store.saveSession(rec);
+          loaded = old;
+          moved = true;
         }
       }
       if (!alive) return;
       const c = new TrainingController(store, loaded, server ? 'remote' : 'local');
-      if (failed) c.notify('No se pudo leer tu cuenta de Claude: esta sesión se guarda solo en este navegador.', 'error');
+      if (failed) c.notify(`No se pudo leer tu cuenta ${store.kind === 'cuenta' ? 'de Claude' : 'del servidor'}: esta sesión se guarda solo en este navegador.`, 'error');
+      if (moved) c.notify('Tu cuenta de práctica pasó al servidor de Pulso: ahora es la misma desde cualquier dispositivo.', 'ok');
       setBoot({ server: !!server, c });
     })();
     return () => {
@@ -279,7 +292,7 @@ function Workspace({ server, c }: { server: boolean; c: TrainingController }) {
     setAlerts([]);
     setNews([]);
     let firstViewSeen = false;
-    const src: DataSource = server ? new RemoteSource(settings, savedWatch) : new LocalSource(settings, savedWatch, sim!.cfg);
+    const src: DataSource = server ? new RemoteSource(settings, savedWatch, c.storeClientId) : new LocalSource(settings, savedWatch, sim!.cfg);
     src.start({
       onView: (v) => {
         setView(v);
@@ -314,6 +327,7 @@ function Workspace({ server, c }: { server: boolean; c: TrainingController }) {
       onTick: (t) => c.onTick(t),
       onCatchUp: (t) => c.catchUp(t),
       onRebuild: () => c.rebase(),
+      onAccount: () => void c.reload(),
     });
     if (selectedRef.current) src.select(selectedRef.current);
     c.attach(src);

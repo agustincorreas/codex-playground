@@ -299,7 +299,12 @@ export function Journal({ c, onClose, onSelect, onSettings, onNewDay }: { c: Tra
         <div>
           <h2>Cuenta y métricas</h2>
           <p className="t-muted small">
-            {c.storeKind === 'cuenta' ? 'Se guarda en tu cuenta de Claude: lo ves desde cualquier dispositivo.' : 'Se guarda en este navegador.'} Solo compras (long), dinero ficticio.
+            {c.storeKind === 'servidor'
+              ? 'Se guarda en el servidor de Pulso (tu computadora): es la misma cuenta desde cualquier dispositivo.'
+              : c.storeKind === 'cuenta'
+                ? 'Se guarda en tu cuenta de Claude: lo ves desde cualquier dispositivo.'
+                : 'Se guarda en este navegador.'}{' '}
+            Solo compras (long), dinero ficticio.
           </p>
         </div>
         {onClose && (

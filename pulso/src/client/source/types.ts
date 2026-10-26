@@ -14,6 +14,8 @@ export interface SourceHandlers {
   onCatchUp?(now: number): void;
   /** Se rearmó el mercado (otro motor): las órdenes en cola vuelven a medir la cinta desde ahora. */
   onRebuild?(): void;
+  /** Otro dispositivo cambió la cuenta de práctica guardada en el servidor. */
+  onAccount?(rev: number): void;
 }
 
 /** Fuente de datos de la interfaz: el simulador local o el servidor en vivo. */

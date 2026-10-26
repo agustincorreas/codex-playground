@@ -253,10 +253,16 @@ Se abre con el botón del saldo (arriba) o con la pestaña *Métricas* en el cel
 
 ### Dónde se guarda
 
+- **Con el servidor de Pulso (la app de escritorio o `npm start`):** en el servidor, en un solo archivo
+  (`cuenta-de-practica.json`, en tu perfil de usuario con la app de escritorio o en `data/` con Node).
+  Es **una sola cuenta para todos los dispositivos**: la computadora, el celular por Wi-Fi y cualquier
+  navegador que abra ese servidor ven el mismo saldo, las mismas posiciones y el mismo diario, y un
+  cambio hecho en uno aparece en los otros al instante. La primera vez, la cuenta que ya tenía el
+  navegador pasa sola al servidor. Si el servidor no responde un momento (se está reiniciando), lo que no
+  se pudo guardar queda en el navegador y se sube con el próximo guardado.
 - **En el artifact de Claude:** en tu cuenta de Claude. Es privado (si compartís el link, cada persona tiene
   su propia cuenta de práctica) y lo ves desde cualquier dispositivo.
-- **En la demo de GitHub Pages o en tu computadora:** en el navegador. Si borrás los datos del sitio, se
-  pierden.
+- **En la demo de GitHub Pages:** en el navegador. Si borrás los datos del sitio, se pierden.
 
 Si cerrás la pestaña en medio de un día de práctica, al volver se reanuda el mismo mercado en el mismo
 segundo, con tus posiciones y órdenes (en "Mercado ahora", en la hora actual de Nueva York).
@@ -364,8 +370,9 @@ En [Releases](https://github.com/agustincorreas/codex-playground/releases) está
 o `Pulso-…-Mac.dmg` (sirve para Intel y Apple Silicon). Se instala como cualquier programa, abre una
 ventana propia y arranca el servidor solo. La primera vez pide las claves (Alpaca gratis para el mercado
 real, Massive gratis para el float); sin claves corre el simulador. Las claves y la caché quedan en tu
-perfil de usuario, nunca en la app. Desde el menú *Pulso*: cambiar las claves, reiniciar el servidor,
-copiar la dirección para el celular (misma Wi-Fi) y ver el registro.
+perfil de usuario, nunca en la app, igual que la cuenta de práctica (`cuenta-de-practica.json`, con una
+copia anterior `.bak`). Desde el menú *Pulso*: cambiar las claves, reiniciar el servidor, copiar la
+dirección para el celular (misma Wi-Fi: ve la misma cuenta de práctica) y ver el registro.
 
 La app no está firmada (firmarla cuesta ~US$ 99 por año en cada plataforma), así que la primera vez:
 
@@ -403,6 +410,7 @@ celular conectado a la misma red Wi-Fi.
 | --- | --- |
 | `ALPACA_KEY_ID`, `ALPACA_SECRET_KEY`, `ALPACA_FEED` | Alpaca (`auto` = detecta el plan al arrancar, `iex` = plan gratis en capas, `sip` = pago). |
 | `ALPACA_DELAYED_POLL_SEC`, `ALPACA_HOT_REFRESH_SEC` | Plan gratis: cada cuánto se repasa el mercado completo demorado (60) y se completan las velas consolidadas de los símbolos calientes (300). |
+| `PULSO_DATA_DIR` | Carpeta de la cuenta de práctica (`cuenta-de-practica.json`); por defecto `data/`. La app de escritorio usa tu perfil de usuario. |
 | `MASSIVE_API_KEY`, `MASSIVE_PLAN` | Massive (`basic`, `starter`, `developer` o `advanced`). |
 | `SEC_USER_AGENT` | "Tu Nombre tu@email.com": activa las etiquetas de dilución de la SEC (S-1, shelf S-3, 424B, 8-K 3.02) y las acciones en circulación. |
 | `FMP_API_KEY`, `FLOAT_CSV` | Fuentes alternativas de float (Financial Modeling Prep o tu propio CSV). |
@@ -474,7 +482,7 @@ pulso/
 | --- | --- |
 | `npm run dev` | Interfaz en modo demo con recarga en caliente (http://localhost:5173). |
 | `npm start` | Compila la interfaz y arranca el servidor (datos reales si hay claves). |
-| `npm test` | Pruebas (97): motor, alertas, bull flag, halts, Alpaca y Massive contra servidores falsos, simulador (el mismo mercado a cualquier hora, volumen por hora, días, ofertas, after-hours), el plan gratis de Alpaca en capas, la detección del plan, bróker de práctica, días de práctica, respaldo y métricas. |
+| `npm test` | Pruebas (101): motor, alertas, bull flag, halts, Alpaca y Massive contra servidores falsos, simulador (el mismo mercado a cualquier hora, volumen por hora, días, ofertas, after-hours), el plan gratis de Alpaca en capas, la detección del plan, bróker de práctica, días de práctica, respaldo, la cuenta guardada en el servidor y métricas. |
 | `npm run typecheck` | Chequeo de tipos de todo el proyecto. |
 | `npm run build:demo` | Página única del demo (`dist-demo/index.html`) para GitHub Pages. |
 | `npm run build:desktop` | Interfaz + servidor en un solo archivo para la app de escritorio (`desktop/app/`). |
