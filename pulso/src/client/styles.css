@@ -2884,7 +2884,8 @@ legend {
 @media (max-width: 899px) {
   .app {
     display: block;
-    padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+    /* Lo fijo de abajo (pestañas y, en "Operar", la barra de operación) ya incluye el borde seguro. */
+    padding-bottom: calc(var(--dock-h, 64px) + 8px);
   }
   .top {
     gap: 8px 12px;
@@ -3635,4 +3636,156 @@ legend {
   .nd-fields {
     grid-template-columns: 1fr;
   }
+}
+
+/* ---------------------------------------------------------------- celular: barra de operación */
+.mobile-dock {
+  display: contents;
+}
+@media (max-width: 899px) {
+  .mobile-dock {
+    display: block;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 20;
+  }
+  .mobile-dock .mobile-tabs {
+    position: static;
+  }
+  /* En "Operar" el gráfico va primero y entra en la pantalla junto con la barra de abajo. */
+  .grid > .p-chart1 {
+    order: -1;
+  }
+  .p-chart1 .panel-body {
+    height: clamp(240px, calc(100vh - var(--dock-h, 64px) - 300px), 380px);
+    height: clamp(240px, calc(100svh - var(--dock-h, 64px) - 300px), 380px);
+  }
+}
+.mtb {
+  display: grid;
+  gap: 5px;
+  background: var(--panel);
+  border-top: 1px solid var(--line);
+  box-shadow: 0 -6px 18px rgb(0 0 0 / 0.22);
+  padding: 6px max(10px, env(safe-area-inset-right, 0px)) 8px max(10px, env(safe-area-inset-left, 0px));
+}
+.mtb-empty {
+  margin: 4px 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+.mtb-info {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.mtb-sym {
+  font: 800 15px var(--font-data);
+  letter-spacing: 0.02em;
+}
+.mtb-last {
+  font-size: 15px;
+  font-weight: 800;
+}
+.mtb-chg {
+  font-size: 12px;
+}
+.mtb-quote,
+.mtb-halt {
+  margin-left: auto;
+  font-size: 12px;
+}
+.mtb-halt {
+  color: var(--warn);
+  font-weight: 800;
+}
+.mtb-pos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  min-height: 24px;
+  font-size: 12px;
+}
+.mtb-chips {
+  display: inline-flex;
+  gap: 4px;
+  margin-left: auto;
+}
+.mtb-pos .chip {
+  padding: 3px 10px;
+  font-size: 12px;
+}
+.mtb-cancel {
+  color: var(--warn);
+  border-color: color-mix(in srgb, var(--warn) 50%, var(--line));
+}
+.mtb-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr);
+  gap: 6px;
+}
+.mtb-qty {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.mtb-qty button {
+  width: 34px;
+  border: 0;
+  background: var(--panel-2);
+  color: var(--text);
+  font-size: 18px;
+}
+.mtb-qty input {
+  width: 58px;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--text);
+  text-align: center;
+  font: 700 15px var(--font-data);
+}
+.mtb-buy,
+.mtb-sell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  min-height: 48px;
+  padding: 6px 4px;
+  border: 0;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+.mtb-buy {
+  background: var(--hot-buy);
+}
+.mtb-sell {
+  background: var(--hot-sell);
+}
+.mtb-buy small,
+.mtb-sell small {
+  font: 600 11px var(--font-data);
+  opacity: 0.92;
+}
+.mtb-buy small.mtb-short {
+  color: #ffe1df;
+  text-decoration: underline;
+}
+.mtb-buy:disabled,
+.mtb-sell:disabled {
+  opacity: 0.45;
 }
