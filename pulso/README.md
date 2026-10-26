@@ -41,6 +41,19 @@ en un monitor grande todo se agranda) y otra para notebook.
 | **Cuenta y métricas** | Se abre con el botón del saldo, arriba: estadísticas, Profit Trifecta, curva de capital y trades (sección 2). |
 
 En el celular la misma información se ordena en pestañas (Escáner, Alertas, Operar, Cotización y Métricas).
+En **Operar**, con el teléfono en vertical, el gráfico queda arriba y abajo hay una **barra de operación
+fija** para comprar y vender sin dejar de mirar el precio:
+- **La acción elegida:** el último precio, el % del día, y el bid y el ask.
+- **Tu posición:** las acciones, el precio promedio y el resultado en vivo.
+- **La cantidad:** con − y +, o con atajos. **½** y **Todo** ponen la mitad o toda tu posición. **Máx**
+  pone lo máximo que te alcanza.
+- **COMPRAR:** compra en el Ask + 0,05 y muestra el precio límite y el costo. Si no te alcanza, el costo
+  aparece subrayado.
+- **VENDER:** vende esa cantidad en el Bid − 0,05, sin pasarse de tu posición.
+- **Cancelar:** aparece cuando tenés órdenes en espera.
+
+El ticket completo (límite a un precio, stop, stop plan y objetivo) sigue más abajo, con el Nivel 2 y la
+cinta.
 
 ### Los 5 pilares (valores por defecto, se cambian en Ajustes)
 
@@ -416,7 +429,7 @@ pulso/
 | --- | --- |
 | `npm run dev` | Interfaz en modo demo con recarga en caliente (http://localhost:5173). |
 | `npm start` | Compila la interfaz y arranca el servidor (datos reales si hay claves). |
-| `npm test` | Pruebas (84): motor, alertas, bull flag, halts, Alpaca y Massive contra servidores falsos, simulador (el mismo mercado a cualquier hora, volumen por hora, días, ofertas, after-hours), bróker de práctica, días de práctica, respaldo y métricas. |
+| `npm test` | Pruebas (85): motor, alertas, bull flag, halts, Alpaca y Massive contra servidores falsos, simulador (el mismo mercado a cualquier hora, volumen por hora, días, ofertas, after-hours), bróker de práctica, días de práctica, respaldo y métricas. |
 | `npm run typecheck` | Chequeo de tipos de todo el proyecto. |
 | `npm run build:demo` | Página única del demo (`dist-demo/index.html`) para GitHub Pages. |
 

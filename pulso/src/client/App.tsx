@@ -14,6 +14,7 @@ import { Journal } from './components/Journal';
 import { NewDayDialog } from './components/NewDayDialog';
 import { Level2, num, type TicketForm } from './components/Level2';
 import { IconVoice } from './components/Icons';
+import { MobileTradeBar } from './components/MobileTradeBar';
 import { DayResult, MyTrades } from './components/MyTrades';
 import { Empty, Panel } from './components/Panel';
 import { PracticeSettings } from './components/PracticeSettings';
@@ -183,6 +184,17 @@ function Workspace({ server, c }: { server: boolean; c: TrainingController }) {
   const [layoutEdit, setLayoutEdit] = useState(false);
   const [layoutReset, setLayoutReset] = useState(0);
   const spokenAt = useRef(new Map<string, number>());
+  // Alto de lo fijo de abajo en el celular (barra de operación + pestañas): la página deja ese espacio.
+  const dockObs = useRef<ResizeObserver | null>(null);
+  const dockRef = useCallback((el: HTMLDivElement | null) => {
+    dockObs.current?.disconnect();
+    dockObs.current = null;
+    if (!el) return;
+    const set = () => document.documentElement.style.setProperty('--dock-h', `${Math.ceil(el.getBoundingClientRect().height)}px`);
+    set();
+    dockObs.current = new ResizeObserver(set);
+    dockObs.current.observe(el);
+  }, []);
   const lastVoice = useRef(0);
   const [tabs, setTabs] = useState<Record<string, string>>(() => load('tabs', { scan: 'gappers', momo: 'momentum', quote: 'quote', acct: 'pos' }));
   const [speed, setSpeed] = useState(1);
@@ -738,14 +750,19 @@ function Workspace({ server, c }: { server: boolean; c: TrainingController }) {
         <span className="t-muted disclaimer">Herramienta informativa. No es asesoramiento financiero.</span>
       </footer>
 
-      <MobileTabs
-        tab={mobileTab}
-        onTab={(t) => {
-          setMobileTab(t);
-          window.scrollTo({ top: 0 });
-        }}
-        haltCount={activeHalts}
-      />
+      <div className="mobile-dock" ref={dockRef}>
+        {isMobile && mobileTab === 'chart' && c.active && c.broker && (
+          <MobileTradeBar c={c} sym={selected} quote={quote} row={detail?.sym === selected ? detail.row : undefined} ticket={ticket} setTicket={setTicket} onHotkey={runHotkey} />
+        )}
+        <MobileTabs
+          tab={mobileTab}
+          onTab={(t) => {
+            setMobileTab(t);
+            window.scrollTo({ top: 0 });
+          }}
+          haltCount={activeHalts}
+        />
+      </div>
 
       {c.notices.length > 0 && (
         <div className="toasts" role="status" aria-live="polite">

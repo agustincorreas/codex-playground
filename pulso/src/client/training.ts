@@ -520,13 +520,16 @@ export class TrainingController {
     return res;
   }
 
-  /** Vender una fracción de la posición con una orden límite agresiva (Bid − 0,05), como un atajo. */
-  sell(sym: string, fraction: number, ref: 'bid' | 'ask' = 'bid', offset = -0.05): BrokerResult {
+  /**
+   * Vender una fracción de la posición (o `qty` acciones, sin pasarse de la posición) con una orden
+   * límite agresiva (Bid − 0,05), como un atajo.
+   */
+  sell(sym: string, fraction: number, ref: 'bid' | 'ask' = 'bid', offset = -0.05, qty?: number): BrokerResult {
     const p = this.broker?.position(sym);
     if (!p) return this.reject({ ok: false, message: `No tenés posición en ${sym}.`, fills: [] });
     const q = this.source?.quote(sym);
     if (!q) return this.place({ sym, side: 'sell', type: 'market', shares: p.shares });
-    const shares = fraction >= 1 ? p.shares : Math.max(1, Math.floor(p.shares * fraction));
+    const shares = qty !== undefined ? Math.min(p.shares, Math.max(1, Math.floor(qty))) : fraction >= 1 ? p.shares : Math.max(1, Math.floor(p.shares * fraction));
     const base = ref === 'bid' ? q.bid : q.ask;
     const price = roundPx(Math.max(tickOf(base), base + offset));
     return this.place({ sym, side: 'sell', type: 'limit', price, shares, tif: 'DAY+' });

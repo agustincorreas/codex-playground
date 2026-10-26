@@ -197,3 +197,24 @@ describe('respaldo de la cuenta', () => {
     }
   });
 });
+
+describe('venta desde la barra del celular', () => {
+  it('vende la cantidad pedida, sin pasarse de la posición', () => {
+    vi.useFakeTimers();
+    at('2026-10-26T14:00:00Z');
+    const c = new TrainingController(memoryStore(), { state: null, sessions: [] }, 'local');
+    c.newDay({ clock: 'practice', date: '2026-10-23' });
+    const clock = { now: etWallToTs(2026, 10, 23, 10 * 60) };
+    const src = fakeSource(clock);
+    src.quote = (sym) => ({ sym, last: 3, bid: 2.99, ask: 3.01, bidSize: 500, askSize: 500, real: true, ts: clock.now, halted: false, volPerMin: 10_000 });
+    c.attach(src);
+    c.active!.positions.push({ sym: 'RUN', shares: 100, avgCost: 3, openedAt: 0, boughtShares: 100, boughtCost: 300, soldShares: 0, soldValue: 0, fees: 0, realized: 0, high: 3, low: 3, fills: 1 });
+    expect(c.sell('RUN', 1, 'bid', -0.05, 37).ok).toBe(true);
+    const first = c.orderLog()[0];
+    expect([first.side, first.shares, first.price]).toEqual(['sell', 37, 2.94]);
+    c.cancelAll('RUN');
+    expect(c.sell('RUN', 1, 'bid', -0.05, 500).ok).toBe(true);
+    expect(c.orderLog()[0].shares).toBe(100);
+  });
+});
+
