@@ -188,6 +188,7 @@ function createWindow() {
     autoHideMenuBar: false,
     webPreferences: { preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false },
   });
+  editContextMenu(win.webContents);
   win.on('closed', () => {
     win = null;
   });
@@ -203,6 +204,18 @@ function createWindow() {
     }
   });
   showStatus();
+}
+
+/** Clic derecho en un campo de texto: Cortar / Copiar / Pegar (en Windows y Linux no hay otro camino). */
+function editContextMenu(contents) {
+  contents.on('context-menu', (_e, params) => {
+    if (!params.isEditable && !params.selectionText) return;
+    const items = [];
+    if (params.isEditable) items.push({ role: 'cut', label: 'Cortar', enabled: !!params.selectionText });
+    items.push({ role: 'copy', label: 'Copiar', enabled: !!params.selectionText });
+    if (params.isEditable) items.push({ role: 'paste', label: 'Pegar' }, { type: 'separator' }, { role: 'selectAll', label: 'Seleccionar todo' });
+    Menu.buildFromTemplate(items).popup();
+  });
 }
 
 function openSetup() {
@@ -223,6 +236,7 @@ function openSetup() {
     webPreferences: { preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false },
   });
   setupWin.setMenuBarVisibility(false);
+  editContextMenu(setupWin.webContents);
   setupWin.on('closed', () => {
     setupWin = null;
   });
@@ -249,6 +263,19 @@ function buildMenu() {
         { label: 'Abrir la carpeta de datos', click: () => shell.openPath(userData()) },
         { type: 'separator' },
         isMac ? { role: 'close', label: 'Cerrar ventana' } : { role: 'quit', label: 'Salir' },
+      ],
+    },
+    {
+      // Sin este menú, en Mac no funcionan Cmd+C / Cmd+V en ningún campo (ni en el de las claves).
+      label: 'Edición',
+      submenu: [
+        { role: 'undo', label: 'Deshacer' },
+        { role: 'redo', label: 'Rehacer' },
+        { type: 'separator' },
+        { role: 'cut', label: 'Cortar' },
+        { role: 'copy', label: 'Copiar' },
+        { role: 'paste', label: 'Pegar' },
+        { role: 'selectAll', label: 'Seleccionar todo' },
       ],
     },
     {
