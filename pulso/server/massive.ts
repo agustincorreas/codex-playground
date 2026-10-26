@@ -2,7 +2,7 @@
 // (15 min de demora). Arranque por REST (cierres diarios agrupados, nombres, snapshot de todo el
 // mercado, velas del día) y streaming de agregados por segundo de todas las acciones (A.*).
 import type { Bar, DaySnapshot, MarketEvent, NewsItem, ReferenceData } from '../src/engine/types';
-import { previousTradingDays, sessionDate, tradingDayStart, type EtDate } from '../src/engine/time';
+import { previousTradingDays, sessionAt, sessionDate, tradingDayStart, type EtDate } from '../src/engine/time';
 import type { HistoryTf } from '../src/engine/history';
 import type { Config } from './config';
 import { massivePaged } from './fundamentals';
@@ -298,6 +298,8 @@ export class MassiveProvider implements Provider {
         }
       },
       onClose: () => ctx.setStatus({ connected: false, message: `${this.label}: reconectando…` }),
+      idleMs: 90_000,
+      expectData: () => sessionAt(Date.now()) !== 'closed',
     });
     this.socket.connect();
   }

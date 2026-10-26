@@ -193,6 +193,14 @@ export class SymbolState {
     if (this.secBars.length > MAX_SEC_BARS) this.secBars.splice(0, this.secBars.length - MAX_SEC_BARS);
   }
 
+  /** Velas de 10 s en cualquier posición (relleno de un hueco tras una caída): reemplazan las del mismo instante. */
+  mergeSecBars(bars: Bar[]): void {
+    const map = new Map(this.secBars.map((b) => [b.t, b]));
+    for (const b of bars) map.set(b.t, { ...b });
+    this.secBars = [...map.values()].sort((a, b) => a.t - b.t);
+    if (this.secBars.length > MAX_SEC_BARS) this.secBars.splice(0, this.secBars.length - MAX_SEC_BARS);
+  }
+
   /** Volumen típico por minuto: promedio de las últimas 5 velas cerradas (o la actual si no hay). */
   volumePerMinute(): number {
     const n = this.bars.length;

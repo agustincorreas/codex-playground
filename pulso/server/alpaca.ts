@@ -9,7 +9,7 @@
 // los precios en vivo; el motor estima los últimos minutos escalando lo que vio IEX.
 import type { HistoryTf } from '../src/engine/history';
 import type { Bar, DaySnapshot, DelayedSnapshot, MarketEvent, NewsItem, ReferenceData } from '../src/engine/types';
-import { etParts, previousTradingDays, sessionDate, tradingDayStart, type EtDate } from '../src/engine/time';
+import { etParts, previousTradingDays, sessionAt, sessionDate, tradingDayStart, type EtDate } from '../src/engine/time';
 import type { Config } from './config';
 import { ReconnectingSocket, type Provider, type ProviderContext } from './provider';
 import { chunk, getJson, HttpError, RateLimiter, readCache, writeCache } from './util';
@@ -539,6 +539,9 @@ export class AlpacaProvider implements Provider {
         }
       },
       onClose: () => ctx.setStatus({ connected: false, message: `${this.label}: reconectando…` }),
+      // Con velas de todo el mercado suscritas, en horario de mercado siempre llega algo en 90 s.
+      idleMs: 90_000,
+      expectData: () => sessionAt(Date.now()) !== 'closed',
     });
     this.stream.connect();
   }

@@ -233,6 +233,26 @@ describe('motor: feed parcial en vivo + mercado completo demorado', () => {
     expect(st.lod).toBe(2.95);
   });
 
+  it('las velas de 10 s se completan hacia atrás y, tras una caída, rellenan el hueco del medio', () => {
+    const engine = new Engine({ accept: () => true });
+    engine.setReference([{ sym: 'RUNR', prevClose: 2 }]);
+    engine.ingest({ kind: 'trade', sym: 'RUNR', ts: 1_000_000, price: 3, size: 100, updatesPrice: true });
+    const sec = (ts: number, c: number): Bar => ({ t: ts, o: c, h: c, l: c, c, v: 10, pv: c * 10, n: 1 });
+    engine.setSecBars('RUNR', [sec(900_000, 2.9), sec(910_000, 2.95), sec(1_000_000, 3)]);
+    const st = engine.get('RUNR')!;
+    expect(st.secBars.map((b) => b.t)).toEqual([900_000, 910_000, 1_000_000]);
+    // Prepend no toca lo que ya hay ni rellena huecos; merge sí (y reemplaza la del mismo instante).
+    engine.setSecBars('RUNR', [sec(950_000, 2.97)]);
+    expect(st.secBars.map((b) => b.t)).toEqual([900_000, 910_000, 1_000_000]);
+    engine.mergeSecBars('RUNR', [sec(950_000, 2.97), sec(910_000, 2.96)]);
+    expect(st.secBars.map((b) => [b.t, b.c])).toEqual([
+      [900_000, 2.9],
+      [910_000, 2.96],
+      [950_000, 2.97],
+      [1_000_000, 3],
+    ]);
+  });
+
   it('una vela consolidada muchos minutos atrás reemplaza a la del feed, sin duplicarla', () => {
     const engine = make();
     for (let i = 0; i < 30; i++) engine.ingest({ kind: 'trade', sym: 'RUNR', ts: t(9 * 60 + 30 + i, 5), price: 3, size: 10 });

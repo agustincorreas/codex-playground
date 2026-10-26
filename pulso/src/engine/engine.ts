@@ -280,6 +280,13 @@ export class Engine implements AlertSink {
     st.prependSecBars(bars);
   }
 
+  /** Velas de 10 s que rellenan un hueco (tras una caída de la conexión). */
+  mergeSecBars(sym: string, bars: Bar[]): void {
+    const st = this.symbols.get(sym);
+    if (!st || !bars.length) return;
+    st.mergeSecBars(bars);
+  }
+
   /** Completa las velas del día (backfill) sin alterar volumen/máximos ya cargados por snapshot. */
   setBars(sym: string, bars: Bar[]): void {
     const st = this.symbols.get(sym);

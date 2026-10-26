@@ -91,10 +91,23 @@ function makeProvider(c: Config): Provider {
   return new DemoProvider();
 }
 
+/** Desde cuándo está caída la conexión con el proveedor (para rellenar el hueco al volver). */
+let downSince: number | undefined;
 function setStatus(s: Partial<ProviderStatus>): void {
+  const was = status.connected;
   status = { ...status, ...s };
   if (s.message) log('info', `Estado: ${s.message}`);
   broadcast({ t: 'status', status });
+  if (was && s.connected === false) downSince = Date.now();
+  if (!was && s.connected === true && downSince !== undefined) {
+    const gap = Date.now() - downSince;
+    downSince = undefined;
+    if (gap > 60_000) {
+      log('info', `Conexión recuperada tras ${Math.round(gap / 1000)} s: se rellenan las velas de lo que se mostró.`);
+      backfilled.clear();
+      for (const c of clients) if (c.selected) void maybeBackfill(c.selected, c, true);
+    }
+  }
 }
 
 const ctx: ProviderContext = {
@@ -439,17 +452,19 @@ wss.on('connection', (ws) => {
  * Al elegir un símbolo: si el motor no tiene las velas del día completas se piden al proveedor, y las
  * velas de 10 s de las últimas horas se arman con las operaciones históricas (una vez por símbolo).
  */
-async function maybeBackfill(sym: string, client: Client): Promise<void> {
+async function maybeBackfill(sym: string, client: Client, refill = false): Promise<void> {
   if (backfilled.has(sym) || cfg.provider === 'demo') return;
   const st = engine.get(sym);
   if (!st) return;
   backfilled.add(sym);
   const sessionStart = tradingDayStart(Date.parse(`${sessionKey}T16:00:00Z`));
-  if (!(st.bars.length && st.bars[0].t <= sessionStart + 30 * 60_000)) {
+  // Tras una caída, las velas del día se vuelven a pedir enteras y reemplazan las que haya (rellenan el hueco).
+  if (refill || !(st.bars.length && st.bars[0].t <= sessionStart + 30 * 60_000)) {
     try {
       const bars = await provider.backfill(sym);
       if (bars?.length) {
-        engine.setBars(sym, bars);
+        if (refill) engine.mergeBars(sym, bars);
+        else engine.setBars(sym, bars);
         send(client, { t: 'detail', detail: engine.detail(sym) });
       }
     } catch (e) {
@@ -459,7 +474,8 @@ async function maybeBackfill(sym: string, client: Client): Promise<void> {
   if (provider.backfillSec) {
     try {
       const push = (bars: Bar[]) => {
-        engine.setSecBars(sym, bars);
+        if (refill) engine.mergeSecBars(sym, bars);
+        else engine.setSecBars(sym, bars);
         if (client.selected === sym) send(client, { t: 'detail', detail: engine.detail(sym) });
       };
       const sec = await provider.backfillSec(sym, push);
