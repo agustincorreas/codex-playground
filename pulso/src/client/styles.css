@@ -3905,3 +3905,130 @@ table.scan th .sort-arrow {
   align-items: center;
   justify-content: space-between;
 }
+
+/* ---------------------------------------------------------------- IA Trader */
+.ai-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 10px;
+  overflow: auto;
+  font-size: 12.5px;
+}
+.ai-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.ai-note {
+  margin: 0;
+}
+.ai-card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  background: color-mix(in srgb, var(--panel) 70%, transparent);
+}
+.ai-status b {
+  color: var(--text);
+}
+.ai-thinking {
+  color: var(--info);
+  font-style: normal;
+}
+.ai-paused {
+  margin-top: 4px;
+  color: var(--warn);
+}
+.ai-sug {
+  border-color: color-mix(in srgb, var(--accent) 60%, var(--line));
+}
+.ai-sug.ai-exit {
+  border-color: color-mix(in srgb, var(--warn) 60%, var(--line));
+}
+.ai-sug-title {
+  margin-bottom: 4px;
+}
+.ai-sug-text {
+  margin-bottom: 6px;
+}
+.ai-advice {
+  border-color: color-mix(in srgb, var(--info) 50%, var(--line));
+}
+.ai-sub {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.ai-cand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0;
+  flex-wrap: wrap;
+}
+.ai-cand.is-focus {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border-radius: 4px;
+}
+.ai-score {
+  display: inline-block;
+  width: 60px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--line);
+  overflow: hidden;
+}
+.ai-score i {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+.ai-rules summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.ai-rules-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 6px 10px;
+  margin: 8px 0;
+}
+.ai-rules-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+.ai-rules-grid input {
+  font: inherit;
+  padding: 3px 6px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--text);
+}
+.ai-log-row {
+  padding: 2px 0;
+  border-top: 1px solid color-mix(in srgb, var(--line) 50%, transparent);
+}
+.ai-log-row.tone-ok {
+  color: var(--up);
+}
+.ai-log-row.tone-error {
+  color: var(--down);
+}
+.ai-log-row.tone-ai {
+  color: var(--info);
+}
+.badge.ai-dec-enter,
+.badge.ai-dec-pick {
+  color: var(--up);
+  background: color-mix(in srgb, var(--up) 14%, transparent);
+}
+.badge.ai-dec-skip,
+.badge.ai-dec-sellAll {
+  color: var(--down);
+  background: color-mix(in srgb, var(--down) 14%, transparent);
+}

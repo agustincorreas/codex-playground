@@ -428,6 +428,53 @@ export function Chart({ id, defaultTf, detail, alerts, themeKey, now, position, 
     return () => window.removeEventListener('keydown', onKey);
   }, [tool]);
 
+  // Borrar líneas: clic derecho (o toque largo) sobre una línea la borra; con el mouse sobre el gráfico,
+  // Supr o Retroceso borra la última que dibujaste.
+  const hoveringRef = useRef(false);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!hoveringRef.current || (e.key !== 'Delete' && e.key !== 'Backspace')) return;
+      const el = document.activeElement;
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT')) return;
+      const sym = symRef.current;
+      if (!sym) return;
+      const list = drawingsRef.current;
+      if (!list.length) return;
+      e.preventDefault();
+      removeDrawing(sym, list[list.length - 1].id);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+  const drawingsRef = useRef(drawings);
+  drawingsRef.current = drawings;
+  const onContextMenu = (e: React.MouseEvent<HTMLDivElement>) => {
+    const sym = symRef.current;
+    const s = seriesRef.current;
+    const el = host.current;
+    if (!sym || !s || !el || !drawingsRef.current.length) return;
+    const rect = el.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    // Primero las horizontales (por distancia en píxeles al precio), después las de tendencia.
+    let victim: string | null = null;
+    let best = 8;
+    for (const d of drawingsRef.current) {
+      if (d.kind !== 'h') continue;
+      const py = s.candles.priceToCoordinate(d.price);
+      if (py === null) continue;
+      const dist = Math.abs(py - y);
+      if (dist <= best) {
+        best = dist;
+        victim = d.id;
+      }
+    }
+    if (!victim) victim = primRef.current?.lineNear(x, y, rect.width)?.id ?? null;
+    if (!victim) return;
+    e.preventDefault();
+    removeDrawing(sym, victim);
+  };
+
   useEffect(() => {
     const chart = chartRef.current;
     const s = seriesRef.current;
@@ -636,7 +683,7 @@ export function Chart({ id, defaultTf, detail, alerts, themeKey, now, position, 
           <button className={tool === 'alert' ? 'is-active' : ''} onClick={() => pick('alert')} title="Alerta de precio: una línea que suena y avisa cuando el precio la cruza" aria-pressed={tool === 'alert'}>
             🔔
           </button>
-          <button className={tool === 't' ? 'is-active' : ''} onClick={() => pick('t')} title="Línea de tendencia: tocá dos puntos" aria-pressed={tool === 't'}>
+          <button className={tool === 't' ? 'is-active' : ''} onClick={() => pick('t')} title="Línea de tendencia: tocá dos puntos. Para borrar: clic derecho sobre la línea, Supr (la última) o el botón Líneas" aria-pressed={tool === 't'}>
             ╱
           </button>
         </div>
@@ -647,7 +694,13 @@ export function Chart({ id, defaultTf, detail, alerts, themeKey, now, position, 
         )}
       </div>
       <div className="chart-wrap">
-        <div className={`chart-host${tool ? ' is-drawing' : ''}`} ref={host} />
+        <div
+          className={`chart-host${tool ? ' is-drawing' : ''}`}
+          ref={host}
+          onContextMenu={onContextMenu}
+          onMouseEnter={() => (hoveringRef.current = true)}
+          onMouseLeave={() => (hoveringRef.current = false)}
+        />
         {tool && <span className="draw-hint">{tool === 't' ? (pending ? 'Tocá el segundo punto' : 'Tocá el primer punto') : tool === 'alert' ? 'Tocá el precio de la alerta' : 'Tocá el precio'} · Esc cancela</span>}
         {showList && detail && (
           <div className="draw-list" role="dialog" aria-label="Tus líneas">

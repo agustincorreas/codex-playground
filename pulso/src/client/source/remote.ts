@@ -23,6 +23,8 @@ export class RemoteSource implements DataSource {
   /** Última fila conocida de cada símbolo (de las vistas y de la ficha) para cotizar órdenes. */
   private rows = new Map<string, ScanRow>();
   private detail: SymbolDetail | null = null;
+  private focused: string | null = null;
+  private focusedDetail: SymbolDetail | null = null;
   /** Con datos reales no hay Level 2 en este escáner: el libro se estima solo para ejecutar las órdenes. */
   private readonly books = new MarketBooks(1);
   ready = false;
@@ -72,6 +74,7 @@ export class RemoteSource implements DataSource {
       this.send({ t: 'watchlist', syms: this.watch });
       this.send({ t: 'tracked', syms: this.tracked });
       if (this.selected) this.send({ t: 'select', sym: this.selected });
+      if (this.focused) this.send({ t: 'focus', sym: this.focused });
     };
     ws.onmessage = (m) => {
       this.lastMessage = Date.now();
@@ -99,6 +102,13 @@ export class RemoteSource implements DataSource {
           h.onNews(msg.items, false);
           break;
         case 'detail':
+          if (msg.focus) {
+            if (msg.detail?.sym === this.focused) {
+              this.focusedDetail = msg.detail;
+              if (msg.detail) this.rows.set(msg.detail.sym, msg.detail.row);
+            }
+            break;
+          }
           if (msg.detail?.sym === this.selected || msg.detail === null) {
             this.detail = msg.detail;
             if (msg.detail) this.rows.set(msg.detail.sym, msg.detail.row);
@@ -141,6 +151,19 @@ export class RemoteSource implements DataSource {
   select(sym: string | null): void {
     this.selected = sym;
     this.send({ t: 'select', sym });
+  }
+
+  focus(sym: string | null): void {
+    if (sym !== this.focused) this.focusedDetail = null;
+    this.focused = sym;
+    this.send({ t: 'focus', sym });
+  }
+
+  /** La ficha de la acción que mira la IA; si es la misma que la seleccionada, la de la selección. */
+  focusDetail(): SymbolDetail | null {
+    if (!this.focused) return null;
+    if (this.detail?.sym === this.focused) return this.detail;
+    return this.focusedDetail;
   }
 
   setSettings(s: Settings): void {

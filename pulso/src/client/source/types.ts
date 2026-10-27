@@ -49,4 +49,7 @@ export interface DataSource {
   session(now: number): Session;
   /** Historia para el gráfico (días anteriores, horas o días), ordenada; [] si no hay. */
   history?(sym: string, tf: HistoryTf): Promise<Bar[]>;
+  /** La acción que mira el IA Trader (aparte de la seleccionada): recibe su ficha completa. */
+  focus?(sym: string | null): void;
+  focusDetail?(): SymbolDetail | null;
 }

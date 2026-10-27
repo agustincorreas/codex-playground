@@ -8,7 +8,7 @@ import { Engine } from '../../engine/engine';
 import type { HistoryTf } from '../../engine/history';
 import { synthHistory } from '../../sim/history';
 import { formatEtTime, sessionAt } from '../../engine/time';
-import type { Bar, Alert, NewsItem, Quote, ScanRow, Session, Settings, TapePrint } from '../../engine/types';
+import type { Bar, Alert, NewsItem, Quote, ScanRow, Session, Settings, SymbolDetail, TapePrint } from '../../engine/types';
 import { MarketSim, type DayHeat } from '../../sim/simulator';
 import { MarketBooks, type DepthBook } from '../../trading/depth';
 import type { DataSource, SourceHandlers } from './types';
@@ -273,6 +273,16 @@ export class LocalSource implements DataSource {
 
   async search(prefix: string): Promise<string[]> {
     return this.engine.search(prefix);
+  }
+
+  private focused: string | null = null;
+
+  focus(sym: string | null): void {
+    this.focused = sym;
+  }
+
+  focusDetail(): SymbolDetail | null {
+    return this.focused ? this.engine.detail(this.focused) : null;
   }
 
   /** Historia inventada, determinista por símbolo, que termina en el cierre anterior. */

@@ -177,6 +177,31 @@ que instalar nada.
    depósito o un retiro: el resultado del día, el total y las estadísticas no lo suman como ganancia (con una
    posición abierta hay que cerrarla antes).
 
+### IA Trader: que la IA mire el mercado y opere (o te sugiera)
+
+En la ventana *Momentum* (pestaña **IA Trader**) hay un trader de momentum al estilo Ross Cameron que
+recorre los escáneres, elige "la obvia" del día (5 pilares, volumen relativo enorme, float chico, noticia,
+cerca del máximo), la sigue de cerca (velas de 1 minuto, VWAP, EMA 9, cinta) y opera **solo la cuenta
+de práctica**, nunca órdenes reales.
+
+- **Sugerencias:** te propone qué acción mirar, la entrada cuando aparece un setup limpio (bull flag,
+  micro pullback, ruptura del máximo del día o del pre-market, siempre sobre VWAP y EMA 9, con stop
+  ajustado y objetivo 2:1, tamaño por riesgo) y las salidas de tus posiciones (vender la mitad en el
+  objetivo, stop a la entrada, salir si pierde la EMA 9 o el VWAP o no avanza en 6 minutos). Vos
+  apretás *Hacer este trade* o *Ignorar*.
+- **Automático:** hace todo eso solo, con límites: horario de entradas (7:00 a 11:30 ET por defecto),
+  máximo de trades por día, perdedores seguidos y pérdida máxima del día en R. Si *Mostrar en el
+  gráfico* está activo, ves lo que mira.
+- **Claude:** si hay IA disponible (dentro de Claude, o una clave de Anthropic en el servidor:
+  `ANTHROPIC_API_KEY`, o en la app de escritorio en *Claves y conexión*), Claude opina antes de cada
+  entrada con el contexto completo (velas, cinta, noticias, cuenta) y elige entre las candidatas; en
+  automático no entra sin su visto bueno. Cada consulta cuesta unos US$ 0,02 (modelo `claude-opus-5-5`,
+  cambiable con `ANTHROPIC_MODEL`). *Preguntarle a Claude ahora* da su opinión en cualquier momento.
+  Sin IA, las reglas alcanzan para operar.
+
+Las reglas están en `src/trading/playbook.ts` (candidatas, entradas, tamaño, manejo de la posición) y
+los textos que se le mandan a Claude en `src/trading/advisor.ts`.
+
 ### Atajos de teclado
 
 Funcionan con la acción elegida y no actúan mientras escribís en un campo. En *Ajustes de la cuenta → Atajos
@@ -420,6 +445,7 @@ celular conectado a la misma red Wi-Fi.
 | `ALPACA_DELAYED_POLL_SEC`, `ALPACA_HOT_REFRESH_SEC` | Plan gratis: cada cuánto se repasa el mercado completo demorado (60) y se completan las velas consolidadas de los símbolos calientes (300). |
 | `PULSO_DATA_DIR` | Carpeta de la cuenta de práctica (`cuenta-de-practica.json`); por defecto `data/`. La app de escritorio usa tu perfil de usuario. |
 | `MASSIVE_API_KEY`, `MASSIVE_PLAN` | Massive (`basic`, `starter`, `developer` o `advanced`). |
+| `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL` | Claude para el IA Trader (opcional; `claude-opus-5-5` por defecto). |
 | `SEC_USER_AGENT` | "Tu Nombre tu@email.com": activa las etiquetas de dilución de la SEC (S-1, shelf S-3, 424B, 8-K 3.02) y las acciones en circulación. |
 | `FMP_API_KEY`, `FLOAT_CSV` | Fuentes alternativas de float (Financial Modeling Prep o tu propio CSV). |
 | `UNIVERSE_MIN_PRICE`, `UNIVERSE_MAX_PRICE` | Rango de precio de las acciones que se siguen (por defecto $0,20–$60). |
@@ -492,7 +518,7 @@ pulso/
 | --- | --- |
 | `npm run dev` | Interfaz en modo demo con recarga en caliente (http://localhost:5173). |
 | `npm start` | Compila la interfaz y arranca el servidor (datos reales si hay claves). |
-| `npm test` | Pruebas (109): motor, alertas, bull flag, halts, Alpaca y Massive contra servidores falsos, simulador (el mismo mercado a cualquier hora, volumen por hora, días, ofertas, after-hours), el plan gratis de Alpaca en capas, la detección del plan, bróker de práctica, días de práctica, respaldo, la cuenta guardada en el servidor, riesgo según la cuenta, temporalidades largas e historia, líneas y alertas de precio, y métricas. |
+| `npm test` | Pruebas (109): motor, alertas, bull flag, halts, Alpaca y Massive contra servidores falsos, simulador (el mismo mercado a cualquier hora, volumen por hora, días, ofertas, after-hours), el plan gratis de Alpaca en capas, la detección del plan, bróker de práctica, días de práctica, respaldo, la cuenta guardada en el servidor, riesgo según la cuenta, temporalidades largas e historia, líneas y alertas de precio, el libro de jugadas del IA Trader, y métricas. |
 | `npm run typecheck` | Chequeo de tipos de todo el proyecto. |
 | `npm run build:demo` | Página única del demo (`dist-demo/index.html`) para GitHub Pages. |
 | `npm run build:desktop` | Interfaz + servidor en un solo archivo para la app de escritorio (`desktop/app/`). |

@@ -59,6 +59,33 @@ export class TrendLinesPrimitive implements ISeriesPrimitive<Time> {
     return logical === null ? null : ts.logicalToCoordinate(logical);
   }
 
+  /** La línea de tendencia que pasa a menos de `tol` píxeles del punto (x, y), si hay alguna. */
+  lineNear(x: number, y: number, width: number, tol = 7): TLine | null {
+    const series = this.series;
+    if (!series) return null;
+    let best: { line: TLine; d: number } | null = null;
+    for (const l of this.lines) {
+      const x1 = this.xOf(l.a.t);
+      const x2 = this.xOf(l.b.t);
+      const y1 = series.priceToCoordinate(l.a.price);
+      const y2 = series.priceToCoordinate(l.b.price);
+      if (x1 === null || x2 === null || y1 === null || y2 === null) continue;
+      const [ax, ay, bx, by]: number[] = x2 >= x1 ? [x1, y1, x2, y2] : [x2, y2, x1, y1];
+      let ex = width;
+      let ey = by;
+      if (bx > ax) ey = by + ((ex - bx) * (by - ay)) / (bx - ax);
+      else ex = bx;
+      // Distancia del punto al segmento a→extremo derecho.
+      const dx = ex - ax;
+      const dy = ey - ay;
+      const len2 = dx * dx + dy * dy || 1;
+      const t = Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / len2));
+      const d = Math.hypot(x - (ax + t * dx), y - (ay + t * dy));
+      if (d <= tol && (!best || d < best.d)) best = { line: l, d };
+    }
+    return best?.line ?? null;
+  }
+
   private renderer(): IPrimitivePaneRenderer | null {
     const series = this.series;
     if (!series || (!this.lines.length && !this.pending)) return null;
