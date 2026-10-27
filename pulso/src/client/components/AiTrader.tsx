@@ -1,0 +1,172 @@
+// Panel del IA Trader: modo (apagado, sugerencias, automático), qué está mirando y por qué, la
+// sugerencia del momento con sus botones, la opinión de Claude, las candidatas, las reglas y el registro.
+import { useAiVersion, type AiTrader } from '../aitrader';
+import { formatEtTime } from '../../engine/time';
+
+interface Props {
+  trader: AiTrader;
+  selected: string | null;
+  onSelect: (sym: string) => void;
+}
+
+const PHASE: Record<string, string> = {
+  off: 'Apagado',
+  scanning: 'Recorriendo los escáneres',
+  watching: 'Mirando de cerca',
+  entering: 'Comprando',
+  inPosition: 'Manejando la posición',
+  paused: 'Parado por hoy',
+};
+
+const hhmm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+const toMin = (s: string) => {
+  const [h, m] = s.split(':').map(Number);
+  return Number.isFinite(h) ? h * 60 + (Number.isFinite(m) ? m : 0) : 0;
+};
+
+export function AiTraderPanel({ trader, selected, onSelect }: Props) {
+  useAiVersion(trader);
+  const st = trader.state;
+  const s = trader.settings;
+  const sug = st.suggestion;
+  const aiLabel = st.ai === 'claude' ? 'Claude (desde Claude)' : st.ai === 'servidor' ? 'Claude (clave en el servidor)' : st.ai === 'no' ? 'sin IA: solo reglas' : 'buscando IA…';
+  return (
+    <div className="ai-panel">
+      <div className="ai-row ai-head">
+        <div className="seg" role="group" aria-label="Modo del IA Trader">
+          {(['off', 'suggest', 'auto'] as const).map((m) => (
+            <button key={m} className={s.mode === m ? 'is-active' : ''} onClick={() => trader.update({ mode: m })}>
+              {m === 'off' ? 'Apagado' : m === 'suggest' ? 'Sugerencias' : 'Automático'}
+            </button>
+          ))}
+        </div>
+        <span className="t-muted small">
+          {aiLabel}
+          {st.calls > 0 && ` · ${st.calls} consulta${st.calls === 1 ? '' : 's'} (≈ US$ ${(st.calls * 0.02).toFixed(2)})`}
+        </span>
+      </div>
+      <p className="t-muted small ai-note">Opera solo la cuenta de práctica (plata ficticia), con las reglas de momentum de Ross Cameron. No es asesoramiento financiero.</p>
+
+      {s.mode !== 'off' && (
+        <div className="ai-card ai-status">
+          <b>{PHASE[st.phase] ?? st.phase}</b>
+          {st.focus && (
+            <>
+              {' '}
+              <button type="button" className="link" onClick={() => onSelect(st.focus!)}>
+                {st.focus}
+              </button>
+            </>
+          )}
+          {st.thinking && <em className="ai-thinking"> · Claude está pensando…</em>}
+          {st.phase === 'paused' && <div className="ai-paused">{st.pausedReason}</div>}
+        </div>
+      )}
+
+      {sug && (
+        <div className={`ai-card ai-sug ai-${sug.kind}`}>
+          <div className="ai-sug-title">
+            <b>{sug.title}</b> <span className="t-muted small">{formatEtTime(sug.ts, false)}</span>
+          </div>
+          <div className="ai-sug-text">{sug.text}</div>
+          <div className="ai-row">
+            <button type="button" className="btn primary small" onClick={() => trader.accept()}>
+              {sug.kind === 'pick' ? 'Ver en el gráfico' : sug.kind === 'entry' ? 'Hacer este trade' : 'Hacerlo'}
+            </button>
+            <button type="button" className="btn small" onClick={() => trader.dismiss()}>
+              Ignorar
+            </button>
+            {sug.kind !== 'pick' && sug.sym !== selected && (
+              <button type="button" className="link" onClick={() => onSelect(sug.sym)}>
+                Ver {sug.sym}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {st.advice && (
+        <div className="ai-card ai-advice">
+          <b>Claude</b> <span className={`badge ai-dec-${st.advice.decision}`}>{st.advice.decision}</span> {st.advice.sym && <span className="mono">{st.advice.sym}</span>}{' '}
+          <span className="t-muted small">{formatEtTime(st.advice.ts, false)}</span>
+          <div>{st.advice.text}</div>
+        </div>
+      )}
+      {s.mode !== 'off' && st.ai !== 'no' && st.ai !== '?' && (
+        <div className="ai-row">
+          <button type="button" className="btn small" onClick={() => void trader.askNow()} disabled={st.thinking}>
+            Preguntarle a Claude ahora
+          </button>
+        </div>
+      )}
+
+      {s.mode !== 'off' && (
+        <div className="ai-card">
+          <div className="ai-sub">Candidatas (las reglas)</div>
+          {st.candidates.length === 0 && <div className="t-muted small">Nada que valga la pena ahora: faltan gappers con volumen, noticia y float chico.</div>}
+          {st.candidates.slice(0, 5).map((c) => (
+            <div key={c.sym} className={`ai-cand ${c.sym === st.focus ? 'is-focus' : ''}`}>
+              <button type="button" className="link mono" onClick={() => onSelect(c.sym)}>
+                {c.sym}
+              </button>
+              <span className="ai-score" title="Qué tanto se parece a la obvia del día">
+                <i style={{ width: `${c.score}%` }} />
+              </span>
+              <span className="small">{c.reasons.join(' · ')}</span>
+              {c.warnings.length > 0 && <span className="t-muted small"> · {c.warnings.join(', ')}</span>}
+            </div>
+          ))}
+        </div>
+      )}
+
+      <details className="ai-card ai-rules">
+        <summary>Reglas</summary>
+        <div className="ai-rules-grid">
+          <label>
+            Entradas desde
+            <input type="time" value={hhmm(s.rules.entryFrom)} onChange={(e) => trader.update({ rules: { ...s.rules, entryFrom: toMin(e.target.value) } })} />
+          </label>
+          <label>
+            hasta
+            <input type="time" value={hhmm(s.rules.entryTo)} onChange={(e) => trader.update({ rules: { ...s.rules, entryTo: toMin(e.target.value) } })} />
+          </label>
+          <label>
+            Trades por día
+            <input type="number" min={1} max={30} value={s.rules.maxTrades} onChange={(e) => trader.update({ rules: { ...s.rules, maxTrades: Math.max(1, Number(e.target.value) || 1) } })} />
+          </label>
+          <label>
+            Perdedores seguidos
+            <input type="number" min={1} max={10} value={s.rules.maxLosers} onChange={(e) => trader.update({ rules: { ...s.rules, maxLosers: Math.max(1, Number(e.target.value) || 1) } })} />
+          </label>
+          <label>
+            Pérdida máxima (R)
+            <input type="number" min={1} max={10} step={0.5} value={s.rules.maxLossR} onChange={(e) => trader.update({ rules: { ...s.rules, maxLossR: Math.max(0.5, Number(e.target.value) || 1) } })} />
+          </label>
+        </div>
+        <label className="check-inline">
+          <input type="checkbox" checked={s.consult} onChange={(e) => trader.update({ consult: e.target.checked })} /> Consultar a Claude antes de cada entrada (si no responde, no entra)
+        </label>
+        <label className="check-inline">
+          <input type="checkbox" checked={s.follow} onChange={(e) => trader.update({ follow: e.target.checked })} /> Mostrar en el gráfico lo que mira la IA (en automático)
+        </label>
+        <p className="t-muted small">
+          Horario de Nueva York. Entra solo con un setup limpio (bull flag, micro pullback o ruptura con volumen sobre VWAP y EMA 9), stop ajustado y objetivo 2:1; vende la mitad en el objetivo, sube el stop a la
+          entrada y deja correr el resto mientras respete la EMA 9. Las salidas van por reglas; Claude opina en las entradas.
+        </p>
+      </details>
+
+      {st.log.length > 0 && (
+        <div className="ai-card ai-log">
+          {st.log
+            .slice(-10)
+            .reverse()
+            .map((l) => (
+              <div key={l.id} className={`ai-log-row tone-${l.tone}`}>
+                <span className="mono t-muted">{formatEtTime(l.ts, false)}</span> {l.text}
+              </div>
+            ))}
+        </div>
+      )}
+    </div>
+  );
+}

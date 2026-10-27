@@ -167,6 +167,8 @@
 
     <fieldset>
       <legend>Extras</legend>
+      <label for="anthropicKey">Claude (IA Trader): clave de API de Anthropic (opcional; se saca en console.anthropic.com, se paga por uso)</label>
+      <input id="anthropicKey" type="password" autocomplete="off" spellcheck="false" placeholder="sk-ant-…" />
       <label for="secUserAgent">SEC EDGAR: tu nombre y email (opcional, activa las etiquetas de dilución)</label>
       <input id="secUserAgent" type="text" autocomplete="off" placeholder="Nombre Apellido tu@email.com" />
       <label class="check"><input id="lan" type="checkbox" /> <span>Permitir abrirlo desde el celular en la misma Wi-Fi. <span id="lanHint" class="hint"></span></span></label>
@@ -180,7 +182,7 @@
 
     <script>
       const $ = (id) => document.getElementById(id);
-      const fields = ['alpacaKey', 'alpacaSecret', 'alpacaFeed', 'massiveKey', 'massivePlan', 'secUserAgent'];
+      const fields = ['alpacaKey', 'alpacaSecret', 'alpacaFeed', 'massiveKey', 'massivePlan', 'secUserAgent', 'anthropicKey'];
       async function load() {
         const s = await window.pulso.getSettings();
         for (const f of fields) if (s[f]) $(f).value = s[f];

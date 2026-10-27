@@ -14,6 +14,9 @@ export interface Config {
   universeMax: number;
   haltsRss: boolean;
   secUserAgent?: string;
+  /** Clave de Anthropic para el IA Trader (opcional) y modelo. */
+  anthropicKey?: string;
+  anthropicModel: string;
   fmpKey?: string;
   floatCsv: string;
   alpaca: {
@@ -91,6 +94,8 @@ export function loadConfig(): Config {
     universeMax: num('UNIVERSE_MAX_PRICE', 60),
     haltsRss: env('HALTS_RSS') !== 'false',
     secUserAgent: env('SEC_USER_AGENT'),
+    anthropicKey: env('ANTHROPIC_API_KEY'),
+    anthropicModel: env('ANTHROPIC_MODEL') ?? 'claude-opus-5-5',
     fmpKey: env('FMP_API_KEY'),
     floatCsv: env('FLOAT_CSV') ?? join(ROOT, 'data', 'float.csv'),
     alpaca: {

@@ -30,6 +30,8 @@ import { LocalSource, type SimConfig } from './source/local';
 import { detectServer, RemoteSource } from './source/remote';
 import type { HistoryTf } from '../engine/history';
 import type { DataSource } from './source/types';
+import { AiTrader } from './aitrader';
+import { AiTraderPanel } from './components/AiTrader';
 import { TrainingController, useTrainingVersion } from './training';
 
 const DEFAULT_PREFS: Prefs = {
@@ -248,6 +250,11 @@ function Workspace({ server, c }: { server: boolean; c: TrainingController }) {
   const [newDay, setNewDay] = useState<'ny' | 'practice' | 'any' | null>(null);
 
   const keySuffix = server ? '' : '-demo';
+  // El IA Trader vive mientras dura la página; elige la acción a mostrar a través de `select`.
+  const selectRef = useRef<(sym: string) => void>(() => undefined);
+  const [trader] = useState(() => new AiTrader(c, (sym) => selectRef.current(sym)));
+  const settingsRef = useRef(settings);
+  settingsRef.current = settings;
   const prefsRef = useRef(prefs);
   const watchRef = useRef(watch);
   const selectedRef = useRef(selected);
@@ -301,6 +308,7 @@ function Workspace({ server, c }: { server: boolean; c: TrainingController }) {
       onView: (v) => {
         setView(v);
         checkLineAlerts(src);
+        trader.setView(v, settingsRef.current);
         // Sin selección (o con una que ya no existe en el simulador), mostrar el primer gapper.
         const cur = selectedRef.current;
         const known = !!cur && !!src.row(cur);
@@ -329,15 +337,20 @@ function Workspace({ server, c }: { server: boolean; c: TrainingController }) {
       },
       onDetail: setDetail,
       onStatus: setStatus,
-      onTick: (t) => c.onTick(t),
+      onTick: (t) => {
+        c.onTick(t);
+        trader.step(t);
+      },
       onCatchUp: (t) => c.catchUp(t),
       onRebuild: () => c.rebase(),
       onAccount: () => void c.reload(),
     });
     if (selectedRef.current) src.select(selectedRef.current);
     c.attach(src);
+    trader.attach(src);
     setSource(src);
     return () => {
+      trader.detach();
       c.detach(src);
       src.stop();
     };
@@ -517,6 +530,7 @@ function Workspace({ server, c }: { server: boolean; c: TrainingController }) {
     },
     [source, keySuffix],
   );
+  selectRef.current = select;
 
   const updateWatch = (next: string[]) => {
     setWatch(next);
@@ -632,6 +646,7 @@ function Workspace({ server, c }: { server: boolean; c: TrainingController }) {
           { id: 'momentum', label: 'Máximos del día' },
           { id: 'alerts', label: 'Alertas' },
           { id: 'halts', label: 'Halts', count: activeHalts || undefined },
+          { id: 'ia', label: 'IA Trader', count: trader.state.suggestion ? 1 : undefined },
         ]}
         activeTab={momoTab}
         onTab={(id) => setTab('momo', id)}
@@ -650,6 +665,7 @@ function Workspace({ server, c }: { server: boolean; c: TrainingController }) {
         {momoTab === 'momentum' && <MomentumFeed alerts={alerts} minScore={prefs.momentumMinScore} selected={selected} onSelect={select} />}
         {momoTab === 'alerts' && <AlertFeed alerts={alerts} selected={selected} onSelect={select} />}
         {momoTab === 'halts' && <HaltsPanel halts={view.halts} now={now} selected={selected} onSelect={select} />}
+        {momoTab === 'ia' && <AiTraderPanel trader={trader} selected={selected} onSelect={select} />}
       </Panel>
     ),
     scan: (

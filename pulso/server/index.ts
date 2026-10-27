@@ -9,6 +9,7 @@ import { sessionDate, tradingDayStart } from '../src/engine/time';
 import type { HistoryTf } from '../src/engine/history';
 import type { Alert, Bar, NewsItem, ProviderStatus, Settings } from '../src/engine/types';
 import { AccountStore, isSessionRecord, isTrainingState } from './account';
+import { askClaude } from './ai';
 import { AlpacaProvider } from './alpaca';
 import { loadConfig, type Config } from './config';
 import { fmpFloat, loadFloatCsv, massiveFloat, massiveShortInterest } from './fundamentals';
@@ -32,6 +33,8 @@ interface Client {
   selected: string | null;
   /** Identificador que manda la página: al que cambió la cuenta no se le avisa. */
   id?: string;
+  /** Símbolo que mira el IA Trader de esa página (recibe su ficha aparte de la seleccionada). */
+  focus?: string | null;
 }
 
 const clients = new Set<Client>();
@@ -206,7 +209,10 @@ setInterval(() => {
   if (!clients.size) return;
   lastView = engine.view();
   broadcast({ t: 'view', view: lastView });
-  for (const c of clients) if (c.selected) send(c, { t: 'detail', detail: engine.detail(c.selected) });
+  for (const c of clients) {
+    if (c.selected) send(c, { t: 'detail', detail: engine.detail(c.selected) });
+    if (c.focus && c.focus !== c.selected) send(c, { t: 'detail', detail: engine.detail(c.focus), focus: true });
+  }
 }, 1000);
 
 // Símbolos calientes: los que están en algún escáner, la watchlist y los seleccionados.
@@ -374,6 +380,7 @@ const server = createServer((req, res) => {
       connected: status.connected,
       message: status.message,
       symbols: universe.size,
+      ai: !!cfg.anthropicKey,
     });
   }
   if (url.pathname === '/api/search') return json(res, engine.search(url.searchParams.get('q') ?? ''));
@@ -410,6 +417,21 @@ const server = createServer((req, res) => {
   }
   if (url.pathname === '/api/logs') return json(res, recentLogs());
   if (url.pathname.startsWith('/api/account') && handleAccount(req, res, url.pathname)) return;
+  if (url.pathname === '/api/ai' && req.method === 'POST') {
+    if (!cfg.anthropicKey) return json(res, { error: 'Sin clave de Anthropic en el servidor (ANTHROPIC_API_KEY).' }, 503);
+    void readJson(req)
+      .then(async (body) => {
+        const b = body as { system?: string; prompt?: string };
+        if (!b || typeof b.prompt !== 'string' || !b.prompt.trim()) return json(res, { error: 'falta prompt' }, 400);
+        const text = await askClaude(cfg.anthropicKey!, cfg.anthropicModel, String(b.system ?? ''), b.prompt);
+        json(res, { text });
+      })
+      .catch((e: Error) => {
+        log('warn', `IA: ${e.message}`);
+        json(res, { error: e.message.slice(0, 300) }, 502);
+      });
+    return;
+  }
   serveStatic(req, res);
 });
 
@@ -427,6 +449,13 @@ wss.on('connection', (ws) => {
     }
     if (msg.t === 'client' && typeof msg.id === 'string') {
       client.id = msg.id.slice(0, 64);
+    } else if (msg.t === 'focus') {
+      client.focus = msg.sym ? String(msg.sym).toUpperCase() : null;
+      if (client.focus) {
+        send(client, { t: 'detail', detail: engine.detail(client.focus), focus: true });
+        wantSector(client.focus);
+        void maybeBackfill(client.focus, client);
+      }
     } else if (msg.t === 'select') {
       client.selected = msg.sym ? String(msg.sym).toUpperCase() : null;
       const sym = client.selected;

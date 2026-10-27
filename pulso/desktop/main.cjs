@@ -103,6 +103,7 @@ function serverEnv(s) {
     MASSIVE_API_KEY: s.massiveKey || '',
     MASSIVE_PLAN: s.massivePlan || 'basic',
     SEC_USER_AGENT: s.secUserAgent || '',
+    ANTHROPIC_API_KEY: s.anthropicKey || '',
     PULSO_CACHE_DIR: path.join(userData(), 'cache'),
     PULSO_DATA_DIR: userData(),
     PULSO_DIST_DIR: path.join(APP_DIR, 'dist'),
@@ -358,6 +359,7 @@ ipcMain.handle('settings:save', (_e, s) => {
     massiveKey: String(s.massiveKey ?? '').trim(),
     massivePlan: ['basic', 'starter', 'developer', 'advanced'].includes(s.massivePlan) ? s.massivePlan : 'basic',
     secUserAgent: String(s.secUserAgent ?? '').trim(),
+    anthropicKey: String(s.anthropicKey ?? '').trim(),
     lan: !!s.lan,
   };
   writeSettings(clean);
