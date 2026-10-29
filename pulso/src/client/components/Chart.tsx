@@ -24,7 +24,7 @@ import { daily, fourHour, historyFor, monthly, TF_4H, TF_DAY, TF_MONTH, TF_WEEK,
 import { aggregateBars, aggregateSpan, vwapSeries } from '../../engine/indicators';
 import { etOffset, etParts, POST_CLOSE, PRE_OPEN, REG_CLOSE, REG_OPEN } from '../../engine/time';
 import type { Alert, Bar, SymbolDetail } from '../../engine/types';
-import { addDrawing, clearDrawings, removeDrawing, restoreDrawing, toggleAlert, useDrawings, type TLine } from '../lib/drawings';
+import { addDrawing, clearDrawings, removeDrawing, restoreDrawing, toggleAlert, updateDrawing, useDrawings, type Drawing, type TLine } from '../lib/drawings';
 import { fmtPrice, fmtVolume } from '../lib/format';
 import { typing } from '../lib/hotkeys';
 import { IncrementalIndicators } from '../lib/incremental';
@@ -500,6 +500,103 @@ function ChartView({ id, defaultTf, detail, alerts, themeKey, position, fills, o
   }, []);
   const drawingsRef = useRef(drawings);
   drawingsRef.current = drawings;
+
+  // Arrastrar líneas con el mouse: una horizontal sube o baja; una de tendencia se mueve entera o por un
+  // extremo (si se agarra cerca de él). Mientras se arrastra, el gráfico no se desplaza ni se escala.
+  const dragRef = useRef<{ id: string; part: 'h' | 'a' | 'b' | 'both'; orig: Drawing; price0: number; t0: number } | null>(null);
+  const roundPrice = (raw: number) => (raw >= 1 ? Math.round(raw * 100) / 100 : Math.round(raw * 10000) / 10000);
+  /** Instante del gráfico (segundos) en la coordenada x, también a la derecha de la última vela. */
+  const timeAtX = (x: number): number | null => {
+    const chart = chartRef.current;
+    const bars = barsRef.current;
+    if (!chart || !bars.length) return null;
+    const logical = chart.timeScale().coordinateToLogical(x);
+    if (logical === null) return null;
+    return toTime(bars[bars.length - 1].t) + (logical - (bars.length - 1)) * stateRef.current.tf;
+  };
+  const lineAt = (x: number, y: number): { d: Drawing; part: 'h' | 'a' | 'b' | 'both' } | null => {
+    const s = seriesRef.current;
+    const el = host.current;
+    if (!s || !el) return null;
+    let best: { d: Drawing; dist: number } | null = null;
+    for (const d of drawingsRef.current) {
+      if (d.kind !== 'h') continue;
+      const py = s.candles.priceToCoordinate(d.price);
+      if (py === null) continue;
+      const dist = Math.abs(py - y);
+      if (dist <= 7 && (!best || dist < best.dist)) best = { d, dist };
+    }
+    if (best) return { d: best.d, part: 'h' };
+    const prim = primRef.current;
+    const t = prim?.lineNear(x, y, el.clientWidth);
+    if (!prim || !t) return null;
+    return { d: t, part: prim.endpointNear(t, x, y) ?? 'both' };
+  };
+  const onMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.button !== 0 || toolRef.current || !symRef.current || !drawingsRef.current.length) return;
+    const el = host.current;
+    const s = seriesRef.current;
+    const chart = chartRef.current;
+    if (!el || !s || !chart) return;
+    const rect = el.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const hit = lineAt(x, y);
+    if (!hit) return;
+    e.preventDefault();
+    const price0 = s.candles.coordinateToPrice(y) ?? 0;
+    dragRef.current = { id: hit.d.id, part: hit.part, orig: hit.d, price0, t0: timeAtX(x) ?? 0 };
+    chart.applyOptions({ handleScroll: false, handleScale: false });
+    el.classList.add('is-dragging');
+    const sym = symRef.current;
+    const move = (ev: MouseEvent) => {
+      const drag = dragRef.current;
+      if (!drag) return;
+      const px = s.candles.coordinateToPrice(ev.clientY - rect.top);
+      const t = timeAtX(ev.clientX - rect.left);
+      if (px === null || px <= 0) return;
+      const price = roundPrice(px);
+      if (drag.orig.kind === 'h') {
+        updateDrawing(sym, drag.id, { price });
+        return;
+      }
+      if (t === null) return;
+      if (drag.part === 'a' || drag.part === 'b') {
+        updateDrawing(sym, drag.id, { [drag.part]: { t, price } } as Partial<TLine>);
+        return;
+      }
+      const dp = roundPrice(px) - roundPrice(drag.price0);
+      const dt = Math.round((t - drag.t0) / stateRef.current.tf) * stateRef.current.tf;
+      updateDrawing(sym, drag.id, {
+        a: { t: drag.orig.a.t + dt, price: roundPrice(drag.orig.a.price + dp) },
+        b: { t: drag.orig.b.t + dt, price: roundPrice(drag.orig.b.price + dp) },
+      });
+    };
+    const up = () => {
+      window.removeEventListener('mousemove', move);
+      window.removeEventListener('mouseup', up);
+      dragRef.current = null;
+      chart.applyOptions({ handleScroll: true, handleScale: true });
+      el.classList.remove('is-dragging');
+    };
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+  };
+  // Doble clic en el eje de precios: vuelve a la escala automática; en el eje de tiempo: encuadra las
+  // últimas velas; en el medio: las dos cosas.
+  const onDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const el = host.current;
+    const chart = chartRef.current;
+    const s = seriesRef.current;
+    if (!el || !chart || !s || toolRef.current) return;
+    const rect = el.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const onPriceAxis = x >= rect.width - chart.priceScale('right').width();
+    const onTimeAxis = y >= rect.height - chart.timeScale().height();
+    if (onPriceAxis || !onTimeAxis) s.candles.priceScale().applyOptions({ autoScale: true });
+    if (onTimeAxis || !onPriceAxis) frameLast(chart, barsRef.current.length, stateRef.current.tf);
+  };
   const onContextMenu = (e: React.MouseEvent<HTMLDivElement>) => {
     const sym = symRef.current;
     const s = seriesRef.current;
@@ -783,6 +880,8 @@ function ChartView({ id, defaultTf, detail, alerts, themeKey, position, fills, o
           className={`chart-host${tool ? ' is-drawing' : ''}`}
           ref={host}
           onContextMenu={onContextMenu}
+          onMouseDown={onMouseDown}
+          onDoubleClick={onDoubleClick}
           onMouseEnter={() => (hoveringRef.current = true)}
           onMouseLeave={() => (hoveringRef.current = false)}
         />

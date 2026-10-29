@@ -70,8 +70,11 @@ cinta.
 **Alertas de precio tuyas:** en el gráfico, el botón 🔔 pone una línea en el precio que toques; cuando el precio
 la cruza (hacia arriba o hacia abajo) suena, se lee en voz alta y entra en la lista de alertas, una sola vez. Con
 ─ se dibuja una línea horizontal sin alerta y con ╱ una línea de tendencia (dos toques), en blanco; *Líneas* las
-lista, les prende o apaga la alerta y las borra. Esc cancela el dibujo. Las acciones con alerta se siguen aunque no
-estén en ningún escáner.
+lista, les prende o apaga la alerta y las borra. Esc cancela el dibujo. Las líneas se **arrastran con el mouse**
+(una de tendencia entera, o solo un extremo si la agarrás por la punta); clic derecho o Supr las borra (con
+deshacer). **Doble clic** en el eje de precios vuelve a la escala automática, en el eje de tiempo encuadra las
+últimas velas, y en el medio del gráfico las dos cosas. Las acciones con alerta se siguen aunque no estén en
+ningún escáner.
 
 Nuevo máximo del día (con o sin volumen), cerca del máximo, subida rápida (+5% en 2 min), squeeze (cada
 +10% en 15 min), pico de volumen (5x el promedio del minuto), compras apiladas (10 subas seguidas),
@@ -198,7 +201,10 @@ de práctica**, nunca órdenes reales.
   riesgo, exige la obvia del día y objetivo 2:1 que pague 2R), *Equilibrado* (lo que hace Ross: 7:00 a
   11:30, 8 trades, 3 perdedores o 3R, riesgo normal, objetivo 2:1) y *Agresivo* (7:00 a 12:30, 15
   trades, 4 perdedores o 5R, una vez y media el riesgo, candidatas menos obvias y objetivo 3:1). Si
-  tocás una regla a mano queda como *Personalizado*.
+  tocás una regla a mano queda como *Personalizado*. Para que opere seguido en la cuenta de práctica
+  hace falta poder de compra: con cuenta cash lo vendido se libera recién al día siguiente (T+1) y con
+  cuenta margen de menos de US$ 25.000 la regla PDT frena al cuarto day trade de la semana; el panel
+  lo avisa y en *Preferencias de práctica* se puede subir el saldo o desactivar esas dos reglas.
 - **Claude:** si hay IA disponible (dentro de Claude, o una clave de Anthropic en el servidor:
   `ANTHROPIC_API_KEY`, o en la app de escritorio en *Claves y conexión*), Claude opina antes de cada
   entrada con el contexto completo (velas, cinta, noticias, cuenta) y elige entre las candidatas; en

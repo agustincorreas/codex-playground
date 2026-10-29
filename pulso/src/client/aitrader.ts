@@ -4,6 +4,7 @@
 // Claude, si está disponible, opina antes de cada entrada (y elige entre las candidatas).
 import { DEFAULT_SETTINGS, type Settings, type SymbolDetail, type ViewModel } from '../engine/types';
 import { formatEtTime } from '../engine/time';
+import { fmtMoney } from './lib/format';
 import { ADVISOR_SYSTEM, entryPrompt, exitPrompt, parseDecision, pickPrompt, type AccountBrief } from '../trading/advisor';
 import { roundPx } from '../trading/depth';
 import { DEFAULT_RULES, entryLabel, findEntry, inEntryWindow, manage, newMemory, PROFILE_LABEL, PROFILES, profileOf, rankCandidates, sizeFor, type AiProfile, type Candidate, type EntryPlan, type ExitAdvice, type PlaybookRules, type PositionMemory } from '../trading/playbook';
@@ -472,9 +473,10 @@ export class AiTrader {
     this.lastPlanKey = key;
     this.lastPlanAt = now;
     if (shares < 1) {
-      this.log(`${detail.sym}: ${entryLabel(plan.kind)} pero no alcanza el poder de compra o la liquidez para el tamaño por riesgo.`, 'info');
+      const why = this.noBuyingPower();
+      this.log(`${detail.sym}: ${entryLabel(plan.kind)} pero no se puede comprar. ${why}`, 'error');
       this.retryIn(30_000);
-      return this.wait(`${detail.sym}: no alcanza el poder de compra o la liquidez para el tamaño por riesgo.`);
+      return this.wait(`${detail.sym}: ${why}`);
     }
     const text = `Comprar ${shares} a $${px(plan.entry)}, stop $${px(plan.stop)} (riesgo $${((plan.entry - plan.stop) * shares).toFixed(0)}), objetivo $${px(plan.target)}. ${plan.reason}.`;
     if (this.settings.mode === 'suggest') {
@@ -515,8 +517,17 @@ export class AiTrader {
     const max = r.maxLossR * this.risk();
     if (loss >= max) return `Pérdida del día de $${loss.toFixed(0)} (${r.maxLossR}R): no se abren más trades hoy.`;
     // El bróker rechaza el cuarto day trade con menos de US$ 25.000 en cuenta margen: mejor avisarlo antes.
-    if (sum.pdt && sum.dayTrades >= 3) return 'Regla PDT: ya hay 3 day trades en 5 días con menos de US$ 25.000 en cuenta margen. Para seguir, pasá a cuenta cash o subí el saldo en Preferencias de práctica.';
+    if (sum.pdt && sum.dayTrades >= 3) return 'Regla PDT: ya hay 3 day trades en 5 días con menos de US$ 25.000 en cuenta margen. Para practicar sin ese freno: en Preferencias de práctica subí el saldo a US$ 25.000 o desactivá "Regla PDT".';
     return '';
+  }
+
+  /** Por qué no alcanza el poder de compra (y qué tocar en Preferencias para practicar seguido). */
+  private noBuyingPower(): string {
+    const sum = this.c.summary();
+    const s = this.c.state.settings;
+    const bp = `poder de compra ${fmtMoney(sum.buyingPower)}`;
+    if (s.account === 'cash' && sum.unsettled > 0) return `Sin ${bp}: en cuenta cash lo vendido hoy (${fmtMoney(sum.unsettled)}) se libera mañana (T+1). Para practicar seguido: cuenta margen con US$ 25.000 o más, o desactivá "Liquidación T+1" en Preferencias de práctica.`;
+    return `Sin ${bp} para el tamaño por riesgo (o la acción no tiene liquidez): revisá el saldo y el riesgo por trade en Preferencias de práctica.`;
   }
 
   /** Dice por qué no entra ahora (se ve en el panel) sin llenar el registro. */

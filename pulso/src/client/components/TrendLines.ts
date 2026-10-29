@@ -59,6 +59,23 @@ export class TrendLinesPrimitive implements ISeriesPrimitive<Time> {
     return logical === null ? null : ts.logicalToCoordinate(logical);
   }
 
+  /** Si (x, y) está encima de un extremo de la línea (para arrastrar solo ese punto): 'a', 'b' o null. */
+  endpointNear(line: TLine, x: number, y: number, tol = 9): 'a' | 'b' | null {
+    const series = this.series;
+    if (!series) return null;
+    const pts: Array<['a' | 'b', number | null, number | null]> = [
+      ['a', this.xOf(line.a.t), series.priceToCoordinate(line.a.price)],
+      ['b', this.xOf(line.b.t), series.priceToCoordinate(line.b.price)],
+    ];
+    let best: ['a' | 'b', number] | null = null;
+    for (const [k, px, py] of pts) {
+      if (px === null || py === null) continue;
+      const d = Math.hypot(px - x, py - y);
+      if (d <= tol && (!best || d < best[1])) best = [k, d];
+    }
+    return best ? best[0] : null;
+  }
+
   /** La línea de tendencia que pasa a menos de `tol` píxeles del punto (x, y), si hay alguna. */
   lineNear(x: number, y: number, width: number, tol = 7): TLine | null {
     const series = this.series;
