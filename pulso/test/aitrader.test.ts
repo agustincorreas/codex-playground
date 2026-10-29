@@ -392,3 +392,19 @@ describe('por qué no entra, y el precio que se mueve mientras Claude piensa', (
     expect(log().length).toBeGreaterThan(0);
   });
 });
+
+describe('escenario ideal para cada perfil', () => {
+  for (const profile of ['conservador', 'equilibrado', 'agresivo'] as const) {
+    it(`${profile}: con la obvia del día y un bull flag limpio a las 10:00, entra`, async () => {
+      const { c, t, tick } = await arm();
+      t.update({ profile });
+      tick();
+      expect(t.state.candidates[0]?.score).toBeGreaterThanOrEqual(t.settings.rules.minScore);
+      expect(t.state.phase).toBe('entering');
+      const buy = c.broker!.orders('RUN')[0];
+      expect(buy.side).toBe('buy');
+      // El tamaño sigue al riesgo del perfil (riesgo $20 de la cuenta × 0,5 / 1 / 1,5, con 11 ¢ por acción, en lotes de 10).
+      expect(buy.shares).toBe({ conservador: 90, equilibrado: 180, agresivo: 270 }[profile]);
+    });
+  }
+});

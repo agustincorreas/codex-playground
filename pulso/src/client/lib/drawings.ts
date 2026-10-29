@@ -86,6 +86,14 @@ export function restoreDrawing(sym: string, drawing: Drawing, index: number): vo
   setDrawings(sym, next);
 }
 
+/** Mueve una línea (arrastre con el mouse): precio de una horizontal, o un extremo / los dos de una de tendencia. */
+export function updateDrawing(sym: string, id: string, patch: Partial<HLine> | Partial<TLine>): void {
+  setDrawings(
+    sym,
+    drawingsOf(sym).map((d) => (d.id === id ? ({ ...d, ...patch } as Drawing) : d)),
+  );
+}
+
 export function clearDrawings(sym: string): void {
   setDrawings(sym, []);
 }

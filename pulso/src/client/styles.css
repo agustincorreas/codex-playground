@@ -4237,3 +4237,9 @@ li.v-spacer {
 .mobile-tabs [role='tablist'] {
   display: contents;
 }
+
+/* Arrastre de líneas en el gráfico. */
+.chart-host.is-dragging,
+.chart-host.is-dragging * {
+  cursor: grabbing !important;
+}
