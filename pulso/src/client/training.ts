@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import type { Session } from '../engine/types';
 import { etDateTimeToTs, etParts, etWallToTs, nextSessionChange, POST_CLOSE, REG_CLOSE, regularCloseMinutes, sessionAt, sessionDate } from '../engine/time';
 import { dayHeat, lastTradingDay, seedForDay } from '../sim/simulator';
-import { Broker, describeOrder, fmtMoney, fmtPx, type BrokerResult, type Marks, type OrderRequest } from '../trading/broker';
+import { Broker, describeOrder, fmtMoney, fmtPx, type BrokerResult, type Marks, type MarketAccess, type OrderRequest } from '../trading/broker';
 import { roundPx, tickOf } from '../trading/depth';
 import type { TrainingStore } from '../trading/store';
 import {
@@ -71,6 +71,8 @@ export interface AccountBackup {
 const money = (v: number) => Math.round(v * 100) / 100;
 /** Días de la ventana de la regla PDT (el de hoy incluido). */
 const PDT_WINDOW = 5;
+/** Un mercado sin datos: para cerrar posiciones al último precio cuando no hay fuente enganchada. */
+const NO_MARKET: MarketAccess = { quote: () => null, book: () => null, printsSince: () => [], lastSeq: () => 0, session: () => 'closed' };
 
 function newSessionId(): string {
   return `s${Date.now().toString(36)}${Math.floor(Math.random() * 1e6).toString(36)}`;
@@ -141,7 +143,10 @@ export class TrainingController {
   private listeners = new Set<() => void>();
   private fillListeners = new Set<(e: FillEvent) => void>();
   private soundListeners = new Set<(s: OrderSound) => void>();
+  private dayListeners = new Set<() => void>();
   private saveTimer?: ReturnType<typeof setTimeout>;
+  /** Relectura en curso (si llegan varios avisos seguidos, se lee una vez). */
+  private reloading: Promise<void> | null = null;
   private noticeSeq = 0;
   /** Hubo una acción del usuario en esta sesión: recién ahí se guarda (no en la carga). */
   private touched = false;
@@ -168,6 +173,14 @@ export class TrainingController {
       );
       this.emit();
     };
+    // Otro dispositivo escribió antes y su cuenta es más nueva: la de acá se reemplaza por esa.
+    store.onConflict = (snap) => {
+      if (this.saveTimer) clearTimeout(this.saveTimer);
+      this.saveTimer = undefined;
+      this.replace(snap.state, snap.sessions);
+      this.notify('Otro dispositivo cambió la cuenta de práctica: se sigue con esa versión.', 'info');
+      this.emit();
+    };
   }
 
   /**
@@ -191,6 +204,8 @@ export class TrainingController {
       const back = money(a.cash + a.positions.reduce((v, p) => v + p.shares * p.avgCost, 0));
       this.archive(a, a.simNow ?? a.marketStart, back);
       this.state.balance = back;
+      // Sus day trades cuentan para la regla PDT igual que los de un día terminado normalmente.
+      this.countDayTrades(a);
       this.state.active = undefined;
     }
     if (a && this.state.active) this.touched = true;
@@ -345,6 +360,21 @@ export class TrainingController {
   onSound(cb: (s: OrderSound) => void): () => void {
     this.soundListeners.add(cb);
     return () => this.soundListeners.delete(cb);
+  }
+
+  /** Cambió el día activo (día nuevo, fin del día, cuenta recargada, importada o reiniciada). */
+  onDayChange(cb: () => void): () => void {
+    this.dayListeners.add(cb);
+    return () => this.dayListeners.delete(cb);
+  }
+
+  private dayChanged(): void {
+    for (const cb of this.dayListeners) cb();
+  }
+
+  /** Los trades de un día que termina entran a la ventana de la regla PDT. */
+  private countDayTrades(a: ActiveSession): void {
+    this.state.dayTrades = [...this.state.dayTrades, ...a.trades.map(() => a.dayIndex)].filter((d) => d > a.dayIndex - 10);
   }
 
   private sound(s: OrderSound): void {
@@ -625,16 +655,20 @@ export class TrainingController {
     if (!a) return null;
     const now = this.source?.now() ?? Date.now();
     if (this.broker && this.source) this.broker.flatten(now, this.source, this.marks);
+    // Sin fuente (o si el mercado no tuvo liquidez), lo que siga abierto se cierra al último precio
+    // conocido: una posición viva nunca se archiva sin cerrarse.
+    if (a.positions.length || a.orders.length) (this.broker ?? new Broker(a, this.state.settings)).flatten(now, NO_MARKET, this.marks);
     const rec = this.archive(a, now);
     this.flushAway();
     this.state.balance = a.cash;
-    this.state.dayTrades = [...this.state.dayTrades, ...a.trades.map(() => a.dayIndex)].filter((d) => d > a.dayIndex - 10);
+    this.countDayTrades(a);
     this.state.active = undefined;
     this.broker = null;
     this.lastEnded = rec;
     this.touched = true;
     this.syncTracked();
     this.persistNow();
+    this.dayChanged();
     this.emit();
     return rec;
   }
@@ -678,6 +712,7 @@ export class TrainingController {
     // Empezar un día es una acción: se guarda, así al recargar sigue este mismo mercado.
     this.touched = true;
     this.persistNow();
+    this.dayChanged();
   }
 
   /**
@@ -698,6 +733,7 @@ export class TrainingController {
       this.source = null;
       this.touched = true;
       this.persistNow();
+      this.dayChanged();
       this.emit();
       return;
     }
@@ -739,8 +775,9 @@ export class TrainingController {
     if (a) {
       a.cash = target;
       a.startCash = money(a.startCash + delta);
-      // La plata nueva queda toda disponible (lo vendido hoy deja de esperar la liquidación).
-      a.unsettled = 0;
+      // Un depósito deja toda la plata disponible (lo vendido hoy deja de esperar la liquidación); un
+      // retiro se lleva primero lo liquidado: lo vendido hoy sigue esperando (sin pasar del efectivo).
+      a.unsettled = delta > 0 ? 0 : Math.min(a.unsettled, target);
     }
     this.state.balance = target;
     this.state.capital = money(this.capital + delta);
@@ -769,6 +806,7 @@ export class TrainingController {
     else this.source = null;
     this.touched = true;
     this.persistNow();
+    this.dayChanged();
     this.notify(`Cuenta reiniciada con ${fmtMoney(this.state.balance)}.`, 'info');
     this.emit();
   }
@@ -833,33 +871,61 @@ export class TrainingController {
   }
 
   /**
-   * Otro dispositivo cambió la cuenta en el servidor: se vuelve a leer y la página sigue con ella (lo
-   * que haya en pantalla de la versión vieja se descarta, igual que al importar un respaldo).
+   * Otro dispositivo cambió la cuenta en el servidor (`rev` es la revisión de ese cambio): se vuelve a
+   * leer y la página sigue con ella (lo que haya en pantalla de la versión vieja se descarta, igual que
+   * al importar un respaldo). Un aviso de una revisión que ya se conoce no hace nada; antes de leer se
+   * cancela el guardado pendiente y se esperan las escrituras en vuelo (que pueden resolver el conflicto
+   * por su cuenta, con `If-Match`).
    */
-  async reload(): Promise<void> {
-    let loaded: { state: TrainingState | null; sessions: SessionRecord[] };
-    try {
-      loaded = await this.store.load();
-    } catch {
-      return;
-    }
-    this.replace(loaded.state, loaded.sessions);
-    this.emit();
+  reload(rev?: number): Promise<void> {
+    const known = this.store.rev;
+    if (rev !== undefined && known !== undefined && rev <= known) return Promise.resolve();
+    if (this.reloading) return this.reloading;
+    this.reloading = (async () => {
+      if (this.saveTimer) clearTimeout(this.saveTimer);
+      this.saveTimer = undefined;
+      try {
+        await this.store.flush?.();
+      } catch {
+        // Lo que no se pudo guardar ya quedó en el navegador.
+      }
+      // Mientras se esperaba, una escritura propia (o un conflicto resuelto) pudo traer esa revisión.
+      const now = this.store.rev;
+      if (rev !== undefined && now !== undefined && rev <= now) return;
+      let loaded: { state: TrainingState | null; sessions: SessionRecord[] };
+      try {
+        loaded = await this.store.load();
+      } catch {
+        return;
+      }
+      this.replace(loaded.state, loaded.sessions);
+      this.emit();
+    })().finally(() => {
+      this.reloading = null;
+    });
+    return this.reloading;
   }
 
-  /** Reemplaza la cuenta entera (respaldo importado o cambio hecho desde otro dispositivo). */
+  /**
+   * Reemplaza la cuenta entera (respaldo importado o cambio hecho desde otro dispositivo). Si el día
+   * activo es el mismo, la fuente del mercado se mantiene (en el simulador, rearmarla sería regenerar el
+   * día): solo se arma un bróker nuevo sobre la cuenta nueva.
+   */
   private replace(state: TrainingState | null, sessions: SessionRecord[]): void {
     const src = this.source;
+    const before = this.state.active?.id;
     this.state = normalizeState(state);
     this.sessions = [...sessions].sort((x, y) => y.endedAt - x.endedAt);
     this.broker = null;
     this.source = null;
     this.lastEnded = null;
     this.touched = false;
-    this.reloads++;
     this.settle();
+    const sameDay = !!before && this.state.active?.id === before;
+    if (!sameDay) this.reloads++;
     // Con datos reales la fuente no cambia (no hay día simulado que rearmar): se vuelve a enganchar.
-    if (src && this.mode === 'remote') this.attach(src);
+    if (src && (this.mode === 'remote' || sameDay)) this.attach(src);
+    this.dayChanged();
   }
 
   // ------------------------------------------------------------------ guardado

@@ -2,8 +2,8 @@
 // de compra disponible y usado), actividad de órdenes y valor de la cuenta.
 import { useState } from 'react';
 import { formatEtTime } from '../../engine/time';
-import { parseMoney } from '../lib/format';
-import { fmtMoney, fmtPx, STATUS_LABEL } from '../../trading/broker';
+import { fmtInt, fmtMoney, fmtPrice, parseMoney } from '../lib/format';
+import { STATUS_LABEL } from '../../trading/broker';
 import type { Order, Trade } from '../../trading/types';
 import type { TrainingController } from '../training';
 import { Empty } from './Panel';
@@ -99,8 +99,8 @@ export function PositionsWindow({ c, selected, onSelect }: { c: TrainingControll
                   <td>
                     <button className="link sym-link">{r.sym}</button>
                   </td>
-                  <td className="num">{r.shares.toLocaleString('en-US')}</td>
-                  <td className="num">{r.avgCost !== undefined ? fmtPx(r.avgCost) : '—'}</td>
+                  <td className="num">{fmtInt(r.shares)}</td>
+                  <td className="num">{r.avgCost !== undefined ? fmtPrice(r.avgCost) : '—'}</td>
                   <td className={`num ${tone(r.unreal)}`}>{r.open ? signed(r.unreal) : '—'}</td>
                   <td className={`num hide-md ${tone(r.realized)}`}>{signed(r.realized)}</td>
                   <td className={`num ${tone(r.total)}`}>
@@ -201,9 +201,9 @@ export function TodayTrades({ c, onSelect }: { c: TrainingController; onSelect: 
                   <td>
                     <button className="link sym-link">{t.sym}</button>
                   </td>
-                  <td className="num">{t.shares.toLocaleString('en-US')}</td>
-                  <td className="num">{fmtPx(t.avgEntry)}</td>
-                  <td className="num">{fmtPx(t.avgExit)}</td>
+                  <td className="num">{fmtInt(t.shares)}</td>
+                  <td className="num">{fmtPrice(t.avgEntry)}</td>
+                  <td className="num">{fmtPrice(t.avgExit)}</td>
                   <td className={`num ${tone(t.net)}`}>
                     <b>{signed(t.net)}</b>
                   </td>
@@ -302,10 +302,10 @@ export function TradeActivity({ c, onSelect }: { c: TrainingController; onSelect
                     <span className={`side-badge ${o.side}`}>{o.side === 'buy' ? 'COMPRA' : 'VENTA'}</span>
                     {o.role === 'stop' ? <span className="t-muted"> stop</span> : o.role === 'target' ? <span className="t-muted"> obj.</span> : null}
                   </td>
-                  <td className="num">{o.shares.toLocaleString('en-US')}</td>
-                  <td className="num">{o.type === 'market' ? 'MKT' : fmtPx(o.price ?? o.stopPrice ?? 0)}</td>
-                  <td className="num hide-md">{o.filled ? o.filled.toLocaleString('en-US') : '—'}</td>
-                  <td className="num">{o.filled ? fmtPx(o.avgPrice) : '—'}</td>
+                  <td className="num">{fmtInt(o.shares)}</td>
+                  <td className="num">{o.type === 'market' ? 'MKT' : fmtPrice(o.price ?? o.stopPrice ?? 0)}</td>
+                  <td className="num hide-md">{o.filled ? fmtInt(o.filled) : '—'}</td>
+                  <td className="num">{o.filled ? fmtPrice(o.avgPrice) : '—'}</td>
                   <td className="t-muted hide-md">{o.tif}</td>
                 </tr>
               ))}
@@ -371,7 +371,7 @@ export function BalanceEditor({ c, compact }: { c: TrainingController; compact?:
       <div className="be-presets" role="group" aria-label="Saldos rápidos">
         {PRESETS.map((v) => (
           <button key={v} className="chip" onClick={() => apply(v)} disabled={hasPositions}>
-            {fmtMoney(v).replace('.00', '')}
+            {fmtMoney(v, 0)}
           </button>
         ))}
       </div>

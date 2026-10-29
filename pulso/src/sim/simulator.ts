@@ -10,7 +10,7 @@
 // reanudar o al volver al modo "Mercado ahora") y es el mismo que ya viste. El detalle de cada operación
 // (puntas, tamaños, cinta) usa un azar aparte que no toca ese camino.
 import type { MarketEvent, ReferenceData } from '../engine/types';
-import { etParts, etWallToTs, isTradingDay, POST_CLOSE, PRE_OPEN, REG_CLOSE, REG_OPEN, regularCloseMinutes, volumeIntensity } from '../engine/time';
+import { curveMinute, etParts, etWallToTs, isTradingDay, POST_CLOSE, PRE_OPEN, REG_CLOSE, REG_OPEN, regularCloseMinutes, volumeIntensity } from '../engine/time';
 import { earningsHeadline, headline, makeCompanies, NEWS_SOURCES, offeringHeadline } from './names';
 
 const SEC = 1000;
@@ -155,6 +155,14 @@ interface SimSym {
   busy: boolean;
   halted: boolean;
   haltUntil: number;
+  /** Precios de los últimos 5 minutos (uno por segundo) para la banda LULD; se vacía en cada halt. */
+  recent: number[];
+  /** Última vez que se publicaron las bandas LULD. */
+  luldTs: number;
+  /** Hacia dónde se fue el precio en el último halt (+1 arriba, −1 abajo, 0 sin banda). */
+  haltDir: number;
+  /** Segundos seguidos con el precio pegado a la banda (el halt llega a los 15, como en la regla real). */
+  limitSec: number;
   openPlan?: 'go' | 'fade';
   /** Ya anunció una oferta de acciones hoy. */
   offered?: boolean;
@@ -314,6 +322,10 @@ export class MarketSim {
         busy: false,
         halted: false,
         haltUntil: 0,
+        recent: [],
+        luldTs: 0,
+        haltDir: 0,
+        limitSec: 0,
         rng: mulberry32((seed ^ Math.imul(i + 1, 0x9e3779b1)) >>> 0),
         micro: mulberry32((seed + Math.imul(i + 1, 0x85ebca6b) + 0x6a09e667) >>> 0),
         fine: false,
@@ -547,11 +559,7 @@ export class MarketSim {
 
   /** En los días de cierre anticipado, la curva de volumen se corre al cierre de las 13:00. */
   private curveMinute(m: number): number {
-    const close = this.closeMinutes;
-    if (close === REG_CLOSE) return m;
-    if (m >= close) return REG_CLOSE + (m - close);
-    if (m >= close - 30) return REG_CLOSE - 30 + (m - (close - 30));
-    return m;
+    return curveMinute(m, this.closeMinutes);
   }
 
   /**
@@ -684,18 +692,41 @@ export class MarketSim {
       vol = this.idle(s, inPlay, up, 1);
     }
     const p0 = s.price;
-    const p1 = Math.max(0.05, p0 * Math.exp(mu + sigma * normal(s.rng)));
+    let p1 = Math.max(0.05, p0 * Math.exp(mu + sigma * normal(s.rng)));
+    // Banda LULD (como en el mercado real): el precio no pasa de la banda respecto del promedio de los
+    // últimos 5 minutos, y si se queda pegado a ella 15 segundos seguidos ("limit state") la acción queda
+    // en halt. Un pico de un segundo no la halta; un disparo sostenido, sí.
+    let band: { up: number; down: number } | null = null;
+    if (regular) {
+      band = this.luldBand(s, minutes);
+      if (p1 > band.up) p1 = band.up;
+      else if (p1 < band.down) p1 = band.down;
+      else band = null;
+      s.limitSec = band ? s.limitSec + 1 : 0;
+      if (band && s.limitSec < 4) band = null;
+      if (this.t - s.luldTs >= 60 * SEC && this.shows(s)) {
+        s.luldTs = this.t;
+        const b = band ?? this.luldBand(s, minutes);
+        this.out({ kind: 'luld', sym: s.ref.sym, ts: this.t, up: b.up, down: b.down });
+      }
+    }
     const shares = s.baseShares * vol * this.activity(!!leg || inPlay, regular, minutes) * Math.exp(0.6 * normal(s.rng) - 0.18);
     if (!this.live) this.prints(s, p0, p1, shares, this.t - SEC, 1);
     else if (this.shows(s)) this.livePrints(s, p0, p1, shares, regular);
     s.price = s.path = p1;
+    s.recent.push(p1);
+    if (s.recent.length > 300) s.recent.shift();
     if (s.wide > 1) s.wide = 1 + (s.wide - 1) * 0.97;
+    if (band) {
+      this.halt(s, p1 >= band.up ? 1 : -1);
+      return;
+    }
     if (leg) {
       s.legT += 1;
       if (s.legT >= leg.dur) {
         s.legs.shift();
         s.legT = 0;
-        if (leg.halt && regular) this.halt(s);
+        if (leg.halt && regular && !s.halted) this.halt(s);
         if (!s.legs.length) {
           s.busy = false;
           s.anchor = s.price;
@@ -911,9 +942,33 @@ export class MarketSim {
     this.emit({ kind: 'bar', span: b.fine ? 'second' : 'minute', sym: s.ref.sym, ts: b.t, o: b.o, h: b.h, l: b.l, c: b.c, v: b.v, vw: b.pv / b.v, n: b.n });
   }
 
-  private halt(s: SimSym): void {
+  /**
+   * Bandas LULD de una acción Tier 2 según su precio: 10 % desde $3, 20 % entre $0,75 y $3, 75 % más abajo;
+   * el doble en los primeros 15 minutos y los últimos 25 de la rueda. La referencia es el promedio de los
+   * últimos 5 minutos sin contar el último medio minuto (como la regla real, que promedia los 5 minutos
+   * previos): así un disparo rápido toca la banda y un avance lento no.
+   */
+  private luldBand(s: SimSym, minutes: number): { up: number; down: number } {
+    const n = s.recent.length;
+    let ref = s.price;
+    if (n) {
+      const upto = Math.max(1, n - 30);
+      let sum = 0;
+      for (let i = 0; i < upto; i++) sum += s.recent[i];
+      ref = sum / upto;
+    }
+    let pct = ref >= 3 ? 0.1 : ref >= 0.75 ? 0.2 : 0.75;
+    if (minutes < REG_OPEN + 15 || minutes >= this.closeMinutes - 25) pct *= 2;
+    return { up: this.tick(ref * (1 + pct)), down: this.tick(Math.max(0.01, ref * (1 - pct))) };
+  }
+
+  private halt(s: SimSym, dir = 0): void {
     s.halted = true;
-    s.haltUntil = this.t + 5 * MIN;
+    s.haltDir = dir;
+    s.limitSec = 0;
+    // Entre 5 y 10 minutos (los 5 reglamentarios más lo que tarda la subasta de reapertura).
+    s.haltUntil = this.t + 5 * MIN + Math.round(uni(s.rng, 0, 5 * 60)) * SEC;
+    s.recent = [];
     s.bid = s.ask = s.bidSize = s.askSize = 0;
     this.out({
       kind: 'status',
@@ -930,17 +985,37 @@ export class MarketSim {
   private resume(s: SimSym, regular: boolean): void {
     s.halted = false;
     this.out({ kind: 'status', sym: s.ref.sym, ts: this.t, halted: false, reason: 'LUDP', source: 'demo' });
-    s.price = s.path = this.tick(s.price * (1 + uni(s.rng, -0.12, 0.25)));
-    const size = Math.round((s.baseShares * 600) / 100) * 100 || 100;
+    // Reabre para el lado del halt (un halt al alza suele reabrir más arriba; uno a la baja, más abajo).
+    const jump = s.haltDir > 0 ? uni(s.rng, -0.1, 0.25) : s.haltDir < 0 ? uni(s.rng, -0.25, 0.1) : uni(s.rng, -0.12, 0.12);
+    s.price = s.path = this.tick(s.price * (1 + jump));
+    s.recent = [s.price];
+    // El salto de la reapertura consume parte del tramo en curso: lo que queda del movimiento se achica.
+    const leg = s.legs[0];
+    if (leg && leg.dur > s.legT) {
+      const left = (leg.dur - s.legT) / leg.dur;
+      s.legs[0] = { ...leg, dur: leg.dur - s.legT, ret: leg.ret * left - Math.log(1 + jump), halt: false };
+      s.legT = 0;
+    }
+    // Subasta de reapertura: varios prints alrededor del precio de apertura, el primero grande.
+    const total = Math.round((s.baseShares * 600) / 100) * 100 || 100;
+    const n = 3 + Math.floor(s.rng() * 3);
+    const prints: Array<{ px: number; size: number }> = [];
+    for (let i = 0; i < n; i++) {
+      const px = this.tick(s.price * (1 + uni(s.rng, -0.02, 0.02)));
+      const size = i === 0 ? Math.round(total * 0.6) : Math.max(1, Math.round((total * 0.4) / (n - 1) * uni(s.rng, 0.5, 1.5)));
+      prints.push({ px, size });
+    }
+    // Uno de cada seis halts se repite enseguida: la acción reabre y vuelve a tocar la banda.
+    if (regular && s.rng() < 0.12) this.schedule(this.t + Math.round(uni(s.rng, 10, 40)) * SEC, () => !s.halted && this.halt(s));
     if (!this.live) {
-      this.addWarm(s, this.t, s.price, size);
+      for (const p of prints) this.addWarm(s, this.t, p.px, p.size);
       return;
     }
     s.fair = s.price;
     s.wide = 3;
     if (!this.shows(s)) return;
     this.requote(s, s.price, this.t, regular, true);
-    this.out({ kind: 'trade', sym: s.ref.sym, ts: this.t, price: s.price, size });
+    for (const p of prints) this.out({ kind: 'trade', sym: s.ref.sym, ts: this.t, price: p.px, size: p.size });
   }
 }
 

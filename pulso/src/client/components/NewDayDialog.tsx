@@ -3,7 +3,7 @@
 // mercado de un día que ya practicaste, desde la misma hora.
 import { useEffect, useState } from 'react';
 import { etParts, formatCountdown, formatEtTime, SESSION_LABEL } from '../../engine/time';
-import { fmtMoney } from '../../trading/broker';
+import { fmtMoney } from '../lib/format';
 import { summarize } from '../../trading/stats';
 import type { SessionRecord } from '../../trading/types';
 import { fmtDay, fmtMinutes, fromHHMM, HEAT_LABEL, lastSessionKey, postEnd, resolveDay, toHHMM } from '../lib/days';

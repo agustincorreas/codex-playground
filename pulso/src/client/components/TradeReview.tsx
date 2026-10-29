@@ -2,9 +2,8 @@
 import { useEffect, useRef } from 'react';
 import { CandlestickSeries, ColorType, createChart, createSeriesMarkers, LineStyle, type SeriesMarker, type Time, type UTCTimestamp } from 'lightweight-charts';
 import { etOffset, formatEtTime } from '../../engine/time';
-import { fmtMoney } from '../../trading/broker';
 import type { Trade } from '../../trading/types';
-import { fmtPct, fmtPrice } from '../lib/format';
+import { fmtMoney, fmtPct, fmtPrice } from '../lib/format';
 import { IconClose } from './Icons';
 
 const css = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim() || '#888';

@@ -10,6 +10,8 @@ import type { Log } from './util';
 export interface ProviderContext {
   /** Motor vigente (cambia en el reinicio diario de las 4:00 ET). */
   engine(): Engine;
+  /** Falso cuando este arranque quedó viejo (reinicio diario o reintento): el proveedor debe abandonar. */
+  alive(): boolean;
   log: Log;
   setStatus(s: Partial<ProviderStatus>): void;
   /** Símbolos dentro del rango de precio del universo (los demás eventos se ignoran). */

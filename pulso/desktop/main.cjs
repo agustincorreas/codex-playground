@@ -2,6 +2,7 @@
 // claves la primera vez (quedan en el perfil del usuario, nunca en el código) y muestra la interfaz.
 // Sin claves corre el simulador; con las de Alpaca (gratis) muestra el mercado real.
 const { app, BrowserWindow, Menu, dialog, ipcMain, screen, shell, utilityProcess, clipboard } = require('electron');
+const crypto = require('node:crypto');
 const fs = require('node:fs');
 const http = require('node:http');
 const os = require('node:os');
@@ -43,6 +44,33 @@ function hasKeys(s) {
   return !!(s.alpacaKey && s.alpacaSecret);
 }
 
+/** Token que tiene que traer el celular para entrar (va en la dirección que da la app). Se crea una vez. */
+function ensureToken(s) {
+  if (s.token && /^[a-z0-9]{16,}$/.test(s.token)) return s.token;
+  s.token = crypto.randomBytes(12).toString('hex');
+  writeSettings(s);
+  return s.token;
+}
+
+/** Dirección para abrir Pulso desde otro equipo de la red (con el token). */
+function lanUrl(s) {
+  const ips = localIps();
+  return `http://${ips[0] ?? 'IP-DE-ESTA-COMPU'}:${PORT}/?t=${ensureToken(s)}`;
+}
+
+const LOCAL_ORIGIN = `http://127.0.0.1:${PORT}`;
+function originOf(url) {
+  try {
+    return new URL(url).origin;
+  } catch {
+    return '';
+  }
+}
+/** Solo páginas web (http/https) se abren en el navegador: nunca file:, javascript: u otros esquemas. */
+function openOutside(url) {
+  if (/^https?:$/.test(originOf(url) ? new URL(url).protocol : '')) void shell.openExternal(url);
+}
+
 /**
  * Versión privada: las claves vienen dentro de la app (app/defaults.json, generado al compilar con
  * las claves del dueño). La primera vez se copian a los ajustes y no se pide nada.
@@ -69,12 +97,15 @@ function applyDefaults() {
   }
 }
 
+let logWrites = 0;
 function pushLog(line) {
   const text = line.replace(/\s+$/, '');
   if (!text) return;
   logLines.push(text);
   if (logLines.length > MAX_LOG) logLines.splice(0, logLines.length - MAX_LOG);
   try {
+    // Rotación: pasados los 5 MB el registro se guarda como .1 y se empieza otro (queda uno anterior).
+    if (++logWrites % 500 === 0 && fs.statSync(logPath()).size > 5 * 1024 * 1024) fs.renameSync(logPath(), logPath() + '.1');
     fs.appendFileSync(logPath(), text + '\n');
   } catch {
     // Sin permisos para el registro: se sigue igual.
@@ -104,6 +135,7 @@ function serverEnv(s) {
     MASSIVE_PLAN: s.massivePlan || 'basic',
     SEC_USER_AGENT: s.secUserAgent || '',
     ANTHROPIC_API_KEY: s.anthropicKey || '',
+    PULSO_TOKEN: s.lan ? ensureToken(s) : '',
     PULSO_CACHE_DIR: path.join(userData(), 'cache'),
     PULSO_DATA_DIR: userData(),
     PULSO_DIST_DIR: path.join(APP_DIR, 'dist'),
@@ -224,13 +256,13 @@ function createWindow() {
   });
   // Los links externos (noticias, documentación) se abren en el navegador.
   win.webContents.setWindowOpenHandler(({ url }) => {
-    if (/^https?:/.test(url) && !url.startsWith(`http://127.0.0.1:${PORT}`)) void shell.openExternal(url);
+    if (originOf(url) !== LOCAL_ORIGIN) openOutside(url);
     return { action: 'deny' };
   });
   win.webContents.on('will-navigate', (e, url) => {
-    if (/^https?:/.test(url) && !url.startsWith(`http://127.0.0.1:${PORT}`) && !url.startsWith('file:')) {
+    if (originOf(url) !== LOCAL_ORIGIN && !url.startsWith('file:')) {
       e.preventDefault();
-      void shell.openExternal(url);
+      openOutside(url);
     }
   });
   showStatus();
@@ -271,7 +303,7 @@ function openSetup() {
     setupWin = null;
   });
   setupWin.webContents.setWindowOpenHandler(({ url }) => {
-    void shell.openExternal(url);
+    openOutside(url);
     return { action: 'deny' };
   });
   void setupWin.loadFile(path.join(__dirname, 'setup.html'));
@@ -340,16 +372,19 @@ function copyLanUrl() {
     dialog.showMessageBox(win, { type: 'info', message: 'Para abrirlo desde el celular, activá "Permitir desde el celular" en Claves y conexión.', buttons: ['Entendido'] });
     return;
   }
-  const url = `http://${ips[0] ?? 'IP-DE-ESTA-COMPU'}:${PORT}/`;
+  const url = lanUrl(s);
   clipboard.writeText(url);
-  dialog.showMessageBox(win, { type: 'info', message: `Dirección copiada: ${url}`, detail: 'Abrila en el celular conectado a la misma Wi-Fi.', buttons: ['Listo'] });
+  dialog.showMessageBox(win, { type: 'info', message: `Dirección copiada: ${url}`, detail: 'Abrila en el celular conectado a la misma Wi-Fi. Lleva un token al final: sin él nadie de la red puede entrar.', buttons: ['Listo'] });
 }
 
 // ------------------------------------------------------------------ IPC (lo que ven las páginas de la app)
 
-ipcMain.handle('settings:get', () => {
+ipcMain.handle('settings:get', (e) => {
   const s = readSettings();
-  return { ...s, ips: localIps(), port: PORT, hasKeys: hasKeys(s) };
+  // Las claves solo las ve la ventana de configuración (un archivo de la app), nunca la interfaz web.
+  const trusted = String(e.senderFrame?.url ?? '').startsWith('file:');
+  const out = trusted ? { ...s, token: s.lan ? ensureToken(s) : s.token } : { ...s, alpacaKey: '', alpacaSecret: '', massiveKey: '', anthropicKey: '', secUserAgent: '', token: '' };
+  return { ...out, ips: localIps(), port: PORT, hasKeys: hasKeys(s) };
 });
 ipcMain.handle('settings:save', (_e, s) => {
   const clean = {
@@ -361,6 +396,7 @@ ipcMain.handle('settings:save', (_e, s) => {
     secUserAgent: String(s.secUserAgent ?? '').trim(),
     anthropicKey: String(s.anthropicKey ?? '').trim(),
     lan: !!s.lan,
+    token: readSettings().token,
   };
   writeSettings(clean);
   if (setupWin && !setupWin.isDestroyed()) setupWin.close();

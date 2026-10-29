@@ -4,14 +4,27 @@ import { claudeSampler } from './review';
 
 export type Asker = (system: string, prompt: string) => Promise<string>;
 
-let cached: Promise<{ ask: Asker; via: 'claude' | 'servidor' } | null> | undefined;
+export type AiLink = { ask: Asker; via: 'claude' | 'servidor' };
 
-export function aiAvailable(): Promise<{ ask: Asker; via: 'claude' | 'servidor' } | null> {
-  if (!cached) cached = detect();
+let cached: Promise<AiLink | null> | undefined;
+/** Si no se encontró ninguna IA, se vuelve a buscar pasado este tiempo (el servidor puede estar arrancando). */
+const RETRY_MS = 60_000;
+
+export function aiAvailable(): Promise<AiLink | null> {
+  if (!cached) {
+    const attempt = detect().catch(() => null);
+    cached = attempt;
+    void attempt.then((ai) => {
+      if (ai) return;
+      setTimeout(() => {
+        if (cached === attempt) cached = undefined;
+      }, RETRY_MS);
+    });
+  }
   return cached;
 }
 
-async function detect(): Promise<{ ask: Asker; via: 'claude' | 'servidor' } | null> {
+async function detect(): Promise<AiLink | null> {
   const sampler = await claudeSampler();
   if (sampler) {
     return { via: 'claude', ask: async (system, prompt) => (await sampler(`${system}\n\n${prompt}`)).text };

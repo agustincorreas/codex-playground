@@ -3,10 +3,9 @@
 // Muestra el precio, el bid y el ask, tu posición con su resultado en vivo, la cantidad y los botones
 // rápidos: compra en el Ask + 0,05 y venta en el Bid − 0,05, como los atajos del escritorio.
 import type { Quote, ScanRow } from '../../engine/types';
-import { fmtMoney, fmtPx } from '../../trading/broker';
 import { roundPx, tickOf } from '../../trading/depth';
 import type { Hotkey } from '../../trading/types';
-import { fmtPct } from '../lib/format';
+import { fmtInt, fmtMoney, fmtPct, fmtPrice } from '../lib/format';
 import type { TrainingController } from '../training';
 import type { TicketForm } from './Level2';
 
@@ -69,14 +68,14 @@ export function MobileTradeBar({ c, sym, quote, row, ticket, setTicket, onHotkey
     <div className="mtb" role="region" aria-label={`Operar ${sym}`}>
       <div className="mtb-info">
         <b className="mtb-sym">{sym}</b>
-        {quote && <span className={`mtb-last mono ${change !== undefined ? (change >= 0 ? 't-up' : 't-down') : ''}`}>{fmtPx(quote.last)}</span>}
+        {quote && <span className={`mtb-last mono ${change !== undefined ? (change >= 0 ? 't-up' : 't-down') : ''}`}>{fmtPrice(quote.last)}</span>}
         {change !== undefined && <span className={`mtb-chg mono ${change >= 0 ? 't-up' : 't-down'}`}>{fmtPct(change)}</span>}
         {halted ? (
           <span className="mtb-halt">HALT</span>
         ) : (
           quote && (
             <span className="mtb-quote mono">
-              <span className="t-up">B {fmtPx(quote.bid)}</span> · <span className="t-down">A {fmtPx(quote.ask)}</span>
+              <span className="t-up">B {fmtPrice(quote.bid)}</span> · <span className="t-down">A {fmtPrice(quote.ask)}</span>
             </span>
           )
         )}
@@ -86,7 +85,7 @@ export function MobileTradeBar({ c, sym, quote, row, ticket, setTicket, onHotkey
         {pos ? (
           <>
             <span className="mono">
-              {pos.shares} @ {fmtPx(pos.avgCost)}
+              {pos.shares} @ {fmtPrice(pos.avgCost)}
             </span>
             {un && (
               <b className={`mono ${un.pnl >= 0 ? 't-up' : 't-down'}`}>
@@ -109,7 +108,7 @@ export function MobileTradeBar({ c, sym, quote, row, ticket, setTicket, onHotkey
             <span className="mtb-chips">
               {maxQty > 0 && (
                 <button type="button" className="chip" onClick={() => setQty(maxQty)} title="Lo máximo que te alcanza con el poder de compra">
-                  Máx {maxQty.toLocaleString('es-AR')}
+                  Máx {fmtInt(maxQty)}
                 </button>
               )}
             </span>
@@ -132,13 +131,14 @@ export function MobileTradeBar({ c, sym, quote, row, ticket, setTicket, onHotkey
             +
           </button>
         </div>
-        <button id="mtb-buy" type="button" className="mtb-buy" disabled={!ready || halted || !shares || !buyPx} onClick={() => onHotkey(BUY)}>
-          COMPRAR {shares.toLocaleString('es-AR')}
-          <small className={tooBig ? 'mtb-short' : undefined}>{buyPx ? `a ${fmtPx(buyPx)} · ${fmtMoney(cost)}` : '—'}</small>
+        {/* Mismo criterio que el ticket del escritorio: sin poder de compra no se compra; sin posición no se vende. */}
+        <button id="mtb-buy" type="button" className="mtb-buy" disabled={!ready || halted || !shares || !buyPx || tooBig} onClick={() => onHotkey(BUY)} title={tooBig ? `Te alcanza para ${fmtInt(maxQty)} acciones` : undefined}>
+          COMPRAR {fmtInt(shares)}
+          <small className={tooBig ? 'mtb-short' : undefined}>{buyPx ? `a ${fmtPrice(buyPx)} · ${fmtMoney(cost)}` : '—'}</small>
         </button>
         <button id="mtb-sell" type="button" className="mtb-sell" disabled={!ready || halted || !pos || !sellPx} onClick={() => c.sell(sym, 1, 'bid', -OFFSET, sellQty)}>
-          VENDER {pos ? sellQty.toLocaleString('es-AR') : ''}
-          <small>{pos && sellPx ? `a ${fmtPx(sellPx)}` : 'sin posición'}</small>
+          VENDER {pos ? fmtInt(sellQty) : ''}
+          <small>{pos && sellPx ? `a ${fmtPrice(sellPx)}` : 'sin posición'}</small>
         </button>
       </div>
     </div>

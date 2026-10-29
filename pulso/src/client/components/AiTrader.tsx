@@ -142,6 +142,10 @@ export function AiTraderPanel({ trader, selected, onSelect }: Props) {
             Pérdida máxima (R)
             <input type="number" min={1} max={10} step={0.5} value={s.rules.maxLossR} onChange={(e) => trader.update({ rules: { ...s.rules, maxLossR: Math.max(0.5, Number(e.target.value) || 1) } })} />
           </label>
+          <label title="Tope diario de consultas a Claude (0 = sin tope). Hoy van las que muestra el contador.">
+            Consultas por día
+            <input type="number" min={0} max={2000} value={s.maxCalls} onChange={(e) => trader.update({ maxCalls: Math.max(0, Math.round(Number(e.target.value) || 0)) })} />
+          </label>
         </div>
         <label className="check-inline">
           <input type="checkbox" checked={s.consult} onChange={(e) => trader.update({ consult: e.target.checked })} /> Consultar a Claude antes de cada entrada (si no responde, no entra)

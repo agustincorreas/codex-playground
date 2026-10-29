@@ -4,14 +4,13 @@
 // volumen y volumen relativo, el rendimiento por semana, la curva de capital y todos los trades.
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { formatEtTime } from '../../engine/time';
-import { fmtMoney } from '../../trading/broker';
 import { breakdown, DAYS_PER_WEEK, DIMENSIONS, equityCurve, LEVELS, summarize, weeklyResults, type Bucket, type Dimension, type Summary, type WeekResult } from '../../trading/stats';
 import { SETUPS, type SessionRecord, type Trade } from '../../trading/types';
 import { fmtDay, fmtMinutes, HEAT_LABEL } from '../lib/days';
 import { downloadText } from '../lib/download';
 import { buildFacts, claudeSampler, narrative, reviewPrompt, type ReviewFacts } from '../lib/review';
 import { load, save } from '../lib/storage';
-import { fmtPct, fmtPrice } from '../lib/format';
+import { fmtMoney, fmtPct, fmtPrice } from '../lib/format';
 import type { TrainingController } from '../training';
 import { IconClose } from './Icons';
 import { TradeReview } from './TradeReview';

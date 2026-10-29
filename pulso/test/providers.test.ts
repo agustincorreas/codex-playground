@@ -43,6 +43,7 @@ function makeCtx() {
     universe,
     universeMin: 0.2,
     universeMax: 60,
+    alive: () => true,
   };
   return { ctx, engine, statuses };
 }

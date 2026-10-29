@@ -331,7 +331,8 @@ export function weeklyResults(trades: Trade[], dayOf: (t: Trade) => number | und
     const days = weeks.get(w) ?? new Map<number, Trade[]>();
     const all = [...days.values()].flat();
     const s = summarize(all);
-    streak = s.net > 0 ? streak + 1 : 0;
+    // Una semana sin trades no corta la racha de semanas positivas (no operar no es perder).
+    if (all.length) streak = s.net > 0 ? streak + 1 : 0;
     const pl = Number.isFinite(s.plRatio) ? s.plRatio : s.wins ? 3 : 0;
     const score = { consistency: consistencyScore(streak), winRate: winRateScore(s.winRate), plRatio: plScore(pl), total: 0, level: '' };
     score.total = score.consistency + score.winRate + score.plRatio;

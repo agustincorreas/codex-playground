@@ -181,7 +181,8 @@ describe('días distintos', () => {
     for (const n of offers) {
       const bars = engine.get(n.symbols[0])!.bars;
       const hi = Math.max(...bars.filter((b) => b.t >= n.ts - 3 * 60_000 && b.t <= n.ts).map((b) => b.h));
-      const lo = Math.min(...bars.filter((b) => b.t >= n.ts && b.t < n.ts + 6 * 60_000).map((b) => b.l));
+      // La caída suele tocar la banda LULD y la acción queda en halt 5-10 min: se mira la media hora siguiente.
+      const lo = Math.min(...bars.filter((b) => b.t >= n.ts && b.t < n.ts + 30 * 60_000).map((b) => b.l));
       expect(lo / hi).toBeLessThan(0.88);
     }
   }, 20_000);
@@ -202,3 +203,64 @@ describe('días distintos', () => {
   });
 });
 
+
+describe('halts LULD del simulador', () => {
+  /** Un día entero capturando los halts y las bandas que publica el simulador. */
+  function dayWithHalts(seed: number) {
+    const engine = new Engine({ allSecBars: true });
+    const halts: Array<{ sym: string; ts: number; resumeTs?: number }> = [];
+    let bands = 0;
+    const sim = new MarketSim(
+      (ev) => {
+        if (ev.kind === 'status' && ev.halted) halts.push({ sym: ev.sym, ts: ev.ts, resumeTs: ev.resumeTs });
+        if (ev.kind === 'luld') bands++;
+        engine.ingest(ev);
+      },
+      { seed, dayTs: FRIDAY, startMinutes: 16 * 60 },
+    );
+    engine.setReference(sim.refs);
+    engine.warmup = true;
+    sim.warmup();
+    engine.tick(sim.now);
+    engine.warmup = false;
+    return { engine, halts, bands };
+  }
+
+  it('las subidas sostenidas de 10 % en 5 minutos (precio ≥ $3) en rueda regular suelen terminar en halt, con bandas publicadas', () => {
+    const { engine, halts, bands } = dayWithHalts(42);
+    let moves = 0;
+    let missed = 0;
+    const resumes = new Set(halts.map((h) => `${h.sym}:${h.resumeTs}`));
+    for (const st of engine.symbols.values()) {
+      const haltsAt = halts.filter((h) => h.sym === st.sym).map((h) => h.ts);
+      const bars = st.bars;
+      for (let i = 5; i < bars.length; i++) {
+        const b = bars[i];
+        const m = etParts(b.t).minutes;
+        if (m < 9 * 60 + 45 || m >= 15 * 60 + 35 || b.c < 3) continue;
+        const ref = bars.slice(i - 5, i).reduce((a, x) => a + x.c, 0) / 5;
+        if (b.c / ref - 1 < 0.1) continue;
+        // El salto de una reapertura no cuenta (las bandas se rearman desde ese precio, como en el mercado).
+        if (halts.some((h) => h.sym === st.sym && h.resumeTs && h.resumeTs >= b.t - 120_000 && h.resumeTs <= b.t + 60_000)) continue;
+        moves++;
+        if (!haltsAt.some((t) => t >= b.t - 60_000 && t <= b.t + 60_000)) missed++;
+        i += 5;
+      }
+    }
+    expect(resumes.size).toBe(halts.length);
+    expect(moves).toBeGreaterThan(5);
+    // El ruido por segundo del simulador produce subidas que no se sostienen en la banda; queda como límite conocido.
+    expect(missed / moves).toBeLessThan(0.75);
+    expect(halts.length).toBeGreaterThan(40);
+    expect(bands).toBeGreaterThan(100);
+  }, 30_000);
+
+  it('los halts duran entre 5 y 10 minutos', () => {
+    const { halts } = dayWithHalts(7);
+    expect(halts.length).toBeGreaterThan(3);
+    for (const h of halts) {
+      expect(h.resumeTs! - h.ts).toBeGreaterThanOrEqual(5 * 60_000);
+      expect(h.resumeTs! - h.ts).toBeLessThanOrEqual(10 * 60_000 + 1000);
+    }
+  }, 30_000);
+});

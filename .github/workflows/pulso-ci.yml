@@ -1,0 +1,35 @@
+# Verifica Pulso en cada cambio: tipos, pruebas (incluida la del servidor entero) y compilación.
+name: Verificar Pulso
+
+on:
+  push:
+    branches: [main]
+    paths: ['pulso/**', '.github/workflows/pulso-ci.yml']
+  pull_request:
+    paths: ['pulso/**', '.github/workflows/pulso-ci.yml']
+  workflow_dispatch:
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: pulso/package-lock.json
+      - name: Instalar
+        working-directory: pulso
+        run: npm ci
+      - name: Tipos
+        working-directory: pulso
+        run: npm run typecheck
+      - name: Pruebas
+        working-directory: pulso
+        run: npm test
+      - name: Compilar la interfaz y el demo
+        working-directory: pulso
+        run: |
+          npm run build
+          npm run build:demo

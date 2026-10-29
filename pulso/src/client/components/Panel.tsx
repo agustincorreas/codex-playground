@@ -44,9 +44,9 @@ export function Panel({ title, help, count, actions, tabs, activeTab, onTab, cla
           </h2>
         )}
         {help && (
-          <span className="help" title={help} aria-label={help} tabIndex={0}>
+          <button type="button" className="help" title={help} aria-label={`Ayuda: ${help}`}>
             <IconInfo />
-          </span>
+          </button>
         )}
         <div className="panel-actions">{actions}</div>
       </header>

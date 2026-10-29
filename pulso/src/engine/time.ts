@@ -189,7 +189,18 @@ export function volumeIntensity(minutesOfDay: number): number {
   return 0;
 }
 
-export function expectedVolumeFraction(minutesOfDay: number): number {
+/**
+ * Minuto equivalente en la curva de una rueda completa: en una media rueda (cierre 13:00) la rueda regular
+ * se estira para cubrir la curva entera, así el volumen esperado llega al cierre como un día normal.
+ */
+export function curveMinute(minutesOfDay: number, closeMinutes: number = REG_CLOSE): number {
+  if (closeMinutes === REG_CLOSE || minutesOfDay < REG_OPEN) return minutesOfDay;
+  if (minutesOfDay >= closeMinutes) return REG_CLOSE + (minutesOfDay - closeMinutes);
+  return REG_OPEN + ((minutesOfDay - REG_OPEN) * (REG_CLOSE - REG_OPEN)) / (closeMinutes - REG_OPEN);
+}
+
+export function expectedVolumeFraction(minutesOfDay: number, dateKey?: string): number {
+  if (dateKey) minutesOfDay = curveMinute(minutesOfDay, regularCloseMinutes(dateKey));
   if (minutesOfDay <= VOLUME_CURVE[0][0]) return 0.01;
   for (let i = 1; i < VOLUME_CURVE.length; i++) {
     const [m1, f1] = VOLUME_CURVE[i];

@@ -179,7 +179,7 @@ export class Engine implements AlertSink {
       st.prevPrice = snap.last;
       st.lastTs = snap.ts;
       st.hod = Math.max(st.hod, snap.high);
-      st.lod = Math.min(st.lod, snap.low);
+      if (snap.low > 0) st.lod = Math.min(st.lod, snap.low);
       st.volume = snap.volume;
       st.pv = (snap.vwap ?? snap.last) * snap.volume;
       if (snap.open) {
@@ -269,7 +269,12 @@ export class Engine implements AlertSink {
       st.volume = v;
       st.pv = pv;
     }
-    for (const b of bars) if (b.h > st.hod) st.hod = b.h;
+    for (const b of bars) {
+      if (b.h > st.hod) {
+        st.hod = b.h;
+        st.hodTs = b.t + 60_000 - 1;
+      }
+    }
     st.resetIndicators();
   }
 
@@ -299,8 +304,12 @@ export class Engine implements AlertSink {
     for (const b of older) {
       const m = etParts(b.t).minutes;
       if (m < REG_OPEN && etParts(b.t).dateKey === day.dateKey && b.h > st.pmHigh) st.pmHigh = b.h;
-      if (b.h > st.hod) st.hod = b.h;
-      if (b.l < st.lod) st.lod = b.l;
+      if (b.h > st.hod) {
+        st.hod = b.h;
+        // El máximo viene de una vela ya cerrada: "cerca del máximo" cuenta los minutos desde su fin.
+        st.hodTs = b.t + 60_000 - 1;
+      }
+      if (b.l > 0 && b.l < st.lod) st.lod = b.l;
     }
     if (!st.dayOpen) st.dayOpen = older[0].o;
     if (st.volume === 0) {
@@ -321,7 +330,8 @@ export class Engine implements AlertSink {
     if (key !== this.minuteKey) {
       this.minuteKey = key;
       this.session = sessionAt(this.now);
-      this.volFrac = expectedVolumeFraction(etParts(this.now).minutes);
+      const p = etParts(this.now);
+      this.volFrac = expectedVolumeFraction(p.minutes, p.dateKey);
     }
   }
 
@@ -438,8 +448,10 @@ export class Engine implements AlertSink {
     if (this.allSecBars || st.eligible) st.addToSecBar(ev.ts, ev.o, ev.h, ev.l, ev.c, ev.v, pv, ev.n ?? 1);
     if (st.bars.length > barsBefore && barsBefore > 0) onBarClosed(st, this);
     if (ev.dayVolume && ev.dayVolume >= st.volume) {
+      // El VWAP previo se toma antes de pisar el volumen (si no, el promedio se diluye hacia cero).
+      const vw = ev.dayVwap ?? (st.vwap || st.last);
       st.volume = ev.dayVolume;
-      st.pv = (ev.dayVwap ?? st.vwap) * ev.dayVolume;
+      st.pv = vw * ev.dayVolume;
     } else {
       st.volume += ev.v;
       st.pv += pv;

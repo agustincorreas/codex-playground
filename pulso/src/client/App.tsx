@@ -1,5 +1,4 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { fmtVolume } from '../engine/alerts';
 import { formatCountdown } from '../engine/time';
 import type { Alert, AlertType, NewsItem, ProviderStatus, ScannerId, Settings, SymbolDetail, ViewModel } from '../engine/types';
 import { DEFAULT_SETTINGS } from '../engine/types';
@@ -23,6 +22,9 @@ import { WindowGrid, type PanelId } from './components/WindowGrid';
 import { DEFAULT_SOUND_TYPES } from './lib/alertMeta';
 import { beep, playOrder, speak, unlockAudio } from './lib/audio';
 import { matches, typing } from './lib/hotkeys';
+import { fmtVolume } from './lib/format';
+import { readNow, setClock } from './lib/now';
+import { useStable } from './lib/stable';
 import { fmtDay, HEAT_HINT, HEAT_LABEL } from './lib/days';
 import { crossAlerts, subscribeDrawings, symbolsWithAlerts } from './lib/drawings';
 import { load, save } from './lib/storage';
@@ -32,7 +34,7 @@ import type { HistoryTf } from '../engine/history';
 import type { DataSource } from './source/types';
 import { AiTrader } from './aitrader';
 import { AiTraderPanel } from './components/AiTrader';
-import { TrainingController, useTrainingVersion } from './training';
+import { nyMarket, TrainingController, useTrainingVersion } from './training';
 
 const DEFAULT_PREFS: Prefs = {
   sound: true,
@@ -60,6 +62,9 @@ const SCANNER_LABEL: Record<ScannerId, string> = {
   rvol: 'Volumen relativo',
   fades: 'Se desinflan',
 };
+
+/** Pestaña del celular en la que vive cada ventana: ahí solo se monta lo que se ve. */
+const PANEL_TAB: Record<PanelId, MobileTab> = { trades: 'chart', momo: 'momo', scan: 'scan', l2: 'chart', quote: 'news', chart1: 'chart', chart5: 'news', pos: 'chart', orders: 'chart' };
 
 function scannerHelp(id: ScannerId, s: Settings): string {
   const range = `$${s.priceMin}–$${s.priceMax}`;
@@ -129,16 +134,20 @@ function MarketClosed({ until, onPractice, onJournal, onNewDay }: { until: numbe
 
 /** Arranque: ¿hay servidor de Pulso? ¿dónde se guarda la cuenta de práctica? */
 export function App() {
-  const [boot, setBoot] = useState<{ server: boolean; c: TrainingController } | null>(null);
+  const [boot, setBoot] = useState<{ server: boolean; hasServer: boolean; c: TrainingController } | null>(null);
   const [msg, setMsg] = useState('Buscando el servidor de datos…');
   useEffect(() => {
     let alive = true;
     void (async () => {
-      const server = await detectServer();
+      // El simulador se elige con `?demo` en la URL o con el botón del encabezado (queda recordado).
+      const params = new URLSearchParams(location.search);
+      const wantSim = params.has('demo') || (!params.has('real') && load<string>('source', 'real') === 'sim');
+      const health = await detectServer(true);
+      const server = wantSim ? null : health;
       if (!alive) return;
       setMsg('Cargando tu cuenta de práctica…');
-      // Con servidor, la cuenta vive ahí (una sola para todos los dispositivos); si no, en Claude o acá.
-      let store: TrainingStore = server ? new ServerTrainingStore() : await createTrainingStore();
+      // Con servidor, la cuenta vive ahí (una sola para todos los dispositivos, también en el simulador); si no, en Claude o acá.
+      let store: TrainingStore = health ? new ServerTrainingStore() : await createTrainingStore();
       let loaded;
       let failed = false;
       let moved = false;
@@ -170,17 +179,17 @@ export function App() {
       const c = new TrainingController(store, loaded, server ? 'remote' : 'local');
       if (failed) c.notify(`No se pudo leer tu cuenta ${store.kind === 'cuenta' ? 'de Claude' : 'del servidor'}: esta sesión se guarda solo en este navegador.`, 'error');
       if (moved) c.notify('Tu cuenta de práctica pasó al servidor de Pulso: ahora es la misma desde cualquier dispositivo.', 'ok');
-      setBoot({ server: !!server, c });
+      setBoot({ server: !!server, hasServer: !!health, c });
     })();
     return () => {
       alive = false;
     };
   }, []);
   if (!boot) return <BootScreen message={msg} />;
-  return <Workspace server={boot.server} c={boot.c} />;
+  return <Workspace server={boot.server} hasServer={boot.hasServer} c={boot.c} />;
 }
 
-function Workspace({ server, c }: { server: boolean; c: TrainingController }) {
+function Workspace({ server, hasServer, c }: { server: boolean; hasServer: boolean; c: TrainingController }) {
   useTrainingVersion(c);
   const [source, setSource] = useState<DataSource | null>(null);
   // Historia para los gráficos (días anteriores y temporalidades largas): la da la fuente de datos.
@@ -243,7 +252,6 @@ function Workspace({ server, c }: { server: boolean; c: TrainingController }) {
     });
   }, []);
   const [isMobile, setIsMobile] = useState(() => !!window.matchMedia?.('(max-width: 899px)').matches);
-  const [now, setNow] = useState(0);
   const [theme, setTheme] = useState<'dark' | 'light'>(() => effectiveThemeNow());
   // La fuente del simulador se recrea solo cuando empieza otro día (o se importa otra cuenta).
   const [sim, setSim] = useState<{ key: string; cfg: SimConfig } | null>(() => (c.simKey && c.simConfig ? { key: c.simKey, cfg: c.simConfig } : null));
@@ -343,7 +351,7 @@ function Workspace({ server, c }: { server: boolean; c: TrainingController }) {
       },
       onCatchUp: (t) => c.catchUp(t),
       onRebuild: () => c.rebase(),
-      onAccount: () => void c.reload(),
+      onAccount: (rev) => void c.reload(rev),
     });
     if (selectedRef.current) src.select(selectedRef.current);
     c.attach(src);
@@ -441,11 +449,11 @@ function Workspace({ server, c }: { server: boolean; c: TrainingController }) {
     };
   }, [c]);
 
-  // Reloj del encabezado.
+  // Reloj de la interfaz: la hora del mercado (simulado o del servidor). Lo leen solo los componentes
+  // que muestran la hora o una cuenta regresiva (ver lib/now.ts).
   useEffect(() => {
-    if (!source) return;
-    const id = setInterval(() => setNow(source.now()), 250);
-    return () => clearInterval(id);
+    setClock(source ? () => source.now() : null);
+    return () => setClock(null);
   }, [source]);
 
   // Tema: respeta el del sistema/visor salvo que el usuario elija uno en la app.
@@ -465,18 +473,20 @@ function Workspace({ server, c }: { server: boolean; c: TrainingController }) {
     };
   }, []);
 
-  // El audio solo se habilita después de un toque del usuario (iOS/Safari).
+  // El audio solo se habilita después de un toque del usuario (iOS/Safari); con el primero alcanza.
   useEffect(() => {
-    const f = () => {
-      unlockAudio();
-      setAudioLocked(false);
-    };
-    window.addEventListener('pointerdown', f);
-    window.addEventListener('keydown', f);
-    return () => {
+    const off = () => {
       window.removeEventListener('pointerdown', f);
       window.removeEventListener('keydown', f);
     };
+    const f = () => {
+      unlockAudio();
+      setAudioLocked(false);
+      off();
+    };
+    window.addEventListener('pointerdown', f);
+    window.addEventListener('keydown', f);
+    return off;
   }, []);
 
   // Atajos de teclado configurables (Ajustes de la cuenta → Atajos). No actúan mientras escribís en
@@ -532,31 +542,73 @@ function Workspace({ server, c }: { server: boolean; c: TrainingController }) {
   );
   selectRef.current = select;
 
-  const updateWatch = (next: string[]) => {
-    setWatch(next);
-    save(`watch${keySuffix}`, next);
-    source?.setWatchlist(next);
-  };
-  const toggleWatch = (sym: string) => updateWatch(watch.includes(sym) ? watch.filter((s) => s !== sym) : [...watch, sym]);
+  // Callbacks estables: los paneles memorizados (escáner, alertas, Nivel 2, gráficos) no se vuelven a
+  // dibujar si no cambió lo que muestran.
+  const updateWatch = useCallback(
+    (next: string[]) => {
+      watchRef.current = next;
+      setWatch(next);
+      save(`watch${keySuffix}`, next);
+      source?.setWatchlist(next);
+    },
+    [source, keySuffix],
+  );
+  const toggleWatch = useCallback(
+    (sym: string) => {
+      const cur = watchRef.current;
+      updateWatch(cur.includes(sym) ? cur.filter((s) => s !== sym) : [...cur, sym]);
+    },
+    [updateWatch],
+  );
+  const removeWatch = useCallback((sym: string) => updateWatch(watchRef.current.filter((x) => x !== sym)), [updateWatch]);
+  const addWatch = useCallback(
+    (sym: string) => {
+      if (!watchRef.current.includes(sym)) updateWatch([...watchRef.current, sym]);
+    },
+    [updateWatch],
+  );
 
-  const updatePrefs = (p: Partial<Prefs>) => {
+  const updatePrefs = useCallback((p: Partial<Prefs>) => {
     if (p.sound) unlockAudio();
-    const next = { ...prefs, ...p };
+    const next = { ...prefsRef.current, ...p };
+    prefsRef.current = next;
     setPrefs(next);
     save('prefs', next);
-  };
+  }, []);
 
-  const setTab = (slot: string, id: string) => {
-    const next = { ...tabs, [slot]: id };
-    setTabs(next);
-    save('tabs', next);
-  };
+  const setTab = useCallback((slot: string, id: string) => {
+    setTabs((cur) => {
+      const next = { ...cur, [slot]: id };
+      save('tabs', next);
+      return next;
+    });
+  }, []);
+
+  const openAnyDay = useCallback(() => setNewDay('any'), []);
+  const openPractice = useCallback(() => setPracticeSettings(true), []);
+  const search = useCallback((q: string) => (source ? source.search(q) : Promise.resolve([] as string[])), [source]);
 
   const knownSyms = useMemo(() => {
     const set = new Set<string>();
     if (view) for (const rows of Object.values(view.scanners)) for (const r of rows) set.add(r.sym);
     return set;
   }, [view]);
+  const known = useCallback((s: string) => knownSyms.has(s) || watch.includes(s), [knownSyms, watch]);
+
+  // Posición, ejecuciones y órdenes de la acción elegida, con la misma referencia mientras no cambien.
+  const pos = selected ? c.broker?.position(selected) : undefined;
+  const chartPos = useStable<ChartPosition | undefined>(pos ? { avgCost: pos.avgCost, shares: pos.shares, stop: pos.stop, target: pos.target, planStop: pos.planStop, planTarget: pos.planTarget } : undefined);
+  const chartFills = useStable<ChartFill[] | undefined>(
+    selected ? c.active?.fills.filter((f) => f.sym === selected).map((f) => ({ ts: f.ts, side: f.side, price: f.price, shares: f.shares })) : undefined,
+  );
+  const chartOrders = useStable<ChartOrder[] | undefined>(
+    selected
+      ? c.broker
+          ?.orders(selected)
+          .filter((o) => o.role !== 'stop' && o.role !== 'target')
+          .map((o) => ({ side: o.side, price: o.price ?? o.stopPrice ?? 0, shares: o.shares - o.filled, kind: o.type === 'stop' ? 'stop' : 'limit' }))
+      : undefined,
+  );
 
   const newDayDialog = newDay && <NewDayDialog c={c} initialMode={newDay === 'any' ? undefined : newDay} onClose={() => setNewDay(null)} />;
   const journalOverlay = showJournal && (
@@ -592,17 +644,6 @@ function Workspace({ server, c }: { server: boolean; c: TrainingController }) {
   const sc = view.scanners;
   const activeHalts = view.halts.filter((h) => h.halted).length;
   const quote = selected && source ? source.quote(selected) : null;
-  const pos = selected ? c.broker?.position(selected) : undefined;
-  const chartPos: ChartPosition | undefined = pos ? { avgCost: pos.avgCost, shares: pos.shares, stop: pos.stop, target: pos.target, planStop: pos.planStop, planTarget: pos.planTarget } : undefined;
-  const chartFills: ChartFill[] | undefined = selected
-    ? c.active?.fills.filter((f) => f.sym === selected).map((f) => ({ ts: f.ts, side: f.side, price: f.price, shares: f.shares }))
-    : undefined;
-  const chartOrders: ChartOrder[] | undefined = selected
-    ? c.broker
-        ?.orders(selected)
-        .filter((o) => o.role !== 'stop' && o.role !== 'target')
-        .map((o) => ({ side: o.side, price: o.price ?? o.stopPrice ?? 0, shares: o.shares - o.filled, kind: o.type === 'stop' ? 'stop' : 'limit' }))
-    : undefined;
   const acct = c.summary();
   const openOrders = c.active?.orders.length ?? 0;
   const scanIds: ScannerId[] = ['gappers', 'pillars', 'running', 'lowFloat', 'rvol', 'fades'];
@@ -616,8 +657,18 @@ function Workspace({ server, c }: { server: boolean; c: TrainingController }) {
       window.scrollTo({ top: 0 });
     } else setShowJournal(true);
   };
-  const search = source ? source.search.bind(source) : async () => [];
   const realtime = source instanceof LocalSource && source.realtime;
+  // Mercado real (el servidor) o simulador (en esta página), con la misma cuenta de práctica.
+  const switchSource = () => {
+    const toSim = !!server;
+    if (c.active?.positions.length && !window.confirm('Tenés posiciones abiertas en el día actual. Al cambiar, ese día se archiva y las posiciones vuelven al efectivo a su costo. ¿Seguir?')) return;
+    save('source', toSim ? 'sim' : 'real');
+    const u = new URL(location.href);
+    u.searchParams.delete('demo');
+    u.searchParams.delete('real');
+    u.searchParams.set(toSim ? 'demo' : 'real', '1');
+    location.href = u.toString();
+  };
   const active = c.active;
   const dayChip =
     c.mode !== 'local'
@@ -632,15 +683,15 @@ function Workspace({ server, c }: { server: boolean; c: TrainingController }) {
 
   const panels: Record<PanelId, ReactNode> = {
     trades: (
-      <Panel title="Mis trades" area="trades" mtab="chart" className="p-trades" actions={<DayResult c={c} />}>
-        <MyTrades c={c} now={now} onSelect={select} />
+      <Panel title="Mis trades" area="trades" mtab={PANEL_TAB.trades} className="p-trades" actions={<DayResult c={c} />}>
+        <MyTrades c={c} onSelect={select} />
       </Panel>
     ),
     momo: (
       <Panel
         title="Momentum"
         area="momo"
-        mtab="momo"
+        mtab={PANEL_TAB.momo}
         help={`Señales de impulso (nuevo máximo del día, squeeze, subida rápida, bull flag, ruptura del máximo pre-market y picos de volumen) en acciones con ${prefs.momentumMinScore} o más pilares. El color de la fila: 5 pilares magenta, 4 celeste, 3 azul. Se resaltan float bajo, volumen relativo de 5x y suba de 10% o más.`}
         tabs={[
           { id: 'momentum', label: 'Máximos del día' },
@@ -664,7 +715,7 @@ function Workspace({ server, c }: { server: boolean; c: TrainingController }) {
       >
         {momoTab === 'momentum' && <MomentumFeed alerts={alerts} minScore={prefs.momentumMinScore} selected={selected} onSelect={select} />}
         {momoTab === 'alerts' && <AlertFeed alerts={alerts} selected={selected} onSelect={select} />}
-        {momoTab === 'halts' && <HaltsPanel halts={view.halts} now={now} selected={selected} onSelect={select} />}
+        {momoTab === 'halts' && <HaltsPanel halts={view.halts} selected={selected} onSelect={select} />}
         {momoTab === 'ia' && <AiTraderPanel trader={trader} selected={selected} onSelect={select} />}
       </Panel>
     ),
@@ -672,7 +723,7 @@ function Workspace({ server, c }: { server: boolean; c: TrainingController }) {
       <Panel
         title="Escáneres"
         area="scan"
-        mtab="scan"
+        mtab={PANEL_TAB.scan}
         help={scanIds.includes(scanTab as ScannerId) ? scannerHelp(scanTab as ScannerId, settings) : 'Tus símbolos marcados con la estrella y dónde está el precio dentro del rango del día.'}
         tabs={[
           ...scanIds.map((id) => ({ id, label: SCANNER_LABEL[id], count: sc[id].length })),
@@ -689,7 +740,7 @@ function Workspace({ server, c }: { server: boolean; c: TrainingController }) {
             <Empty>Nada cumple este criterio por ahora.</Empty>
           ))}
         {scanTab === 'watch' && (
-          <WatchlistPanel rows={view.watch} watch={watch} selected={selected} onSelect={select} onRemove={(s) => updateWatch(watch.filter((x) => x !== s))} onAdd={(s) => !watch.includes(s) && updateWatch([...watch, s])} />
+          <WatchlistPanel rows={view.watch} watch={watch} selected={selected} onSelect={select} onRemove={removeWatch} onAdd={addWatch} />
         )}
         {scanTab === 'hod' && <HodBoard rows={view.hodBoard} selected={selected} onSelect={select} />}
       </Panel>
@@ -698,18 +749,18 @@ function Workspace({ server, c }: { server: boolean; c: TrainingController }) {
       <Panel
         title="Nivel 2 y órdenes"
         area="l2"
-        mtab="chart"
+        mtab={PANEL_TAB.l2}
         className="p-l2"
         help="Libro por venues (un color por nivel de precio), cinta de operaciones y ticket. Tocá un precio del libro para usarlo. Las órdenes tardan unos milisegundos en llegar y se ejecutan contra el libro; las límite esperan su turno en la cola."
       >
-        <Level2 c={c} source={source} detail={detail} quote={quote} now={now} ticket={ticket} setTicket={setTicket} onSymbol={select} search={search} onHotkey={runHotkey} compact={isMobile} onNewDay={() => setNewDay('any')} />
+        <Level2 c={c} source={source} detail={detail} quote={quote} ticket={ticket} setTicket={setTicket} onSymbol={select} search={search} onHotkey={runHotkey} compact={isMobile} onNewDay={openAnyDay} />
       </Panel>
     ),
     quote: (
       <Panel
         title="Cotización"
         area="quote"
-        mtab="news"
+        mtab={PANEL_TAB.quote}
         className="p-quote"
         tabs={[
           { id: 'quote', label: selected ? `Cotización · ${selected}` : 'Cotización' },
@@ -719,25 +770,25 @@ function Workspace({ server, c }: { server: boolean; c: TrainingController }) {
         onTab={(id) => setTab('quote', id)}
       >
         {quoteTab === 'quote' &&
-          (selected && !detail ? <Empty>Sin datos para {selected} todavía.</Empty> : <Detail detail={detail} settings={settings} now={now} watched={!!detail && watch.includes(detail.sym)} onToggleWatch={toggleWatch} />)}
-        {quoteTab === 'news' && <NewsPanel news={news} now={now} onSelect={select} known={(s) => knownSyms.has(s) || watch.includes(s)} />}
+          (selected && !detail ? <Empty>Sin datos para {selected} todavía.</Empty> : <Detail detail={detail} settings={settings} watched={!!detail && watch.includes(detail.sym)} onToggleWatch={toggleWatch} />)}
+        {quoteTab === 'news' && <NewsPanel news={news} onSelect={select} known={known} />}
       </Panel>
     ),
     chart1: (
-      <Panel title="Gráfico 1 min" area="chart1" mtab="chart" className="p-chart p-chart1">
-        <Chart id="a" defaultTf={60} detail={detail} alerts={alerts} themeKey={theme} now={now} position={chartPos} fills={chartFills} orders={chartOrders} loadHistory={loadHistory} />
+      <Panel title="Gráfico 1 min" area="chart1" mtab={PANEL_TAB.chart1} className="p-chart p-chart1">
+        <Chart id="a" defaultTf={60} detail={detail} alerts={alerts} themeKey={theme} position={chartPos} fills={chartFills} orders={chartOrders} loadHistory={loadHistory} />
       </Panel>
     ),
     chart5: (
-      <Panel title="Gráfico 5 min" area="chart5" mtab="news" className="p-chart p-chart5">
-        <Chart id="b" defaultTf={300} detail={detail} alerts={alerts} themeKey={theme} now={now} position={chartPos} fills={chartFills} orders={chartOrders} loadHistory={loadHistory} />
+      <Panel title="Gráfico 5 min" area="chart5" mtab={PANEL_TAB.chart5} className="p-chart p-chart5">
+        <Chart id="b" defaultTf={300} detail={detail} alerts={alerts} themeKey={theme} position={chartPos} fills={chartFills} orders={chartOrders} loadHistory={loadHistory} />
       </Panel>
     ),
     pos: (
       <Panel
         title="Posiciones"
         area="pos"
-        mtab="chart"
+        mtab={PANEL_TAB.pos}
         className="p-pos"
         tabs={[
           { id: 'pos', label: 'Posiciones', count: c.active?.positions.length || undefined },
@@ -750,14 +801,14 @@ function Workspace({ server, c }: { server: boolean; c: TrainingController }) {
         {acctTab === 'trades' ? (
           <TodayTrades c={c} onSelect={select} />
         ) : acctTab === 'acct' ? (
-          <AccountValue c={c} onSettings={() => setPracticeSettings(true)} />
+          <AccountValue c={c} onSettings={openPractice} />
         ) : (
           <PositionsWindow c={c} selected={selected} onSelect={select} />
         )}
       </Panel>
     ),
     orders: (
-      <Panel title="Actividad de órdenes" area="orders" mtab="chart" className="p-orders" count={openOrders || undefined}>
+      <Panel title="Actividad de órdenes" area="orders" mtab={PANEL_TAB.orders} className="p-orders" count={openOrders || undefined}>
         <TradeActivity c={c} onSelect={select} />
       </Panel>
     ),
@@ -765,8 +816,15 @@ function Workspace({ server, c }: { server: boolean; c: TrainingController }) {
 
   return (
     <div className="app" data-tab={mobileTab}>
+      {server && view.session === 'closed' && (
+        <div className="closed-banner">
+          Nueva York está cerrada (abre el {new Date(nyMarket(readNow() || Date.now()).nextOpen).toLocaleString('es-AR', { weekday: 'short', hour: '2-digit', minute: '2-digit' })} hora de Buenos Aires).{' '}
+          <button type="button" className="link" onClick={switchSource}>
+            Practicar en el simulador
+          </button>
+        </div>
+      )}
       <Header
-        now={now}
         session={view.session}
         status={status}
         speed={speed}
@@ -783,21 +841,26 @@ function Workspace({ server, c }: { server: boolean; c: TrainingController }) {
         effectiveTheme={theme}
         account={{ equity: acct.equity, dayPnl: acct.dayPnl }}
         onJournal={openJournal}
-        audioLocked={audioLocked}
         layoutEditing={isMobile ? undefined : layoutEdit}
         onLayout={() => setLayoutEdit((x) => !x)}
         day={dayChip}
+        sourceSwitch={hasServer ? { sim: !server, onSwitch: switchSource } : undefined}
         onDay={() => setNewDay('any')}
       />
 
       {isMobile ? (
+        // En el celular se monta solo la pestaña que se ve: los otros paneles y gráficos no trabajan de fondo.
         <main className="grid">
-          {(Object.keys(panels) as PanelId[]).map((id) => (
-            <Fragment key={id}>{panels[id]}</Fragment>
-          ))}
-          <section className="panel journal-tab" data-tab="diario">
-            <Journal c={c} onSelect={select} onSettings={() => setPracticeSettings(true)} onNewDay={() => setNewDay('any')} />
-          </section>
+          {(Object.keys(panels) as PanelId[])
+            .filter((id) => PANEL_TAB[id] === mobileTab)
+            .map((id) => (
+              <Fragment key={id}>{panels[id]}</Fragment>
+            ))}
+          {mobileTab === 'diario' && (
+            <section className="panel journal-tab" data-tab="diario">
+              <Journal c={c} onSelect={select} onSettings={openPractice} onNewDay={openAnyDay} />
+            </section>
+          )}
         </main>
       ) : (
         <WindowGrid panels={panels} editing={layoutEdit} resetKey={layoutReset} />
@@ -820,6 +883,14 @@ function Workspace({ server, c }: { server: boolean; c: TrainingController }) {
         <span className="t-muted">
           {view.stats.tracked.toLocaleString('es-AR')} símbolos · {view.stats.active.toLocaleString('es-AR')} activos · {view.stats.eventsPerSec.toLocaleString('es-AR')} eventos/s
         </span>
+        {prefs.sound && audioLocked && (
+          <span className="audio-hint" role="note">
+            Tocá la pantalla para activar el sonido
+            <button type="button" className="audio-hint-close" onClick={() => setAudioLocked(false)} aria-label="Cerrar el aviso">
+              ×
+            </button>
+          </span>
+        )}
         <span className="t-muted disclaimer">Herramienta informativa. No es asesoramiento financiero.</span>
       </footer>
 

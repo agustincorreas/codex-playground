@@ -14,6 +14,8 @@ export interface Config {
   universeMax: number;
   haltsRss: boolean;
   secUserAgent?: string;
+  /** Token que tiene que traer el celular (u otro equipo) para entrar; si falta se genera uno al arrancar. */
+  token?: string;
   /** Clave de Anthropic para el IA Trader (opcional) y modelo. */
   anthropicKey?: string;
   anthropicModel: string;
@@ -94,6 +96,7 @@ export function loadConfig(): Config {
     universeMax: num('UNIVERSE_MAX_PRICE', 60),
     haltsRss: env('HALTS_RSS') !== 'false',
     secUserAgent: env('SEC_USER_AGENT'),
+    token: env('PULSO_TOKEN'),
     anthropicKey: env('ANTHROPIC_API_KEY'),
     anthropicModel: env('ANTHROPIC_MODEL') ?? 'claude-opus-5-5',
     fmpKey: env('FMP_API_KEY'),

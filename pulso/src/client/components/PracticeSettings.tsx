@@ -2,7 +2,7 @@
 // cuenta (tipo, saldo, apalancamiento, reglas), órdenes (tamaño, vigencia, latencia, comisiones) y
 // atajos de teclado configurables (con botón rápido en el ticket).
 import { useEffect, useRef, useState } from 'react';
-import { fmtMoney } from '../../trading/broker';
+import { fmtMoney } from '../lib/format';
 import { BalanceEditor } from './Account';
 import { DEFAULT_HOTKEYS, type Hotkey, type HotkeyAction, type Tif, type TradingSettings } from '../../trading/types';
 import { playOrder } from '../lib/audio';
@@ -11,6 +11,7 @@ import { downloadText } from '../lib/download';
 import { fromEvent, hotkeyLabel, reserved } from '../lib/hotkeys';
 import type { TrainingController } from '../training';
 import { IconClose } from './Icons';
+import { NumberInput } from './NumberInput';
 
 type Section = 'cuenta' | 'ordenes' | 'atajos';
 
@@ -228,10 +229,11 @@ export function PracticeSettings({ c, onClose, initial = 'cuenta' }: { c: Traini
   };
   const keyOf = (h: Hotkey) => `${h.ctrl}${h.alt}${h.shift}${h.code}`;
   const dupKeys = new Set(s.hotkeys.filter((h, i) => h.enabled && s.hotkeys.findIndex((x) => x.enabled && keyOf(x) === keyOf(h)) !== i).map(keyOf));
-  const field = (k: keyof TradingSettings, label: string, stepv = '1', hint?: string) => (
+  // Campos numéricos: lo que escribís queda tal cual (vale la coma decimal) y se guarda cuando es un número.
+  const field = (k: keyof TradingSettings, label: string, _step = '1', hint?: string) => (
     <label className="field">
       <span className="field-label">{label}</span>
-      <input id={`trade-set-${k}`} type="number" inputMode="decimal" step={stepv} min={0} value={String(s[k])} onChange={(e) => set({ [k]: Number(e.target.value) } as Partial<TradingSettings>)} />
+      <NumberInput id={`trade-set-${k}`} min={0} value={Number(s[k])} onCommit={(v) => set({ [k]: v } as Partial<TradingSettings>)} />
       {hint && <span className="field-hint">{hint}</span>}
     </label>
   );

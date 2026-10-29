@@ -1,7 +1,7 @@
 // Gráfico al estilo de las plantillas de 1 y 5 minutos de Ross Cameron: velas, volumen, VWAP, EMA 9,
 // 20 y 200, MACD, sombreado del pre-market y del after-hours, cuenta regresiva del cierre de la vela,
 // leyenda con OHLC, y tus órdenes, tu costo, tu stop y tu objetivo (lightweight-charts de TradingView).
-import { useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import {
   CandlestickSeries,
   ColorType,
@@ -20,12 +20,14 @@ import {
   type Time,
   type UTCTimestamp,
 } from 'lightweight-charts';
-import { fmtVolume } from '../../engine/alerts';
 import { daily, fourHour, historyFor, monthly, TF_4H, TF_DAY, TF_MONTH, TF_WEEK, todayBar, vwapByDay, weekly, withPastDays, type HistoryTf } from '../../engine/history';
 import { aggregateBars, aggregateSpan, emaSeries, macdSeries, vwapSeries } from '../../engine/indicators';
 import { etOffset, etParts, POST_CLOSE, PRE_OPEN, REG_CLOSE, REG_OPEN } from '../../engine/time';
 import type { Alert, Bar, SymbolDetail } from '../../engine/types';
 import { addDrawing, clearDrawings, removeDrawing, toggleAlert, useDrawings, type TLine } from '../lib/drawings';
+import { fmtPrice, fmtVolume } from '../lib/format';
+import { typing } from '../lib/hotkeys';
+import { readNow, useNow } from '../lib/now';
 import { load, save } from '../lib/storage';
 import { TrendLinesPrimitive } from './TrendLines';
 
@@ -58,8 +60,20 @@ function withAlpha(hex: string, a: number): string {
 
 const WATERMARK_LABEL: Record<number, string> = { 10: '10 SEG', 30: '30 SEG', 60: '1 MIN', 300: '5 MIN', [TF_4H]: '4 HORAS', [TF_DAY]: 'DIARIO', [TF_WEEK]: 'SEMANAL', [TF_MONTH]: 'MENSUAL' };
 
-/** Colores del gráfico (cambian con el tema claro u oscuro). */
-function palette() {
+type Palette = ReturnType<typeof readPalette>;
+const paletteCache = new Map<string, Palette>();
+
+/** Colores del gráfico, leídos una vez por tema (cada lectura de una variable CSS cuesta un getComputedStyle). */
+function palette(themeKey: string): Palette {
+  let p = paletteCache.get(themeKey);
+  if (!p) {
+    p = readPalette();
+    paletteCache.set(themeKey, p);
+  }
+  return p;
+}
+
+function readPalette() {
   return {
     bg: css('--chart-bg'),
     text: css('--chart-text'),
@@ -83,8 +97,7 @@ function palette() {
   };
 }
 
-function addMacd(chart: IChartApi, s: Series) {
-  const p = palette();
+function addMacd(chart: IChartApi, s: Series, p: Palette) {
   s.macd = {
     hist: chart.addSeries(HistogramSeries, { priceLineVisible: false, lastValueVisible: false }, 1),
     macd: chart.addSeries(LineSeries, { ...LINE, color: p.macd }, 1),
@@ -104,8 +117,7 @@ function removeMacd(chart: IChartApi, s: Series) {
   s.macd = undefined;
 }
 
-function applyTheme(chart: IChartApi, s: Series) {
-  const p = palette();
+function applyTheme(chart: IChartApi, s: Series, p: Palette) {
   chart.applyOptions({
     layout: { background: { type: ColorType.Solid, color: p.bg }, textColor: p.text, panes: { separatorColor: p.grid } },
     grid: { vertLines: { color: p.grid }, horzLines: { color: p.grid } },
@@ -154,7 +166,6 @@ interface Props {
   detail: SymbolDetail | null;
   alerts: Alert[];
   themeKey: string;
-  now: number;
   /** Posición de práctica en la acción del gráfico (costo, stop y objetivo). */
   position?: ChartPosition;
   fills?: ChartFill[];
@@ -215,14 +226,14 @@ function framed(detail: SymbolDetail, tf: number, hist: HistoryBars | null, now:
   return { bars, vwap };
 }
 
-function sessionColor(t: number, p: ReturnType<typeof palette>): string {
+function sessionColor(t: number, p: Palette): string {
   const m = etParts(t).minutes;
   if (m >= PRE_OPEN && m < REG_OPEN) return p.pre;
   if (m >= REG_CLOSE && m < POST_CLOSE) return p.post;
   return 'rgba(0,0,0,0)';
 }
 
-const fmt = (v: number) => (v >= 1 ? v.toFixed(2) : v.toFixed(4));
+const fmt = fmtPrice;
 
 interface Legend {
   o: number;
@@ -244,7 +255,19 @@ function frameLast(chart: IChartApi, n: number, tf: number): void {
   if (n) chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, n - count), to: n + 4 });
 }
 
-export function Chart({ id, defaultTf, detail, alerts, themeKey, now, position, fills, orders, loadHistory }: Props) {
+/** Cuenta regresiva para que cierre la vela en curso (aunque todavía no haya operado en ella). */
+function CandleCountdown({ span, top, width }: { span: number; top: number; width: number }) {
+  const now = useNow(1000);
+  const remain = span - (now % span);
+  const text = `${String(Math.floor(remain / 60000)).padStart(2, '0')}:${String(Math.floor((remain % 60000) / 1000)).padStart(2, '0')}`;
+  return (
+    <span className="chart-countdown mono" style={{ top, width }} title="Tiempo para que cierre la vela">
+      {text}
+    </span>
+  );
+}
+
+function ChartView({ id, defaultTf, detail, alerts, themeKey, position, fills, orders, loadHistory }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<Series | null>(null);
@@ -297,7 +320,7 @@ export function Chart({ id, defaultTf, detail, alerts, themeKey, now, position, 
 
   useEffect(() => {
     if (!host.current) return;
-    const p = palette();
+    const p = palette(themeKey);
     const chart = createChart(host.current, {
       autoSize: true,
       layout: {
@@ -305,7 +328,8 @@ export function Chart({ id, defaultTf, detail, alerts, themeKey, now, position, 
         textColor: p.text,
         fontFamily: "'Roboto', 'IBM Plex Sans', system-ui, sans-serif",
         fontSize: 11,
-        attributionLogo: true,
+        // El logo lleva un id fijo en la página: lo muestra solo el primer gráfico.
+        attributionLogo: id === 'a',
         panes: { separatorColor: p.grid, enableResize: false },
       },
       grid: { vertLines: { color: p.grid }, horzLines: { color: p.grid } },
@@ -376,9 +400,10 @@ export function Chart({ id, defaultTf, detail, alerts, themeKey, now, position, 
       frameLast(chart, barsRef.current.length, stateRef.current.tf);
     });
     chart.subscribeCrosshairMove((param) => {
-      if (param.time === undefined || !param.point) return setHover(null);
-      const i = barsRef.current.findIndex((b) => toTime(b.t) === param.time);
-      setHover(i >= 0 ? i : null);
+      if (param.time === undefined || !param.point || param.logical === undefined) return setHover(null);
+      // El índice lógico es la posición de la vela en los datos: no hace falta buscarla.
+      const i = Math.round(param.logical);
+      setHover(i >= 0 && i < barsRef.current.length ? i : null);
     });
     return () => {
       chart.remove();
@@ -386,10 +411,12 @@ export function Chart({ id, defaultTf, detail, alerts, themeKey, now, position, 
       seriesRef.current = null;
       linesRef.current = [];
     };
+    // Se crea una sola vez; el tema y el id no cambian en vivo.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    if (chartRef.current && seriesRef.current) applyTheme(chartRef.current, seriesRef.current);
+    if (chartRef.current && seriesRef.current) applyTheme(chartRef.current, seriesRef.current, palette(themeKey));
     stateRef.current.len = -1;
   }, [themeKey]);
 
@@ -400,7 +427,7 @@ export function Chart({ id, defaultTf, detail, alerts, themeKey, now, position, 
     if (!s) return;
     for (const l of userLinesRef.current) s.candles.removePriceLine(l);
     userLinesRef.current = [];
-    const color = css('--chart-draw');
+    const color = palette(themeKey).draw;
     const sym = detail?.sym;
     const tlines: TLine[] = [];
     if (sym) {
@@ -434,8 +461,8 @@ export function Chart({ id, defaultTf, detail, alerts, themeKey, now, position, 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (!hoveringRef.current || (e.key !== 'Delete' && e.key !== 'Backspace')) return;
-      const el = document.activeElement;
-      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT')) return;
+      // Mientras escribís en un campo, Supr borra texto, no líneas.
+      if (typing(e.target) || typing(document.activeElement)) return;
       const sym = symRef.current;
       if (!sym) return;
       const list = drawingsRef.current;
@@ -479,16 +506,71 @@ export function Chart({ id, defaultTf, detail, alerts, themeKey, now, position, 
     const chart = chartRef.current;
     const s = seriesRef.current;
     if (!chart || !s) return;
-    if (showMacd && !s.macd) addMacd(chart, s);
+    if (showMacd && !s.macd) addMacd(chart, s, palette(themeKey));
     if (!showMacd) removeMacd(chart, s);
     stateRef.current.len = -1;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showMacd]);
 
+  // ---- Marcas (halts, bull flags, tus compras y ventas): cuando cambian las alertas o las
+  // ejecuciones, y cuando el gráfico se arma de nuevo (otra acción, otra temporalidad, más historia).
+  const applyMarkers = () => {
+    const s = seriesRef.current;
+    const bars = barsRef.current;
+    const sym = symRef.current;
+    if (!s) return;
+    if (!sym || !bars.length) return s.markers.setMarkers([]);
+    const p = palette(themeKey);
+    const first = bars[0].t;
+    const span = tf * 1000;
+    // En las temporalidades largas la vela que contiene un instante es la última que empieza antes.
+    const bucket = (ts: number): number => {
+      if (tf < TF_4H) return Math.floor(ts / span) * span;
+      let lo = 0;
+      let hi = bars.length - 1;
+      while (lo < hi) {
+        const mid = (lo + hi + 1) >> 1;
+        if (bars[mid].t <= ts) lo = mid;
+        else hi = mid - 1;
+      }
+      return bars[lo].t;
+    };
+    const marks: SeriesMarker<Time>[] = [];
+    for (const a of alerts) {
+      if (a.sym !== sym || a.ts < first) continue;
+      if (a.type !== 'halt' && a.type !== 'bullFlag' && a.type !== 'resume' && a.type !== 'priceLine') continue;
+      const time = toTime(bucket(a.ts));
+      if (a.type === 'priceLine') marks.push({ time, position: 'aboveBar', color: p.draw, shape: 'circle', text: '🔔' });
+      else if (a.type === 'halt') marks.push({ time, position: 'aboveBar', color: p.warn, shape: 'square', text: 'H' });
+      else if (a.type === 'resume') marks.push({ time, position: 'aboveBar', color: p.info, shape: 'circle', text: 'R' });
+      else marks.push({ time, position: 'belowBar', color: p.up, shape: 'arrowUp', text: 'BF' });
+    }
+    for (const f of fills ?? []) {
+      if (f.ts < first) continue;
+      const time = toTime(bucket(f.ts));
+      marks.push(
+        f.side === 'buy'
+          ? { time, position: 'belowBar', color: p.info, shape: 'arrowUp', text: `C ${f.shares}` }
+          : { time, position: 'aboveBar', color: p.warn, shape: 'arrowDown', text: `V ${f.shares}` },
+      );
+    }
+    marks.sort((x, y) => (x.time as number) - (y.time as number));
+    s.markers.setMarkers(marks);
+  };
+  const applyMarkersRef = useRef(applyMarkers);
+  applyMarkersRef.current = applyMarkers;
+  const sym = detail?.sym;
+  useEffect(() => {
+    applyMarkersRef.current();
+  }, [alerts, fills, sym, tf, themeKey]);
+
+  // ---- Velas, volumen, VWAP, EMAs y MACD: cuando llegan velas (otra acción, otra temporalidad, historia).
   useEffect(() => {
     const s = seriesRef.current;
     const chart = chartRef.current;
     if (!s || !chart) return;
-    const frame = detail ? framed(detail, tf, hist, now) : null;
+    // La vela diaria de hoy se fecha con la hora del mercado (la del simulador o la del servidor).
+    const frame = detail ? framed(detail, tf, hist, readNow() || detail.row.lastTs || Date.now()) : null;
     if (!detail || !frame || !frame.bars.length) {
       for (const series of [s.session, s.candles, s.volume, s.vwap, s.ema9, s.ema20, s.ema200]) series.setData([]);
       if (s.macd) for (const series of [s.macd.macd, s.macd.signal, s.macd.hist]) series.setData([]);
@@ -496,6 +578,7 @@ export function Chart({ id, defaultTf, detail, alerts, themeKey, now, position, 
       watermarkRef.current?.applyOptions({ lines: [{ text: '' }] });
       barsRef.current = [];
       legendsRef.current = [];
+      s.markers.setMarkers([]);
       setLabelY(null);
       return;
     }
@@ -504,12 +587,12 @@ export function Chart({ id, defaultTf, detail, alerts, themeKey, now, position, 
     const closes = bars.map((b) => b.c);
     const vw = frame.vwap;
     const hasVwap = vw.length === bars.length;
+    const p = palette(themeKey);
     const shade = (b: Bar) => (tf < TF_4H ? sessionColor(b.t, p) : 'rgba(0,0,0,0)');
     const e9 = emaSeries(closes, 9);
     const e20 = emaSeries(closes, 20);
     const e200 = emaSeries(closes, 200);
     const m = macdSeries(closes);
-    const p = palette();
     const precision = detail.row.price >= 1 ? 2 : 4;
     const st = stateRef.current;
     const same = st.sym === detail.sym && st.tf === tf && st.first === bars[0].t && (bars.length === st.len || bars.length === st.len + 1);
@@ -559,80 +642,57 @@ export function Chart({ id, defaultTf, detail, alerts, themeKey, now, position, 
       }
     }
     stateRef.current = { sym: detail.sym, tf, len: bars.length, first: bars[0].t };
-    watermarkRef.current?.applyOptions({ lines: [{ text: `${detail.sym}  ${WATERMARK_LABEL[tf] ?? ''}`, color: withAlpha(palette().text, 0.1) }] });
+    watermarkRef.current?.applyOptions({ lines: [{ text: `${detail.sym}  ${WATERMARK_LABEL[tf] ?? ''}`, color: withAlpha(p.text, 0.1) }] });
     barsRef.current = bars;
     legendsRef.current = bars.map((b, i) => {
       const prev = i > 0 ? bars[i - 1].c : b.o;
       return { o: b.o, h: b.h, l: b.l, c: b.c, chg: b.c - prev, chgPct: prev ? ((b.c - prev) / prev) * 100 : 0, vol: b.v, e9: e9[i], e20: e20[i], e200: e200At(i), vwap: hasVwap ? vw[i] : undefined };
     });
-
-    // Líneas de precio: máximo del día, máximo pre-market, cierre anterior, el plan del bull flag,
-    // tu posición y tus órdenes.
-    for (const l of linesRef.current) s.candles.removePriceLine(l);
-    const lines: IPriceLine[] = [];
-    const add = (price: number, color: string, title: string, style: LineStyle, width: 1 | 2 = 1) => {
-      if (price > 0) lines.push(s.candles.createPriceLine({ price, color, title, lineStyle: style, lineWidth: width, axisLabelVisible: true }));
-    };
-    add(detail.row.hod, p.hod, 'HOD', LineStyle.Dashed);
-    if (detail.pmHigh > 0 && Math.abs(detail.pmHigh - detail.row.hod) > 1e-9) add(detail.pmHigh, p.accent, 'PMH', LineStyle.Dotted);
-    add(detail.row.prevClose, p.faint, 'Cierre ant.', LineStyle.Dotted);
-    if (position) {
-      add(position.avgCost, p.info, `Tu costo (${position.shares})`, LineStyle.Solid, 2);
-      if (position.stop) add(position.stop, p.down, 'Tu stop', LineStyle.Solid);
-      else if (position.planStop) add(position.planStop, p.down, 'Stop plan', LineStyle.Dotted);
-      if (position.target) add(position.target, p.up, 'Tu objetivo', LineStyle.Solid);
-      else if (position.planTarget) add(position.planTarget, p.up, 'Obj. plan', LineStyle.Dotted);
-    } else if (detail.setup.flag) {
-      add(detail.setup.flag.entry, p.ema9, 'Entrada BF', LineStyle.Dashed);
-      add(detail.setup.flag.stop, p.down, 'Stop BF', LineStyle.Dashed);
-    }
-    for (const o of orders ?? []) {
-      add(o.price, o.side === 'buy' ? p.info : p.warn, `${o.side === 'buy' ? 'C' : 'V'} ${o.shares}${o.kind === 'stop' ? ' stop' : ''}`, LineStyle.LargeDashed);
-    }
-    linesRef.current = lines;
-
-    // Marcas de halts y bull flags del símbolo, y tus compras (C) y ventas (V).
-    const first = bars[0].t;
-    const span = tf * 1000;
-    // En las temporalidades largas la vela que contiene un instante es la última que empieza antes.
-    const bucket = (ts: number): number => {
-      if (tf < TF_4H) return Math.floor(ts / span) * span;
-      let lo = 0;
-      let hi = bars.length - 1;
-      while (lo < hi) {
-        const mid = (lo + hi + 1) >> 1;
-        if (bars[mid].t <= ts) lo = mid;
-        else hi = mid - 1;
-      }
-      return bars[lo].t;
-    };
-    const marks: SeriesMarker<Time>[] = [];
-    for (const a of alerts) {
-      if (a.sym !== detail.sym || a.ts < first) continue;
-      if (a.type !== 'halt' && a.type !== 'bullFlag' && a.type !== 'resume' && a.type !== 'priceLine') continue;
-      const time = toTime(bucket(a.ts));
-      if (a.type === 'priceLine') marks.push({ time, position: 'aboveBar', color: p.draw, shape: 'circle', text: '🔔' });
-      else if (a.type === 'halt') marks.push({ time, position: 'aboveBar', color: p.warn, shape: 'square', text: 'H' });
-      else if (a.type === 'resume') marks.push({ time, position: 'aboveBar', color: p.info, shape: 'circle', text: 'R' });
-      else marks.push({ time, position: 'belowBar', color: p.up, shape: 'arrowUp', text: 'BF' });
-    }
-    for (const f of fills ?? []) {
-      if (f.ts < first) continue;
-      const time = toTime(bucket(f.ts));
-      marks.push(
-        f.side === 'buy'
-          ? { time, position: 'belowBar', color: p.info, shape: 'arrowUp', text: `C ${f.shares}` }
-          : { time, position: 'aboveBar', color: p.warn, shape: 'arrowDown', text: `V ${f.shares}` },
-      );
-    }
-    marks.sort((x, y) => (x.time as number) - (y.time as number));
-    s.markers.setMarkers(marks);
+    // Con velas nuevas de punta a punta, las marcas se ubican de nuevo.
+    if (!same) applyMarkersRef.current();
 
     // Posición de la cuenta regresiva: debajo de la etiqueta del último precio.
     const y = s.candles.priceToCoordinate(bars[bars.length - 1].c);
     setLabelY(y === null ? null : y);
     setScaleW(chart.priceScale('right').width());
-  }, [detail, alerts, tf, themeKey, showMacd, position, fills, orders, hist]);
+  }, [detail, tf, themeKey, showMacd, hist]);
+
+  // ---- Líneas de precio: máximo del día, máximo pre-market, cierre anterior, el plan del bull flag,
+  // tu posición y tus órdenes. Solo cuando cambia alguno de esos niveles.
+  const hod = detail?.row.hod ?? 0;
+  const pmHigh = detail?.pmHigh ?? 0;
+  const prevClose = detail?.row.prevClose ?? 0;
+  const flagEntry = detail?.setup.flag?.entry;
+  const flagStop = detail?.setup.flag?.stop;
+  useEffect(() => {
+    const s = seriesRef.current;
+    if (!s) return;
+    for (const l of linesRef.current) s.candles.removePriceLine(l);
+    const lines: IPriceLine[] = [];
+    if (sym) {
+      const p = palette(themeKey);
+      const add = (price: number, color: string, title: string, style: LineStyle, width: 1 | 2 = 1) => {
+        if (price > 0) lines.push(s.candles.createPriceLine({ price, color, title, lineStyle: style, lineWidth: width, axisLabelVisible: true }));
+      };
+      add(hod, p.hod, 'HOD', LineStyle.Dashed);
+      if (pmHigh > 0 && Math.abs(pmHigh - hod) > 1e-9) add(pmHigh, p.accent, 'PMH', LineStyle.Dotted);
+      add(prevClose, p.faint, 'Cierre ant.', LineStyle.Dotted);
+      if (position) {
+        add(position.avgCost, p.info, `Tu costo (${position.shares})`, LineStyle.Solid, 2);
+        if (position.stop) add(position.stop, p.down, 'Tu stop', LineStyle.Solid);
+        else if (position.planStop) add(position.planStop, p.down, 'Stop plan', LineStyle.Dotted);
+        if (position.target) add(position.target, p.up, 'Tu objetivo', LineStyle.Solid);
+        else if (position.planTarget) add(position.planTarget, p.up, 'Obj. plan', LineStyle.Dotted);
+      } else if (flagEntry !== undefined && flagStop !== undefined) {
+        add(flagEntry, p.ema9, 'Entrada BF', LineStyle.Dashed);
+        add(flagStop, p.down, 'Stop BF', LineStyle.Dashed);
+      }
+      for (const o of orders ?? []) {
+        add(o.price, o.side === 'buy' ? p.info : p.warn, `${o.side === 'buy' ? 'C' : 'V'} ${o.shares}${o.kind === 'stop' ? ' stop' : ''}`, LineStyle.LargeDashed);
+      }
+    }
+    linesRef.current = lines;
+  }, [sym, hod, pmHigh, prevClose, flagEntry, flagStop, position, orders, themeKey]);
 
   const changeTf = (x: number) => {
     setTf(x);
@@ -653,10 +713,6 @@ export function Chart({ id, defaultTf, detail, alerts, themeKey, now, position, 
   const lg = legends.length ? legends[hover ?? legends.length - 1] ?? legends[legends.length - 1] : null;
   const bars = barsRef.current;
   const lastBar = bars[bars.length - 1];
-  const span = tf * 1000;
-  // Lo que falta para que cierre la vela en curso (aunque todavía no haya operado en ella).
-  const remain = span - (now % span);
-  const countdown = `${String(Math.floor(remain / 60000)).padStart(2, '0')}:${String(Math.floor((remain % 60000) / 1000)).padStart(2, '0')}`;
   const tfLabel = TIMEFRAMES.find(([x]) => x === tf)?.[1] ?? '';
   const ref = detail?.ref;
   const mcap = ref?.sharesOutstanding && detail ? ref.sharesOutstanding * detail.row.price : undefined;
@@ -786,13 +842,12 @@ export function Chart({ id, defaultTf, detail, alerts, themeKey, now, position, 
             )}
           </div>
         )}
-        {detail && labelY !== null && lastBar && tf < TF_4H && (
-          <span className="chart-countdown mono" style={{ top: labelY + 10, width: scaleW }} title="Tiempo para que cierre la vela">
-            {countdown}
-          </span>
-        )}
+        {detail && labelY !== null && lastBar && tf < TF_4H && <CandleCountdown span={tf * 1000} top={labelY + 10} width={scaleW} />}
       </div>
       {!detail && <div className="chart-empty">Elegí una acción de cualquier lista para ver su gráfico.</div>}
     </div>
   );
 }
+
+/** Memorizado: se vuelve a dibujar solo cuando cambian la ficha, las alertas, el tema o tu posición. */
+export const Chart = memo(ChartView);
