@@ -25,11 +25,11 @@ jobs:
       - name: Tipos
         working-directory: pulso
         run: npm run typecheck
-      - name: Pruebas
-        working-directory: pulso
-        run: npm test
       - name: Compilar la interfaz y el demo
         working-directory: pulso
         run: |
           npm run build
           npm run build:demo
+      - name: Pruebas (la del servidor entero usa la interfaz compilada)
+        working-directory: pulso
+        run: npm test
