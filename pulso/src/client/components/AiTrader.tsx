@@ -187,7 +187,7 @@ export function AiTraderPanel({ trader, selected, onSelect }: Props) {
           </label>
         </div>
         <label className="check-inline">
-          <input type="checkbox" checked={s.consult} onChange={(e) => trader.update({ consult: e.target.checked })} /> Consultar a Claude antes de cada entrada (si no responde, no entra)
+          <input type="checkbox" checked={s.consult} onChange={(e) => trader.update({ consult: e.target.checked })} /> Consultar a Claude antes de cada entrada (en Conservador, sin su visto bueno no entra; en los otros perfiles las reglas mandan)
         </label>
         <label className="check-inline">
           <input type="checkbox" checked={s.follow} onChange={(e) => trader.update({ follow: e.target.checked })} /> Mostrar en el gráfico lo que mira la IA (en automático)

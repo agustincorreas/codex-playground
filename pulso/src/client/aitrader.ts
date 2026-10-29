@@ -627,7 +627,13 @@ export class AiTrader {
         this.lastPlanAt = this.now;
       }
     } catch (e) {
-      // Sin respuesta no se entra (es lo que dice la casilla), pero el setup se vuelve a mirar enseguida.
+      // Sin respuesta: en equilibrado y agresivo mandan las reglas y se entra igual; el conservador espera
+      // el visto bueno de Claude y vuelve a mirar el setup en 30 s.
+      if (execute && this.settings.profile !== 'conservador') {
+        this.log(`Claude no respondió: ${(e as Error).message}. Las reglas ya vieron el setup: se entra igual.`, 'error');
+        this.execute(sym, plan, shares, 'reglas (Claude no respondió)');
+        return;
+      }
       this.log(`Claude no respondió: ${(e as Error).message}. No se entra sin su opinión; se vuelve a mirar en 30 s.`, 'error');
       this.retryIn(30_000);
     }
