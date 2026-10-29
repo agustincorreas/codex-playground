@@ -194,3 +194,45 @@ describe('perfiles del automático', () => {
     expect(manage(pos, d, quote(4.47), t0 + 6 * 60_000, mem, PROFILES.agresivo).action).toBe('hold');
   });
 });
+
+describe('micro pullback de 10 s y "ride the momentum"', () => {
+  const sec = (t: number, o: number, h: number, l: number, c: number, v: number): Bar => ({ t, o, h, l, c, v, pv: c * v, n: 10 });
+
+  it('detecta el micro pullback en velas de 10 s cuando en 1 minuto no hay nada', () => {
+    const t0 = at(10, 0);
+    const flat = Array.from({ length: 6 }, (_, i) => bar(t0 + i * 60_000, 4.45, 4.5, 4.4, 4.46, 30_000));
+    const s0 = t0 + 5 * 60_000;
+    const secBars: Bar[] = [];
+    for (let i = 0; i < 9; i++) secBars.push(sec(s0 + i * 10_000, 4.2 + i * 0.035, 4.22 + i * 0.035, 4.2 + i * 0.035, 4.22 + i * 0.035, 5000));
+    secBars.push(sec(s0 + 90_000, 4.49, 4.49, 4.44, 4.45, 1500), sec(s0 + 100_000, 4.45, 4.46, 4.43, 4.45, 1500), sec(s0 + 110_000, 4.45, 4.46, 4.44, 4.46, 1500));
+    secBars.push(sec(s0 + 120_000, 4.46, 4.48, 4.45, 4.47, 2000));
+    const r = row({ sym: 'RUNR', price: 4.47, hod: 4.6, pctFromHod: -2.8, vwap: 4.3 });
+    const plan = findEntry(detail(flat, r, { ema9: 4.3, secBars }), quote(4.47), s0 + 125_000);
+    expect(plan?.kind).toBe('microPullback');
+    expect(plan?.reason).toMatch(/10 s/);
+    expect(plan?.stop).toBeCloseTo(4.42, 2);
+    expect(findEntry(detail(flat, r, { ema9: 4.3 }), quote(4.47), s0 + 125_000)).toBeNull();
+  });
+
+  it('con la mitad tomada, perder el mínimo del último pullback de 10 s saca el resto; y haciendo máximos no sale por tiempo', () => {
+    const t0 = at(10, 0);
+    const pos: Position = { sym: 'RUNR', shares: 100, avgCost: 4.46, openedAt: t0, boughtShares: 200, boughtCost: 892, soldShares: 100, soldValue: 470, fees: 0, realized: 0, initialStop: 4.35, planStop: 4.35, high: 4.8, low: 4.44, fills: 2 } as Position;
+    const base = [bar(t0, 4.4, 4.5, 4.38, 4.46, 50_000), bar(t0 + 60_000, 4.46, 4.75, 4.44, 4.7, 50_000)];
+    const secBars = Array.from({ length: 10 }, (_, i) => sec(t0 + 60_000 + i * 10_000, 4.6, 4.75, 4.55 + (i >= 8 ? 0.1 : 0), 4.7, 2000));
+    const r = row({ sym: 'RUNR', price: 4.53, vwap: 4.3 });
+    const mem = newMemory(t0, 4.46);
+    mem.halfTaken = true;
+    mem.breakeven = true;
+    mem.lastBarT = base[0].t;
+    const d = detail(base, r, { ema9: 4.4, secBars });
+    expect(manage(pos, d, quote(4.53), t0 + 170_000, mem).action).toBe('sellAll');
+    expect(manage(pos, d, quote(4.53), t0 + 170_000, mem).reason).toMatch(/pullback de 10 s/);
+    expect(manage(pos, d, quote(4.6), t0 + 170_000, newMemory(t0, 4.46)).action).toBe('hold');
+    // Sin avanzar 7 minutos pero con las velas de 10 s haciendo máximos: el momentum sigue vivo, se aguanta.
+    const fresh = newMemory(t0, 4.46);
+    fresh.lastBarT = base[1].t;
+    const alive = Array.from({ length: 6 }, (_, i) => sec(t0 + 6 * 60_000 + i * 10_000, 4.46, 4.48, 4.45, 4.47, 2000));
+    expect(manage(pos, detail(base, row({ sym: 'RUNR', price: 4.47, vwap: 4.3 }), { ema9: 4.4, secBars: alive }), quote(4.47), t0 + 7 * 60_000, fresh).action).toBe('hold');
+    expect(manage(pos, detail(base, row({ sym: 'RUNR', price: 4.47, vwap: 4.3 }), { ema9: 4.4 }), quote(4.47), t0 + 7 * 60_000, fresh).action).toBe('sellAll');
+  });
+});

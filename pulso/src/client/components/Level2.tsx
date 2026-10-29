@@ -210,9 +210,12 @@ function Level2View({ c, source, detail, quote, ticket, setTicket, onSymbol, sea
   const cost = entry * shares;
   const maxShares = entry > 0 ? Math.max(0, Math.floor((bp * 0.995) / entry)) : 0;
   const tooBig = shares > 0 && entry > 0 && cost > bp;
-  // Lado de la posición: sin posición, VENDER abre un corto; con un corto, COMPRAR lo cubre y VENDER lo agranda.
+  // Lado de la posición. Con los cortos permitidos (Preferencias): sin posición, VENDER abre un corto; con un
+  // corto, COMPRAR lo cubre y VENDER lo agranda. Sin cortos (lo normal): VENDER solo vende lo comprado.
   const short = pos?.side === 'short';
-  const opensShort = !pos || short;
+  const opensShort = !!settings.allowShort && (!pos || short);
+  // Lo que vende VENDER: la cantidad del recuadro, hasta lo que hay comprado (así se vende la mitad si se quiere).
+  const sellQty = pos && !short ? Math.min(shares || pos.shares, pos.shares) : 0;
   const locate = sym && opensShort ? c.locate(sym) : null;
   const shortBlock = sym && opensShort && c.ready ? c.shortBlock(sym) : null;
   // Una venta en corto se ejecuta contra el bid y bloquea el 150 % de lo vendido (más el locate).
@@ -259,12 +262,14 @@ function Level2View({ c, source, detail, quote, ticket, setTicket, onSymbol, sea
     const ref = side === 'buy' ? entry : shortEntry;
     const stop = opening && stopV !== undefined && (side === 'buy' ? stopV < ref : stopV > ref) ? stopV : undefined;
     const target = opening && targetV !== undefined && (side === 'buy' ? targetV > ref : targetV < ref) ? targetV : undefined;
-    withConfirm({ sym, side, kind, shares, type: ticket.type, price: market ? estimate : price, approx: market, borrowFee: kind === 'short' ? locate?.borrowFee : undefined }, () =>
+    const qty = side === 'sell' && !opensShort ? sellQty : shares;
+    if (qty <= 0) return;
+    withConfirm({ sym, side, kind, shares: qty, type: ticket.type, price: market ? estimate : price, approx: market, borrowFee: kind === 'short' ? locate?.borrowFee : undefined }, () =>
       c.place({
         sym,
         side,
         type: ticket.type,
-        shares,
+        shares: qty,
         price: ticket.type === 'limit' ? price : undefined,
         stopPrice: isStop ? price : undefined,
         tif: ticket.tif,
@@ -445,10 +450,10 @@ function Level2View({ c, source, detail, quote, ticket, setTicket, onSymbol, sea
                   type="button"
                   className={`${opensShort ? 'btn-short' : 'btn-sell'} ${halted ? 'is-halt' : ''}`}
                   onClick={() => send('sell')}
-                  disabled={blocked || (opensShort ? shares <= 0 || !!shortBlock || shortTooBig : false)}
-                  title={haltLabel ?? shortBlock ?? (shortTooBig ? `El corto bloquea el 150 % de la venta: ${fmtMoney(shortNeed)}, y tenés ${fmtMoney(bp)}` : opensShort ? 'Vender acciones prestadas: ganás si baja' : undefined)}
+                  disabled={blocked || (opensShort ? shares <= 0 || !!shortBlock || shortTooBig : sellQty <= 0)}
+                  title={haltLabel ?? shortBlock ?? (shortTooBig ? `El corto bloquea el 150 % de la venta: ${fmtMoney(shortNeed)}, y tenés ${fmtMoney(bp)}` : opensShort ? 'Vender acciones prestadas: ganás si baja' : pos ? `Vende ${fmtInt(sellQty)} de tus ${fmtInt(pos.shares)} acciones (la cantidad del recuadro)` : 'Sin acciones compradas')}
                 >
-                  {haltLabel ?? (short ? 'AGREGAR AL CORTO' : pos ? 'VENDER' : 'VENDER EN CORTO')}
+                  {haltLabel ?? (short ? 'AGREGAR AL CORTO' : pos ? `VENDER ${fmtInt(sellQty)}` : opensShort ? 'VENDER EN CORTO' : 'VENDER')}
                   {!haltLabel && opensShort && locate && <small>{shortBlock && locate.shortable !== 'none' ? 'no disponible ahora' : describeLocate(locate)}</small>}
                 </button>
                 <button type="button" className={`btn-buy ${halted ? 'is-halt' : ''}`} onClick={() => send('buy')} disabled={blocked || shares <= 0 || (!short && tooBig)} title={haltLabel ?? (short ? 'Comprar para devolver las acciones prestadas' : tooBig ? `Te alcanza para ${fmtInt(maxShares)} acciones` : undefined)}>

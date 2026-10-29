@@ -61,6 +61,7 @@ export function AiTraderPanel({ trader, selected, onSelect }: Props) {
           )}
           {st.thinking && <em className="ai-thinking"> · Claude está pensando…</em>}
           {st.phase === 'paused' && <div className="ai-paused">{st.pausedReason}</div>}
+          {(st.phase === 'scanning' || st.phase === 'watching') && st.waiting && <div className="t-muted small ai-waiting">{st.waiting}</div>}
         </div>
       )}
 
@@ -192,8 +193,8 @@ export function AiTraderPanel({ trader, selected, onSelect }: Props) {
           <input type="checkbox" checked={s.follow} onChange={(e) => trader.update({ follow: e.target.checked })} /> Mostrar en el gráfico lo que mira la IA (en automático)
         </label>
         <p className="t-muted small">
-          Horario de Nueva York. Entra solo con un setup limpio (bull flag, micro pullback o ruptura con volumen sobre VWAP y EMA 9), stop ajustado y el objetivo del perfil; vende la mitad en el objetivo, sube el stop
-          a la entrada y deja correr el resto mientras respete la EMA 9. Las salidas van por reglas; Claude opina en las entradas.
+          Horario de Nueva York. Entra solo con un setup limpio (bull flag, micro pullback de 1 min o de 10 s, ruptura con volumen sobre VWAP y EMA 9), stop ajustado y el objetivo del perfil; vende la mitad en el
+          objetivo, sube el stop a la entrada y deja correr el resto mientras respete la EMA 9 y el mínimo del último pullback de 10 s. Las salidas van por reglas; Claude opina en las entradas.
         </p>
       </details>
 

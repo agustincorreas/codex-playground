@@ -439,6 +439,9 @@ export function PracticeSettings({ c, onClose, initial = 'cuenta' }: { c: Traini
                   <input id="trade-set-auto" type="checkbox" checked={s.autoBracket} onChange={(e) => set({ autoBracket: e.target.checked })} />
                   Stop y objetivo automáticos al comprar (OCO)
                 </label>
+                <label className="check-inline" title="Apagado (lo normal): VENDER solo vende lo que tenés comprado. Encendido: sin posición, VENDER abre un corto con locate, 150 % de margen y riesgo ilimitado.">
+                  <input id="trade-set-short" type="checkbox" checked={!!s.allowShort} onChange={(e) => set({ allowShort: e.target.checked })} /> Permitir ventas en corto (riesgo ilimitado, solo cuenta margen)
+                </label>
                 <p className="field-hint">
                   Apagado: la compra sale sola y las salidas las hacés vos, con los atajos o los botones. El stop y el objetivo del ticket quedan como plan: sirven para el tamaño por riesgo y la R, y se ven punteados en el gráfico. Prendido: se colocan como órdenes que se cancelan entre sí.
                 </p>

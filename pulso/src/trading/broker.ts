@@ -305,6 +305,7 @@ export class Broker {
    * cuenta, pérdida máxima, regla PDT, rueda, halt, precio y locate. El poder de compra se revisa aparte.
    */
   shortBlock(sym: string, now: number, m: MarketAccess, marks: Marks): string | null {
+    if (!this.settings.allowShort) return 'Las ventas en corto están desactivadas (se activan en Preferencias de práctica).';
     if (this.settings.account === 'cash') return 'En una cuenta cash no se vende en corto: pasate a cuenta margen en los ajustes de la cuenta.';
     if (this.lockedByLoss(marks)) return `Llegaste a tu pérdida máxima del día (${fmtMoney(this.settings.maxDailyLoss)}). Cortá por hoy y revisá tus trades.`;
     if (!this.position(sym) && this.pdtApplies(marks) && this.dayTradeCount() >= 3) {

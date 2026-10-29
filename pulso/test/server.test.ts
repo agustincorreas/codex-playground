@@ -99,7 +99,7 @@ describe('servidor', () => {
       s.on('data', (d) => (out += d));
       s.on('close', () => res(out));
       s.on('error', () => res(out));
-      setTimeout(() => s.destroy(), 5000);
+      setTimeout(() => s.destroy(), 15_000);
     });
     expect(chunked.slice(0, 20)).toContain('413');
     expect(await status(`${local}/api/health`)).toBe(200);

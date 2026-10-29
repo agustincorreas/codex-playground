@@ -68,7 +68,7 @@ function market(bid: number, ask: number) {
 
 /** Cuenta margen 2x sin tasas (los números de P&L quedan redondos); `regFees` se activa donde se prueban las tasas. */
 function setup(settings: Partial<TradingSettings> = {}, cash = 1000, priorDayTrades = 0) {
-  const b = new Broker(session(cash), { ...DEFAULT_TRADING, account: 'margin', leverage: 2, regFees: false, latencyMs: 100, ...settings }, {}, () => ({ priorDayTrades }));
+  const b = new Broker(session(cash), { ...DEFAULT_TRADING, account: 'margin', allowShort: true, leverage: 2, regFees: false, latencyMs: 100, ...settings }, {}, () => ({ priorDayTrades }));
   return { b, ...market(3.0, 3.01) };
 }
 
@@ -327,7 +327,7 @@ describe('ventas en corto', () => {
     const a = session(700);
     const old = { sym: 'RUN', shares: 100, avgCost: 3, openedAt: 1, boughtShares: 100, boughtCost: 300, soldShares: 0, soldValue: 0, fees: 0, realized: 0, high: 3, low: 3, fills: 1 } as Position;
     a.positions.push(old);
-    const b = new Broker(a, { ...DEFAULT_TRADING, account: 'margin' });
+    const b = new Broker(a, { ...DEFAULT_TRADING, account: 'margin', allowShort: true });
     expect(b.position('RUN')!.side).toBe('long');
     expect(b.opens('RUN', 'sell')).toBe(false);
     expect(b.equity(() => 3.5)).toBe(1050);
@@ -373,7 +373,7 @@ function fakeSource(float = 8e6) {
 
 function controller(settings: Partial<TradingSettings> = {}) {
   const c = new TrainingController(emptyStore(), { state: null, sessions: [] }, 'local');
-  c.updateSettings({ account: 'margin', leverage: 2, regFees: false, latencyMs: 100, ...settings });
+  c.updateSettings({ account: 'margin', allowShort: true, leverage: 2, regFees: false, latencyMs: 100, ...settings });
   const f = fakeSource();
   c.attach(f.src);
   const tick = (ms = LAT) => c.onTick(f.src.tick(ms));
@@ -419,7 +419,7 @@ describe('controlador con cortos', () => {
   it('en cuenta cash el controlador explica por qué no se puede, y el atajo de compra con un corto abierto cubre', () => {
     const { c, tick } = controller({ account: 'cash' });
     expect(c.shortBlock('RUN')).toMatch(/cuenta cash/);
-    c.updateSettings({ account: 'margin' });
+    c.updateSettings({ account: 'margin', allowShort: true });
     expect(c.short('RUN', 100).ok).toBe(true);
     tick();
     const buy = DEFAULT_HOTKEYS.find((h) => h.id === 'buy-500')!;
@@ -458,7 +458,7 @@ describe('controlador con cortos', () => {
     const old = { sym: 'RUN', shares: 100, avgCost: 3, openedAt: 1, boughtShares: 100, boughtCost: 300, soldShares: 0, soldValue: 0, fees: 0, realized: 0, high: 3, low: 3, fills: 1 } as Position;
     const trade = { id: 't1', sessionId: 'd1', sym: 'RUN', openedAt: 1, closedAt: 2, shares: 100, avgEntry: 3, avgExit: 3.1, gross: 10, fees: 0, net: 10, returnPct: 3.3, mfePct: 4, maePct: -1, exitReason: 'manual', fills: 2 } as Trade;
     const a: ActiveSession = { id: 'd1', mode: 'sim', seed: 7, simVersion: SIM_VERSION, dayTs: Date.now(), startMinutes: 565, dayKey: '2026-10-23', dayIndex: 1, startedAt: 1, marketStart: 1, startCash: 1000, cash: 700, unsettled: 0, positions: [old], orders: [], history: [], fills: [], trades: [trade], seq: 0 };
-    const st: TrainingState = { version: 1, settings: { ...DEFAULT_TRADING, account: 'margin' }, balance: 1000, dayIndex: 1, dayTrades: [], active: a, updatedAt: 1 };
+    const st: TrainingState = { version: 1, settings: { ...DEFAULT_TRADING, account: 'margin', allowShort: true }, balance: 1000, dayIndex: 1, dayTrades: [], active: a, updatedAt: 1 };
     const c = new TrainingController(emptyStore(), { state: st, sessions: [] }, 'local');
     expect(c.active!.positions[0].side).toBe('long');
     expect(c.active!.trades[0].side).toBe('long');

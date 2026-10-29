@@ -209,7 +209,7 @@ describe('conservación del dinero', () => {
   });
 
   it('también con cortos: venta en corto con locate, agrandar, cubrir en partes, stop y objetivo invertidos y cierre', () => {
-    const { b, m, marks, print, quote, book } = setup({ account: 'margin', leverage: 2, commissionPerShare: 0.005, minCommission: 1, regFees: true }, 20_000);
+    const { b, m, marks, print, quote, book } = setup({ account: 'margin', allowShort: true, leverage: 2, commissionPerShare: 0.005, minCommission: 1, regFees: true }, 20_000);
     m.locate = () => ({ shortable: 'htb', borrowFee: 0.015 });
     const check = () => expect(conserved(b)).toBeCloseTo(20_000, 1);
     let now = 0;

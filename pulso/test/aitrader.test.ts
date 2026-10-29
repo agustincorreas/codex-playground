@@ -259,18 +259,18 @@ describe('IA Trader', () => {
     // Elige entre las candidatas una vez; con las mismas candidatas y foco no vuelve a preguntar.
     const picks = () => ai.ask.mock.calls.filter(([, p]) => /Elegí una sola/.test(p)).length;
     expect(picks()).toBe(1);
+    // Al segundo siguiente, con la ficha en foco y Claude libre, consulta la entrada (bull flag).
     tick();
     await flush();
     expect(picks()).toBe(1);
+    expect(ai.ask).toHaveBeenCalledTimes(2);
+    // "Esperar": el mismo plan se vuelve a consultar a los 3 min.
     tick(3 * MIN);
     await flush();
     expect(picks()).toBe(1);
-    // Tope: 3 consultas por día (la elección más dos entradas); después sigue con las reglas y avisa.
-    expect(ai.ask).toHaveBeenCalledTimes(2);
-    tick(3 * MIN + 1000);
-    await flush();
     expect(ai.ask).toHaveBeenCalledTimes(3);
     expect(t.state.phase).toBe('watching');
+    // Tope: 3 consultas por día (la elección más dos entradas); después sigue con las reglas y avisa.
     tick(3 * MIN + 1000);
     await flush();
     expect(ai.ask).toHaveBeenCalledTimes(3);
@@ -347,5 +347,48 @@ describe('perfiles', () => {
     t.update({ profile: 'conservador' });
     expect(t.settings.rules.riskMult).toBe(0.5);
     expect(t.settings.rules.entryFrom).toBe(9 * 60 + 30);
+  });
+});
+
+describe('por qué no entra, y el precio que se mueve mientras Claude piensa', () => {
+  it('dice en el panel por qué está esperando', async () => {
+    const { t, tick } = await arm({ consult: true });
+    t.update({ rules: { ...t.settings.rules, entryFrom: 7 * 60, entryTo: 9 * 60 } });
+    tick();
+    expect(t.state.phase).toBe('watching');
+    expect(t.state.waiting).toMatch(/Fuera del horario/);
+  });
+
+  it('si el precio subió 2 % mientras Claude pensaba, entra igual al precio nuevo; a 5 % lo deja y vuelve a mirar en 30 s', async () => {
+    ai.ask.mockImplementation(async () => '{"decision":"enter","confidence":85,"reason":"dale"}');
+    const { c, t, f, tick, flush, log } = await arm({ consult: true });
+    tick();
+    // Mientras Claude responde, el ask sube 2 %.
+    f.quote.ask = 3.06;
+    f.quote.last = 3.05;
+    f.quote.bid = 3.05;
+    await flush();
+    expect(t.state.phase).toBe('entering');
+    const buy = c.broker!.orders('RUN')[0];
+    expect(buy.price).toBeGreaterThanOrEqual(3.06);
+    // Otra acción: ahora se escapó 5 %.
+    const second = await arm({ consult: true });
+    second.tick();
+    second.f.quote.ask = 3.16;
+    second.f.quote.last = 3.15;
+    second.f.quote.bid = 3.15;
+    await second.flush();
+    expect(second.t.state.phase).toBe('watching');
+    expect(second.log().some((x) => /se escapó/.test(x))).toBe(true);
+    expect(second.c.broker!.orders('RUN')).toHaveLength(0);
+    // Vuelve el precio: a los 31 s ya consulta de nuevo (no espera 3 min).
+    second.f.quote.ask = 3.01;
+    second.f.quote.last = 3.0;
+    second.f.quote.bid = 3.0;
+    const calls = ai.ask.mock.calls.length;
+    second.tick(31_000);
+    await second.flush();
+    expect(ai.ask.mock.calls.length).toBeGreaterThan(calls);
+    expect(log().length).toBeGreaterThan(0);
   });
 });
