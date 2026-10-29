@@ -188,7 +188,8 @@ cerca del máximo), la sigue de cerca (velas de 1 minuto, VWAP, EMA 9, cinta) y 
 de práctica**, nunca órdenes reales.
 
 - **Sugerencias:** te propone qué acción mirar, la entrada cuando aparece un setup limpio (bull flag,
-  micro pullback en velas de 1 minuto o de 10 segundos, ruptura del máximo del día o del pre-market,
+  micro pullback en velas de 1 minuto o de 10 segundos, la primera vela de 1 minuto que hace un máximo
+  nuevo después del retroceso, ruptura del máximo del día o del pre-market,
   siempre sobre VWAP y EMA 9, con stop ajustado y objetivo 2:1, tamaño por riesgo) y las salidas de
   tus posiciones (vender la mitad en el objetivo, stop a la entrada, dejar correr el resto mientras
   respete la EMA 9 y el mínimo del último pullback de 10 s, salir si pierde el VWAP o no avanza en 6

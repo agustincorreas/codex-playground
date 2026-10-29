@@ -236,3 +236,28 @@ describe('micro pullback de 10 s y "ride the momentum"', () => {
     expect(manage(pos, detail(base, row({ sym: 'RUNR', price: 4.47, vwap: 4.3 }), { ema9: 4.4 }), quote(4.47), t0 + 7 * 60_000, fresh).action).toBe('sellAll');
   });
 });
+
+describe('primera vela de 1 min que hace un máximo nuevo', () => {
+  it('tras dos velas rojas de retroceso, la vela que supera el máximo de la anterior es la entrada, con el stop en el mínimo del retroceso', () => {
+    const t0 = at(10, 0);
+    // Subida de 4,20 a 4,60 en 4 velas, dos velas rojas (4,60 → 4,48), y la vela actual rompe el máximo de la anterior.
+    const bars = [
+      bar(t0, 4.2, 4.3, 4.18, 4.29, 40_000),
+      bar(t0 + 60_000, 4.29, 4.42, 4.28, 4.41, 45_000),
+      bar(t0 + 120_000, 4.41, 4.52, 4.4, 4.5, 50_000),
+      bar(t0 + 180_000, 4.5, 4.6, 4.49, 4.58, 60_000),
+      // El retroceso viene con volumen (no es el "descanso con menos volumen" del micro pullback): la regla de la vela nueva lo toma igual.
+      bar(t0 + 240_000, 4.58, 4.59, 4.5, 4.52, 70_000),
+      bar(t0 + 300_000, 4.52, 4.54, 4.47, 4.48, 80_000),
+      bar(t0 + 360_000, 4.48, 4.56, 4.47, 4.55, 20_000),
+    ];
+    const r = row({ sym: 'RUNR', price: 4.55, hod: 4.6, pctFromHod: -1.1, vwap: 4.3 });
+    const plan = findEntry(detail(bars, r, { ema9: 4.4 }), quote(4.55), t0 + 380_000);
+    expect(plan?.kind).toBe('newHigh');
+    expect(plan?.reason).toMatch(/2 velas de retroceso/);
+    expect(plan?.stop).toBeCloseTo(4.46, 2);
+    expect(plan?.target).toBeCloseTo(4.55 + 2 * (4.55 - 4.46), 2);
+    // Sin romper el máximo de la vela anterior (ask debajo), no hay entrada.
+    expect(findEntry(detail(bars, row({ sym: 'RUNR', price: 4.5, hod: 4.6, pctFromHod: -2.2, vwap: 4.3 }), { ema9: 4.4 }), quote(4.5), t0 + 380_000)).toBeNull();
+  });
+});
