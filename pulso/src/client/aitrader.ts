@@ -74,11 +74,13 @@ export interface AiState {
   /** Qué IA hay: la de Claude (artifact), la del servidor (clave de Anthropic), ninguna o todavía no se sabe. */
   ai: 'claude' | 'servidor' | 'no' | '?';
   thinking: boolean;
+  /** Qué se le está preguntando a Claude ahora (una entrada bloquea otra entrada; elegir candidata, no). */
+  asking?: 'pick' | 'entry' | 'exit' | 'now';
 }
 
 const DEFAULT_AI: AiSettings = { mode: 'off', consult: true, follow: true, rules: DEFAULT_RULES, profile: 'equilibrado', maxCalls: 120 };
 const px = (v: number) => (v >= 1 ? v.toFixed(2) : v.toFixed(4));
-const ASK_TIMEOUT = 15_000;
+const ASK_TIMEOUT = 25_000;
 /** Una compra que no se ejecutó en este tiempo se cancela (si se ejecutó en parte, se cancela el resto). */
 const PENDING_TIMEOUT = 25_000;
 /** Claude elige entre las candidatas como mucho cada 2 min (y solo si cambiaron o no hay foco). */
@@ -305,17 +307,19 @@ export class AiTrader {
     return true;
   }
 
-  private async ask(prompt: string): Promise<ReturnType<typeof parseDecision>> {
+  private async ask(prompt: string, kind: AiState['asking'] = 'now'): Promise<ReturnType<typeof parseDecision>> {
     if (!this.asker) return null;
     this.rollCalls();
     this.state.thinking = true;
+    this.state.asking = kind;
     this.state.calls++;
     this.emit();
     try {
-      const text = await Promise.race([this.asker(ADVISOR_SYSTEM, prompt), new Promise<string>((_, rej) => setTimeout(() => rej(new Error('Claude tardó más de 15 s')), ASK_TIMEOUT))]);
+      const text = await Promise.race([this.asker(ADVISOR_SYSTEM, prompt), new Promise<string>((_, rej) => setTimeout(() => rej(new Error('Claude tardó más de 25 s')), ASK_TIMEOUT))]);
       return parseDecision(text);
     } finally {
       this.state.thinking = false;
+      this.state.asking = undefined;
       this.emit();
     }
   }
@@ -463,12 +467,13 @@ export class AiTrader {
     if (!inEntryWindow(now, this.settings.rules)) return this.wait(`Fuera del horario de entradas del perfil (${hhmm(this.settings.rules.entryFrom)} a ${hhmm(this.settings.rules.entryTo)} NY).`);
     const until = this.skip.get(detail.sym);
     if (until && until > now) return this.wait(`${detail.sym} se deja pasar hasta las ${formatEtTime(until, false)} (Claude dijo que no, o perdió recién).`);
-    if (this.state.thinking) return this.wait(`Consultando a Claude sobre ${detail.sym}…`);
+    // Mientras Claude decide una entrada no se le pregunta otra; si solo está eligiendo candidata, se sigue.
+    if (this.state.thinking && this.state.asking !== 'pick') return this.wait(`Consultando a Claude sobre ${detail.sym}…`);
     const quote = this.source.quote(detail.sym);
     const plan = findEntry(detail, quote, now, this.settings.rules);
     if (!plan) return this.wait(`Esperando un setup limpio en ${detail.sym} (bull flag, micro pullback de 1 min o 10 s, ruptura con volumen sobre VWAP y EMA 9).`);
     const key = `${detail.sym}:${plan.kind}`;
-    if (key === this.lastPlanKey && now - this.lastPlanAt < PLAN_RETRY) return this.wait(`${entryLabel(plan.kind)} en ${detail.sym}: se vuelve a considerar a las ${formatEtTime(this.lastPlanAt + PLAN_RETRY, false)}.`);
+    if (key === this.lastPlanKey && now - this.lastPlanAt < this.replan()) return this.wait(`${entryLabel(plan.kind)} en ${detail.sym}: se vuelve a considerar a las ${formatEtTime(this.lastPlanAt + this.replan(), false)}.`);
     const shares = sizeFor(this.risk(), plan.entry, plan.stop, this.c.summary().buyingPower, this.liquidity(detail));
     this.lastPlanKey = key;
     this.lastPlanAt = now;
@@ -538,14 +543,19 @@ export class AiTrader {
     }
   }
 
+  /** Cuánto se espera para volver a considerar el mismo plan tras un "esperar" de Claude: el agresivo, 90 s. */
+  private replan(): number {
+    return this.settings.profile === 'agresivo' ? 90_000 : PLAN_RETRY;
+  }
+
   /** El mismo plan se vuelve a mirar en `ms` (en vez de los 3 minutos de un "esperar" de Claude). */
   private retryIn(ms: number): void {
-    this.lastPlanAt = this.now - PLAN_RETRY + ms;
+    this.lastPlanAt = this.now - this.replan() + ms;
   }
 
   private async askPick(): Promise<void> {
     try {
-      const d = await this.ask(pickPrompt(this.state.candidates, this.now, this.brief()));
+      const d = await this.ask(pickPrompt(this.state.candidates, this.now, this.brief()), 'pick');
       if (!d) return;
       this.state.advice = { ts: this.now, sym: d.sym ?? '', decision: d.decision, text: d.reason };
       this.log(`Claude elige ${d.sym ?? 'ninguna'}: ${d.reason}`, 'ai');
@@ -558,7 +568,7 @@ export class AiTrader {
   private async askEntry(detail: SymbolDetail, plan: EntryPlan, shares: number, execute: boolean): Promise<void> {
     const sym = detail.sym;
     try {
-      const d = await this.ask(entryPrompt(detail, this.source?.quote(sym) ?? null, plan, shares, this.now, this.brief()));
+      const d = await this.ask(entryPrompt(detail, this.source?.quote(sym) ?? null, plan, shares, this.now, this.brief()), 'entry');
       if (!d) {
         this.log('Claude respondió algo que no se entiende.', 'error');
         return;
@@ -583,21 +593,22 @@ export class AiTrader {
           this.retryIn(30_000);
           return;
         }
-        // Con el stop que propone Claude cambia el riesgo por acción: el tamaño se recalcula, y el
-        // objetivo (el suyo o el del plan) tiene que pagar al menos lo que pide el perfil; si no, mejor esperar.
+        // Con el stop que propone Claude cambia el riesgo por acción: el tamaño se recalcula. El objetivo es
+        // el de Claude si paga lo que pide el perfil; si queda corto, se sube al del perfil (Claude dijo que
+        // entremos: su stop y su objetivo son consejos, no un motivo para dejar pasar el trade).
         const stop = d.stop && d.stop < live.entry && d.stop > live.entry * 0.93 ? d.stop : live.stop;
-        const target = d.target && d.target > live.entry ? d.target : Math.max(live.target, plan.target);
         const risk = live.entry - stop;
+        const minR = this.settings.rules.minRewardR;
+        const floor = roundPx(live.entry + Math.max(minR, this.settings.rules.targetR) * risk);
+        let target = d.target && d.target > live.entry ? d.target : Math.max(live.target, plan.target);
+        if (target < live.entry + minR * risk - 1e-9) {
+          this.log(`${sym}: el objetivo $${px(target)} no paga ${minR}R con el stop en $${px(stop)}: se apunta a $${px(floor)} (${this.settings.rules.targetR}R).`, 'info');
+          target = floor;
+        }
         const sized = sizeFor(this.risk(), live.entry, stop, this.c.summary().buyingPower, this.liquidity(detail));
         if (sized < 1) {
-          this.log(`${sym}: con el stop en $${px(stop)} no alcanza el poder de compra o la liquidez para el tamaño por riesgo.`, 'info');
-          this.retryIn(30_000);
-          return;
-        }
-        const minR = this.settings.rules.minRewardR;
-        if (target < live.entry + minR * risk - 1e-9) {
-          this.log(`${sym}: el objetivo $${px(target)} no paga ${minR}R con el stop en $${px(stop)} (riesgo $${px(risk)} por acción): se espera.`, 'info');
-          this.state.advice = { ts: this.now, sym, decision: 'wait', text: `Objetivo $${px(target)} corto para el stop $${px(stop)}: esperar un plan mejor.` };
+          const why = this.noBuyingPower();
+          this.log(`${sym}: con el stop en $${px(stop)} no se puede comprar. ${why}`, 'error');
           this.retryIn(30_000);
           return;
         }

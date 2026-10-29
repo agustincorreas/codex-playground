@@ -290,25 +290,19 @@ describe('IA Trader', () => {
     expect(t.state.candidates).toHaveLength(2);
   });
 
-  it('con el stop de Claude recalcula las acciones y exige un objetivo de 1,5R; si no lo paga, espera', async () => {
-    ai.ask.mockResolvedValue('{"decision":"enter","confidence":80,"reason":"dale","stop":2.95,"target":3.08}');
+  it('con el stop de Claude recalcula las acciones; si su objetivo no paga 1,5R, entra igual apuntando al del perfil', async () => {
+    ai.ask.mockResolvedValue('{"decision":"enter","confidence":80,"reason":"dale","stop":2.95,"target":3.03}');
     const { c, t, tick, flush, log } = await arm({ consult: true });
     tick();
     await flush();
     expect(ai.ask).toHaveBeenCalledTimes(1);
-    expect(c.broker!.orders('RUN')).toHaveLength(0);
-    expect(t.state.phase).toBe('watching');
-    expect(t.state.advice?.decision).toBe('wait');
-    expect(log().some((x) => /no paga 1.5R/.test(x))).toBe(true);
-    // El mismo plan se vuelve a mirar a los 3 min: ahora Claude solo ajusta el stop (riesgo 6 ¢, objetivo del plan 3,23 ≥ 1,5R).
-    ai.ask.mockResolvedValue('{"decision":"enter","reason":"dale","stop":2.95}');
-    tick(3 * MIN + 1000);
-    await flush();
     expect(t.state.phase).toBe('entering');
+    expect(log().some((x) => /no paga 1.5R/.test(x) && /se apunta a/.test(x))).toBe(true);
     const buy = c.broker!.orders('RUN')[0];
     // Riesgo $20 / 0,06 = 333 → tope por poder de compra (95 % de $1000 / 3,01 = 315) → lote de 10.
     expect(buy).toMatchObject({ side: 'buy', shares: 310 });
-    expect(buy.plan).toMatchObject({ stop: 2.95, target: 3.23 });
+    // Objetivo: 2R sobre el stop de Claude (3,01 + 2 × 0,06 = 3,13).
+    expect(buy.plan).toMatchObject({ stop: 2.95, target: 3.13 });
   });
 
   it('con stop y objetivo automáticos: el objetivo vende la mitad y recién al ejecutarse la IA sube el stop a la entrada', async () => {
