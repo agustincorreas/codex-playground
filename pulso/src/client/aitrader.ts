@@ -3,6 +3,7 @@
 // "sugerencias" te propone cada paso y vos decidís; en "automático" opera solo la cuenta de práctica.
 // Claude, si está disponible, opina antes de cada entrada (y elige entre las candidatas).
 import { DEFAULT_SETTINGS, type Settings, type SymbolDetail, type ViewModel } from '../engine/types';
+import { formatEtTime } from '../engine/time';
 import { ADVISOR_SYSTEM, entryPrompt, exitPrompt, parseDecision, pickPrompt, type AccountBrief } from '../trading/advisor';
 import { roundPx } from '../trading/depth';
 import { DEFAULT_RULES, entryLabel, findEntry, inEntryWindow, manage, newMemory, PROFILE_LABEL, PROFILES, profileOf, rankCandidates, sizeFor, type AiProfile, type Candidate, type EntryPlan, type ExitAdvice, type PlaybookRules, type PositionMemory } from '../trading/playbook';
@@ -67,6 +68,8 @@ export interface AiState {
   /** Consultas a Claude hechas hoy. */
   calls: number;
   pausedReason: string;
+  /** Por qué no está entrando ahora (mientras recorre o mira de cerca): se muestra en el panel. */
+  waiting: string;
   /** Qué IA hay: la de Claude (artifact), la del servidor (clave de Anthropic), ninguna o todavía no se sabe. */
   ai: 'claude' | 'servidor' | 'no' | '?';
   thinking: boolean;
@@ -89,7 +92,7 @@ const LIVE: ReadonlySet<Order['status']> = new Set(['sent', 'open', 'partial']);
 
 export class AiTrader {
   settings: AiSettings;
-  state: AiState = { phase: 'off', focus: null, since: 0, candidates: [], suggestion: null, advice: null, log: [], calls: 0, pausedReason: '', ai: '?', thinking: false };
+  state: AiState = { phase: 'off', focus: null, since: 0, candidates: [], suggestion: null, advice: null, log: [], calls: 0, pausedReason: '', waiting: '', ai: '?', thinking: false };
   private listeners = new Set<() => void>();
   private source: DataSource | null = null;
   private view: ViewModel | null = null;
@@ -422,7 +425,7 @@ export class AiTrader {
       this.setPhase('paused', pause);
       return;
     }
-    if (now < this.cooldownUntil) return;
+    if (now < this.cooldownUntil) return this.wait('Pausa de 20 s después del último trade.');
     if (now - this.lastRank > 5000) {
       this.lastRank = now;
       this.rank();
@@ -447,39 +450,45 @@ export class AiTrader {
         void this.askPick();
       }
     }
+    const hhmm = (m: number) => `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`;
     if (!this.state.focus) {
       this.setPhase('scanning');
-      return;
+      const top = this.state.candidates[0];
+      return this.wait(top ? `La mejor candidata (${top.sym}, ${top.score}) no llega al mínimo del perfil (${this.settings.rules.minScore}).` : 'Sin candidatas con volumen, noticia y float chico.');
     }
     this.setPhase('watching');
     const detail = this.detailOf(this.state.focus);
-    if (!detail) return;
-    if (!inEntryWindow(now, this.settings.rules)) return;
+    if (!detail) return this.wait(`Esperando los datos de ${this.state.focus}…`);
+    if (!inEntryWindow(now, this.settings.rules)) return this.wait(`Fuera del horario de entradas del perfil (${hhmm(this.settings.rules.entryFrom)} a ${hhmm(this.settings.rules.entryTo)} NY).`);
     const until = this.skip.get(detail.sym);
-    if (until && until > now) return;
+    if (until && until > now) return this.wait(`${detail.sym} se deja pasar hasta las ${formatEtTime(until, false)} (Claude dijo que no, o perdió recién).`);
+    if (this.state.thinking) return this.wait(`Consultando a Claude sobre ${detail.sym}…`);
     const quote = this.source.quote(detail.sym);
     const plan = findEntry(detail, quote, now, this.settings.rules);
-    if (!plan) return;
+    if (!plan) return this.wait(`Esperando un setup limpio en ${detail.sym} (bull flag, micro pullback de 1 min o 10 s, ruptura con volumen sobre VWAP y EMA 9).`);
     const key = `${detail.sym}:${plan.kind}`;
-    if (key === this.lastPlanKey && now - this.lastPlanAt < PLAN_RETRY) return;
+    if (key === this.lastPlanKey && now - this.lastPlanAt < PLAN_RETRY) return this.wait(`${entryLabel(plan.kind)} en ${detail.sym}: se vuelve a considerar a las ${formatEtTime(this.lastPlanAt + PLAN_RETRY, false)}.`);
     const shares = sizeFor(this.risk(), plan.entry, plan.stop, this.c.summary().buyingPower, this.liquidity(detail));
     this.lastPlanKey = key;
     this.lastPlanAt = now;
     if (shares < 1) {
       this.log(`${detail.sym}: ${entryLabel(plan.kind)} pero no alcanza el poder de compra o la liquidez para el tamaño por riesgo.`, 'info');
-      return;
+      this.retryIn(30_000);
+      return this.wait(`${detail.sym}: no alcanza el poder de compra o la liquidez para el tamaño por riesgo.`);
     }
     const text = `Comprar ${shares} a $${px(plan.entry)}, stop $${px(plan.stop)} (riesgo $${((plan.entry - plan.stop) * shares).toFixed(0)}), objetivo $${px(plan.target)}. ${plan.reason}.`;
     if (this.settings.mode === 'suggest') {
       this.suggest({ kind: 'entry', sym: detail.sym, title: `${entryLabel(plan.kind)} en ${detail.sym}`, text, plan, shares });
       if (this.settings.consult && !this.state.thinking && this.canAsk()) void this.askEntry(detail, plan, shares, false);
-      return;
+      return this.wait('');
     }
     if (this.settings.consult && this.canAsk()) {
-      if (!this.state.thinking) void this.askEntry(detail, plan, shares, true);
-      return;
+      this.log(`${detail.sym}: ${entryLabel(plan.kind)} a $${px(plan.entry)} (stop $${px(plan.stop)}): le pregunto a Claude.`, 'info');
+      void this.askEntry(detail, plan, shares, true);
+      return this.wait(`Consultando a Claude sobre ${detail.sym}…`);
     }
     // Sin Claude (no hay IA o se acabó el cupo del día): las reglas alcanzan para operar.
+    this.wait('');
     this.execute(detail.sym, plan, shares, 'reglas');
   }
 
@@ -501,10 +510,26 @@ export class AiTrader {
     if (trades >= r.maxTrades) return `Ya hubo ${trades} trades hoy: por hoy no se abren más.`;
     const losers = this.losersInARow();
     if (losers >= r.maxLosers) return `${losers} perdedores seguidos: Ross para por hoy. Mañana se vuelve a empezar.`;
-    const loss = -this.c.summary().dayPnl;
+    const sum = this.c.summary();
+    const loss = -sum.dayPnl;
     const max = r.maxLossR * this.risk();
     if (loss >= max) return `Pérdida del día de $${loss.toFixed(0)} (${r.maxLossR}R): no se abren más trades hoy.`;
+    // El bróker rechaza el cuarto day trade con menos de US$ 25.000 en cuenta margen: mejor avisarlo antes.
+    if (sum.pdt && sum.dayTrades >= 3) return 'Regla PDT: ya hay 3 day trades en 5 días con menos de US$ 25.000 en cuenta margen. Para seguir, pasá a cuenta cash o subí el saldo en Preferencias de práctica.';
     return '';
+  }
+
+  /** Dice por qué no entra ahora (se ve en el panel) sin llenar el registro. */
+  private wait(reason: string): void {
+    if (this.state.waiting !== reason) {
+      this.state.waiting = reason;
+      this.emit();
+    }
+  }
+
+  /** El mismo plan se vuelve a mirar en `ms` (en vez de los 3 minutos de un "esperar" de Claude). */
+  private retryIn(ms: number): void {
+    this.lastPlanAt = this.now - PLAN_RETRY + ms;
   }
 
   private async askPick(): Promise<void> {
@@ -532,31 +557,40 @@ export class AiTrader {
       this.log(`Claude ${verdict}${d.confidence !== undefined ? ` (${d.confidence} %)` : ''}: ${d.reason}`, 'ai');
       if (!execute) return;
       if (d.decision === 'enter') {
-        // El plan tiene que seguir vigente: el precio no se fue ni cayó debajo del stop.
+        // Mientras Claude pensaba el precio siguió: si hay un plan fresco en la misma acción se usa ese;
+        // si no, se entra igual mientras no se haya ido más de 3 % ni caído debajo del stop (un runner no
+        // espera a nadie). Más lejos que eso, se escapó: se vuelve a mirar en 30 s.
         const q = this.source?.quote(sym);
         const ask = q?.ask ?? plan.entry;
-        if (ask > plan.entry * 1.015 || ask <= plan.stop) {
-          this.log(`${sym}: el precio se movió mientras Claude pensaba (${px(ask)}); se deja pasar.`, 'info');
+        const fresh = this.detailOf(sym);
+        const again = fresh ? findEntry(fresh, q ?? null, this.now, this.settings.rules) : null;
+        let live = plan;
+        if (again && again.entry <= plan.entry * 1.03) live = again;
+        else if (ask <= plan.entry * 1.03 && ask > plan.stop) live = { ...plan, entry: roundPx(ask), target: roundPx(ask + this.settings.rules.targetR * (ask - plan.stop)) };
+        else {
+          this.log(`${sym}: se escapó mientras Claude pensaba (ask $${px(ask)}, entrada $${px(plan.entry)}): se espera el próximo descanso.`, 'info');
+          this.retryIn(30_000);
           return;
         }
         // Con el stop que propone Claude cambia el riesgo por acción: el tamaño se recalcula, y el
-        // objetivo (el suyo o el del plan) tiene que pagar al menos 1,5R; si no, mejor esperar.
-        const stop = d.stop && d.stop < plan.entry && d.stop > plan.entry * 0.93 ? d.stop : plan.stop;
-        const target = d.target && d.target > plan.entry ? d.target : plan.target;
-        const risk = plan.entry - stop;
-        const sized = sizeFor(this.risk(), plan.entry, stop, this.c.summary().buyingPower, this.liquidity(detail));
+        // objetivo (el suyo o el del plan) tiene que pagar al menos lo que pide el perfil; si no, mejor esperar.
+        const stop = d.stop && d.stop < live.entry && d.stop > live.entry * 0.93 ? d.stop : live.stop;
+        const target = d.target && d.target > live.entry ? d.target : Math.max(live.target, plan.target);
+        const risk = live.entry - stop;
+        const sized = sizeFor(this.risk(), live.entry, stop, this.c.summary().buyingPower, this.liquidity(detail));
         if (sized < 1) {
           this.log(`${sym}: con el stop en $${px(stop)} no alcanza el poder de compra o la liquidez para el tamaño por riesgo.`, 'info');
+          this.retryIn(30_000);
           return;
         }
         const minR = this.settings.rules.minRewardR;
-        if (target < plan.entry + minR * risk - 1e-9) {
+        if (target < live.entry + minR * risk - 1e-9) {
           this.log(`${sym}: el objetivo $${px(target)} no paga ${minR}R con el stop en $${px(stop)} (riesgo $${px(risk)} por acción): se espera.`, 'info');
           this.state.advice = { ts: this.now, sym, decision: 'wait', text: `Objetivo $${px(target)} corto para el stop $${px(stop)}: esperar un plan mejor.` };
-          this.lastPlanAt = this.now;
+          this.retryIn(30_000);
           return;
         }
-        this.execute(sym, { ...plan, stop, target }, sized, 'Claude');
+        this.execute(sym, { ...live, stop, target }, sized, 'Claude');
       } else if (d.decision === 'skip') {
         this.skip.set(sym, this.now + 10 * 60_000);
       } else {
@@ -564,7 +598,9 @@ export class AiTrader {
         this.lastPlanAt = this.now;
       }
     } catch (e) {
-      this.log(`Claude no respondió: ${(e as Error).message}. No se entra sin su opinión.`, 'error');
+      // Sin respuesta no se entra (es lo que dice la casilla), pero el setup se vuelve a mirar enseguida.
+      this.log(`Claude no respondió: ${(e as Error).message}. No se entra sin su opinión; se vuelve a mirar en 30 s.`, 'error');
+      this.retryIn(30_000);
     }
   }
 

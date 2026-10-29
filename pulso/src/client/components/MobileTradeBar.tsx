@@ -66,9 +66,10 @@ export function MobileTradeBar({ c, sym, quote, row, ticket, setTicket, onHotkey
   const setQty = (n: number) => setTicket({ shares: String(Math.max(1, Math.floor(n))) });
   const change = row?.changePct;
   const maxQty = buyPx ? Math.floor((bp * 0.995) / buyPx) : 0;
-  // Sin posición, VENDER abre un corto; con un corto, COMPRAR cubre y VENDER lo agranda.
+  // Con los cortos permitidos (Preferencias): sin posición, VENDER abre un corto; con un corto, COMPRAR cubre
+  // y VENDER lo agranda. Sin cortos (lo normal): VENDER vende la cantidad del recuadro, hasta lo comprado.
   const short = pos?.side === 'short';
-  const opensShort = !pos || short;
+  const opensShort = !!c.state.settings.allowShort && (!pos || short);
   const locate = opensShort ? c.locate(sym) : null;
   const shortBlock = opensShort && ready ? c.shortBlock(sym) : null;
   const shortNeed = sellPx ? sellPx * shares * 1.5 + (locate?.borrowFee ?? 0) * shares : 0;

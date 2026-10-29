@@ -230,6 +230,8 @@ export interface TradingSettings {
   autoBracket: boolean;
   /** Sonidos al ejecutarse, quedar en espera, cancelarse o rechazarse una orden. */
   orderSounds: boolean;
+  /** Permitir ventas en corto (apagado: VENDER solo vende lo que tenés comprado). */
+  allowShort: boolean;
   hotkeys: Hotkey[];
 }
 
@@ -282,6 +284,7 @@ export const DEFAULT_TRADING: TradingSettings = {
   defaultTif: 'DAY+',
   autoBracket: false,
   orderSounds: true,
+  allowShort: false,
   hotkeys: DEFAULT_HOTKEYS,
 };
 

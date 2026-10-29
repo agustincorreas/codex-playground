@@ -185,10 +185,12 @@ cerca del máximo), la sigue de cerca (velas de 1 minuto, VWAP, EMA 9, cinta) y 
 de práctica**, nunca órdenes reales.
 
 - **Sugerencias:** te propone qué acción mirar, la entrada cuando aparece un setup limpio (bull flag,
-  micro pullback, ruptura del máximo del día o del pre-market, siempre sobre VWAP y EMA 9, con stop
-  ajustado y objetivo 2:1, tamaño por riesgo) y las salidas de tus posiciones (vender la mitad en el
-  objetivo, stop a la entrada, salir si pierde la EMA 9 o el VWAP o no avanza en 6 minutos). Vos
-  apretás *Hacer este trade* o *Ignorar*.
+  micro pullback en velas de 1 minuto o de 10 segundos, ruptura del máximo del día o del pre-market,
+  siempre sobre VWAP y EMA 9, con stop ajustado y objetivo 2:1, tamaño por riesgo) y las salidas de
+  tus posiciones (vender la mitad en el objetivo, stop a la entrada, dejar correr el resto mientras
+  respete la EMA 9 y el mínimo del último pullback de 10 s, salir si pierde el VWAP o no avanza en 6
+  minutos sin hacer máximos nuevos). Vos apretás *Hacer este trade* o *Ignorar*. El panel dice en todo
+  momento por qué no está entrando (horario, sin setup, consultando a Claude, PDT…).
 - **Automático:** hace todo eso solo, con límites: horario de entradas (7:00 a 11:30 ET por defecto),
   máximo de trades por día, perdedores seguidos y pérdida máxima del día en R. Si *Mostrar en el
   gráfico* está activo, ves lo que mira. Tres **perfiles** fijan todas las reglas de una vez:
@@ -259,6 +261,8 @@ aceptan órdenes a mercado.
   compra (lo vendido más el 50 %). El stop va arriba (compra) y el objetivo abajo; cualquier corto abierto al
   cierre se cubre al último precio. Cuenta como day trade para la regla PDT y la pérdida máxima del día
   también bloquea abrir cortos. El IA Trader sigue operando solo comprado, al estilo de Ross Cameron.
+  Vienen **apagadas** (VENDER solo vende lo que tenés comprado, la cantidad del recuadro, así podés
+  vender la mitad); se activan en *Preferencias de práctica → Permitir ventas en corto*.
 
 Todo esto se cambia en *Ajustes de la cuenta* (botón en *Valor de la cuenta* o en *Cuenta y métricas*):
 saldo inicial, tipo de cuenta, apalancamiento, pérdida máxima, acciones y riesgo por defecto, vigencia,

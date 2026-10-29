@@ -215,6 +215,15 @@ export function findEntry(detail: SymbolDetail, quote: Quote | null, now: number
     }
   }
 
+  // 2b. Micro pullback en velas de 10 segundos (como lo mira Ross en la pantalla de 10 s): impulso de
+  // los últimos 2 minutos, descanso de 1 a 3 velas de 10 s con menos volumen y la vela actual supera el
+  // máximo de la anterior. Entra rápido para subirse al momentum.
+  const sec = detail.secBars;
+  if (prev && sec.length >= 8 && setup.aboveVwap && setup.aboveEma9 && row.pctFromHod >= -6) {
+    const plan = microPullback10s(sec, ask, tr, setup.nextLevel);
+    if (plan) return plan;
+  }
+
   // 3. Ruptura del máximo del día.
   if (prev && setup.aboveVwap && setup.aboveEma9 && row.hod > 0 && ask >= row.hod && ask <= row.hod * 1.008 && last.v >= prev.v * 0.8) {
     const lows = closed.slice(-3).map((b) => b.l);
@@ -229,6 +238,28 @@ export function findEntry(detail: SymbolDetail, quote: Quote | null, now: number
     return finish('pmhBreak', ask, stop, 'Rompe el máximo del pre-market en los primeros minutos de la rueda', setup.nextLevel, tr);
   }
   return null;
+}
+
+/** Micro pullback sobre velas de 10 s: ventana de 12 velas cerradas (2 minutos), palo hasta el máximo y descanso corto. */
+function microPullback10s(sec: Bar[], ask: number, targetR: number, nextLevel?: number): EntryPlan | null {
+  const closed = sec.slice(0, -1);
+  const last = sec[sec.length - 1];
+  const window = closed.slice(-12);
+  if (window.length < 6) return null;
+  const prev = window[window.length - 1];
+  const lowStart = Math.min(...window.slice(0, 3).map((b) => b.l));
+  const hiIdx = window.reduce((best, b, i) => (b.h > window[best].h ? i : best), 0);
+  const pole = window.slice(0, hiIdx + 1);
+  const rest = window.slice(hiIdx + 1);
+  const poleHigh = window[hiIdx]?.h ?? 0;
+  if (rest.length < 1 || rest.length > 3 || !(poleHigh > 0) || (poleHigh - lowStart) / lowStart < 0.02) return null;
+  const restLow = Math.min(...rest.map((b) => b.l));
+  const restVol = rest.reduce((v, b) => v + b.v, 0) / rest.length;
+  const poleVol = pole.reduce((v, b) => v + b.v, 0) / Math.max(1, pole.length);
+  const retrace = (poleHigh - restLow) / Math.max(tick(poleHigh), poleHigh - lowStart);
+  const breaking = last.h > prev.h && ask >= prev.h && ask <= prev.h * 1.01;
+  if (!(restVol < poleVol && retrace <= 0.5 && breaking && restLow > 0)) return null;
+  return finish('microPullback', ask, restLow - tick(ask), `Micro pullback de 10 s: ${rest.length} vela${rest.length === 1 ? '' : 's'} de descanso con menos volumen y rompe el máximo de la anterior`, nextLevel, targetR);
 }
 
 /** Cuántas acciones: por riesgo, sin pasar del poder de compra ni de la liquidez (y en lotes cómodos). */
@@ -299,8 +330,19 @@ export function manage(pos: Position, detail: SymbolDetail, quote: Quote | null,
     const range = prev.h - prev.l;
     if (r >= 3 && range > 0 && (prev.h - prev.c) / range > 0.6) return { action: mem.halfTaken ? 'sellAll' : 'sellHalf', reason: `Mecha de rechazo con ${r.toFixed(1)}R de ganancia` };
   }
-  // Tiempo: si no avanza, afuera.
-  if (!mem.halfTaken && now - mem.enteredAt > rules.timeStopMin * MIN && last < pos.avgCost + 0.25 * risk) return { action: 'sellAll', reason: `${rules.timeStopMin} minutos sin avanzar: se sale sin esperar el stop` };
+  // "Ride the momentum" en 10 s: con la mitad tomada, el resto corre mientras el precio respete el mínimo del
+  // último descanso de 10 s (las últimas 6 velas cerradas de 10 s); si lo pierde, se toma el resto.
+  const sec = detail.secBars;
+  if (mem.halfTaken && sec.length >= 8) {
+    const recent = sec.slice(-7, -1);
+    const swingLow = Math.min(...recent.map((b) => b.l));
+    if (swingLow > pos.avgCost && bid < swingLow) return { action: 'sellAll', reason: `Perdió el mínimo del último pullback de 10 s (${swingLow.toFixed(2)}): se toma el resto` };
+  }
+  // Tiempo: si no avanza, afuera (salvo que en 10 s siga haciendo máximos nuevos: el momentum sigue vivo).
+  if (!mem.halfTaken && now - mem.enteredAt > rules.timeStopMin * MIN && last < pos.avgCost + 0.25 * risk) {
+    const fresh = sec.length >= 4 && sec.slice(-3).some((b) => b.h >= mem.high);
+    if (!fresh) return { action: 'sellAll', reason: `${rules.timeStopMin} minutos sin avanzar: se sale sin esperar el stop` };
+  }
   return { action: 'hold', reason: '' };
 }
 
