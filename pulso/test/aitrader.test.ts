@@ -252,7 +252,8 @@ describe('IA Trader', () => {
 
   it('consulta a Claude solo en la ventana de entradas, cuando cambian las candidatas, y respeta el tope diario', async () => {
     const rows = [row('RUN', 3.0), row('ABC', 5.0)];
-    ai.ask.mockResolvedValue('{"decision":"wait","sym":"RUN","reason":"espero"}');
+    // Un "esperar" firme (90 %): el perfil equilibrado lo respeta.
+    ai.ask.mockResolvedValue('{"decision":"wait","sym":"RUN","confidence":90,"reason":"espero"}');
     const { t, tick, flush, log } = await arm({ consult: true, rows, maxCalls: 3 });
     tick();
     await flush();
@@ -401,4 +402,50 @@ describe('escenario ideal para cada perfil', () => {
       expect(buy.shares).toBe({ conservador: 90, equilibrado: 180, agresivo: 270 }[profile]);
     });
   }
+});
+
+describe('perfiles con Claude', () => {
+  it('un "esperar" de Claude sin convicción no frena al equilibrado ni al agresivo (al conservador sí); un "skip" frena a todos', async () => {
+    ai.ask.mockResolvedValue('{"decision":"wait","confidence":55,"reason":"mmm"}');
+    for (const profile of ['equilibrado', 'agresivo'] as const) {
+      const { c, t, tick, flush, log } = await arm({ consult: true });
+      t.update({ profile });
+      tick();
+      await flush();
+      expect(t.state.phase).toBe('entering');
+      expect(c.broker!.orders('RUN')[0]?.side).toBe('buy');
+      expect(log().some((x) => /entra igual/.test(x))).toBe(true);
+    }
+    const cons = await arm({ consult: true });
+    cons.t.update({ profile: 'conservador' });
+    cons.tick();
+    await cons.flush();
+    expect(cons.t.state.phase).toBe('watching');
+    expect(cons.c.broker!.orders('RUN')).toHaveLength(0);
+    ai.ask.mockResolvedValue('{"decision":"skip","confidence":90,"reason":"dilución"}');
+    const second = await arm({ consult: true });
+    second.t.update({ profile: 'agresivo' });
+    second.tick();
+    await second.flush();
+    expect(second.t.state.phase).toBe('watching');
+    expect(second.c.broker!.orders('RUN')).toHaveLength(0);
+  });
+});
+
+describe('Claude que no responde', () => {
+  it('en equilibrado entra igual con las reglas; en conservador espera', async () => {
+    ai.ask.mockRejectedValue(new Error('se cayó'));
+    const { c, t, tick, flush, log } = await arm({ consult: true });
+    tick();
+    await flush();
+    expect(t.state.phase).toBe('entering');
+    expect(c.broker!.orders('RUN')[0]?.side).toBe('buy');
+    expect(log().some((x) => /se entra igual/.test(x))).toBe(true);
+    const cons = await arm({ consult: true });
+    cons.t.update({ profile: 'conservador' });
+    cons.tick();
+    await cons.flush();
+    expect(cons.t.state.phase).toBe('watching');
+    expect(cons.c.broker!.orders('RUN')).toHaveLength(0);
+  });
 });

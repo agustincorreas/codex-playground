@@ -187,13 +187,13 @@ export function AiTraderPanel({ trader, selected, onSelect }: Props) {
           </label>
         </div>
         <label className="check-inline">
-          <input type="checkbox" checked={s.consult} onChange={(e) => trader.update({ consult: e.target.checked })} /> Consultar a Claude antes de cada entrada (si no responde, no entra)
+          <input type="checkbox" checked={s.consult} onChange={(e) => trader.update({ consult: e.target.checked })} /> Consultar a Claude antes de cada entrada (en Conservador, sin su visto bueno no entra; en los otros perfiles las reglas mandan)
         </label>
         <label className="check-inline">
           <input type="checkbox" checked={s.follow} onChange={(e) => trader.update({ follow: e.target.checked })} /> Mostrar en el gráfico lo que mira la IA (en automático)
         </label>
         <p className="t-muted small">
-          Horario de Nueva York. Entra solo con un setup limpio (bull flag, micro pullback de 1 min o de 10 s, ruptura con volumen sobre VWAP y EMA 9), stop ajustado y el objetivo del perfil; vende la mitad en el
+          Horario de Nueva York. Entra solo con un setup limpio (bull flag, micro pullback de 1 min o de 10 s, primera vela de 1 min que hace un máximo nuevo tras el retroceso, ruptura con volumen; siempre sobre VWAP y EMA 9), stop ajustado y el objetivo del perfil; vende la mitad en el
           objetivo, sube el stop a la entrada y deja correr el resto mientras respete la EMA 9 y el mínimo del último pullback de 10 s. Las salidas van por reglas; Claude opina en las entradas.
         </p>
       </details>

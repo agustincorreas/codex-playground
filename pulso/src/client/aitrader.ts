@@ -471,7 +471,7 @@ export class AiTrader {
     if (this.state.thinking && this.state.asking !== 'pick') return this.wait(`Consultando a Claude sobre ${detail.sym}…`);
     const quote = this.source.quote(detail.sym);
     const plan = findEntry(detail, quote, now, this.settings.rules);
-    if (!plan) return this.wait(`Esperando un setup limpio en ${detail.sym} (bull flag, micro pullback de 1 min o 10 s, ruptura con volumen sobre VWAP y EMA 9).`);
+    if (!plan) return this.wait(`Esperando un setup limpio en ${detail.sym} (bull flag, micro pullback de 1 min o 10 s, primera vela que hace máximo nuevo, ruptura con volumen; siempre sobre VWAP y EMA 9).`);
     const key = `${detail.sym}:${plan.kind}`;
     if (key === this.lastPlanKey && now - this.lastPlanAt < this.replan()) return this.wait(`${entryLabel(plan.kind)} en ${detail.sym}: se vuelve a considerar a las ${formatEtTime(this.lastPlanAt + this.replan(), false)}.`);
     const shares = sizeFor(this.risk(), plan.entry, plan.stop, this.c.summary().buyingPower, this.liquidity(detail));
@@ -577,7 +577,14 @@ export class AiTrader {
       const verdict = d.decision === 'enter' ? 'entra' : d.decision === 'wait' ? 'espera' : 'no entra';
       this.log(`Claude ${verdict}${d.confidence !== undefined ? ` (${d.confidence} %)` : ''}: ${d.reason}`, 'ai');
       if (!execute) return;
-      if (d.decision === 'enter') {
+      // Las reglas mandan (salvo en el perfil conservador): un "esperar" de Claude sin mucha convicción no
+      // frena la entrada; solo un "no" (skip) o un "esperar" muy seguro (70 % o más) la vetan.
+      let decision = d.decision;
+      if (decision === 'wait' && this.settings.profile !== 'conservador' && (d.confidence ?? 0) < 70) {
+        this.log(`${sym}: el perfil ${PROFILE_LABEL[this.settings.profile].toLowerCase()} entra igual (Claude dudaba sin un motivo fuerte).`, 'info');
+        decision = 'enter';
+      }
+      if (decision === 'enter') {
         // Mientras Claude pensaba el precio siguió: si hay un plan fresco en la misma acción se usa ese;
         // si no, se entra igual mientras no se haya ido más de 3 % ni caído debajo del stop (un runner no
         // espera a nadie). Más lejos que eso, se escapó: se vuelve a mirar en 30 s.
@@ -613,14 +620,20 @@ export class AiTrader {
           return;
         }
         this.execute(sym, { ...live, stop, target }, sized, 'Claude');
-      } else if (d.decision === 'skip') {
+      } else if (decision === 'skip') {
         this.skip.set(sym, this.now + 10 * 60_000);
       } else {
         // "Esperar": el mismo plan se vuelve a considerar a los 3 min (no a los 60 s).
         this.lastPlanAt = this.now;
       }
     } catch (e) {
-      // Sin respuesta no se entra (es lo que dice la casilla), pero el setup se vuelve a mirar enseguida.
+      // Sin respuesta: en equilibrado y agresivo mandan las reglas y se entra igual; el conservador espera
+      // el visto bueno de Claude y vuelve a mirar el setup en 30 s.
+      if (execute && this.settings.profile !== 'conservador') {
+        this.log(`Claude no respondió: ${(e as Error).message}. Las reglas ya vieron el setup: se entra igual.`, 'error');
+        this.execute(sym, plan, shares, 'reglas (Claude no respondió)');
+        return;
+      }
       this.log(`Claude no respondió: ${(e as Error).message}. No se entra sin su opinión; se vuelve a mirar en 30 s.`, 'error');
       this.retryIn(30_000);
     }

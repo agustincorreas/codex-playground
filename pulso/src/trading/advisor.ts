@@ -72,7 +72,9 @@ export function entryPrompt(d: SymbolDetail, q: Quote | null, plan: EntryPlan, s
     `Son las ${formatEtTime(now, false)} hora de Nueva York. ${accountLine(acct)}\n${detailBrief(d, q)}\n\n` +
     `Las reglas proponen: ${entryLabel(plan.kind)}. Comprar ${shares} acciones a $${px(plan.entry)}, stop $${px(plan.stop)} ` +
     `(riesgo $${((plan.entry - plan.stop) * shares).toFixed(0)}), objetivo $${px(plan.target)} (2R). Motivo: ${plan.reason}.\n` +
-    '¿Entrás? Pensá en la calidad del setup, la cinta, la extensión del día, el spread y el horario. ' +
+    'Las reglas ya validaron el setup (sobre VWAP y EMA 9, stop cerca, objetivo que paga): tu trabajo es vetarlo solo si ves un ' +
+    'motivo concreto (spread mayor al 2 %, extensión enorme sin descanso, cinta vendiendo al bid, riesgo de dilución, halt reciente, ' +
+    'horario malo). Si no hay un motivo concreto, "enter". "wait" solo con un motivo y qué esperar; "skip" si la acción no vale la pena hoy. ' +
     'JSON: {"decision": "enter" | "wait" | "skip", "confidence": 0-100, "reason": "...", "stop": número opcional si lo ajustarías, "target": número opcional}'
   );
 }

@@ -134,7 +134,7 @@ export function rankCandidates(rows: ScanRow[], settings: Settings): Candidate[]
   return out.sort((a, b) => b.score - a.score || b.row.rvol - a.row.rvol);
 }
 
-export type EntryKind = 'bullFlag' | 'microPullback' | 'hodBreak' | 'pmhBreak';
+export type EntryKind = 'bullFlag' | 'microPullback' | 'newHigh' | 'hodBreak' | 'pmhBreak';
 
 export interface EntryPlan {
   kind: EntryKind;
@@ -144,7 +144,7 @@ export interface EntryPlan {
   reason: string;
 }
 
-const LABEL: Record<EntryKind, string> = { bullFlag: 'Bull flag', microPullback: 'Micro pullback', hodBreak: 'Ruptura del máximo', pmhBreak: 'Ruptura del máximo pre-market' };
+const LABEL: Record<EntryKind, string> = { bullFlag: 'Bull flag', microPullback: 'Micro pullback', newHigh: 'Primera vela que hace máximo nuevo', hodBreak: 'Ruptura del máximo', pmhBreak: 'Ruptura del máximo pre-market' };
 export const entryLabel = (k: EntryKind) => LABEL[k];
 
 const r2 = (p: number) => Math.round(p * 100) / 100;
@@ -224,6 +224,14 @@ export function findEntry(detail: SymbolDetail, quote: Quote | null, now: number
     if (plan) return plan;
   }
 
+  // 2c. La primera vela de 1 minuto que hace un máximo nuevo (la regla de Ross): en una acción en juego
+  // sobre VWAP y EMA 9, después de 1 a 4 velas de retroceso (rojas o con máximos descendentes), la vela
+  // actual supera el máximo de la anterior. Se compra ahí, con el stop en el mínimo del retroceso.
+  if (prev && setup.aboveVwap && setup.aboveEma9 && row.pctFromHod >= -8 && closed.length >= 4) {
+    const plan = firstCandleNewHigh(closed, last, ask, tr, setup.nextLevel);
+    if (plan) return plan;
+  }
+
   // 3. Ruptura del máximo del día.
   if (prev && setup.aboveVwap && setup.aboveEma9 && row.hod > 0 && ask >= row.hod && ask <= row.hod * 1.008 && last.v >= prev.v * 0.8) {
     const lows = closed.slice(-3).map((b) => b.l);
@@ -238,6 +246,34 @@ export function findEntry(detail: SymbolDetail, quote: Quote | null, now: number
     return finish('pmhBreak', ask, stop, 'Rompe el máximo del pre-market en los primeros minutos de la rueda', setup.nextLevel, tr);
   }
   return null;
+}
+
+/**
+ * "First 1-minute candle to make a new high": cuenta las velas de retroceso al final (rojas o con máximo
+ * menor que la anterior, de 1 a 4), exige que antes hubiera subida (el máximo previo al retroceso está
+ * por encima del mínimo del retroceso) y que la vela actual rompa el máximo de la anterior.
+ */
+function firstCandleNewHigh(closed: Bar[], last: Bar, ask: number, targetR: number, nextLevel?: number): EntryPlan | null {
+  const prev = closed[closed.length - 1];
+  let n = 0;
+  for (let i = closed.length - 1; i >= 1 && n < 4; i--) {
+    const b = closed[i];
+    const before = closed[i - 1];
+    if (b.c < b.o || b.h < before.h) n++;
+    else break;
+  }
+  if (n < 1) return null;
+  const pull = closed.slice(-n);
+  const pullLow = Math.min(...pull.map((b) => b.l));
+  const pole = closed.slice(Math.max(0, closed.length - n - 6), closed.length - n);
+  if (!pole.length) return null;
+  const poleHigh = Math.max(...pole.map((b) => b.h));
+  const poleLow = Math.min(...pole.map((b) => b.l));
+  // Subida previa de al menos 2 % y retroceso que no se comió más del 60 % de esa subida.
+  if (!(poleHigh > poleLow) || (poleHigh - poleLow) / poleLow < 0.02 || (poleHigh - pullLow) / (poleHigh - poleLow) > 0.6) return null;
+  const breaking = last.h > prev.h && ask >= prev.h && ask <= prev.h * 1.012;
+  if (!breaking || !(pullLow > 0)) return null;
+  return finish('newHigh', ask, pullLow - tick(ask), `Primera vela de 1 min que hace un máximo nuevo tras ${n} vela${n === 1 ? '' : 's'} de retroceso`, nextLevel, targetR);
 }
 
 /** Micro pullback sobre velas de 10 s: ventana de 12 velas cerradas (2 minutos), palo hasta el máximo y descanso corto. */
