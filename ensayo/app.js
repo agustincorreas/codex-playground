@@ -63,12 +63,61 @@
     const c = song.catalogId ? catalogById(song.catalogId) : null;
     const artist = song.artist || (c && c.artist) || '';
     lyricsInflight[song.id] = window.Lyrics.fetchLyrics(song.title, artist).then((r) => {
-      if (r.status === 'synced' || r.status === 'plain') { if (!(song.chart || '').trim()) song.chart = r.chart; song.lyricsStatus = r.status; if (r.duration && !song.duration) song.duration = r.duration; }
+      if (r.status === 'synced' || r.status === 'plain') {
+        song.lyricsStatus = r.status;
+        if (r.duration && !song.duration) song.duration = r.duration;
+        if (r.status === 'synced') song.lrc = r.chart; // letra sincronizada original, para re-alinear cifrados pegados
+        if (!(song.chart || '').trim()) { song.chart = r.chart; applyAutoChords(song); }
+      }
       else song.lyricsStatus = 'notfound';
     }).catch(() => { song.lyricsStatus = 'notfound'; }).then(() => { delete lyricsInflight[song.id]; persist(); });
     return lyricsInflight[song.id];
   }
   migrate();
+
+  /** Si la letra no tiene acordes inline y hay progresiones por sección, los ubica sobre la letra (aprox.). */
+  function applyAutoChords(song) {
+    const parsed = C.parse(song.chart || '');
+    const hasChords = parsed.lines.some(l => l.type === 'line' && l.hasChords);
+    if (hasChords || !(song.sections || []).length || !parsed.timed.length) return false;
+    const auto = C.autoChart(song.lrc || song.chart, song.sections);
+    if (!auto) return false;
+    if (!song.lrc) song.lrc = song.chart;
+    song.chart = auto; song.chartAuto = true;
+    return true;
+  }
+
+  /** Modal para pegar un cifrado de Cifra Club / Ultimate Guitar y alinearlo a los tiempos de la letra. */
+  function openPasteChart(song, onDone) {
+    const m = h(`<div class="modal"><div class="modal-card">
+      <h2 style="margin:0 0 6px">Pegar cifrado</h2>
+      <p class="small muted" style="margin:0 0 10px">Copiá el cifrado completo de <b>Cifra Club</b>, <b>Ultimate Guitar</b> o LaCuerda (acordes arriba de la letra) y pegalo acá. La app pone los acordes sobre la letra y les copia los tiempos de la letra sincronizada.</p>
+      <textarea id="pc-text" spellcheck="false" placeholder="Intro: Am F C G\n\n        Am            F\nEn la ciudad de la furia..."></textarea>
+      <div class="row" style="margin-top:10px"><button class="btn sm" id="pc-clip">📋 Pegar del portapapeles</button><span class="grow"></span><button class="btn ghost" id="pc-cancel">Cancelar</button><button class="btn primary" id="pc-ok">Usar este cifrado</button></div>
+      <div class="small muted" id="pc-info" style="margin-top:8px"></div>
+    </div></div>`);
+    document.body.appendChild(m);
+    const ta = $('#pc-text', m); setTimeout(() => ta.focus(), 50);
+    $('#pc-clip', m).onclick = async () => { try { ta.value = await navigator.clipboard.readText(); } catch (e) { toast('Mantené apretado el cuadro y elegí "Pegar"'); } };
+    $('#pc-cancel', m).onclick = () => m.remove();
+    m.addEventListener('click', (e) => { if (e.target === m) m.remove(); });
+    $('#pc-ok', m).onclick = () => {
+      let text = ta.value.replace(/\r\n?/g, '\n');
+      if (!text.trim()) return toast('Pegá el cifrado primero');
+      // Limpieza típica de Cifra Club / UG
+      text = text.split('\n').filter(l => !/^\s*(tom|tono|afinaci[oó]n|capo|capotraste|key|tuning)\s*:/i.test(l)).join('\n');
+      const hasInline = /\[[A-G][^\]]*\][^\n]*\S/.test(text) && !/^\s*\[?\s*[A-G]/m.test(text.split('\n').find(l => l.trim()) || '');
+      if (!hasInline) text = C.convertChordsOverLyrics(text);
+      const ref = song.lrc || song.chart || '';
+      const res = C.parse(ref).timed.length ? C.alignToTimes(text, ref) : { text, matched: 0, total: 0 };
+      song.chart = res.text; song.chartAuto = false;
+      const p = C.parse(song.chart);
+      song.lyricsStatus = p.timed.length ? 'synced' : 'plain';
+      persist(); m.remove();
+      toast(res.total ? `Cifrado cargado: ${res.matched} de ${res.total} líneas quedaron sincronizadas` : 'Cifrado cargado', 4000);
+      if (onDone) onDone();
+    };
+  }
 
   const songById = (id) => S.songs.find(s => s.id === id);
   const currentSetlist = () => S.setlists.find(s => s.id === S.currentSetlistId) || S.setlists[0];
@@ -159,7 +208,7 @@
     app.innerHTML = '';
     app.appendChild(h(`
       <header class="topbar">
-        <a class="brand" href="#setlist" style="text-decoration:none;color:inherit"><span class="logo">▶</span> Ensayo</a>
+        <a class="brand" href="#setlist" style="text-decoration:none;color:inherit"><span class="logo">▶</span><span>Ensayo</span></a>
         <button class="chip accent" id="instchip" title="Cambiar instrumento">${inst.emoji} ${inst.label}</button>
         <nav>
           <a href="#setlist" class="${active === 'setlist' ? 'active' : ''}">Setlist</a>
@@ -437,6 +486,7 @@
       song.beats = parseInt($('#f-beats', inner).value, 10) || 4;
       song.notes = $('#f-notes', inner).value.trim();
       song.sections = $('#f-sections', inner).value.split('\n').map(l => { const m = /^\s*([^:]+):\s*(.+)$/.exec(l); return m ? { name: m[1].trim(), chords: m[2].trim() } : null; }).filter(Boolean);
+      if (ta.value !== (song.chart || '')) song.chartAuto = false;
       song.chart = ta.value;
       if (song.chart.trim()) song.lyricsStatus = C.parse(song.chart).timed.length ? 'synced' : 'plain';
       const meta = C.parse(song.chart).meta;
@@ -502,6 +552,7 @@
     const idx = sl ? sl.songIds.indexOf(song.id) : -1;
     const prevId = idx > 0 ? sl.songIds[idx - 1] : null, nextId = idx >= 0 && idx < sl.songIds.length - 1 ? sl.songIds[idx + 1] : null;
     let track = trackFor(song, inst);
+    if (applyAutoChords(song)) persist(); // temas agregados antes de esta versión
     let parsed = C.parse(song.chart || '');
     const show = { chords: instDef.show !== 'lyrics' && S.settings.showChords, lyrics: S.settings.showLyrics };
     const st = { transpose: song.transpose || 0, capo: song.capo || 0, loopA: null, loopB: null, rate: 1, sync: false, syncTarget: -1, syncUndo: [], countdown: 0, chordsOpen: true };
@@ -528,7 +579,7 @@
       <aside class="dock">
         <div class="player-box"><div id="playerbox"></div><div class="countin hidden" id="countin"></div></div>
         <video class="rec-preview" id="recpreview" playsinline muted></video>
-        <div class="player-note" id="playernote"><span id="notetext"></span> <button class="linkbtn" id="changebase">Cambiar base</button></div>
+        <div class="player-note" id="playernote"><span id="notetext"></span> <button class="linkbtn" id="changebase">Cambiar base</button> · <button class="linkbtn" id="pastechart2">Pegar cifrado</button></div>
         <div class="transport">
           <div class="main">
             <button class="play" id="play" title="Play/Pausa (espacio)">▶</button>
@@ -579,7 +630,8 @@
     function renderChordPanel() {
       const cp = q('#chordpanel');
       const secs = (song.sections || []).filter(s => s.chords);
-      if (!show.chords || !secs.length) { cp.classList.add('hidden'); return; }
+      const inlineChords = parsed.lines.some(l => l.type === 'line' && l.hasChords && l.hasLyrics);
+      if (!show.chords || !secs.length || inlineChords) { cp.classList.add('hidden'); return; }
       cp.classList.remove('hidden');
       const semis = st.transpose - st.capo;
       const flats = C.useFlats(C.transposeKey(song.key, semis));
@@ -605,6 +657,12 @@
       if (song.lyricsStatus === 'pending') chartEl.appendChild(h(`<div class="nosync">⏳ Buscando la letra sincronizada…</div>`));
       else if (!hasLines) chartEl.appendChild(h(`<div class="nosync">No encontré la letra de este tema. Podés seguir con los acordes de arriba, o tocar <b>Editar</b> y pegar la letra. <button class="btn sm" id="retrylyrics">Buscar de nuevo</button></div>`));
       else if (!parsed.timed.length) chartEl.appendChild(h(`<div class="nosync">La letra no tiene tiempos: no se va a mover sola con la base. Apretá <b>Sincronizar</b>, dale play y marcá cada línea cuando empiece. Se hace una vez y queda.</div>`));
+      const inlineChords = parsed.lines.some(l => l.type === 'line' && l.hasChords && l.hasLyrics);
+      if (hasLines && show.chords && instDef.show !== 'lyrics') {
+        if (song.chartAuto) chartEl.appendChild(h(`<div class="nosync soft">Acordes ubicados de forma <b>aproximada</b> sobre la letra según la estructura del tema. Para tenerlos exactos, pegá el cifrado de Cifra Club o Ultimate Guitar. <button class="btn sm" id="pastechart">📋 Pegar cifrado</button></div>`));
+        else if (!inlineChords) chartEl.appendChild(h(`<div class="nosync soft">Esta letra no tiene acordes. Pegá el cifrado de Cifra Club o Ultimate Guitar y la app lo sincroniza con la letra. <button class="btn sm" id="pastechart">📋 Pegar cifrado</button></div>`));
+      }
+      const pcb = $('#pastechart', chartEl); if (pcb) pcb.onclick = () => openPasteChart(song, () => { parsed = C.parse(song.chart || ''); renderChart(); });
       const rl = $('#retrylyrics', chartEl); if (rl) rl.onclick = () => { song.lyricsStatus = 'pending'; persist(); renderChart(); ensureLyrics(song, true); };
       parsed.lines.forEach((l, i) => {
         let node;
@@ -712,6 +770,7 @@
     }
     function seekTo(chartT) { if (!player) return; const t = Math.max(0, trackTime(chartT)); player.seek(t); clock.report(t, true); }
     q('#changebase').onclick = () => showBasePanel('Elegí otra base para ' + instDef.label.toLowerCase());
+    q('#pastechart2').onclick = () => openPasteChart(song, () => { parsed = C.parse(song.chart || ''); renderChart(); });
 
     // ---- reloj interpolado (YouTube reporta cada ~250 ms)
     const clock = {

@@ -238,7 +238,14 @@
       return toks.length > 0 && toks.every(t => isChord(t) || /^(N\.?C\.?|%|\||x\d+)$/i.test(t));
     };
     for (let i = 0; i < rows.length; i++) {
-      const row = rows[i];
+      let row = rows[i];
+      // "Intro: Am Dm E Am" / "Solo: ( C G )" → encabezado de sección + línea de acordes
+      const lm = /^\s*([A-Za-zÁ-úñÑ][A-Za-zÁ-úñÑ0-9 ]{1,24}?)\s*:\s*(.+)$/.exec(row);
+      if (lm && isChordLine(lm[2].replace(/[()|]/g, ' '))) {
+        out.push(`[${lm[1].trim()}]`, lm[2].replace(/[()|]/g, ' ').trim().split(/\s+/).map(c => `[${c}]`).join(' '));
+        continue;
+      }
+      if (/^\s*\(.*\)\s*$/.test(row) && isChordLine(row.replace(/[()]/g, ' '))) row = row.replace(/[()]/g, ' ');
       if (!isChordLine(row) || /\[[^\]]+\]/.test(row)) { out.push(row); continue; }
       const next = rows[i + 1];
       const nextIsLyric = next != null && next.trim() !== '' && !isChordLine(next) && !/^\{|^\[/.test(next.trim());
@@ -276,8 +283,115 @@
     return seen;
   }
 
+  // ---------------------------------------------------------------------------
+  // Acordes sobre la letra, automáticos y por alineación.
+  // ---------------------------------------------------------------------------
+  function normText(str) { return (str || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9ñ ]/g, ' ').replace(/\s+/g, ' ').trim(); }
+  function dice(a, b) {
+    const A = normText(a).split(' ').filter(Boolean), B = normText(b).split(' ').filter(Boolean);
+    if (!A.length || !B.length) return 0;
+    const setB = new Map(); B.forEach(w => setB.set(w, (setB.get(w) || 0) + 1));
+    let inter = 0; for (const w of A) { const c = setB.get(w) || 0; if (c) { inter++; setB.set(w, c - 1); } }
+    return 2 * inter / (A.length + B.length);
+  }
+  function fmtLine(time, body) { return time != null ? `[${formatTime(time)}] ${body}` : body; }
+
+  /**
+   * Toma un cifrado (inline o recién convertido de "acordes arriba") y le asigna a cada
+   * línea de letra el tiempo de la línea más parecida del LRC (letra sincronizada).
+   * Devuelve { text, matched, total }.
+   */
+  function alignToTimes(chartText, lrcText) {
+    const target = parse(lrcText || '').lines.filter(l => l.type === 'line' && l.time != null && l.text && l.text !== '♪');
+    const rows = (chartText || '').replace(/\r\n?/g, '\n').split('\n');
+    let ti = 0, matched = 0, total = 0;
+    const out = [];
+    for (const raw of rows) {
+      const stripped = raw.replace(/^\s*\[\d+:\d{1,2}(?:\.\d+)?\]\s?/, '');
+      const trimmed = stripped.trim();
+      const isDirective = /^\{[^}]*\}$/.test(trimmed);
+      const isHeader = /^\[([^\]]+)\]$/.test(trimmed) && !isChord(trimmed.slice(1, -1));
+      const plain = stripped.replace(/\[[^\]]*\]/g, '').trim();
+      if (!trimmed || isDirective || isHeader || plain.length < 3 || /^(intro|solo|puente|final|outro|coro|estribillo|verso)\s*:?$/i.test(plain)) { out.push(stripped); continue; }
+      total++;
+      let best = -1, bestScore = 0;
+      for (let j = ti; j < Math.min(target.length, ti + 10); j++) {
+        const sc = dice(plain, target[j].text);
+        if (sc > bestScore) { bestScore = sc; best = j; }
+      }
+      if (best >= 0 && bestScore >= 0.5) { out.push(fmtLine(target[best].time, stripped)); ti = best + 1; matched++; }
+      else out.push(stripped);
+    }
+    return { text: out.join('\n'), matched, total };
+  }
+
+  /**
+   * Genera un cifrado con acordes inline a partir de la letra sincronizada (LRC) y las
+   * progresiones por sección del catálogo. Es aproximado: detecta el estribillo por
+   * líneas repetidas, corta secciones por silencios largos y reparte los acordes de la
+   * progresión a lo largo de cada línea.
+   */
+  function autoChart(lrcText, sections) {
+    const lines = parse(lrcText || '').lines.filter(l => l.type === 'line' && l.text && l.text !== '♪');
+    const secs = (sections || []).map(s => ({ name: normText(s.name), chords: (s.chords || '').split(/\s+/).filter(isChord) })).filter(s => s.chords.length);
+    if (!lines.length || !secs.length) return null;
+    const find = (...keys) => { for (const k of keys) { const s = secs.find(x => x.name.startsWith(k)); if (s) return s.chords; } return null; };
+    const verse = find('verso', 'estrofa', 'verse') || secs[0].chords;
+    const chorus = find('estribillo', 'coro', 'chorus') || verse;
+    const pre = find('pre');
+    const intro = find('intro');
+    const solo = find('solo', 'puente', 'bridge', 'interludio');
+    const outro = find('final', 'outro');
+
+    // Estribillo = líneas cuyo texto se repite en el tema.
+    const counts = {};
+    lines.forEach(l => { const n = normText(l.text); if (n.length > 8) counts[n] = (counts[n] || 0) + 1; });
+    const isChorusLine = (l) => (counts[normText(l.text)] || 0) >= 2;
+
+    // Bloques: cortar por silencios largos o por cambio verso/estribillo.
+    const blocks = [];
+    let cur = null;
+    lines.forEach((l, i) => {
+      const prev = lines[i - 1];
+      const gap = prev && l.time != null && prev.time != null ? l.time - prev.time : 0;
+      const ch = isChorusLine(l);
+      if (!cur || gap > 7 || ch !== cur.chorus) { cur = { chorus: ch, lines: [], gapBefore: gap }; blocks.push(cur); }
+      cur.lines.push(l);
+    });
+
+    const bracket = (arr) => arr.map(c => `[${c}]`).join(' ');
+    const out = [];
+    const first = lines[0].time || 0;
+    if (intro && first > 4) { out.push('[Intro]', fmtLine(0, bracket(intro)), ''); }
+    let lastEnd = first;
+    let verseNo = 0;
+    blocks.forEach((b, bi) => {
+      const start = b.lines[0].time;
+      if (bi > 0 && b.gapBefore > 14 && solo && start != null) { out.push('[Solo]', fmtLine(lastEnd + 2, bracket(solo)), ''); }
+      let prog = b.chorus ? chorus : verse;
+      if (!b.chorus && pre && bi + 1 < blocks.length && blocks[bi + 1].chorus && b.lines.length <= 2) prog = pre;
+      out.push(b.chorus ? '[Estribillo]' : prog === pre ? '[Pre-estribillo]' : `[Verso ${++verseNo}]`);
+      let ci = 0;
+      for (const l of b.lines) {
+        const words = l.text.split(/\s+/).filter(Boolean);
+        const per = prog.length >= 2 && words.length >= 5 ? 2 : 1;
+        let body = '';
+        for (let k = 0; k < per; k++) {
+          const from = Math.round(k * words.length / per), to = Math.round((k + 1) * words.length / per);
+          body += (k ? ' ' : '') + `[${prog[ci % prog.length]}]` + words.slice(from, to).join(' ');
+          ci++;
+        }
+        out.push(fmtLine(l.time, body));
+      }
+      out.push('');
+      lastEnd = b.lines[b.lines.length - 1].time || lastEnd;
+    });
+    if (outro) out.push('[Final]', fmtLine(lastEnd + 3, bracket(outro)));
+    return out.join('\n').replace(/\n{3,}/g, '\n\n').trim() + '\n';
+  }
+
   window.Chart = {
     parse, serialize, activeLineIndex, parseChord, isChord, isTimestamp, parseTime, formatTime, formatClock,
-    transposeChord, transposeKey, useFlats, convertChordsOverLyrics, uniqueChords, SHARPS, FLATS,
+    transposeChord, transposeKey, useFlats, convertChordsOverLyrics, uniqueChords, alignToTimes, autoChart, normText, SHARPS, FLATS,
   };
 })();
