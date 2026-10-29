@@ -405,7 +405,10 @@ ventana propia y arranca el servidor solo. La primera vez pide las claves (Alpac
 real, Massive gratis para el float); sin claves corre el simulador. Las claves y la caché quedan en tu
 perfil de usuario, nunca en la app, igual que la cuenta de práctica (`cuenta-de-practica.json`, con una
 copia anterior `.bak`). Desde el menú *Pulso*: cambiar las claves, reiniciar el servidor, copiar la
-dirección para el celular (misma Wi-Fi: ve la misma cuenta de práctica) y ver el registro.
+dirección para el celular (misma Wi-Fi: ve la misma cuenta de práctica) y ver el registro. Esa dirección
+lleva un **token** al final (`?t=…`): sin él, nadie de la red puede ver el escáner, usar la cuenta de
+práctica ni gastar la clave de Claude. Después de la primera vez, en ese celular la dirección sin token
+también sirve (queda una cookie por un año).
 
 La app no está firmada (firmarla cuesta ~US$ 99 por año en cada plataforma), así que la primera vez:
 
@@ -436,11 +439,14 @@ npm start
    progreso: lista de acciones, snapshots, volumen promedio, velas del día y la conexión al streaming. Las
    claves quedan en tu computadora: la interfaz nunca las recibe.
 
-**Desde el celular:** poné `HOST=0.0.0.0` en `.env`, reiniciá y abrí `http://IP-DE-TU-PC:8787` con el
-celular conectado a la misma red Wi-Fi.
+**Desde el celular:** poné `HOST=0.0.0.0` en `.env`, reiniciá y abrí la dirección que muestra el registro
+al arrancar (`http://IP-DE-TU-PC:8787/?t=TOKEN`) con el celular conectado a la misma red Wi-Fi. El token
+cambia en cada arranque salvo que fijes `PULSO_TOKEN` en `.env`. Sin token, solo entra la propia
+computadora (y una página web ajena abierta en el navegador tampoco puede hablar con el servidor).
 
 | Variable | Para qué |
 | --- | --- |
+| `PULSO_TOKEN` | Token fijo para entrar desde otro equipo de la red (si falta, se genera uno en cada arranque). |
 | `ALPACA_KEY_ID`, `ALPACA_SECRET_KEY`, `ALPACA_FEED` | Alpaca (`auto` = detecta el plan al arrancar, `iex` = plan gratis en capas, `sip` = pago). |
 | `ALPACA_DELAYED_POLL_SEC`, `ALPACA_HOT_REFRESH_SEC` | Plan gratis: cada cuánto se repasa el mercado completo demorado (60) y se completan las velas consolidadas de los símbolos calientes (300). |
 | `PULSO_DATA_DIR` | Carpeta de la cuenta de práctica (`cuenta-de-practica.json`); por defecto `data/`. La app de escritorio usa tu perfil de usuario. |

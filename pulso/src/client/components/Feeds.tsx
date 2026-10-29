@@ -1,9 +1,11 @@
 // Paneles de flujo: momentum (máximos del día), alertas, noticias, halts, watchlist y mapa de máximos.
-import { useMemo, useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 import type { Alert, AlertType, HaltRow, NewsItem, ScanRow } from '../../engine/types';
 import { formatCountdown, formatEtTime } from '../../engine/time';
 import { ALERT_META, GROUP_LABEL, MOMENTUM_TYPES, type AlertGroup } from '../lib/alertMeta';
+import { pressable } from '../lib/a11y';
 import { fmtFloat, fmtPct, fmtPrice, fmtRvol, timeAgo, toneOf } from '../lib/format';
+import { useNow } from '../lib/now';
 import { IconClose } from './Icons';
 import { Empty } from './Panel';
 import { ScoreDots } from './PillarDots';
@@ -15,7 +17,13 @@ const MOMENTUM = new Set<AlertType>(MOMENTUM_TYPES);
  * nueva arriba. El color de la fila dice cuántos pilares cumple (5 magenta, 4 celeste, 3 azul) y se
  * resaltan las celdas que cumplen su pilar: float bajo, volumen relativo de 5x y suba de 10% o más.
  */
-export function MomentumFeed({
+/** "hace 12s" / "hace 3 min": se actualiza solo, una vez por segundo. */
+export function TimeAgo({ ts }: { ts: number }) {
+  const now = useNow(1000);
+  return <>{timeAgo(ts, now || Date.now())}</>;
+}
+
+export const MomentumFeed = memo(function MomentumFeed({
   alerts,
   minScore,
   selected,
@@ -59,7 +67,7 @@ export function MomentumFeed({
         </thead>
         <tbody>
           {rows.map(({ a, types, n }) => (
-            <tr key={a.id} className={`dtd-s${Math.min(5, Math.max(2, a.score))} ${a.sym === selected ? 'is-selected' : ''} ${a.warmup ? 'is-old' : ''}`} onClick={() => onSelect(a.sym)} title={a.text}>
+            <tr key={a.id} className={`dtd-s${Math.min(5, Math.max(2, a.score))} ${a.sym === selected ? 'is-selected' : ''} ${a.warmup ? 'is-old' : ''}`} {...pressable(() => onSelect(a.sym), null)} title={a.text}>
               <td className="dtd-time">
                 {formatEtTime(a.ts)}
                 {n > 1 && <small> ({n})</small>}
@@ -83,9 +91,9 @@ export function MomentumFeed({
       </table>
     </div>
   );
-}
+});
 
-export function AlertFeed({
+export const AlertFeed = memo(function AlertFeed({
   alerts,
   selected,
   onSelect,
@@ -130,11 +138,7 @@ export function AlertFeed({
       ) : (
         <ol className="alert-list">
           {rows.map((a) => (
-            <li
-              key={a.id}
-              className={`alert tone-${a.tone} ${a.sym === selected ? 'is-selected' : ''} ${a.warmup ? 'is-old' : ''}`}
-              onClick={() => onSelect(a.sym)}
-            >
+            <li key={a.id} className={`alert tone-${a.tone} ${a.sym === selected ? 'is-selected' : ''} ${a.warmup ? 'is-old' : ''}`} {...pressable(() => onSelect(a.sym))} aria-label={`${a.sym}: ${a.text}`}>
               <span className="mono t-muted">{formatEtTime(a.ts)}</span>
               <b className="alert-sym">{a.sym}</b>
               <span className={`badge b-${a.type}`}>{ALERT_META[a.type].short}</span>
@@ -149,16 +153,14 @@ export function AlertFeed({
       )}
     </div>
   );
-}
+});
 
-export function NewsPanel({
+export const NewsPanel = memo(function NewsPanel({
   news,
-  now,
   onSelect,
   known,
 }: {
   news: NewsItem[];
-  now: number;
   onSelect: (s: string) => void;
   known: (sym: string) => boolean;
 }) {
@@ -169,7 +171,9 @@ export function NewsPanel({
         <li key={n.id} className={`news s-${n.sentiment ?? 'neutral'}`}>
           <div className="news-top">
             <span className="mono t-muted">{formatEtTime(n.ts, false)}</span>
-            <span className="t-muted">{timeAgo(n.ts, now)}</span>
+            <span className="t-muted">
+              <TimeAgo ts={n.ts} />
+            </span>
             {n.source && <span className="news-src">{n.source}</span>}
             <span className="news-syms">
               {n.symbols.slice(0, 4).map((s) => (
@@ -190,26 +194,26 @@ export function NewsPanel({
       ))}
     </ol>
   );
-}
+});
 
-export function HaltsPanel({
+export const HaltsPanel = memo(function HaltsPanel({
   halts,
-  now,
   selected,
   onSelect,
 }: {
   halts: HaltRow[];
-  now: number;
   selected: string | null;
   onSelect: (s: string) => void;
 }) {
+  // La cuenta regresiva de cada halt avanza una vez por segundo.
+  const now = useNow(1000);
   if (!halts.length) return <Empty>Ningún halt por ahora. Las pausas LULD duran 5 minutos.</Empty>;
   return (
     <ol className="halt-list">
       {halts.map((h) => {
         const diff = h.haltPrice > 0 ? ((h.price - h.haltPrice) / h.haltPrice) * 100 : 0;
         return (
-          <li key={h.sym + h.ts} className={`halt ${h.halted ? 'is-halted' : 'is-resumed'} ${h.sym === selected ? 'is-selected' : ''}`} onClick={() => onSelect(h.sym)}>
+          <li key={h.sym + h.ts} className={`halt ${h.halted ? 'is-halted' : 'is-resumed'} ${h.sym === selected ? 'is-selected' : ''}`} {...pressable(() => onSelect(h.sym))}>
             <div className="halt-top">
               <b>{h.sym}</b>
               <span className={`status-pill ${h.halted ? 'warn' : 'up'}`}>{h.halted ? 'HALT' : 'REANUDÓ'}</span>
@@ -231,9 +235,9 @@ export function HaltsPanel({
       })}
     </ol>
   );
-}
+});
 
-export function WatchlistPanel({
+export const WatchlistPanel = memo(function WatchlistPanel({
   rows,
   watch,
   selected,
@@ -273,7 +277,7 @@ export function WatchlistPanel({
           {watch.map((sym) => {
             const r = bySym.get(sym);
             return (
-              <li key={sym} className={sym === selected ? 'is-selected' : ''} onClick={() => onSelect(sym)}>
+              <li key={sym} className={sym === selected ? 'is-selected' : ''} {...pressable(() => onSelect(sym))}>
                 <b>{sym}</b>
                 <span className="mono">{r ? fmtPrice(r.price) : '—'}</span>
                 <span className={`mono t-${toneOf(r?.changePct ?? 0)}`}>{r ? fmtPct(r.changePct) : ''}</span>
@@ -295,10 +299,10 @@ export function WatchlistPanel({
       )}
     </div>
   );
-}
+});
 
 /** Dónde está el precio dentro del rango del día (mínimo → máximo), con la marca del VWAP. */
-export function HodBoard({ rows, selected, onSelect }: { rows: ScanRow[]; selected: string | null; onSelect: (s: string) => void }) {
+export const HodBoard = memo(function HodBoard({ rows, selected, onSelect }: { rows: ScanRow[]; selected: string | null; onSelect: (s: string) => void }) {
   if (!rows.length) return <Empty>Sin gappers todavía.</Empty>;
   return (
     <ol className="hod-board">
@@ -308,7 +312,7 @@ export function HodBoard({ rows, selected, onSelect }: { rows: ScanRow[]; select
         const vw = range > 0 ? Math.min(100, Math.max(0, ((r.vwap - r.lod) / range) * 100)) : 50;
         const tone = pos >= 90 ? 'up' : pos <= 40 ? 'down' : 'mid';
         return (
-          <li key={r.sym} className={r.sym === selected ? 'is-selected' : ''} onClick={() => onSelect(r.sym)} title={`Mín. ${fmtPrice(r.lod)} · VWAP ${fmtPrice(r.vwap)} · Máx. ${fmtPrice(r.hod)}`}>
+          <li key={r.sym} className={r.sym === selected ? 'is-selected' : ''} {...pressable(() => onSelect(r.sym))} title={`Mín. ${fmtPrice(r.lod)} · VWAP ${fmtPrice(r.vwap)} · Máx. ${fmtPrice(r.hod)}`}>
             <b>{r.sym}</b>
             <span className="hod-track">
               <span className={`hod-fill ${tone}`} style={{ width: `${pos}%` }} />
@@ -322,4 +326,4 @@ export function HodBoard({ rows, selected, onSelect }: { rows: ScanRow[]; select
       })}
     </ol>
   );
-}
+});

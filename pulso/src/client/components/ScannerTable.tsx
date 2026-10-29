@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { memo, useMemo, useState, type ReactNode } from 'react';
 import type { ScannerId, ScanRow } from '../../engine/types';
 import { fmtFloat, fmtPct, fmtPrice, fmtRvol, fmtVolume, toneOf } from '../lib/format';
 import { load, save } from '../lib/storage';
@@ -138,7 +138,7 @@ interface Props {
   sortKey?: string;
 }
 
-export function ScannerTable({ rows, columns, selected, onSelect, minScoreHighlight = 5, extra, sortKey }: Props) {
+export const ScannerTable = memo(function ScannerTable({ rows, columns, selected, onSelect, minScoreHighlight = 5, extra, sortKey }: Props) {
   const storage = sortKey ? `sort-${sortKey}` : null;
   const [sort, setSort] = useState<SortState | null>(() => (storage ? load<SortState | null>(storage, null) : null));
   const sorted = useMemo(() => sortRows(rows, columns, sort), [rows, columns, sort]);
@@ -157,15 +157,16 @@ export function ScannerTable({ rows, columns, selected, onSelect, minScoreHighli
               const active = sort?.id === c.id;
               const canSort = !!c.sort && !!storage;
               return (
-                <th
-                  key={c.id}
-                  className={`${c.className ?? ''} ${canSort ? 'sortable' : ''} ${active ? 'is-sorted' : ''}`}
-                  title={canSort ? `${c.title ? `${c.title}. ` : ''}Tocá para ordenar por ${c.label}` : c.title}
-                  onClick={() => toggle(c)}
-                  aria-sort={active ? (sort!.dir === 'asc' ? 'ascending' : 'descending') : undefined}
-                >
-                  {c.label}
-                  {active && <span className="sort-arrow">{sort!.dir === 'asc' ? '▲' : '▼'}</span>}
+                <th key={c.id} className={`${c.className ?? ''} ${canSort ? 'sortable' : ''} ${active ? 'is-sorted' : ''}`} title={canSort ? undefined : c.title} aria-sort={active ? (sort!.dir === 'asc' ? 'ascending' : 'descending') : undefined}>
+                  {canSort ? (
+                    // Un botón de verdad: se ordena también con Tab y Enter.
+                    <button type="button" className="th-btn" onClick={() => toggle(c)} title={`${c.title ? `${c.title}. ` : ''}Ordenar por ${c.label}`}>
+                      {c.label}
+                      {active && <span className="sort-arrow">{sort!.dir === 'asc' ? '▲' : '▼'}</span>}
+                    </button>
+                  ) : (
+                    c.label
+                  )}
                 </th>
               );
             })}
@@ -180,7 +181,9 @@ export function ScannerTable({ rows, columns, selected, onSelect, minScoreHighli
               onClick={() => onSelect(r.sym)}
               tabIndex={0}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') onSelect(r.sym);
+                if (e.target !== e.currentTarget || (e.key !== 'Enter' && e.key !== ' ')) return;
+                e.preventDefault();
+                onSelect(r.sym);
               }}
             >
               {columns.map((c) => (
@@ -195,4 +198,4 @@ export function ScannerTable({ rows, columns, selected, onSelect, minScoreHighli
       </table>
     </div>
   );
-}
+});

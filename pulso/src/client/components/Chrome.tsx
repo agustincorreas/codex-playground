@@ -4,7 +4,9 @@ import type { AlertType, ProviderStatus, Session, Settings } from '../../engine/
 import { DEFAULT_SETTINGS } from '../../engine/types';
 import { formatCountdown, formatEtClock, nextSessionChange, SESSION_LABEL } from '../../engine/time';
 import { ALERT_META } from '../lib/alertMeta';
-import { fmtMoney } from '../../trading/broker';
+import { fmtMoney } from '../lib/format';
+import { useNow } from '../lib/now';
+import { NumberInput } from './NumberInput';
 import { IconBolt, IconBook, IconChart, IconClose, IconGear, IconLayout, IconMoon, IconMute, IconNews, IconPulse, IconPause, IconScan, IconSearch, IconSound, IconSun, IconVoice } from './Icons';
 
 export interface Prefs {
@@ -20,7 +22,6 @@ export interface Prefs {
 }
 
 interface HeaderProps {
-  now: number;
   session: Session;
   status: ProviderStatus | null;
   speed: number;
@@ -36,30 +37,33 @@ interface HeaderProps {
   /** Cuenta de práctica (equity y resultado del día). */
   account: { equity: number; dayPnl: number } | null;
   onJournal: () => void;
-  /** El navegador todavía no dejó reproducir audio (hace falta un toque). */
-  audioLocked?: boolean;
   /** Reacomodar ventanas (solo escritorio): estado y botón. */
   layoutEditing?: boolean;
   onLayout?: () => void;
   /** Día simulado (o "Mercado ahora"): etiqueta y botón para elegir otro día. */
   day?: { label: string; tone: 'live' | 'sim' | 'off'; title: string };
   onDay?: () => void;
+  /** Con servidor de datos reales: elegir entre el mercado real y el simulador (misma cuenta). */
+  sourceSwitch?: { sim: boolean; onSwitch: () => void };
 }
 
-export function Header({ now, session, status, speed, onSpeed, prefs, onPrefs, onSettings, onSearch, search, effectiveTheme, canSpeed, account, onJournal, audioLocked, layoutEditing, onLayout, day, onDay }: HeaderProps) {
+export function Header({ session, status, speed, onSpeed, prefs, onPrefs, onSettings, onSearch, search, effectiveTheme, canSpeed, account, onJournal, layoutEditing, onLayout, day, onDay, sourceSwitch }: HeaderProps) {
   const [q, setQ] = useState('');
   const [suggest, setSuggest] = useState<string[]>([]);
-  const next = now ? nextSessionChange(now) : null;
+  const next = useNow(1000);
+  const nextChange = next ? nextSessionChange(next) : null;
 
+  // Las sugerencias se piden 150 ms después de la última tecla (no en cada letra ni en cada dibujo).
   useEffect(() => {
     let alive = true;
     if (!q) {
       setSuggest([]);
       return;
     }
-    void search(q).then((r) => alive && setSuggest(r));
+    const id = setTimeout(() => void search(q).then((r) => alive && setSuggest(r)), 150);
     return () => {
       alive = false;
+      clearTimeout(id);
     };
   }, [q, search]);
 
@@ -88,13 +92,23 @@ export function Header({ now, session, status, speed, onSpeed, prefs, onPrefs, o
       </div>
 
       <div className="clock">
-        <span className="clock-time mono">{now ? formatEtClock(now) : '--:--:--'}</span>
+        <Clock />
         <span className="clock-tz">ET</span>
         <span className={`session s-${session}`}>{SESSION_LABEL[session]}</span>
-        {next && (
+        {nextChange && (
           <span className="countdown mono">
-            {next.label} {formatCountdown(next.at - now)}
+            {nextChange.label} {formatCountdown(nextChange.at - next)}
           </span>
+        )}
+        {sourceSwitch && (
+          <div className="seg src-switch" role="group" aria-label="Mercado real o simulador">
+            <button type="button" className={sourceSwitch.sim ? '' : 'is-active'} onClick={() => sourceSwitch.sim && sourceSwitch.onSwitch()} title="Los datos reales del servidor">
+              Mercado real
+            </button>
+            <button type="button" className={sourceSwitch.sim ? 'is-active' : ''} onClick={() => !sourceSwitch.sim && sourceSwitch.onSwitch()} title="El mercado simulado: elegís día, hora y velocidad; la cuenta de práctica es la misma">
+              Simulador
+            </button>
+          </div>
         )}
         {day && (
           <button type="button" className={`day-chip d-${day.tone}`} onClick={onDay} title={day.title}>
@@ -148,11 +162,6 @@ export function Header({ now, session, status, speed, onSpeed, prefs, onPrefs, o
             ))}
           </div>
         )}
-        {prefs.sound && audioLocked && (
-          <span className="audio-hint" role="note">
-            Tocá la pantalla para activar el sonido
-          </span>
-        )}
         <button className={`icon-btn ${prefs.sound ? 'is-on' : ''}`} onClick={() => onPrefs({ sound: !prefs.sound })} aria-pressed={prefs.sound} title={prefs.sound ? 'Silenciar alertas' : 'Activar sonido de alertas'}>
           {prefs.sound ? <IconSound /> : <IconMute />}
         </button>
@@ -173,6 +182,12 @@ export function Header({ now, session, status, speed, onSpeed, prefs, onPrefs, o
       </div>
     </header>
   );
+}
+
+/** La hora de Nueva York, con segundos: es lo único que se vuelve a dibujar cuatro veces por segundo. */
+function Clock() {
+  const now = useNow();
+  return <span className="clock-time mono">{now ? formatEtClock(now) : '--:--:--'}</span>;
 }
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
@@ -197,14 +212,10 @@ interface SettingsProps {
 export function SettingsModal({ settings, prefs, onSave, onClose, onPractice }: SettingsProps) {
   const [s, setS] = useState<Settings>(settings);
   const [p, setP] = useState<Prefs>(prefs);
+  // Campos numéricos: lo que escribís queda tal cual (vale la coma decimal) y se guarda cuando es un número.
   const num = (k: keyof Settings, scale = 1) => ({
-    type: 'number',
-    inputMode: 'decimal' as const,
-    value: String(Number((s[k] / scale).toFixed(4))),
-    onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
-      const v = Number(e.target.value);
-      if (Number.isFinite(v)) setS({ ...s, [k]: v * scale });
-    },
+    value: Number((s[k] / scale).toFixed(4)),
+    onCommit: (v: number) => setS((cur) => ({ ...cur, [k]: v * scale })),
   });
 
   useEffect(() => {
@@ -239,28 +250,28 @@ export function SettingsModal({ settings, prefs, onSave, onClose, onPractice }: 
             <p className="legend-hint">Criterios de selección de small caps para momentum: precio, suba del día, volumen relativo, noticia y float.</p>
             <div className="grid-fields">
               <Field label="Precio mínimo (US$)">
-                <input id="set-price-min" {...num('priceMin')} step="0.5" min={0} />
+                <NumberInput id="set-price-min" {...num('priceMin')} min={0} />
               </Field>
               <Field label="Precio máximo (US$)">
-                <input id="set-price-max" {...num('priceMax')} step="1" min={1} />
+                <NumberInput id="set-price-max" {...num('priceMax')} min={1} />
               </Field>
               <Field label="Suba mínima del día (%)">
-                <input id="set-min-change" {...num('minChangePct')} step="1" min={0} />
+                <NumberInput id="set-min-change" {...num('minChangePct')} min={0} />
               </Field>
               <Field label="Volumen relativo mínimo (x)" hint="Ajustado por horario">
-                <input id="set-min-rvol" {...num('minRvol')} step="0.5" min={0} />
+                <NumberInput id="set-min-rvol" {...num('minRvol')} min={0} />
               </Field>
               <Field label="Float ideal máximo (millones)">
-                <input id="set-max-float" {...num('maxFloat', 1e6)} step="1" min={0} />
+                <NumberInput id="set-max-float" {...num('maxFloat', 1e6)} min={0} />
               </Field>
               <Field label="Float aceptable (millones)" hint="Lista Low float">
-                <input id="set-max-float-soft" {...num('maxFloatSoft', 1e6)} step="1" min={0} />
+                <NumberInput id="set-max-float-soft" {...num('maxFloatSoft', 1e6)} min={0} />
               </Field>
               <Field label="Noticia: ventana (horas)">
-                <input id="set-news-window" {...num('newsWindowHours')} step="1" min={1} />
+                <NumberInput id="set-news-window" {...num('newsWindowHours')} min={1} />
               </Field>
               <Field label="Lista 5 pilares: mínimo">
-                <input id="set-pillars-min" {...num('pillarsMinScore')} step="1" min={1} max={5} />
+                <NumberInput id="set-pillars-min" {...num('pillarsMinScore')} min={1} max={5} />
               </Field>
             </div>
           </fieldset>
@@ -268,16 +279,16 @@ export function SettingsModal({ settings, prefs, onSave, onClose, onPractice }: 
             <legend>Escáneres</legend>
             <div className="grid-fields">
               <Field label="Volumen mínimo del día">
-                <input id="set-min-volume" {...num('minVolume')} step="10000" min={0} />
+                <NumberInput id="set-min-volume" {...num('minVolume')} min={0} />
               </Field>
               <Field label="Gappers: suba mínima (%)">
-                <input id="set-gapper-min" {...num('gapperMinPct')} step="1" min={0} />
+                <NumberInput id="set-gapper-min" {...num('gapperMinPct')} min={0} />
               </Field>
               <Field label="Subiendo ahora: % en 5 min">
-                <input id="set-run-min" {...num('runMinPct5m')} step="0.5" min={0} />
+                <NumberInput id="set-run-min" {...num('runMinPct5m')} min={0} />
               </Field>
               <Field label="Alertas de máximo: suba mín. (%)">
-                <input id="set-hod-min" {...num('hodMinChangePct')} step="1" min={0} />
+                <NumberInput id="set-hod-min" {...num('hodMinChangePct')} min={0} />
               </Field>
             </div>
           </fieldset>

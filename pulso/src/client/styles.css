@@ -12,6 +12,8 @@
   --text: #e8ebf2;
   --muted: #9aa4b8;
   --faint: #667089;
+  /* Contorno de tu orden en el libro (blanco sobre el tema oscuro, tinta sobre el claro). */
+  --l2-own: #ffffff;
   --accent: #5b9aff;
   --up: #34d26a;
   --down: #ff5a52;
@@ -86,7 +88,8 @@
     --grid: #edf0f6;
     --text: #141b2d;
     --muted: #4f5a72;
-    --faint: #8d97ad;
+    --faint: #515d77;
+    --l2-own: #141b2d;
     --accent: #1f5fd6;
     --up: #0b8a43;
     --down: #d22c25;
@@ -126,7 +129,8 @@
   --grid: #edf0f6;
   --text: #141b2d;
   --muted: #4f5a72;
-  --faint: #8d97ad;
+  --faint: #515d77;
+  --l2-own: #141b2d;
   --accent: #1f5fd6;
   --up: #0b8a43;
   --down: #d22c25;
@@ -301,6 +305,10 @@ button:disabled {
   color: var(--faint);
   display: inline-flex;
   cursor: help;
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
 }
 .help:hover {
   color: var(--text);
@@ -444,10 +452,12 @@ button:disabled {
   color: var(--muted);
   margin-left: auto;
 }
+.search:focus-within {
+  border-color: var(--accent);
+}
 .search input {
   background: none;
   border: 0;
-  outline: none;
   width: 130px;
   height: 30px;
   text-transform: uppercase;
@@ -1553,7 +1563,7 @@ a.news-headline:hover {
   background: var(--l2-4);
 }
 .l2-side tr.is-own td {
-  outline: 2px solid #fff;
+  outline: 2px solid var(--l2-own);
   outline-offset: -2px;
   font-style: italic;
 }
@@ -3132,13 +3142,11 @@ legend {
   width: 13px;
   height: 13px;
 }
-/* Flotante: no ocupa lugar en el encabezado, así al desaparecer con el primer toque nada se mueve. */
+/* En la barra de estado (no tapa nada); desaparece con el primer toque o con su botón de cerrar. */
 .audio-hint {
-  position: fixed;
-  top: 52px;
-  right: 16px;
-  z-index: 40;
-  pointer-events: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: 12px;
   color: var(--warn);
   background: var(--panel);
@@ -3148,6 +3156,14 @@ legend {
   white-space: nowrap;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
   animation: audio-hint-pulse 1.6s ease-in-out infinite;
+}
+.audio-hint-close {
+  background: none;
+  border: 0;
+  padding: 0 2px;
+  color: inherit;
+  font-size: 14px;
+  line-height: 1;
 }
 @keyframes audio-hint-pulse {
   50% {
@@ -3806,6 +3822,22 @@ table.scan th.sortable {
   cursor: pointer;
   user-select: none;
 }
+/* El título ordenable es un botón: hereda el estilo de la celda y se usa con el teclado. */
+table.scan th .th-btn {
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+table.scan th .th-btn:focus-visible {
+  outline-offset: 0;
+}
 table.scan th.sortable:hover {
   color: var(--accent);
 }
@@ -4031,4 +4063,20 @@ table.scan th .sort-arrow {
 .badge.ai-dec-sellAll {
   color: var(--down);
   background: color-mix(in srgb, var(--down) 14%, transparent);
+}
+
+/* ---------------------------------------------------------------- mercado real / simulador */
+.src-switch {
+  align-self: center;
+}
+.src-switch button {
+  height: 26px;
+  padding: 0 8px;
+}
+.closed-banner {
+  background: color-mix(in srgb, var(--warn) 14%, var(--panel));
+  border-bottom: 1px solid color-mix(in srgb, var(--warn) 40%, var(--line));
+  padding: 6px 12px;
+  font-size: 12.5px;
+  color: var(--text);
 }

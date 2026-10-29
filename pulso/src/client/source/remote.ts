@@ -17,6 +17,8 @@ export class RemoteSource implements DataSource {
   /** Último mensaje del servidor (manda una vista por segundo: si se calla, la conexión murió). */
   private lastMessage = 0;
   private watchTimer?: ReturnType<typeof setInterval>;
+  /** Reintento de conexión pendiente: se cancela en `stop()` para no reconectar una fuente ya cerrada. */
+  private reconnectTimer?: ReturnType<typeof setTimeout>;
   private readonly onVisible = () => {
     if (document.visibilityState === 'visible') this.checkAlive(true);
   };
@@ -80,7 +82,14 @@ export class RemoteSource implements DataSource {
       this.lastMessage = Date.now();
       const h = this.h;
       if (!h) return;
-      const msg = JSON.parse(String(m.data));
+      let msg;
+      try {
+        msg = JSON.parse(String(m.data));
+      } catch {
+        console.warn('Pulso: mensaje del servidor ilegible, se ignora.');
+        return;
+      }
+      if (!msg || typeof msg !== 'object') return;
       switch (msg.t) {
         case 'hello':
           h.onStatus(msg.status);
@@ -133,7 +142,11 @@ export class RemoteSource implements DataSource {
         message: 'Sin conexión con el servidor de Pulso. Reintentando…',
       });
       const wait = Math.min(10_000, 500 * 2 ** this.retry++);
-      setTimeout(() => this.connect(), wait);
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = setTimeout(() => {
+        this.reconnectTimer = undefined;
+        if (!this.closed) this.connect();
+      }, wait);
     };
   }
 
@@ -144,8 +157,15 @@ export class RemoteSource implements DataSource {
   stop(): void {
     this.closed = true;
     if (this.watchTimer) clearInterval(this.watchTimer);
+    clearTimeout(this.reconnectTimer);
+    this.reconnectTimer = undefined;
     document.removeEventListener('visibilitychange', this.onVisible);
-    this.ws?.close();
+    const ws = this.ws;
+    if (ws) {
+      ws.onclose = null;
+      ws.onmessage = null;
+      ws.close();
+    }
   }
 
   select(sym: string | null): void {
@@ -217,7 +237,9 @@ export class RemoteSource implements DataSource {
   async search(prefix: string): Promise<string[]> {
     try {
       const r = await fetch(`/api/search?q=${encodeURIComponent(prefix)}`);
-      return r.ok ? await r.json() : [];
+      if (!r.ok) return [];
+      const list: unknown = await r.json();
+      return Array.isArray(list) ? list.filter((x): x is string => typeof x === 'string') : [];
     } catch {
       return [];
     }
@@ -247,17 +269,19 @@ export class RemoteSource implements DataSource {
 }
 
 /** ¿La página la sirve el servidor de Pulso? Si no (demo estático), se usa el simulador local. */
-export async function detectServer(): Promise<{ mode: string; provider: string } | null> {
+/** ¿Hay servidor de Pulso? Con `?demo` en la URL se ignora (salvo `force`: para saber dónde guardar la cuenta). */
+export async function detectServer(force = false): Promise<{ mode: string; provider: string } | null> {
   if (import.meta.env.MODE === 'demo') return null;
-  if (new URLSearchParams(location.search).has('demo')) return null;
+  if (!force && new URLSearchParams(location.search).has('demo')) return null;
   try {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 1500);
     const r = await fetch('/api/health', { signal: ctrl.signal });
     clearTimeout(timer);
+    // Un hosting estático contesta 404 (o una página HTML): no es un error, es que no hay servidor.
     if (!r.ok || !(r.headers.get('content-type') ?? '').includes('json')) return null;
-    const body = await r.json();
-    return body?.app === 'pulso' ? body : null;
+    const body: unknown = await r.json();
+    return body && typeof body === 'object' && (body as { app?: unknown }).app === 'pulso' ? (body as { mode: string; provider: string }) : null;
   } catch {
     return null;
   }

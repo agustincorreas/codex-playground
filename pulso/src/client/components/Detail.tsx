@@ -2,14 +2,14 @@
 // los 5 pilares y la salud del setup.
 import type { Settings, SymbolDetail } from '../../engine/types';
 import { formatEtTime } from '../../engine/time';
-import { fmtFloat, fmtMoney, fmtPct, fmtPrice, fmtRvol, fmtVolume, timeAgo, toneOf } from '../lib/format';
+import { fmtFloat, fmtMoneyShort, fmtPct, fmtPrice, fmtRvol, fmtVolume, timeAgo, toneOf } from '../lib/format';
+import { useNow } from '../lib/now';
 import { IconStar } from './Icons';
 import { Empty } from './Panel';
 
 interface Props {
   detail: SymbolDetail | null;
   settings: Settings;
-  now: number;
   watched: boolean;
   onToggleWatch: (sym: string) => void;
 }
@@ -26,7 +26,9 @@ function Check({ ok, label, value }: { ok: boolean | null; label: string; value:
   );
 }
 
-export function Detail({ detail, settings: s, now, watched, onToggleWatch }: Props) {
+export function Detail({ detail, settings: s, watched, onToggleWatch }: Props) {
+  // "hace 3 min" de las noticias: se actualiza una vez por segundo.
+  const now = useNow(1000) || Date.now();
   if (!detail) return <Empty>Elegí una acción de cualquier lista para ver su cotización.</Empty>;
   const r = detail.row;
   const p = r.pillars;
@@ -157,7 +159,7 @@ export function Detail({ detail, settings: s, now, watched, onToggleWatch }: Pro
         </div>
         <div>
           <dt>Capitalización</dt>
-          <dd>{shares ? fmtMoney(shares * r.price) : '—'}</dd>
+          <dd>{shares ? fmtMoneyShort(shares * r.price) : '—'}</dd>
         </div>
       </dl>
 

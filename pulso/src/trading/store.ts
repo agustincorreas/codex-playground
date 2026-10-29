@@ -10,10 +10,19 @@ export interface TrainingStore {
   readonly clientId?: string;
   /** Avisa cuando la cuenta de Claude deja de aceptar escrituras y se pasa a guardar en el navegador. */
   onFallback?: () => void;
+  /**
+   * El servidor tiene una cuenta más nueva que la de esta página (otro dispositivo la cambió mientras
+   * acá se guardaba): la página tiene que reemplazar la suya por esta.
+   */
+  onConflict?: (snapshot: { state: TrainingState | null; sessions: SessionRecord[] }) => void;
+  /** Última revisión conocida del servidor (solo los almacenamientos con revisiones). */
+  readonly rev?: number;
   load(): Promise<{ state: TrainingState | null; sessions: SessionRecord[] }>;
   saveState(state: TrainingState): Promise<void>;
   saveSession(rec: SessionRecord): Promise<void>;
   clear(): Promise<void>;
+  /** Espera a que terminen las escrituras en vuelo (antes de volver a leer, por ejemplo). */
+  flush?(): Promise<void>;
 }
 
 /** Tamaño máximo de un documento (la base acepta 256 KiB; se deja margen). */
@@ -267,6 +276,7 @@ export class DbTrainingStore implements TrainingStore {
 export class ServerTrainingStore implements TrainingStore {
   readonly kind = 'servidor' as const;
   onFallback?: () => void;
+  onConflict?: (snapshot: { state: TrainingState | null; sessions: SessionRecord[] }) => void;
   readonly clientId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
   /** Última revisión conocida del servidor. */
   rev = 0;
@@ -276,15 +286,22 @@ export class ServerTrainingStore implements TrainingStore {
   private sessionWrites: Promise<void> = Promise.resolve();
   private warned = false;
 
-  private async request(path: string, method: string, body?: unknown): Promise<Response> {
+  /** `ifMatch`: la revisión que se espera encontrar en el servidor (concurrencia optimista); 409 si cambió. */
+  private async request(path: string, method: string, body?: unknown, ifMatch?: number): Promise<Response> {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json', 'X-Pulso-Client': this.clientId };
+    if (ifMatch !== undefined) headers['If-Match'] = String(ifMatch);
     const res = await fetch(path, {
       method,
       cache: 'no-store',
-      headers: { 'Content-Type': 'application/json', 'X-Pulso-Client': this.clientId },
+      headers,
       body: body === undefined ? undefined : JSON.stringify(body),
     });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (!res.ok && !(res.status === 409 && ifMatch !== undefined)) throw new Error(`HTTP ${res.status}`);
     return res;
+  }
+
+  flush(): Promise<void> {
+    return Promise.all([this.writing, this.sessionWrites]).then(() => undefined);
   }
 
   async load() {
@@ -313,7 +330,7 @@ export class ServerTrainingStore implements TrainingStore {
       slot.started = true;
       const next = slot.state;
       if (!next) return;
-      if (!(await this.write('/api/account/state', next))) await this.local.saveState(next);
+      if (!(await this.writeState(next))) await this.local.saveState(next);
     });
     return this.writing;
   }
@@ -323,6 +340,68 @@ export class ServerTrainingStore implements TrainingStore {
       if (!(await this.write('/api/account/session', rec))) await this.local.saveSession(rec);
     });
     return this.sessionWrites;
+  }
+
+  /**
+   * El estado va con `If-Match: rev`. Si otro dispositivo escribió antes (409), el servidor manda su
+   * cuenta: si la de acá es más nueva se reintenta una vez con la revisión nueva; si no (o si vuelve a
+   * chocar), gana la del servidor y la página la toma (`onConflict`). Devuelve false solo si el
+   * servidor no responde (y entonces queda en el navegador).
+   */
+  private async writeState(state: TrainingState): Promise<boolean> {
+    let retried = false;
+    let conflicts = 0;
+    for (;;) {
+      let res: Response;
+      try {
+        res = await this.request('/api/account/state', 'PUT', state, this.rev);
+      } catch (e) {
+        if (!retried) {
+          retried = true;
+          await new Promise((r) => setTimeout(r, 1000));
+          continue;
+        }
+        return this.failed(e);
+      }
+      if (res.status !== 409) {
+        this.rev = ((await res.json()) as { rev: number }).rev;
+        this.warned = false;
+        return true;
+      }
+      const server = (await res.json()) as { rev: number; state: TrainingState | null; sessions: SessionRecord[] };
+      this.rev = server.rev;
+      const newer = !server.state || state.updatedAt >= server.state.updatedAt;
+      if (newer && ++conflicts < 2) continue;
+      this.onConflict?.({ state: server.state, sessions: server.sessions });
+      return true;
+    }
+  }
+
+  private failed(e: unknown): false {
+    console.warn('No se pudo guardar en el servidor de Pulso', e);
+    if (!this.warned) {
+      this.warned = true;
+      this.onFallback?.();
+    }
+    return false;
+  }
+
+  /** Los días se fusionan por id en el servidor: van sin `If-Match`. Reintenta una vez si no responde. */
+  private async write(path: string, body: unknown): Promise<boolean> {
+    for (let attempt = 0; ; attempt++) {
+      try {
+        const res = await this.request(path, 'PUT', body);
+        this.rev = ((await res.json()) as { rev: number }).rev;
+        this.warned = false;
+        return true;
+      } catch (e) {
+        if (attempt === 0) {
+          await new Promise((r) => setTimeout(r, 1000));
+          continue;
+        }
+        return this.failed(e);
+      }
+    }
   }
 
   clear(): Promise<void> {
@@ -339,28 +418,6 @@ export class ServerTrainingStore implements TrainingStore {
     });
     this.sessionWrites = this.sessionWrites.then(() => this.writing);
     return this.writing;
-  }
-
-  private async write(path: string, body: unknown): Promise<boolean> {
-    for (let attempt = 0; ; attempt++) {
-      try {
-        const res = await this.request(path, 'PUT', body);
-        this.rev = ((await res.json()) as { rev: number }).rev;
-        this.warned = false;
-        return true;
-      } catch (e) {
-        if (attempt === 0) {
-          await new Promise((r) => setTimeout(r, 1000));
-          continue;
-        }
-        console.warn('No se pudo guardar en el servidor de Pulso', e);
-        if (!this.warned) {
-          this.warned = true;
-          this.onFallback?.();
-        }
-        return false;
-      }
-    }
   }
 }
 

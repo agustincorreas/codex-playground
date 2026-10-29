@@ -288,12 +288,14 @@ export class AlpacaProvider implements Provider {
     ctx.setStatus({ connected: false, message: 'Alpaca: descargando la lista de acciones…' });
 
     const assets = await this.assets();
+    if (!ctx.alive()) return;
     const listed = assets.filter((a) => a.tradable && a.status === 'active' && EXCHANGES.has(a.exchange));
     const names = new Map(listed.map((a) => [a.symbol, a]));
     log('info', `Alpaca: ${listed.length} acciones listadas.`);
 
     ctx.setStatus({ message: `Alpaca: snapshots de ${listed.length} acciones…` });
     const snaps = await this.snapshots(listed.map((a) => a.symbol));
+    if (!ctx.alive()) return;
     const engine = ctx.engine();
     if (this.layered) engine.feedScale = 35;
     const refs: ReferenceData[] = [];
@@ -342,11 +344,13 @@ export class AlpacaProvider implements Provider {
       .map((d) => d.sym);
     ctx.setStatus({ message: `Alpaca: velas del día de ${candidates.length} acciones en movimiento…` });
     const bars = await this.dayBars(candidates);
+    if (!ctx.alive()) return;
     for (const [sym, list] of bars) engine.setBars(sym, list);
     this.wantedHot = new Set(candidates.slice(0, this.cfg.hotLimit));
 
     try {
       const recent = await this.recentNews();
+      if (!ctx.alive()) return;
       engine.warmup = true;
       for (const n of recent) engine.ingest({ kind: 'news', item: n });
       engine.warmup = false;
@@ -355,6 +359,7 @@ export class AlpacaProvider implements Provider {
       log('warn', `Alpaca noticias: ${(e as Error).message}`);
     }
 
+    if (!ctx.alive()) return;
     this.connectStream();
     this.connectNews();
     if (this.layered) {

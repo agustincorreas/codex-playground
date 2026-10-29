@@ -112,13 +112,15 @@ export function narrative(f: ReviewFacts): string[] {
   if (f.largestLoss < 0 && Math.abs(f.largestLoss) > Math.abs(f.net) && f.net > 0) p2.push(`Tu peor trade (${money(f.largestLoss)}) se llevó más que todo lo que llevás ganado: un solo trade sin stop puede borrar semanas.`);
   if (p2.length) out.push(p2.join(' '));
 
-  const p3: string[] = [];
-  if (f.bestHour && f.bestHour.net > 0) p3.push(`Tu mejor horario es ${f.bestHour.label} (${money(f.bestHour.net)} en ${f.bestHour.trades} trades)`);
-  if (f.worstHour && f.worstHour.net < 0) p3.push(`${p3.length ? 'y el que más te cuesta' : 'El horario que más te cuesta'} es ${f.worstHour.label} (${money(f.worstHour.net)})`);
-  if (p3.length) p3[p3.length - 1] += '.';
-  if (f.bestSetup && f.bestSetup.net > 0) p3.push(`Con ${f.bestSetup.label} te va mejor (${money(f.bestSetup.net)}, ${pct(f.bestSetup.winRate)} de aciertos)`);
-  if (f.worstSetup && f.worstSetup.net < 0) p3.push(`${p3.length > (f.bestHour || f.worstHour ? 1 : 0) ? 'y' : ''} ${f.worstSetup.label} te está costando (${money(f.worstSetup.net)}): operalo menos hasta que los números cambien`.trim());
-  if (p3.length) out.push(p3.join(p3.length > 1 && !p3[0].endsWith('.') ? ' ' : ' ') + (out.length && !p3[p3.length - 1].endsWith('.') ? '.' : ''));
+  // Horarios y setups: cada par va en una oración ("... y ..."), sin conjunciones sueltas.
+  const hours: string[] = [];
+  if (f.bestHour && f.bestHour.net > 0) hours.push(`Tu mejor horario es ${f.bestHour.label} (${money(f.bestHour.net)} en ${f.bestHour.trades} trades)`);
+  if (f.worstHour && f.worstHour.net < 0) hours.push(`${hours.length ? 'el que más te cuesta' : 'El horario que más te cuesta'} es ${f.worstHour.label} (${money(f.worstHour.net)})`);
+  const setups: string[] = [];
+  if (f.bestSetup && f.bestSetup.net > 0) setups.push(`Con ${f.bestSetup.label} te va mejor (${money(f.bestSetup.net)}, ${pct(f.bestSetup.winRate)} de aciertos)`);
+  if (f.worstSetup && f.worstSetup.net < 0) setups.push(`${setups.length ? '' : 'Con '}${f.worstSetup.label} te está costando (${money(f.worstSetup.net)}): operalo menos hasta que los números cambien`);
+  const p3 = [hours, setups].filter((x) => x.length).map((x) => `${x.join(' y ')}.`);
+  if (p3.length) out.push(p3.join(' '));
 
   if (f.lastDays.length >= 3) {
     const pos = f.lastDays.filter((d) => d.net > 0).length;

@@ -150,8 +150,10 @@ export class MassiveProvider implements Provider {
       }
     }
 
+    if (!ctx.alive()) return;
     ctx.setStatus({ message: 'Massive: nombres de las empresas…' });
     const names = await this.tickerNames();
+    if (!ctx.alive()) return;
 
     let snaps: SnapTicker[] = [];
     try {
@@ -191,12 +193,13 @@ export class MassiveProvider implements Provider {
     ctx.setStatus({ message: `Massive: velas del día de ${candidates.length} acciones en movimiento…` });
     await Promise.all(
       Array.from({ length: 6 }, async (_, w) => {
-        for (let i = w; i < candidates.length; i += 6) {
+        for (let i = w; i < candidates.length && ctx.alive(); i += 6) {
           const bars = await this.backfill(candidates[i].sym).catch(() => null);
-          if (bars) ctx.engine().setBars(candidates[i].sym, bars);
+          if (bars && ctx.alive()) ctx.engine().setBars(candidates[i].sym, bars);
         }
       }),
     );
+    if (!ctx.alive()) return;
 
     await this.pollNews(true);
     this.newsTimer = setInterval(() => void this.pollNews(false), 3 * 60_000);

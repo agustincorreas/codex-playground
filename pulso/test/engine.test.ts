@@ -322,3 +322,39 @@ describe('motor: feed parcial en vivo + mercado completo demorado', () => {
   });
 });
 
+
+describe('motor: correcciones de la auditoría', () => {
+  it('un agregado con volumen del día pero sin VWAP del día no diluye el VWAP', () => {
+    const { engine, trade } = setup();
+    trade(at(9, 31), 3.0, 1000);
+    engine.ingest({ kind: 'bar', span: 'second', sym: 'TEST', ts: at(9, 45), o: 3.1, h: 3.12, l: 3.1, c: 3.11, v: 500, vw: 3.11, dayVolume: 250_000 });
+    const st = engine.get('TEST')!;
+    expect(st.volume).toBe(250_000);
+    expect(st.vwap).toBeCloseTo(3.0, 6);
+  });
+
+  it('el volumen de 5 minutos cuenta 5 velas, no 6', () => {
+    const { engine, trade } = setup();
+    for (let i = 0; i < 10; i++) trade(at(10, i), 2, 1000);
+    const st = engine.get('TEST')!;
+    expect(st.volumeSince(at(10, 9, 30), 5)).toBe(5000);
+  });
+
+  it('un snapshot con mínimo 0 no clava el mínimo del día en cero', () => {
+    const { engine, trade } = setup();
+    trade(at(9, 31), 2.0);
+    engine.applySnapshot([{ sym: 'TEST', ts: at(9, 31), last: 2.0, prevClose: 2, volume: 1000, high: 2.1, low: 0 }]);
+    expect(engine.get('TEST')!.lod).toBe(2.0);
+  });
+
+  it('el máximo cargado desde velas históricas lleva su hora (no suena "cerca del máximo" enseguida)', () => {
+    const { engine, trade } = setup();
+    trade(at(10, 0), 2.0);
+    const bars: Bar[] = [];
+    for (let i = 0; i < 10; i++) bars.push({ t: at(9, 31 + i), o: 2, h: i === 9 ? 2.5 : 2.1, l: 1.9, c: 2, v: 1000, pv: 2000, n: 1 });
+    engine.setBars('TEST', bars);
+    const st = engine.get('TEST')!;
+    expect(st.hod).toBe(2.5);
+    expect(st.hodTs).toBe(at(9, 41) - 1);
+  });
+});

@@ -56,6 +56,13 @@ export class SecData {
     return { 'User-Agent': this.userAgent };
   }
 
+  /** Nueva sesión: las presentaciones y marcas del día anterior se vuelven a pedir. */
+  reset(): void {
+    this.flagCache.clear();
+    this.subCache.clear();
+    this.inFlight.clear();
+  }
+
   async init(dayKey: string): Promise<void> {
     const cacheName = `sec-tickers-${dayKey}.json`;
     type Row = { cik_str: number; ticker: string };

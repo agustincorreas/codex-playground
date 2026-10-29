@@ -88,6 +88,8 @@ const round4 = (p: number) => Math.round(p * 10000) / 10000;
 const money = (v: number) => Math.round(v * 100) / 100;
 const ceilCent = (v: number) => Math.ceil(v * 100 - 1e-9) / 100;
 const fail = (message: string): BrokerResult => ({ ok: false, message, fills: [] });
+/** La mitad de una posición (una acción sola se vende entera). */
+const halfOf = (shares: number) => Math.max(1, Math.ceil(shares / 2));
 
 export function fmtMoney(v: number): string {
   const sign = v < 0 ? '−' : '';
@@ -277,13 +279,28 @@ export class Broker {
         return fail(`Poder de compra insuficiente: necesitás ${fmtMoney(cost)} y tenés ${fmtMoney(bp)}${pending}. Te alcanza para ${max} acciones.`);
       }
       const entry = req.type === 'limit' ? Math.min(req.price!, q.ask) : req.type === 'stop' ? req.stopPrice! : q.ask;
-      if (req.stop !== undefined && req.stop >= Math.min(q.bid, entry) - EPS) return fail(`El stop ($${fmtPx(req.stop)}) tiene que quedar debajo del bid y de tu entrada.`);
+      // Una compra stop se dispara arriba del mercado: su stop de pérdida puede quedar entre el bid y la entrada.
+      const floor = req.type === 'stop' ? entry : Math.min(q.bid, entry);
+      if (req.stop !== undefined && req.stop >= floor - EPS) {
+        return fail(req.type === 'stop' ? `El stop ($${fmtPx(req.stop)}) tiene que quedar debajo de tu entrada.` : `El stop ($${fmtPx(req.stop)}) tiene que quedar debajo del bid y de tu entrada.`);
+      }
       if (req.target !== undefined && req.target <= entry + EPS) return fail('El objetivo tiene que quedar arriba de tu entrada.');
     } else {
       const pos = this.position(req.sym);
       if (!pos) return fail(`No tenés acciones de ${req.sym} (en este simulador solo se opera comprado).`);
       if (shares > pos.shares) return fail(`Tenés ${pos.shares} acciones de ${req.sym}.`);
       if (req.type === 'stop' && req.stopPrice! >= Math.min(q.bid, q.last) - EPS) return fail('El stop de venta tiene que quedar debajo del bid.');
+    }
+    // Un stop de venta del ticket sobre una posición larga es el stop de la posición: así lo ven las
+    // estadísticas, el gráfico y el IA Trader (y si la cubre entera y no había otro, queda anotado en ella).
+    let role = req.role;
+    if (!role && req.side === 'sell' && req.type === 'stop') {
+      role = 'stop';
+      const pos = this.position(req.sym)!;
+      if (shares >= pos.shares && !this.session.orders.some((o) => o.sym === req.sym && o.role === 'stop')) {
+        pos.stop = roundPx(req.stopPrice!);
+        if (pos.initialStop === undefined) pos.initialStop = pos.stop;
+      }
     }
 
     const latency = this.settings.latencyMs * (0.7 + 0.9 * Math.random());
@@ -297,7 +314,7 @@ export class Broker {
       stopPrice: req.type === 'stop' ? roundPx(req.stopPrice!) : undefined,
       tif,
       route: req.route ?? 'SMRT',
-      role: req.role ?? (req.side === 'buy' ? 'entry' : 'exit'),
+      role: role ?? (req.side === 'buy' ? 'entry' : 'exit'),
       status: 'sent',
       createdAt: now,
       activeAt: now + latency,
@@ -354,7 +371,8 @@ export class Broker {
     const oco = this.nextId('oco');
     const base = { sym, side: 'sell' as const, shares: p.shares, tif: 'DAY+' as const, route: 'SMRT', oco, status: 'open' as const, createdAt: now, activeAt: now, updatedAt: now, filled: 0, avgPrice: 0, tapeSeq: this.seqNow?.() };
     if (b.stop) this.session.orders.push({ ...base, id: this.nextId('o'), type: 'stop', stopPrice: roundPx(b.stop), role: 'stop' });
-    if (b.target) this.session.orders.push({ ...base, id: this.nextId('o'), type: 'limit', price: roundPx(b.target), role: 'target' });
+    // Como Ross: en el objetivo se vende la mitad; el resto corre con el stop (que después sube a la entrada).
+    if (b.target) this.session.orders.push({ ...base, id: this.nextId('o'), shares: halfOf(p.shares), type: 'limit', price: roundPx(b.target), role: 'target' });
     p.stop = b.stop ? roundPx(b.stop) : undefined;
     p.target = b.target ? roundPx(b.target) : undefined;
     if (p.initialStop === undefined && b.stop) p.initialStop = roundPx(b.stop);
@@ -488,10 +506,12 @@ export class Broker {
       let spend = 0;
       const ok: Part[] = [];
       for (const p of parts) {
-        const fits = Math.min(p.size, Math.floor((bp - spend) / p.price));
+        // Cada acción cuesta su precio más la comisión que le toca: así el efectivo no queda negativo.
+        const unit = p.price + this.fee(o, 1, p.price);
+        const fits = Math.min(p.size, Math.floor((bp - spend) / unit));
         if (fits <= 0) break;
         ok.push({ price: p.price, size: fits });
-        spend += fits * p.price;
+        spend += fits * unit;
         if (fits < p.size) break;
       }
       if (!ok.length) {
@@ -534,7 +554,9 @@ export class Broker {
     let trade: Trade | undefined;
     if (o.side === 'buy') this.applyBuy(o, fill);
     else trade = this.applySell(o, fill, now);
-    if (o.status === 'filled' && o.oco) {
+    // OCO: al ejecutarse una del grupo se cancelan las demás, salvo que todavía quede posición (el objetivo
+    // vende la mitad: el stop sigue cuidando el resto).
+    if (o.status === 'filled' && o.oco && !(this.position(o.sym)?.shares ?? 0)) {
       for (const x of [...this.session.orders]) if (x.oco === o.oco) this.finish(x, 'canceled', now, 'OCO: se ejecutó la otra orden', true);
     }
     this.events.onFill?.(fill, trade);
@@ -566,10 +588,13 @@ export class Broker {
       };
       this.session.orders.push(order);
       const before = this.session.trades.length;
-      if (q && !q.halted) this.sweep(order, undefined, now, m, marks, q);
-      else {
-        // En halt no hay mercado: se cierra al último precio conocido.
-        this.fillParts(order, [{ price: marks(p.sym) ?? p.avgCost, size: p.shares }], now, marks);
+      if (q && !q.halted && m.book(p.sym)) this.sweep(order, undefined, now, m, marks, q);
+      // En halt, sin libro o sin liquidez suficiente, lo que queda se cierra al último precio conocido:
+      // una posición nunca se archiva viva ni se vende a $0.
+      const left = this.position(p.sym)?.shares ?? 0;
+      if (left > 0 && this.session.orders.includes(order)) {
+        const px = marks(p.sym) || q?.last || q?.bid || p.avgCost;
+        this.fillParts(order, [{ price: px, size: left }], now, marks);
       }
       if (this.session.orders.includes(order)) this.finish(order, 'canceled', now, 'Sin liquidez', true);
       if (this.session.trades.length > before) trades.push(this.session.trades[this.session.trades.length - 1]);
@@ -638,6 +663,8 @@ export class Broker {
     if (p.shares <= 0) return this.closeTrade(p, f, reasonFromRole(o.role), now);
     // Venta parcial: el stop y el objetivo quedan por las acciones que siguen abiertas.
     for (const x of this.session.orders) if (x.sym === o.sym && x.side === 'sell' && x.id !== o.id && x.shares - x.filled > p.shares) x.shares = x.filled + p.shares;
+    // Se tomó la mitad en el objetivo: el resto corre sin objetivo (con el stop, que conviene subir a la entrada).
+    if (o.role === 'target' && o.status === 'filled') p.target = undefined;
     return undefined;
   }
 

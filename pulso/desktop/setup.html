@@ -188,7 +188,7 @@
         for (const f of fields) if (s[f]) $(f).value = s[f];
         $('lan').checked = !!s.lan;
         const ips = s.ips || [];
-        $('lanHint').textContent = ips.length ? `Dirección para el celular: http://${ips[0]}:${s.port}/` : '';
+        $('lanHint').textContent = ips.length ? `Dirección para el celular: http://${ips[0]}:${s.port}/${s.token ? `?t=${s.token}` : ''} (con el token al final: sin él nadie de la red entra; después de la primera vez, la dirección sin token también sirve en ese celular).` : '';
       }
       $('toggleSecret').addEventListener('click', () => {
         const i = $('alpacaSecret');

@@ -1,16 +1,16 @@
 // Ventana "Nivel 2 y órdenes", como la del simulador de Warrior Trading y el montage de DAS: el libro
 // por venues con un color por nivel de precio, la cinta (Time & Sales) y el ticket de órdenes con
 // botones rápidos. Tus órdenes que esperan aparecen en el libro con la ruta que elegiste.
-import { useEffect, useRef, useState } from 'react';
-import { fmtVolume } from '../../engine/alerts';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { formatCountdown, formatEtTime } from '../../engine/time';
 import type { Quote, SymbolDetail, TapePrint } from '../../engine/types';
-import { fmtMoney, fmtPx } from '../../trading/broker';
 import { roundPx, tickOf, type BookRow } from '../../trading/depth';
 import { SETUPS, type Hotkey, type OrderType, type Tif } from '../../trading/types';
-import type { TrainingController } from '../training';
+import { useTrainingVersion, type TrainingController } from '../training';
 import type { DataSource } from '../source/types';
+import { fmtInt, fmtMoney, fmtPrice, fmtVolume } from '../lib/format';
 import { hotkeyLabel, shortLabel } from '../lib/hotkeys';
+import { useNow } from '../lib/now';
 
 export interface TicketForm {
   /** Símbolo para el que se armaron los valores. */
@@ -59,7 +59,7 @@ export function suggestTicket(detail: SymbolDetail, q: Quote | null): Pick<Ticke
   const entry = flag ? Math.max(flag.entry, ask) : ask;
   let stop = flag ? flag.stop : pullbackStop(detail, entry, bid);
   if (stop >= bid) stop = pullbackStop(detail, entry, bid);
-  return { price: fmtPx(ask), stop: fmtPx(stop), target: fmtPx(roundPx(entry + 2 * Math.max(tickOf(entry), entry - stop))) };
+  return { price: fmtPrice(ask), stop: fmtPrice(stop), target: fmtPrice(roundPx(entry + 2 * Math.max(tickOf(entry), entry - stop))) };
 }
 
 interface Props {
@@ -67,7 +67,6 @@ interface Props {
   source: DataSource | null;
   detail: SymbolDetail | null;
   quote: Quote | null;
-  now: number;
   ticket: TicketForm;
   setTicket: (patch: Partial<TicketForm>) => void;
   onSymbol: (sym: string) => void;
@@ -104,10 +103,10 @@ function BookSide({ rows, side, onPick, max }: { rows: BookRow[]; side: 'bid' | 
             last = r.price;
           }
           return (
-            <tr key={`${r.venue}-${r.price}-${i}`} className={`l2-lv${Math.min(level, 4)} ${r.own ? 'is-own' : ''}`} onClick={() => onPick(r.price)} title={r.own ? 'Tu orden' : `Usar ${fmtPx(r.price)} como precio`}>
+            <tr key={`${r.venue}-${r.price}-${i}`} className={`l2-lv${Math.min(level, 4)} ${r.own ? 'is-own' : ''}`} onClick={() => onPick(r.price)} title={r.own ? 'Tu orden' : `Usar ${fmtPrice(r.price)} como precio`}>
               <td>{r.own ? `▸${r.venue}` : r.venue}</td>
-              <td className="num">{fmtPx(r.price)}</td>
-              <td className="num">{r.size.toLocaleString('en-US')}</td>
+              <td className="num">{fmtPrice(r.price)}</td>
+              <td className="num">{fmtInt(r.size)}</td>
             </tr>
           );
         })}
@@ -121,11 +120,22 @@ function BookSide({ rows, side, onPick, max }: { rows: BookRow[]; side: 'bid' | 
   );
 }
 
-export function Level2({ c, source, detail, quote, now, ticket, setTicket, onSymbol, search, onHotkey, compact, onNewDay }: Props) {
+/** "Reanuda en 03:12" de un halt: lo único del Nivel 2 que avanza con el reloj. */
+function HaltResume({ at }: { at: number }) {
+  const now = useNow(1000);
+  return <span> · reanuda en {formatCountdown(Math.max(0, at - now))}</span>;
+}
+
+function Level2View({ c, source, detail, quote, ticket, setTicket, onSymbol, search, onHotkey, compact, onNewDay }: Props) {
+  // La ventana está memorizada: se suscribe a la cuenta de práctica para enterarse de órdenes y posiciones.
+  const version = useTrainingVersion(c);
   const sym = detail?.sym ?? null;
   const [symText, setSymText] = useState(sym ?? '');
   const [hits, setHits] = useState<string[]>([]);
   useEffect(() => setSymText(sym ?? ''), [sym]);
+  // Sugerencias del campo de símbolo: 150 ms después de la última tecla.
+  const searchTimer = useRef<ReturnType<typeof setTimeout>>();
+  useEffect(() => () => clearTimeout(searchTimer.current), []);
 
   // Valores sugeridos al cambiar de acción y con cada vela nueva, mientras no los edites.
   const barKey = detail?.bars[detail.bars.length - 1]?.t;
@@ -144,18 +154,21 @@ export function Level2({ c, source, detail, quote, now, ticket, setTicket, onSym
   const posStop = pos?.stop ?? pos?.planStop;
   const posTarget = pos?.target ?? pos?.planTarget;
   useEffect(() => {
-    if (posStop !== undefined) setTicket({ stop: fmtPx(posStop) });
-    if (posTarget !== undefined) setTicket({ target: fmtPx(posTarget) });
+    if (posStop !== undefined) setTicket({ stop: fmtPrice(posStop) });
+    if (posTarget !== undefined) setTicket({ target: fmtPrice(posTarget) });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sym, posStop, posTarget]);
 
-  const book = sym && source ? source.book(sym) : null;
-  const working = sym ? (c.broker?.orders(sym) ?? []) : [];
-  const own = (side: 'buy' | 'sell') =>
-    working.filter((o) => o.side === side && o.type === 'limit' && o.status !== 'sent').map((o) => ({ price: o.price!, shares: o.shares - o.filled, route: o.route }));
-  const bids = book ? book.view('bid', own('buy')) : NO_ROWS;
-  const asks = book ? book.view('ask', own('sell')) : NO_ROWS;
-  const tape: TapePrint[] = sym && source ? source.printsSince(sym, 0).slice(-120).reverse() : [];
+  // Libro y cinta: se arman cuando llega una ficha nueva (una por segundo) o cambia la cuenta, no en cada dibujo.
+  const { bids, asks, tape } = useMemo(() => {
+    const book = sym && source ? source.book(sym) : null;
+    const working = sym ? (c.broker?.orders(sym) ?? []) : [];
+    const own = (side: 'buy' | 'sell') =>
+      working.filter((o) => o.side === side && o.type === 'limit' && o.status !== 'sent').map((o) => ({ price: o.price!, shares: o.shares - o.filled, route: o.route }));
+    const tape: TapePrint[] = sym && source ? source.printsSince(sym, 0).slice(-120).reverse() : [];
+    return { bids: book ? book.view('bid', own('buy')) : NO_ROWS, asks: book ? book.view('ask', own('sell')) : NO_ROWS, tape };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sym, source, detail, version, c]);
   // El libro muestra tantos niveles como entren en la ventana (más en una pantalla grande).
   const bookRef = useRef<HTMLDivElement>(null);
   const [bookRows, setBookRows] = useState(14);
@@ -203,12 +216,12 @@ export function Level2({ c, source, detail, quote, now, ticket, setTicket, onSym
     const bid = quote?.bid || detail.row.bid || detail.row.price;
     const flag = detail.setup.flag;
     const stop = flag && flag.stop < p && flag.stop < bid ? flag.stop : pullbackStop(detail, p, bid);
-    edit({ ...patch, price: value, stop: fmtPx(stop), target: fmtPx(roundPx(p + 2 * Math.max(tickOf(p), p - stop))) });
+    edit({ ...patch, price: value, stop: fmtPrice(stop), target: fmtPrice(roundPx(p + 2 * Math.max(tickOf(p), p - stop))) });
   };
   const step = (field: 'price' | 'shares', dir: 1 | -1) => {
     if (field === 'shares') return setTicket({ shares: String(Math.max(1, shares + dir * 100)) });
     const base = price ?? quote?.ask ?? 0;
-    editPrice(fmtPx(Math.max(tickOf(base), roundPx(base + dir * tickOf(base)))));
+    editPrice(fmtPrice(Math.max(tickOf(base), roundPx(base + dir * tickOf(base)))));
   };
   const send = (side: 'buy' | 'sell') => {
     if (!sym) return;
@@ -232,10 +245,12 @@ export function Level2({ c, source, detail, quote, now, ticket, setTicket, onSym
     setTicket({ shares: String(Math.max(1, Math.floor(c.riskAmount() / (entry - stopV)))) });
   };
 
-  const onSymInput = async (v: string) => {
+  const onSymInput = (v: string) => {
     const up = v.toUpperCase().replace(/[^A-Z.]/g, '');
     setSymText(up);
-    setHits(up ? await search(up) : []);
+    clearTimeout(searchTimer.current);
+    if (!up) return setHits([]);
+    searchTimer.current = setTimeout(() => void search(up).then((r) => setHits(r)), 150);
   };
 
   return (
@@ -250,7 +265,7 @@ export function Level2({ c, source, detail, quote, now, ticket, setTicket, onSym
             setHits([]);
           }}
         >
-          <input id="l2-symbol" value={symText} onChange={(e) => void onSymInput(e.target.value)} onBlur={() => setTimeout(() => setHits([]), 150)} aria-label="Símbolo" autoComplete="off" spellCheck={false} />
+          <input id="l2-symbol" value={symText} onChange={(e) => onSymInput(e.target.value)} onBlur={() => setTimeout(() => setHits([]), 150)} aria-label="Símbolo" autoComplete="off" spellCheck={false} />
           {hits.length > 0 && (
             <ul className="l2-hits">
               {hits.map((h) => (
@@ -276,7 +291,7 @@ export function Level2({ c, source, detail, quote, now, ticket, setTicket, onSym
                 Sector <b title={detail.ref.industry}>{detail.ref.industry.length > 22 ? `${detail.ref.industry.slice(0, 21)}…` : detail.ref.industry}</b>{' '}
               </>
             )}
-            Float <b>{r.float !== undefined ? fmtVolume(r.float) : '—'}</b> Vol <b>{fmtVolume(r.volume)}</b> High <b>{fmtPx(r.hod)}</b> Low <b>{fmtPx(r.lod)}</b>
+            Float <b>{r.float !== undefined ? fmtVolume(r.float) : '—'}</b> Vol <b>{fmtVolume(r.volume)}</b> High <b>{fmtPrice(r.hod)}</b> Low <b>{fmtPrice(r.lod)}</b>
           </span>
         )}
       </div>
@@ -286,12 +301,12 @@ export function Level2({ c, source, detail, quote, now, ticket, setTicket, onSym
           {halted ? (
             <div className="l2-halt">
               <b>HALT</b> {detail?.halt?.reasonText ?? 'Pausa por volatilidad (LULD)'}
-              {detail?.halt?.resumeTs ? <span> · reanuda en {formatCountdown(Math.max(0, detail.halt.resumeTs - now))}</span> : null}
+              {detail?.halt?.resumeTs ? <HaltResume at={detail.halt.resumeTs} /> : null}
             </div>
           ) : (
             <>
-              <BookSide rows={bids} side="bid" max={rowsMax} onPick={(p) => editPrice(fmtPx(p), { type: ticket.type === 'market' ? 'limit' : ticket.type })} />
-              <BookSide rows={asks} side="ask" max={rowsMax} onPick={(p) => editPrice(fmtPx(p), { type: ticket.type === 'market' ? 'limit' : ticket.type })} />
+              <BookSide rows={bids} side="bid" max={rowsMax} onPick={(p) => editPrice(fmtPrice(p), { type: ticket.type === 'market' ? 'limit' : ticket.type })} />
+              <BookSide rows={asks} side="ask" max={rowsMax} onPick={(p) => editPrice(fmtPrice(p), { type: ticket.type === 'market' ? 'limit' : ticket.type })} />
             </>
           )}
           {!c.depthIsReal && !halted && <p className="l2-note">Con datos reales este escáner no recibe el Level 2: el libro es una estimación para ejecutar las órdenes.</p>}
@@ -309,8 +324,8 @@ export function Level2({ c, source, detail, quote, now, ticket, setTicket, onSym
             <tbody>
               {tape.slice(0, compact ? 30 : 80).map((p) => (
                 <tr key={p.seq} className={SIDE_CLASS[p.side]}>
-                  <td className="num">{fmtPx(p.price)}</td>
-                  <td className="num">{p.size.toLocaleString('en-US')}</td>
+                  <td className="num">{fmtPrice(p.price)}</td>
+                  <td className="num">{fmtInt(p.size)}</td>
                   <td className="num">{formatEtTime(p.ts)}</td>
                 </tr>
               ))}
@@ -379,11 +394,12 @@ export function Level2({ c, source, detail, quote, now, ticket, setTicket, onSym
                   <option value="DAY">DAY</option>
                 </select>
               </div>
+              {/* Mismo criterio que la barra del celular: sin posición no se vende; sin poder de compra no se compra. */}
               <div className="oe-row oe-sides">
-                <button type="button" className="btn-sell" onClick={() => send('sell')}>
+                <button type="button" className="btn-sell" onClick={() => send('sell')} disabled={!pos} title={pos ? undefined : 'No tenés posición en esta acción'}>
                   VENDER
                 </button>
-                <button type="button" className="btn-buy" onClick={() => send('buy')} disabled={shares <= 0}>
+                <button type="button" className="btn-buy" onClick={() => send('buy')} disabled={shares <= 0 || short} title={short ? `Te alcanza para ${fmtInt(maxShares)} acciones` : undefined}>
                   COMPRAR
                 </button>
               </div>
@@ -426,8 +442,8 @@ export function Level2({ c, source, detail, quote, now, ticket, setTicket, onSym
               </div>
 
               <p className="oe-plan">
-                {ticket.type === 'market' ? 'A mercado' : `${ticket.type === 'stop' ? 'Stop' : 'Límite'} ${price ? fmtPx(price) : '—'}`} · costo <span className={short ? 't-down' : ''}>{fmtMoney(cost)}</span>
-                {short && <span className="t-down"> · te alcanza para {maxShares}</span>}
+                {ticket.type === 'market' ? 'A mercado' : `${ticket.type === 'stop' ? 'Stop' : 'Límite'} ${price ? fmtPrice(price) : '—'}`} · costo <span className={short ? 't-down' : ''}>{fmtMoney(cost)}</span>
+                {short && <span className="t-down"> · te alcanza para {fmtInt(maxShares)}</span>}
                 {risk > 0 && (
                   <>
                     {' '}
@@ -446,7 +462,7 @@ export function Level2({ c, source, detail, quote, now, ticket, setTicket, onSym
               {pos && (
                 <div className="oe-pos">
                   <span>
-                    <b>{pos.shares}</b> a <b>{fmtPx(pos.avgCost)}</b>
+                    <b>{pos.shares}</b> a <b>{fmtPrice(pos.avgCost)}</b>
                     {un && (
                       <span className={un.pnl >= 0 ? 't-up' : 't-down'}>
                         {' '}
@@ -457,8 +473,8 @@ export function Level2({ c, source, detail, quote, now, ticket, setTicket, onSym
                     {pos.initialStop && un ? <span className="t-muted"> · {(un.pnl / ((pos.avgCost - pos.initialStop) * pos.shares || 1)).toFixed(1)}R</span> : null}
                     <span className="t-muted">
                       {' '}
-                      · stop {pos.stop ? fmtPx(pos.stop) : pos.planStop ? `${fmtPx(pos.planStop)} (plan)` : '—'} · obj.{' '}
-                      {pos.target ? fmtPx(pos.target) : pos.planTarget ? `${fmtPx(pos.planTarget)} (plan)` : '—'}
+                      · stop {pos.stop ? fmtPrice(pos.stop) : pos.planStop ? `${fmtPrice(pos.planStop)} (plan)` : '—'} · obj.{' '}
+                      {pos.target ? fmtPrice(pos.target) : pos.planTarget ? `${fmtPrice(pos.planTarget)} (plan)` : '—'}
                     </span>
                   </span>
                   <span className="oe-pos-actions">
@@ -478,3 +494,6 @@ export function Level2({ c, source, detail, quote, now, ticket, setTicket, onSym
     </div>
   );
 }
+
+/** Memorizada: la cuenta de práctica la actualiza por suscripción; el resto, por props. */
+export const Level2 = memo(Level2View);

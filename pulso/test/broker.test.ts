@@ -152,16 +152,33 @@ describe('bróker de práctica', () => {
     expect(t.r).toBeCloseTo(-0.21, 2);
   });
 
-  it('el objetivo cancela el stop (OCO)', () => {
+  it('el objetivo vende la mitad y el stop queda por el resto; el stop cancela el objetivo (OCO)', () => {
     const { b, m, marks, print } = setup();
     b.place({ sym: 'RUN', side: 'buy', type: 'market', shares: 100, stop: 2.9, target: 3.2 }, 0, m, marks);
     b.process(LAT, m, marks);
+    expect(b.orders().find((o) => o.role === 'target')!.shares).toBe(50);
     print(3.21, 200, 'ask');
     const fills = b.process(LAT + 100, m, marks);
-    expect(fills[0]).toMatchObject({ role: 'target', price: 3.2, shares: 100 });
+    expect(fills[0]).toMatchObject({ role: 'target', price: 3.2, shares: 50 });
+    expect(b.position('RUN')).toMatchObject({ shares: 50, soldShares: 50, target: undefined });
+    // El stop sigue vivo, achicado a lo que queda.
+    expect(b.orders()).toHaveLength(1);
+    expect(b.orders()[0]).toMatchObject({ role: 'stop', shares: 50 });
+    // Ahora toca el stop: cierra el trade y no queda nada.
+    print(2.89, 100, 'bid');
+    b.process(LAT + 200, m, marks);
     expect(b.orders()).toHaveLength(0);
-    expect(b.session.history.find((o) => o.role === 'stop')).toMatchObject({ status: 'canceled' });
-    expect(b.session.trades[0].exitReason).toBe('target');
+    expect(b.session.trades[0]).toMatchObject({ exitReason: 'stop', shares: 100 });
+
+    // Al revés: el stop se ejecuta primero y el objetivo se cancela por OCO.
+    const o = setup();
+    o.b.place({ sym: 'RUN', side: 'buy', type: 'market', shares: 100, stop: 2.9, target: 3.2 }, 0, o.m, o.marks);
+    o.b.process(LAT, o.m, o.marks);
+    o.print(2.89, 100, 'bid');
+    o.b.process(LAT + 100, o.m, o.marks);
+    expect(o.b.orders()).toHaveLength(0);
+    expect(o.b.session.history.find((x) => x.role === 'target')).toMatchObject({ status: 'canceled' });
+    expect(o.b.session.trades[0].exitReason).toBe('stop');
   });
 
   it('una venta parcial achica el stop y el objetivo a las acciones que quedan', () => {
@@ -260,12 +277,12 @@ describe('bróker de práctica', () => {
     // La cancela el usuario: no hay aviso del bróker (lo da el controlador).
     b.cancel(b.orders()[0].id, LAT);
     expect(events).toHaveLength(1);
-    // Compra con stop y objetivo: el objetivo se ejecuta y el stop se cancela por OCO, sin aviso.
+    // Compra con stop y objetivo: el stop se ejecuta y el objetivo se cancela por OCO, sin aviso.
     b.place({ sym: 'RUN', side: 'buy', type: 'market', shares: 100, stop: 2.9, target: 3.05 }, LAT, m, marks);
     b.process(LAT * 2, m, marks);
-    print(3.06, 200, 'ask');
+    print(2.89, 200, 'bid');
     b.process(LAT * 2 + 100, m, marks);
-    expect(b.session.history.find((o) => o.role === 'stop')).toMatchObject({ status: 'canceled' });
+    expect(b.session.history.find((o) => o.role === 'target')).toMatchObject({ status: 'canceled' });
     expect(events).toHaveLength(1);
     // Una orden DAY que vence al cierre sí avisa.
     setSession('pre');

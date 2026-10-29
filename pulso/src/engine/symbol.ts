@@ -349,12 +349,13 @@ export class SymbolState {
     return { v, pv };
   }
 
+  /** Volumen de las velas que empezaron en los últimos `minutes` minutos (la actual incluida). */
   volumeSince(now: number, minutes: number): number {
     const from = now - minutes * MIN;
     let v = 0;
     for (let i = this.bars.length - 1; i >= 0; i--) {
       const b = this.bars[i];
-      if (b.t + MIN <= from) break;
+      if (b.t < from) break;
       v += b.v;
     }
     return v;
@@ -371,7 +372,7 @@ export class SymbolState {
     let v = 0;
     for (let i = this.bars.length - 1; i >= 0; i--) {
       const b = this.bars[i];
-      if (b.t + MIN <= from) break;
+      if (b.t < from) break;
       v += b.t > consolidated ? b.v * this.volumeScale : b.v;
     }
     return v;
