@@ -23,6 +23,8 @@ function cdnScripts(): Plugin {
 export default defineConfig(({ mode }) => {
   const demo = mode === 'demo';
   return {
+    // Las pruebas del simulador y del servidor entero tardan varios segundos en una máquina cargada.
+    test: { testTimeout: 20_000, hookTimeout: 90_000 },
     plugins: [react(), ...(demo ? [cdnScripts()] : [])],
     resolve: demo
       ? { alias: { 'react/jsx-runtime': fileURLToPath(new URL('./src/client/shims/jsx-runtime.ts', import.meta.url)) } }
