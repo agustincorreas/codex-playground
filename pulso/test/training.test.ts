@@ -11,7 +11,7 @@ const emptyStore = (): TrainingStore => ({ kind: 'navegador', load: async () => 
 const trade = (i: number, net = 10): Trade =>
   ({ id: `t${i}`, sessionId: 's', sym: 'RUN', openedAt: 1, closedAt: 2, shares: 100, avgEntry: 3, avgExit: 3.1, gross: net, fees: 0, net, returnPct: 1, mfePct: 1, maePct: 0, exitReason: 'manual', fills: 2 }) as Trade;
 
-const position = (shares: number, avgCost: number): Position => ({ sym: 'RUN', shares, avgCost, openedAt: 1, boughtShares: shares, boughtCost: shares * avgCost, soldShares: 0, soldValue: 0, fees: 0, realized: 0, high: avgCost, low: avgCost, fills: 1 });
+const position = (shares: number, avgCost: number): Position => ({ sym: 'RUN', side: 'long', shares, avgCost, openedAt: 1, boughtShares: shares, boughtCost: shares * avgCost, soldShares: 0, soldValue: 0, fees: 0, realized: 0, high: avgCost, low: avgCost, fills: 1 });
 
 /** Un día simulado guardado con la versión actual: se puede reanudar. */
 function simDay(dayIndex: number, extra: Partial<ActiveSession> = {}): ActiveSession {

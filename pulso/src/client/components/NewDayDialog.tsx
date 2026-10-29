@@ -1,8 +1,9 @@
 // Nuevo día: "Mercado ahora" (la hora real de Nueva York, con pre-market y after-hours) o un día de
 // práctica con la fecha y la hora que elijas. Los eventos son al azar; "Repetir" vuelve a dar el mismo
 // mercado de un día que ya practicaste, desde la misma hora.
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { etParts, formatCountdown, formatEtTime, SESSION_LABEL } from '../../engine/time';
+import { useFocusTrap } from '../lib/a11y';
 import { fmtMoney } from '../lib/format';
 import { summarize } from '../../trading/stats';
 import type { SessionRecord } from '../../trading/types';
@@ -38,13 +39,11 @@ export function NewDayDialog({ c, onClose, initialMode }: { c: TrainingControlle
   const [start, setStart] = useState(c.state.settings.startMinutes);
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000);
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
-    window.addEventListener('keydown', onKey);
-    return () => {
-      clearInterval(id);
-      window.removeEventListener('keydown', onKey);
-    };
-  }, [onClose]);
+    return () => clearInterval(id);
+  }, []);
+  // Trampa de foco: Tab cicla adentro, Esc cierra y el foco vuelve al botón del día.
+  const dialog = useRef<HTMLDivElement>(null);
+  useFocusTrap(dialog, onClose);
 
   const ny = nyMarket(now);
   const day = resolveDay(date);
@@ -68,7 +67,7 @@ export function NewDayDialog({ c, onClose, initialMode }: { c: TrainingControlle
 
   return (
     <div className="modal-back" onClick={onClose}>
-      <div className="modal newday-modal" role="dialog" aria-modal="true" aria-labelledby="nd-title" onClick={(e) => e.stopPropagation()}>
+      <div className="modal newday-modal" role="dialog" aria-modal="true" aria-labelledby="nd-title" ref={dialog} tabIndex={-1} onClick={(e) => e.stopPropagation()}>
         <header className="modal-head">
           <h2 id="nd-title">Nuevo día</h2>
           <button className="icon-btn" onClick={onClose} aria-label="Cerrar">

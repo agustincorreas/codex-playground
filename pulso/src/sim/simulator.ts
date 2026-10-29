@@ -17,6 +17,8 @@ const SEC = 1000;
 const MIN = 60_000;
 /** Minutos previos a la hora de inicio que se simulan con cinta completa. */
 const TAPE_WARM = 3 * MIN;
+/** Segundos seguidos pegada a la banda LULD para que la acción quede en halt (regla real: 15 s). */
+const LIMIT_STATE_SEC = 15;
 
 export function mulberry32(seed: number): () => number {
   let a = seed >>> 0;
@@ -109,8 +111,8 @@ interface Leg {
   ret: number;
   /** Multiplicador de volumen sobre el normal. */
   vol: number;
+  /** Desvío del retorno logarítmico por segundo (≈0,002–0,003 en un tramo fuerte de una small cap). */
   sigma: number;
-  halt?: boolean;
 }
 
 interface WarmBar {
@@ -163,9 +165,13 @@ interface SimSym {
   haltDir: number;
   /** Segundos seguidos con el precio pegado a la banda (el halt llega a los 15, como en la regla real). */
   limitSec: number;
+  /** Precio que tendría sin la banda LULD mientras está pegado a ella (la presión que no se puede ejecutar). */
+  shadow: number;
   openPlan?: 'go' | 'fade';
   /** Ya anunció una oferta de acciones hoy. */
   offered?: boolean;
+  /** Corridas que ya tuvo hoy (una acción que ya corrió dos veces no vuelve a arrancar). */
+  runs: number;
   bar?: WarmBar;
   /** Azar del camino (precio y volumen) y azar del detalle (puntas, tamaños y cinta). */
   rng: () => number;
@@ -311,7 +317,7 @@ export class MarketSim {
         name: c.name,
         price: open,
         anchor: open,
-        sigma: large ? this.u(0.0002, 0.0005) : this.u(0.0006, 0.0016),
+        sigma: large ? this.u(0.0001, 0.00025) : this.u(0.0003, 0.0008),
         baseShares: avgVolume / 23_400,
         tradeSize: prevClose < 2 ? 600 : prevClose < 5 ? 300 : prevClose < 20 ? 150 : 80,
         legs: [],
@@ -326,6 +332,8 @@ export class MarketSim {
         luldTs: 0,
         haltDir: 0,
         limitSec: 0,
+        shadow: 0,
+        runs: 0,
         rng: mulberry32((seed ^ Math.imul(i + 1, 0x9e3779b1)) >>> 0),
         micro: mulberry32((seed + Math.imul(i + 1, 0x85ebca6b) + 0x6a09e667) >>> 0),
         fine: false,
@@ -391,8 +399,7 @@ export class MarketSim {
         dur: this.u(60, 200),
         ret: Math.log(1 + gain),
         vol: i === 0 ? this.u(90, 220) : this.u(40, 120),
-        sigma: this.u(0.004, 0.0065),
-        halt: gain > 0.15 && this.rnd() < 0.3,
+        sigma: this.u(0.002, 0.003),
       });
       if (i < n - 1) {
         legs.push({
@@ -400,18 +407,18 @@ export class MarketSim {
           dur: this.u(60, 150),
           ret: -Math.log(1 + gain) * this.u(0.25, 0.45),
           vol: this.u(12, 30),
-          sigma: this.u(0.0025, 0.0035),
+          sigma: this.u(0.0012, 0.0018),
         });
       }
     }
     const end = this.rnd();
     if (end < 0.45) {
-      legs.push({ kind: 'fade', dur: this.u(300, 700), ret: Math.log(1 - this.u(0.12, 0.3)), vol: this.u(15, 40), sigma: 0.004 });
+      legs.push({ kind: 'fade', dur: this.u(300, 700), ret: Math.log(1 - this.u(0.12, 0.3)), vol: this.u(15, 40), sigma: 0.0018 });
     } else if (end < 0.8) {
-      legs.push({ kind: 'flush', dur: this.u(60, 120), ret: Math.log(1 - this.u(0.12, 0.22)), vol: this.u(40, 90), sigma: 0.006 });
-      legs.push({ kind: 'chop', dur: this.u(300, 600), ret: Math.log(1 + this.u(-0.05, 0.08)), vol: this.u(10, 20), sigma: 0.003 });
+      legs.push({ kind: 'flush', dur: this.u(60, 120), ret: Math.log(1 - this.u(0.12, 0.22)), vol: this.u(40, 90), sigma: 0.0028 });
+      legs.push({ kind: 'chop', dur: this.u(300, 600), ret: Math.log(1 + this.u(-0.05, 0.08)), vol: this.u(10, 20), sigma: 0.0012 });
     } else {
-      legs.push({ kind: 'chop', dur: this.u(400, 900), ret: Math.log(1 + this.u(-0.04, 0.06)), vol: this.u(12, 25), sigma: 0.003 });
+      legs.push({ kind: 'chop', dur: this.u(400, 900), ret: Math.log(1 + this.u(-0.04, 0.06)), vol: this.u(12, 25), sigma: 0.0012 });
     }
     return legs;
   }
@@ -420,7 +427,9 @@ export class MarketSim {
   private startRunner(s: SimSym, earnings = false): void {
     s.role = 'runner';
     s.busy = true;
-    this.assign(s, this.runnerLegs(earnings ? 0.8 : 1));
+    s.runs++;
+    // La segunda corrida del día arranca más floja (ya mostró lo que tenía).
+    this.assign(s, this.runnerLegs((earnings ? 0.8 : 1) * (s.runs > 1 ? 0.7 : 1)));
     if (earnings) this.news(s, 'bullish', this.t, earningsHeadline(s.name, Number(this.dateKey.slice(5, 7)), this.rnd));
     else this.news(s, 'bullish');
     this.maybeOffering(s);
@@ -447,10 +456,9 @@ export class MarketSim {
     s.offered = true;
     s.busy = true;
     this.news(s, 'bearish', this.t, offeringHeadline(s.name, this.rnd));
-    const regular = this.t >= this.openTs && this.t < this.closeTs;
     this.assign(s, [
-      { kind: 'offering', dur: this.u(60, 240), ret: Math.log(1 - this.u(0.18, 0.4)), vol: this.u(60, 150), sigma: 0.006, halt: regular && this.rnd() < 0.25 },
-      { kind: 'chop', dur: this.u(600, 1500), ret: Math.log(1 + this.u(-0.05, 0.03)), vol: this.u(10, 25), sigma: 0.003 },
+      { kind: 'offering', dur: this.u(60, 240), ret: Math.log(1 - this.u(0.18, 0.4)), vol: this.u(60, 150), sigma: 0.003 },
+      { kind: 'chop', dur: this.u(600, 1500), ret: Math.log(1 + this.u(-0.05, 0.03)), vol: this.u(10, 25), sigma: 0.0012 },
     ]);
   }
 
@@ -478,19 +486,22 @@ export class MarketSim {
         this.news(s, 'bullish', newsAt);
         const gap = this.u(0.18, 1.1) * heat.gap;
         this.assign(s, [
-          { kind: 'gap', dur: this.u(240, 900), ret: Math.log(1 + gap), vol: this.u(60, 160), sigma: this.u(0.003, 0.0055) },
-          { kind: 'pullback', dur: this.u(600, 1500), ret: -Math.log(1 + gap) * this.u(0.15, 0.35), vol: this.u(10, 25), sigma: 0.003 },
-          { kind: 'chop', dur: 6 * 3600, ret: Math.log(1 + this.u(-0.05, 0.1)), vol: this.u(6, 15), sigma: 0.0025 },
+          { kind: 'gap', dur: this.u(240, 900), ret: Math.log(1 + gap), vol: this.u(60, 160), sigma: this.u(0.0015, 0.0025) },
+          { kind: 'pullback', dur: this.u(600, 1500), ret: -Math.log(1 + gap) * this.u(0.15, 0.35), vol: this.u(10, 25), sigma: 0.0012 },
+          { kind: 'chop', dur: 6 * 3600, ret: Math.log(1 + this.u(-0.05, 0.1)), vol: this.u(6, 15), sigma: 0.001 },
         ]);
         this.maybeOffering(s);
       });
       this.schedule(this.openTs, () => {
         // Con una oferta en el pre-market, la apertura ya no tiene fuerza.
-        if (s.openPlan === 'go' && !s.offered) this.assign(s, this.runnerLegs(0.8));
+        if (s.openPlan === 'go' && !s.offered) {
+          s.runs++;
+          this.assign(s, this.runnerLegs(0.8));
+        }
         else {
           this.assign(s, [
-            { kind: 'fade', dur: this.u(600, 1500), ret: Math.log(1 - this.u(0.15, 0.35)), vol: this.u(40, 90), sigma: 0.005 },
-            { kind: 'chop', dur: this.u(600, 1200), ret: Math.log(1 + this.u(-0.05, 0.05)), vol: this.u(10, 20), sigma: 0.003 },
+            { kind: 'fade', dur: this.u(600, 1500), ret: Math.log(1 - this.u(0.15, 0.35)), vol: this.u(40, 90), sigma: 0.002 },
+            { kind: 'chop', dur: this.u(600, 1200), ret: Math.log(1 + this.u(-0.05, 0.05)), vol: this.u(10, 20), sigma: 0.0012 },
           ]);
         }
       });
@@ -501,8 +512,8 @@ export class MarketSim {
       this.schedule(this.dayStart + this.u(30, 200) * MIN, () => {
         this.news(s, 'bearish');
         this.assign(s, [
-          { kind: 'drop', dur: this.u(300, 900), ret: Math.log(1 - this.u(0.15, 0.4)), vol: this.u(30, 80), sigma: 0.004 },
-          { kind: 'chop', dur: 4 * 3600, ret: 0, vol: this.u(5, 10), sigma: 0.002 },
+          { kind: 'drop', dur: this.u(300, 900), ret: Math.log(1 - this.u(0.15, 0.4)), vol: this.u(30, 80), sigma: 0.002 },
+          { kind: 'chop', dur: 4 * 3600, ret: 0, vol: this.u(5, 10), sigma: 0.0008 },
         ]);
       });
     }
@@ -524,7 +535,7 @@ export class MarketSim {
       this.nextRunnerAt = Infinity;
       return;
     }
-    const pool = this.smallCaps((s) => s.price >= 1 && s.price <= 20 && s.ref.float! < 30e6);
+    const pool = this.smallCaps((s) => s.price >= 1 && s.price <= 20 && s.ref.float! < 30e6 && s.runs < 2);
     const choose = () => {
       const weighted = pool.filter((s) => s.ref.float! < 10e6);
       return weighted.length && this.rnd() < 0.7 ? this.pick(weighted) : this.pick(pool);
@@ -692,18 +703,24 @@ export class MarketSim {
       vol = this.idle(s, inPlay, up, 1);
     }
     const p0 = s.price;
-    let p1 = Math.max(0.05, p0 * Math.exp(mu + sigma * normal(s.rng)));
+    // Pegada a la banda, la presión sigue desde el precio que tendría sin ella (las órdenes que no se
+    // pueden ejecutar no desaparecen): el estado límite dura mientras ese precio sombra siga afuera.
+    const base = s.limitSec > 0 && s.shadow > 0 ? s.shadow : p0;
+    let p1 = Math.max(0.05, base * Math.exp(mu + sigma * normal(s.rng)));
     // Banda LULD (como en el mercado real): el precio no pasa de la banda respecto del promedio de los
     // últimos 5 minutos, y si se queda pegado a ella 15 segundos seguidos ("limit state") la acción queda
     // en halt. Un pico de un segundo no la halta; un disparo sostenido, sí.
     let band: { up: number; down: number } | null = null;
     if (regular) {
       band = this.luldBand(s, minutes);
-      if (p1 > band.up) p1 = band.up;
-      else if (p1 < band.down) p1 = band.down;
+      s.shadow = p1;
+      // Un retroceso mínimo del precio sombra no libera el estado límite (la presión sigue ahí).
+      const held = s.limitSec > 0 ? 0.004 : 0;
+      if (p1 >= band.up * (1 - held)) p1 = Math.min(p1, band.up);
+      else if (p1 <= band.down * (1 + held)) p1 = Math.max(p1, band.down);
       else band = null;
       s.limitSec = band ? s.limitSec + 1 : 0;
-      if (band && s.limitSec < 4) band = null;
+      if (band && s.limitSec < LIMIT_STATE_SEC) band = null;
       if (this.t - s.luldTs >= 60 * SEC && this.shows(s)) {
         s.luldTs = this.t;
         const b = band ?? this.luldBand(s, minutes);
@@ -726,7 +743,6 @@ export class MarketSim {
       if (s.legT >= leg.dur) {
         s.legs.shift();
         s.legT = 0;
-        if (leg.halt && regular && !s.halted) this.halt(s);
         if (!s.legs.length) {
           s.busy = false;
           s.anchor = s.price;
@@ -780,8 +796,7 @@ export class MarketSim {
     for (let i = 0; i < n; i++) {
       const f = (i + 1) / n;
       const px = this.tick(Math.max(0.01, p0 + (p1 - p0) * f + p0 * 0.0008 * normal(m)));
-      let size = Math.max(1, Math.round(per * Math.exp(0.7 * normal(m) - 0.245)));
-      if (size >= 100) size = Math.round(size / 100) * 100;
+      const size = lotSize(m, per);
       const ts = t0 + Math.floor(f * dt * SEC) - 1;
       this.addWarm(s, ts, px, size);
     }
@@ -810,9 +825,7 @@ export class MarketSim {
       const fair = Math.max(0.01, p0 + (p1 - p0) * f + p0 * 0.0008 * normal(m));
       const ts = t0 + Math.floor(f * SEC) - 1;
       this.requote(s, fair, ts, regular);
-      let size = Math.max(1, Math.round(per * Math.exp(0.7 * normal(m) - 0.245)));
-      if (m() < 0.27) size = 1 + Math.floor(m() * 99);
-      else if (size >= 100) size = Math.round(size / 100) * 100;
+      const size = m() < 0.27 ? 1 + Math.floor(m() * 99) : lotSize(m, per);
       const tick = tickOf(fair);
       const d = fair - prev;
       prev = fair;
@@ -837,7 +850,13 @@ export class MarketSim {
       const px = buy ? s.ask : s.bid;
       const avail = buy ? s.askSize : s.bidSize;
       const q = Math.min(left, Math.max(1, avail));
-      this.out({ kind: 'trade', sym: s.ref.sym, ts, price: px, size: q }, ts);
+      // Una orden que se come la punta entera suele imprimirse en dos pedazos (dos venues): la cinta
+      // real tiene menos lotes redondos de lo que sugieren las puntas.
+      if (q >= avail && q >= 100 && s.micro() < 0.5) {
+        const part = 1 + Math.floor(s.micro() * (q - 1));
+        this.out({ kind: 'trade', sym: s.ref.sym, ts, price: px, size: part }, ts);
+        this.out({ kind: 'trade', sym: s.ref.sym, ts, price: px, size: q - part }, ts);
+      } else this.out({ kind: 'trade', sym: s.ref.sym, ts, price: px, size: q }, ts);
       left -= q;
       const tick = tickOf(px);
       const jump = (s.micro() < 0.2 ? 2 : 1) * tick;
@@ -873,7 +892,7 @@ export class MarketSim {
     const leg = s.legs[0];
     const sigma = leg ? leg.sigma : s.sigma;
     const large = s.role === 'large';
-    const pct = (large ? 0.00008 : 0.0011) + sigma * 1.4 + (regular ? 0 : large ? 0.0004 : 0.0035) + (price < 2 ? 0.0015 : 0);
+    const pct = (large ? 0.00008 : 0.0011) + sigma * 3 + (regular ? 0 : large ? 0.0004 : 0.0035) + (price < 2 ? 0.0015 : 0);
     const ticks = (price * pct * s.wide) / tickOf(price);
     return Math.max(1, Math.min(80, Math.round(ticks * Math.exp(0.35 * normal(s.micro)))));
   }
@@ -966,6 +985,7 @@ export class MarketSim {
     s.halted = true;
     s.haltDir = dir;
     s.limitSec = 0;
+    s.shadow = 0;
     // Entre 5 y 10 minutos (los 5 reglamentarios más lo que tarda la subasta de reapertura).
     s.haltUntil = this.t + 5 * MIN + Math.round(uni(s.rng, 0, 5 * 60)) * SEC;
     s.recent = [];
@@ -986,14 +1006,15 @@ export class MarketSim {
     s.halted = false;
     this.out({ kind: 'status', sym: s.ref.sym, ts: this.t, halted: false, reason: 'LUDP', source: 'demo' });
     // Reabre para el lado del halt (un halt al alza suele reabrir más arriba; uno a la baja, más abajo).
-    const jump = s.haltDir > 0 ? uni(s.rng, -0.1, 0.25) : s.haltDir < 0 ? uni(s.rng, -0.25, 0.1) : uni(s.rng, -0.12, 0.12);
+    const jump = s.haltDir > 0 ? uni(s.rng, -0.05, 0.3) : s.haltDir < 0 ? uni(s.rng, -0.3, 0.05) : uni(s.rng, -0.12, 0.12);
     s.price = s.path = this.tick(s.price * (1 + jump));
     s.recent = [s.price];
-    // El salto de la reapertura consume parte del tramo en curso: lo que queda del movimiento se achica.
+    // La subasta de reapertura absorbe la demanda que la banda frenó: del tramo en curso queda poco
+    // (el salto se descuenta y lo que resta se achica a la mitad).
     const leg = s.legs[0];
     if (leg && leg.dur > s.legT) {
       const left = (leg.dur - s.legT) / leg.dur;
-      s.legs[0] = { ...leg, dur: leg.dur - s.legT, ret: leg.ret * left - Math.log(1 + jump), halt: false };
+      s.legs[0] = { ...leg, dur: leg.dur - s.legT, ret: (leg.ret * left - Math.log(1 + jump)) * 0.5 };
       s.legT = 0;
     }
     // Subasta de reapertura: varios prints alrededor del precio de apertura, el primero grande.
@@ -1005,8 +1026,8 @@ export class MarketSim {
       const size = i === 0 ? Math.round(total * 0.6) : Math.max(1, Math.round((total * 0.4) / (n - 1) * uni(s.rng, 0.5, 1.5)));
       prints.push({ px, size });
     }
-    // Uno de cada seis halts se repite enseguida: la acción reabre y vuelve a tocar la banda.
-    if (regular && s.rng() < 0.12) this.schedule(this.t + Math.round(uni(s.rng, 10, 40)) * SEC, () => !s.halted && this.halt(s));
+    // Uno de cada quince halts se repite enseguida: la acción reabre y vuelve a tocar la banda.
+    if (regular && s.rng() < 0.065) this.schedule(this.t + Math.round(uni(s.rng, 10, 40)) * SEC, () => !s.halted && this.halt(s, s.haltDir));
     if (!this.live) {
       for (const p of prints) this.addWarm(s, this.t, p.px, p.size);
       return;
@@ -1017,6 +1038,16 @@ export class MarketSim {
     this.requote(s, s.price, this.t, regular, true);
     for (const p of prints) this.out({ kind: 'trade', sym: s.ref.sym, ts: this.t, price: p.px, size: p.size });
   }
+}
+
+/**
+ * Tamaño de una operación alrededor de `per` acciones: como en la cinta real, solo una parte son lotes
+ * redondos (100, 300, 1.000); el resto es libre (137, 250, 1.143) porque las órdenes se parten.
+ */
+function lotSize(m: () => number, per: number): number {
+  const size = Math.max(1, Math.round(per * Math.exp(0.7 * normal(m) - 0.245)));
+  if (size >= 100 && m() < 0.4) return Math.max(100, Math.round(size / 100) * 100);
+  return size;
 }
 
 /** Variación mínima de precio: un centavo, o una centésima de centavo debajo de US$ 1. */

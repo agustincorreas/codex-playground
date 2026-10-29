@@ -8,6 +8,7 @@ export type MassivePlan = 'basic' | 'starter' | 'developer' | 'advanced';
 
 export interface Config {
   provider: ProviderName;
+  /** 0 = el sistema elige uno libre; el servidor lo publica en el registro (`PULSO_PORT=…`). */
   port: number;
   host: string;
   universeMin: number;
@@ -16,6 +17,12 @@ export interface Config {
   secUserAgent?: string;
   /** Token que tiene que traer el celular (u otro equipo) para entrar; si falta se genera uno al arrancar. */
   token?: string;
+  /**
+   * Identificador que la app de escritorio le pasa al servidor que arranca (PULSO_INSTANCE) y que este
+   * devuelve en `/api/health` (encabezado `X-Pulso-Instance`): así la app sabe que le responde el suyo y
+   * no otro Pulso que quedó abierto en el mismo puerto.
+   */
+  instance?: string;
   /** Clave de Anthropic para el IA Trader (opcional) y modelo. */
   anthropicKey?: string;
   anthropicModel: string;
@@ -97,6 +104,7 @@ export function loadConfig(): Config {
     haltsRss: env('HALTS_RSS') !== 'false',
     secUserAgent: env('SEC_USER_AGENT'),
     token: env('PULSO_TOKEN'),
+    instance: env('PULSO_INSTANCE'),
     anthropicKey: env('ANTHROPIC_API_KEY'),
     anthropicModel: env('ANTHROPIC_MODEL') ?? 'claude-opus-5-5',
     fmpKey: env('FMP_API_KEY'),

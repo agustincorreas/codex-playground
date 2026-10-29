@@ -56,6 +56,12 @@
       .error {
         color: #ff5a52;
       }
+      .notice {
+        margin: 10px auto 0;
+        max-width: 560px;
+        color: #ffcf5a;
+        font-size: 13px;
+      }
       pre {
         text-align: left;
         margin: 16px auto 0;
@@ -102,6 +108,7 @@
       </div>
       <span class="bar" id="bar"></span>
       <p class="status" id="status">Arrancando el servidor…</p>
+      <p class="notice" id="notice" hidden></p>
       <pre id="log"></pre>
       <div class="actions">
         <button type="button" class="primary" id="setup">Claves y conexión…</button>
@@ -119,8 +126,17 @@
         $('status').classList.add('error');
         $('bar').style.display = 'none';
       }
+      // Avisos de la app (por ejemplo, que el puerto de siempre estaba ocupado y se usa otro) quedan a la vista.
+      const notice = (line) => {
+        const m = /^\[Pulso\] Aviso: (.*)$/.exec(line);
+        if (!m) return;
+        $('notice').textContent = m[1];
+        $('notice').hidden = false;
+      };
       window.pulso.getLog().then((l) => {
         lines.push(...l);
+        for (const line of l) if (/Arrancando el servidor/.test(line)) $('notice').hidden = true;
+        for (const line of l.slice(-40)) notice(line);
         render();
       });
       window.pulso.onLog((line) => {
@@ -130,6 +146,8 @@
           const m = /Estado: (.*)$/.exec(line);
           if (m) $('status').textContent = m[1];
         }
+        if (/Arrancando el servidor/.test(line)) $('notice').hidden = true;
+        notice(line);
         render();
       });
       $('setup').addEventListener('click', () => window.pulso.openSetup());

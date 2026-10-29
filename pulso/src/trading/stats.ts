@@ -119,10 +119,11 @@ export interface Bucket {
   avgR?: number;
 }
 
-export type Dimension = 'setup' | 'hora' | 'hora30' | 'hora15' | 'precio' | 'float' | 'gap' | 'volumen' | 'rvol' | 'pilares' | 'salida';
+export type Dimension = 'setup' | 'lado' | 'hora' | 'hora30' | 'hora15' | 'precio' | 'float' | 'gap' | 'volumen' | 'rvol' | 'pilares' | 'salida';
 
 export const DIMENSIONS: Array<{ id: Dimension; label: string }> = [
   { id: 'setup', label: 'Setup' },
+  { id: 'lado', label: 'Lado' },
   { id: 'hora', label: 'Horario' },
   { id: 'precio', label: 'Precio' },
   { id: 'gap', label: 'Gap' },
@@ -139,6 +140,9 @@ function bucketOf(t: Trade, dim: Dimension): [string, string, number] {
   switch (dim) {
     case 'setup':
       return [t.setup ?? '—', t.setup ?? 'Sin etiqueta', 0];
+    case 'lado':
+      // Los trades guardados antes de los cortos no traen el lado: son largos.
+      return t.side === 'short' ? ['short', 'Corto', 1] : ['long', 'Largo', 0];
     case 'hora': {
       const m = t.ctx?.minutes;
       if (m === undefined) return ['?', 'Sin dato', 9999];

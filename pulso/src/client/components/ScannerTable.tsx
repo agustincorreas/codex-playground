@@ -1,7 +1,8 @@
-import { memo, useMemo, useState, type ReactNode } from 'react';
+import { memo, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import type { ScannerId, ScanRow } from '../../engine/types';
 import { fmtFloat, fmtPct, fmtPrice, fmtRvol, fmtVolume, toneOf } from '../lib/format';
 import { load, save } from '../lib/storage';
+import { useVirtualRows } from '../lib/virtual';
 import { PillarDots, ScoreDots } from './PillarDots';
 
 export interface Column {
@@ -138,6 +139,9 @@ interface Props {
   sortKey?: string;
 }
 
+/** Alto estimado de una fila (se mide la real al dibujar la primera). */
+const ROW_H = 26;
+
 export const ScannerTable = memo(function ScannerTable({ rows, columns, selected, onSelect, minScoreHighlight = 5, extra, sortKey }: Props) {
   const storage = sortKey ? `sort-${sortKey}` : null;
   const [sort, setSort] = useState<SortState | null>(() => (storage ? load<SortState | null>(storage, null) : null));
@@ -148,6 +152,42 @@ export const ScannerTable = memo(function ScannerTable({ rows, columns, selected
     setSort(next);
     save(storage, next);
   };
+  // Solo se dibujan las filas que entran en la ventana (el panel en el escritorio, la página en el celular).
+  const body = useRef<HTMLTableSectionElement>(null);
+  const v = useVirtualRows(body, ROW_H, sorted.length, { scroller: '.panel-body', overscan: 8 });
+  const cols = columns.length + (extra ? 1 : 0);
+  // Fila a enfocar después de desplazarse hasta ella (flechas del teclado).
+  const focusIndex = useRef<number | null>(null);
+  useEffect(() => {
+    const i = focusIndex.current;
+    if (i === null) return;
+    focusIndex.current = null;
+    body.current?.querySelector<HTMLElement>(`[data-vrow="${i}"]`)?.focus({ preventScroll: true });
+  });
+  // La acción elegida desde otro panel (buscador, alertas) se trae a la vista.
+  useEffect(() => {
+    if (!selected) return;
+    const i = sorted.findIndex((r) => r.sym === selected);
+    if (i >= 0 && (i < v.start || i >= v.end)) v.scrollToIndex(i);
+    // Solo al cambiar la selección, no con cada tick de la tabla.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected]);
+  const onRowKey = (e: KeyboardEvent<HTMLTableRowElement>, i: number) => {
+    if (e.target !== e.currentTarget) return;
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onSelect(sorted[i].sym);
+      return;
+    }
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Home' && e.key !== 'End') return;
+    const next = e.key === 'ArrowDown' ? i + 1 : e.key === 'ArrowUp' ? i - 1 : e.key === 'Home' ? 0 : sorted.length - 1;
+    if (next < 0 || next >= sorted.length) return;
+    e.preventDefault();
+    v.scrollToIndex(next);
+    const el = body.current?.querySelector<HTMLElement>(`[data-vrow="${next}"]`);
+    if (el) el.focus({ preventScroll: true });
+    else focusIndex.current = next;
+  };
   return (
     <div className="table-wrap">
       <table className="scan">
@@ -157,7 +197,7 @@ export const ScannerTable = memo(function ScannerTable({ rows, columns, selected
               const active = sort?.id === c.id;
               const canSort = !!c.sort && !!storage;
               return (
-                <th key={c.id} className={`${c.className ?? ''} ${canSort ? 'sortable' : ''} ${active ? 'is-sorted' : ''}`} title={canSort ? undefined : c.title} aria-sort={active ? (sort!.dir === 'asc' ? 'ascending' : 'descending') : undefined}>
+                <th key={c.id} scope="col" className={`${c.className ?? ''} ${canSort ? 'sortable' : ''} ${active ? 'is-sorted' : ''}`} title={canSort ? undefined : c.title} aria-sort={active ? (sort!.dir === 'asc' ? 'ascending' : 'descending') : undefined}>
                   {canSort ? (
                     // Un botón de verdad: se ordena también con Tab y Enter.
                     <button type="button" className="th-btn" onClick={() => toggle(c)} title={`${c.title ? `${c.title}. ` : ''}Ordenar por ${c.label}`}>
@@ -170,30 +210,41 @@ export const ScannerTable = memo(function ScannerTable({ rows, columns, selected
                 </th>
               );
             })}
-            {extra && <th aria-label="Acciones" />}
+            {extra && <th scope="col" aria-label="Acciones" />}
           </tr>
         </thead>
-        <tbody>
-          {sorted.map((r) => (
-            <tr
-              key={r.sym}
-              className={`${r.sym === selected ? 'is-selected' : ''} ${r.score >= minScoreHighlight ? 'is-a' : ''} ${r.halted ? 'is-halted' : ''}`}
-              onClick={() => onSelect(r.sym)}
-              tabIndex={0}
-              onKeyDown={(e) => {
-                if (e.target !== e.currentTarget || (e.key !== 'Enter' && e.key !== ' ')) return;
-                e.preventDefault();
-                onSelect(r.sym);
-              }}
-            >
-              {columns.map((c) => (
-                <td key={c.id} className={c.className}>
-                  {c.render(r)}
-                </td>
-              ))}
-              {extra && <td className="c-extra">{extra(r)}</td>}
+        <tbody ref={body}>
+          {v.top > 0 && (
+            <tr className="v-spacer" style={{ height: v.top }} aria-hidden="true">
+              <td colSpan={cols} />
             </tr>
-          ))}
+          )}
+          {sorted.slice(v.start, v.end).map((r, k) => {
+            const i = v.start + k;
+            return (
+              <tr
+                key={r.sym}
+                data-vrow={i}
+                className={`${r.sym === selected ? 'is-selected' : ''} ${r.score >= minScoreHighlight ? 'is-a' : ''} ${r.halted ? 'is-halted' : ''}`}
+                onClick={() => onSelect(r.sym)}
+                tabIndex={0}
+                aria-selected={r.sym === selected}
+                onKeyDown={(e) => onRowKey(e, i)}
+              >
+                {columns.map((c) => (
+                  <td key={c.id} className={c.className}>
+                    {c.render(r)}
+                  </td>
+                ))}
+                {extra && <td className="c-extra">{extra(r)}</td>}
+              </tr>
+            );
+          })}
+          {v.bottom > 0 && (
+            <tr className="v-spacer" style={{ height: v.bottom }} aria-hidden="true">
+              <td colSpan={cols} />
+            </tr>
+          )}
         </tbody>
       </table>
     </div>

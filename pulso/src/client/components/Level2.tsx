@@ -1,16 +1,20 @@
 // Ventana "Nivel 2 y órdenes", como la del simulador de Warrior Trading y el montage de DAS: el libro
 // por venues con un color por nivel de precio, la cinta (Time & Sales) y el ticket de órdenes con
-// botones rápidos. Tus órdenes que esperan aparecen en el libro con la ruta que elegiste.
+// botones rápidos. Tus órdenes que esperan aparecen en el libro con la ruta que elegiste. Sin posición,
+// VENDER pasa a "VENDER EN CORTO" (con el locate del día); con un corto abierto, COMPRAR cubre.
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { formatCountdown, formatEtTime } from '../../engine/time';
 import type { Quote, SymbolDetail, TapePrint } from '../../engine/types';
 import { roundPx, tickOf, type BookRow } from '../../trading/depth';
+import { describeLocate } from '../../trading/locate';
 import { SETUPS, type Hotkey, type OrderType, type Tif } from '../../trading/types';
 import { useTrainingVersion, type TrainingController } from '../training';
 import type { DataSource } from '../source/types';
+import { withConfirm } from '../lib/confirm';
 import { fmtInt, fmtMoney, fmtPrice, fmtVolume } from '../lib/format';
 import { hotkeyLabel, shortLabel } from '../lib/hotkeys';
 import { useNow } from '../lib/now';
+import { useVirtualRows } from '../lib/virtual';
 
 export interface TicketForm {
   /** Símbolo para el que se armaron los valores. */
@@ -91,9 +95,11 @@ function BookSide({ rows, side, onPick, max }: { rows: BookRow[]; side: 'bid' | 
     <table className={`l2-side l2-${side}`}>
       <thead>
         <tr>
-          <th>Maker</th>
-          <th className={`num l2-head-${side}`}>{side === 'bid' ? 'Bid' : 'Ask'}</th>
-          <th className="num">Size</th>
+          <th scope="col" title="Operador o ruta que publica la oferta">Operador</th>
+          <th scope="col" className={`num l2-head-${side}`} title={side === 'bid' ? 'Mejor compra (bid)' : 'Mejor venta (ask)'}>
+            {side === 'bid' ? 'Compra' : 'Venta'}
+          </th>
+          <th scope="col" className="num">Tamaño</th>
         </tr>
       </thead>
       <tbody>
@@ -187,6 +193,10 @@ function Level2View({ c, source, detail, quote, ticket, setTicket, onSymbol, sea
   }, [compact]);
   const rowsMax = compact ? 8 : bookRows;
 
+  // La cinta: solo las operaciones que entran en el recuadro.
+  const tapeBody = useRef<HTMLTableSectionElement>(null);
+  const tv = useVirtualRows(tapeBody, 19, tape.length, { scroller: '.l2-tape', overscan: 6 });
+
   const settings = c.state.settings;
   const bp = c.broker ? c.broker.buyingPower(c.marks) : 0;
   const price = num(ticket.price);
@@ -199,8 +209,22 @@ function Level2View({ c, source, detail, quote, ticket, setTicket, onSymbol, sea
   const reward = targetV && entry ? (targetV - entry) * shares : 0;
   const cost = entry * shares;
   const maxShares = entry > 0 ? Math.max(0, Math.floor((bp * 0.995) / entry)) : 0;
-  const short = shares > 0 && entry > 0 && cost > bp;
+  const tooBig = shares > 0 && entry > 0 && cost > bp;
+  // Lado de la posición: sin posición, VENDER abre un corto; con un corto, COMPRAR lo cubre y VENDER lo agranda.
+  const short = pos?.side === 'short';
+  const opensShort = !pos || short;
+  const locate = sym && opensShort ? c.locate(sym) : null;
+  const shortBlock = sym && opensShort && c.ready ? c.shortBlock(sym) : null;
+  // Una venta en corto se ejecuta contra el bid y bloquea el 150 % de lo vendido (más el locate).
+  const shortEntry = ticket.type === 'market' ? (quote?.bid ?? 0) : (price ?? 0);
+  const shortNeed = shortEntry * shares * 1.5 + (locate?.borrowFee ?? 0) * shares;
+  const shortTooBig = opensShort && shares > 0 && shortEntry > 0 && shortNeed > bp;
+  const shortRisk = stopV && shortEntry > 0 && stopV > shortEntry ? (stopV - shortEntry) * shares : 0;
+  const shortReward = targetV && shortEntry > 0 && targetV < shortEntry ? (shortEntry - targetV) * shares : 0;
   const halted = !!quote?.halted;
+  // Mismo criterio que la barra del celular: con halt o sin mercado listo no se opera.
+  const blocked = !c.ready || halted;
+  const haltLabel = halted ? `Halt${detail?.halt?.resumeTs ? ` · reanuda ${formatEtTime(detail.halt.resumeTs, false)}` : ''}` : null;
   const un = sym ? c.unrealized(sym) : null;
   const buttons = settings.hotkeys.filter((h) => h.enabled && h.button);
   const r = detail?.row;
@@ -226,19 +250,30 @@ function Level2View({ c, source, detail, quote, ticket, setTicket, onSymbol, sea
   const send = (side: 'buy' | 'sell') => {
     if (!sym) return;
     const isStop = ticket.type === 'stop';
-    c.place({
-      sym,
-      side,
-      type: ticket.type,
-      shares,
-      price: ticket.type === 'limit' ? price : undefined,
-      stopPrice: isStop ? price : undefined,
-      tif: ticket.tif,
-      route: ticket.route,
-      stop: side === 'buy' ? stopV : undefined,
-      target: side === 'buy' ? targetV : undefined,
-      setup: side === 'buy' ? ticket.setup : undefined,
-    });
+    const market = ticket.type === 'market';
+    const estimate = side === 'buy' ? quote?.ask : quote?.bid;
+    // Qué hace la orden: entra comprado, vende un largo, entra en corto o cubre un corto.
+    const opening = side === 'buy' ? !short : opensShort;
+    const kind = side === 'sell' && opensShort ? 'short' : side === 'buy' && short ? 'cover' : undefined;
+    // El stop y el objetivo solo van si están del lado correcto de la entrada (en un corto, el stop arriba).
+    const ref = side === 'buy' ? entry : shortEntry;
+    const stop = opening && stopV !== undefined && (side === 'buy' ? stopV < ref : stopV > ref) ? stopV : undefined;
+    const target = opening && targetV !== undefined && (side === 'buy' ? targetV > ref : targetV < ref) ? targetV : undefined;
+    withConfirm({ sym, side, kind, shares, type: ticket.type, price: market ? estimate : price, approx: market, borrowFee: kind === 'short' ? locate?.borrowFee : undefined }, () =>
+      c.place({
+        sym,
+        side,
+        type: ticket.type,
+        shares,
+        price: ticket.type === 'limit' ? price : undefined,
+        stopPrice: isStop ? price : undefined,
+        tif: ticket.tif,
+        route: ticket.route,
+        stop,
+        target,
+        setup: opening ? ticket.setup : undefined,
+      }),
+    );
   };
   const sizeByRisk = () => {
     if (!(stopV && entry > stopV)) return c.notify('Para calcular el tamaño por riesgo poné un stop debajo de la entrada.', 'error');
@@ -285,13 +320,13 @@ function Level2View({ c, source, detail, quote, ticket, setTicket, onSymbol, sea
         )}
         {r && detail && (
           <span className="l2-facts">
-            Exch <b>{(detail.ref.exchange ?? 'NSDQ').replace('NASDAQ', 'NSDQ').slice(0, 4)}</b>{' '}
+            Bolsa <b>{(detail.ref.exchange ?? 'NSDQ').replace('NASDAQ', 'NSDQ').slice(0, 4)}</b>{' '}
             {detail.ref.industry && (
               <>
                 Sector <b title={detail.ref.industry}>{detail.ref.industry.length > 22 ? `${detail.ref.industry.slice(0, 21)}…` : detail.ref.industry}</b>{' '}
               </>
             )}
-            Float <b>{r.float !== undefined ? fmtVolume(r.float) : '—'}</b> Vol <b>{fmtVolume(r.volume)}</b> High <b>{fmtPrice(r.hod)}</b> Low <b>{fmtPrice(r.lod)}</b>
+            Float <b>{r.float !== undefined ? fmtVolume(r.float) : '—'}</b> Vol. <b>{fmtVolume(r.volume)}</b> Máx. <b>{fmtPrice(r.hod)}</b> Mín. <b>{fmtPrice(r.lod)}</b>
           </span>
         )}
       </div>
@@ -312,23 +347,33 @@ function Level2View({ c, source, detail, quote, ticket, setTicket, onSymbol, sea
           {!c.depthIsReal && !halted && <p className="l2-note">Con datos reales este escáner no recibe el Level 2: el libro es una estimación para ejecutar las órdenes.</p>}
         </div>
 
-        <div className="l2-tape" aria-label="Time & Sales">
+        <div className="l2-tape" role="region" aria-label="Cinta de operaciones (Time & Sales)">
           <table>
             <thead>
               <tr>
-                <th className="num">Price</th>
-                <th className="num">Size</th>
-                <th className="num">Time</th>
+                <th scope="col" className="num">Precio</th>
+                <th scope="col" className="num">Tamaño</th>
+                <th scope="col" className="num">Hora</th>
               </tr>
             </thead>
-            <tbody>
-              {tape.slice(0, compact ? 30 : 80).map((p) => (
-                <tr key={p.seq} className={SIDE_CLASS[p.side]}>
+            <tbody ref={tapeBody}>
+              {tv.top > 0 && (
+                <tr className="v-spacer" style={{ height: tv.top }} aria-hidden="true">
+                  <td colSpan={3} />
+                </tr>
+              )}
+              {tape.slice(tv.start, tv.end).map((p, k) => (
+                <tr key={p.seq} data-vrow={tv.start + k} className={SIDE_CLASS[p.side]}>
                   <td className="num">{fmtPrice(p.price)}</td>
                   <td className="num">{fmtInt(p.size)}</td>
                   <td className="num">{formatEtTime(p.ts)}</td>
                 </tr>
               ))}
+              {tv.bottom > 0 && (
+                <tr className="v-spacer" style={{ height: tv.bottom }} aria-hidden="true">
+                  <td colSpan={3} />
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -353,8 +398,8 @@ function Level2View({ c, source, detail, quote, ticket, setTicket, onSymbol, sea
             <>
               <div className="oe-row">
                 <select id="oe-type" value={ticket.type} onChange={(e) => setTicket({ type: e.target.value as OrderType })} aria-label="Tipo de orden">
-                  <option value="limit">Limit</option>
-                  <option value="market">Market</option>
+                  <option value="limit">Límite</option>
+                  <option value="market">Mercado</option>
                   <option value="stop">Stop</option>
                 </select>
                 <div className="spin">
@@ -394,20 +439,28 @@ function Level2View({ c, source, detail, quote, ticket, setTicket, onSymbol, sea
                   <option value="DAY">DAY</option>
                 </select>
               </div>
-              {/* Mismo criterio que la barra del celular: sin posición no se vende; sin poder de compra no se compra. */}
+              {/* Mismo criterio que la barra del celular: sin posición, VENDER abre un corto (si hay locate, cuenta margen y rueda regular); sin poder de compra no se entra; con halt, nada. */}
               <div className="oe-row oe-sides">
-                <button type="button" className="btn-sell" onClick={() => send('sell')} disabled={!pos} title={pos ? undefined : 'No tenés posición en esta acción'}>
-                  VENDER
+                <button
+                  type="button"
+                  className={`${opensShort ? 'btn-short' : 'btn-sell'} ${halted ? 'is-halt' : ''}`}
+                  onClick={() => send('sell')}
+                  disabled={blocked || (opensShort ? shares <= 0 || !!shortBlock || shortTooBig : false)}
+                  title={haltLabel ?? shortBlock ?? (shortTooBig ? `El corto bloquea el 150 % de la venta: ${fmtMoney(shortNeed)}, y tenés ${fmtMoney(bp)}` : opensShort ? 'Vender acciones prestadas: ganás si baja' : undefined)}
+                >
+                  {haltLabel ?? (short ? 'AGREGAR AL CORTO' : pos ? 'VENDER' : 'VENDER EN CORTO')}
+                  {!haltLabel && opensShort && locate && <small>{shortBlock && locate.shortable !== 'none' ? 'no disponible ahora' : describeLocate(locate)}</small>}
                 </button>
-                <button type="button" className="btn-buy" onClick={() => send('buy')} disabled={shares <= 0 || short} title={short ? `Te alcanza para ${fmtInt(maxShares)} acciones` : undefined}>
-                  COMPRAR
+                <button type="button" className={`btn-buy ${halted ? 'is-halt' : ''}`} onClick={() => send('buy')} disabled={blocked || shares <= 0 || (!short && tooBig)} title={haltLabel ?? (short ? 'Comprar para devolver las acciones prestadas' : tooBig ? `Te alcanza para ${fmtInt(maxShares)} acciones` : undefined)}>
+                  {haltLabel ?? (short ? 'CUBRIR' : 'COMPRAR')}
+                  {!haltLabel && short && pos && <small>estás corto {fmtInt(pos.shares)}</small>}
                 </button>
               </div>
               {buttons.length > 0 && (
                 <div className="oe-row oe-hot">
                   {buttons.map((h) => (
-                    <button key={h.id} type="button" className={h.action.kind === 'buy' ? 'hot-buy' : h.action.kind === 'sell' ? 'hot-sell' : 'hot-other'} onClick={() => onHotkey(h)} title={`${h.label} (${hotkeyLabel(h)})`}>
-                      {shortLabel(h, shares)}
+                    <button key={h.id} type="button" className={h.action.kind === 'buy' ? 'hot-buy' : h.action.kind === 'sell' ? 'hot-sell' : 'hot-other'} onClick={() => onHotkey(h)} disabled={blocked && h.action.kind !== 'cancel'} title={`${h.label} (${hotkeyLabel(h)})`}>
+                      {shortLabel(h, shares, pos?.side)}
                     </button>
                   ))}
                 </div>
@@ -442,8 +495,8 @@ function Level2View({ c, source, detail, quote, ticket, setTicket, onSymbol, sea
               </div>
 
               <p className="oe-plan">
-                {ticket.type === 'market' ? 'A mercado' : `${ticket.type === 'stop' ? 'Stop' : 'Límite'} ${price ? fmtPrice(price) : '—'}`} · costo <span className={short ? 't-down' : ''}>{fmtMoney(cost)}</span>
-                {short && <span className="t-down"> · te alcanza para {fmtInt(maxShares)}</span>}
+                {ticket.type === 'market' ? 'A mercado' : `${ticket.type === 'stop' ? 'Stop' : 'Límite'} ${price ? fmtPrice(price) : '—'}`} · costo <span className={tooBig ? 't-down' : ''}>{fmtMoney(cost)}</span>
+                {tooBig && <span className="t-down"> · te alcanza para {fmtInt(maxShares)}</span>}
                 {risk > 0 && (
                   <>
                     {' '}
@@ -451,18 +504,33 @@ function Level2View({ c, source, detail, quote, ticket, setTicket, onSymbol, sea
                     {reward > 0 && <span className="t-up"> · {(reward / risk).toFixed(1)}R</span>}
                   </>
                 )}
-                {stopV !== undefined && quote && stopV >= quote.bid && <span className="t-down"> · el stop quedó arriba del bid: tocá Sugerir</span>}
+                {stopV !== undefined && quote && stopV >= quote.bid && !opensShort && <span className="t-down"> · el stop quedó arriba del bid: tocá Sugerir</span>}
                 {!auto && <span className="t-muted"> · salidas manuales</span>}
                 {' · '}
                 <button type="button" className="link" onClick={sizeByRisk} title={`Acciones para arriesgar ${fmtMoney(c.riskAmount())} hasta el stop${settings.sizing === 'cuenta' ? ` (${settings.riskPct} % de la cuenta)` : ''}`}>
                   tamaño por riesgo
                 </button>
               </p>
+              {opensShort && !shortBlock && shares > 0 && shortEntry > 0 && (
+                <p className="oe-plan oe-short" title="Una venta en corto bloquea el 150 % de lo vendido como poder de compra; el locate se cobra al ejecutarse">
+                  <span className="t-short">Corto:</span> bloquea <span className={shortTooBig ? 't-down' : ''}>{fmtMoney(shortNeed)}</span>
+                  {locate && locate.borrowFee > 0 && <span className="t-muted"> (locate {fmtMoney(locate.borrowFee * shares)})</span>}
+                  {shortRisk > 0 ? (
+                    <>
+                      {' '}
+                      · riesgo <span className="t-down">{fmtMoney(shortRisk)}</span>
+                      {shortReward > 0 && <span className="t-up"> · {(shortReward / shortRisk).toFixed(1)}R</span>}
+                    </>
+                  ) : (
+                    <span className="t-muted"> · poné el stop arriba de la entrada para medir el riesgo</span>
+                  )}
+                </p>
+              )}
 
               {pos && (
                 <div className="oe-pos">
                   <span>
-                    <b>{pos.shares}</b> a <b>{fmtPrice(pos.avgCost)}</b>
+                    {short && <span className="tag tag-short">CORTO</span>} <b>{pos.shares}</b> a <b>{fmtPrice(pos.avgCost)}</b>
                     {un && (
                       <span className={un.pnl >= 0 ? 't-up' : 't-down'}>
                         {' '}
@@ -470,7 +538,7 @@ function Level2View({ c, source, detail, quote, ticket, setTicket, onSymbol, sea
                         {fmtMoney(un.pnl)}
                       </span>
                     )}
-                    {pos.initialStop && un ? <span className="t-muted"> · {(un.pnl / ((pos.avgCost - pos.initialStop) * pos.shares || 1)).toFixed(1)}R</span> : null}
+                    {pos.initialStop && un ? <span className="t-muted"> · {(un.pnl / ((short ? pos.initialStop - pos.avgCost : pos.avgCost - pos.initialStop) * pos.shares || 1)).toFixed(1)}R</span> : null}
                     <span className="t-muted">
                       {' '}
                       · stop {pos.stop ? fmtPrice(pos.stop) : pos.planStop ? `${fmtPrice(pos.planStop)} (plan)` : '—'} · obj.{' '}

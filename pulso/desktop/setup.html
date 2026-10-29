@@ -172,6 +172,11 @@
       <label for="secUserAgent">SEC EDGAR: tu nombre y email (opcional, activa las etiquetas de dilución)</label>
       <input id="secUserAgent" type="text" autocomplete="off" placeholder="Nombre Apellido tu@email.com" />
       <label class="check"><input id="lan" type="checkbox" /> <span>Permitir abrirlo desde el celular en la misma Wi-Fi. <span id="lanHint" class="hint"></span></span></label>
+      <div class="row" id="tokenRow" hidden style="margin-top: 8px">
+        <button type="button" class="small" id="rotate">Generar otro token</button>
+        <span class="hint">La dirección anterior deja de servir (también en los celulares que ya entraron). Si perdiste el celular, hacelo ya.</span>
+      </div>
+      <p class="hint" id="storeHint"></p>
     </fieldset>
 
     <p class="error" id="error" hidden></p>
@@ -183,13 +188,32 @@
     <script>
       const $ = (id) => document.getElementById(id);
       const fields = ['alpacaKey', 'alpacaSecret', 'alpacaFeed', 'massiveKey', 'massivePlan', 'secUserAgent', 'anthropicKey'];
+      function lanHint(s) {
+        const ips = s.ips || [];
+        if (!ips.length) return '';
+        // El puerto es el del servidor en curso: el de siempre (8787) salvo que estuviera ocupado al arrancar.
+        const port = s.port || s.preferredPort;
+        const portNote = s.port && s.port !== s.preferredPort ? ` Este arranque usa el puerto ${s.port} porque el ${s.preferredPort} estaba ocupado.` : '';
+        return `Dirección para el celular: http://${ips[0]}:${port}/${s.token ? `?t=${s.token}` : ''} (con el token al final: sin él nadie de la red entra; después de la primera vez, la dirección sin token también sirve en ese celular).${portNote} Qué implica: ver SECURITY.md en el repositorio.`;
+      }
       async function load() {
         const s = await window.pulso.getSettings();
         for (const f of fields) if (s[f]) $(f).value = s[f];
         $('lan').checked = !!s.lan;
-        const ips = s.ips || [];
-        $('lanHint').textContent = ips.length ? `Dirección para el celular: http://${ips[0]}:${s.port}/${s.token ? `?t=${s.token}` : ''} (con el token al final: sin él nadie de la red entra; después de la primera vez, la dirección sin token también sirve en ese celular).` : '';
+        $('lanHint').textContent = lanHint(s);
+        // "Generar otro token" solo cuando el celular ya está permitido (si no, el token todavía no se usa).
+        $('tokenRow').dataset.saved = s.lan ? '1' : '';
+        $('tokenRow').hidden = !s.lan;
+        $('storeHint').textContent = s.secureStore ? 'Las claves se guardan cifradas con el almacenamiento seguro del sistema (llavero / DPAPI).' : 'Este sistema no ofrece almacenamiento seguro: las claves quedan en claro en tu perfil de usuario (pulso.json).';
       }
+      $('lan').addEventListener('change', () => ($('tokenRow').hidden = !$('lan').checked || !$('tokenRow').dataset.saved));
+      $('rotate').addEventListener('click', async () => {
+        $('rotate').disabled = true;
+        await window.pulso.rotateToken();
+        const s = await window.pulso.getSettings();
+        $('lanHint').textContent = lanHint(s);
+        $('rotate').textContent = 'Token nuevo generado';
+      });
       $('toggleSecret').addEventListener('click', () => {
         const i = $('alpacaSecret');
         i.type = i.type === 'password' ? 'text' : 'password';

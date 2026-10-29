@@ -3,7 +3,7 @@
 // No depende del navegador ni de Node: corre igual en el modo demo (navegador) y en el servidor.
 import { isEligible, onBarClosed, onPrice, fmtPrice, type AlertSink } from './alerts';
 import { buildRow, nextLevel, pillarsOf, recentRangePct, rvolOf, syntheticQuote, type MetricCtx } from './metrics';
-import { SymbolState } from './symbol';
+import { MAX_SEC_BARS, lowerBound, SymbolState } from './symbol';
 import { etParts, expectedVolumeFraction, REG_OPEN, sessionAt } from './time';
 import {
   DEFAULT_SETTINGS,
@@ -213,11 +213,14 @@ export class Engine implements AlertSink {
       if (!st.scaleSamples && st.volumeScale === 1) st.volumeScale = this.feedScale;
       // La vela consolidada del minuto reemplaza a la del feed; la relación entre las dos calibra la escala.
       if (d.minute && d.minute.v > 0) {
-        const own = st.bars.find((b) => b.t === d.minute!.t);
-        if (own && own.v > 0) {
+        const idx = st.findBarAt(d.minute.t);
+        const own = idx >= 0 ? st.bars[idx] : undefined;
+        // Con menos de 100 acciones en el feed la relación es puro ruido: no cuenta como muestra.
+        if (own && own.v >= 100) {
           const sample = Math.min(500, Math.max(1, d.minute.v / own.v));
-          st.volumeScale = st.scaleSamples ? st.volumeScale * 0.7 + sample * 0.3 : sample;
           st.scaleSamples++;
+          // Promedio de todas las muestras del día (la primera reemplaza la escala genérica del feed).
+          st.volumeScale = st.scaleSamples === 1 ? sample : st.volumeScale + (sample - st.volumeScale) / st.scaleSamples;
         }
         st.upsertMinuteBar(d.minute);
         if (d.minute.h > st.hod) st.hod = d.minute.h;
@@ -256,6 +259,7 @@ export class Engine implements AlertSink {
       if (!st.bars.length || b.t < st.bars[0].t) continue;
       st.upsertMinuteBar(b);
     }
+    st.barsRev++;
     // Consolidado hasta el último milisegundo de la última vela recibida.
     const covered = bars[bars.length - 1].t + 60_000 - 1;
     if (covered > st.consolidatedTs) st.consolidatedTs = covered;
@@ -300,6 +304,7 @@ export class Engine implements AlertSink {
     const older = bars.filter((b) => b.t < firstOwn).map((b) => ({ ...b }));
     if (!older.length) return;
     st.bars = [...older, ...st.bars];
+    st.barsRev++;
     const day = etParts(older[0].t);
     for (const b of older) {
       const m = etParts(b.t).minutes;
@@ -320,6 +325,30 @@ export class Engine implements AlertSink {
       st.last = st.last || st.bars[st.bars.length - 1].c;
     }
     st.resetIndicators();
+  }
+
+  /**
+   * Nueva sesión: cada símbolo arranca de cero (velas, máximos, volumen, halts, alertas, memoria de
+   * alertas, gappers, rotación) conservando los datos de referencia y las noticias todavía vigentes.
+   * Con `carryClose` (demo), el último precio pasa a ser el cierre anterior.
+   */
+  newDay(ts: number, carryClose = false): void {
+    const window = this.settings.newsWindowHours * 3_600_000;
+    for (const [sym, st] of this.symbols) {
+      const ref = { ...st.ref };
+      if (carryClose && st.last > 0) ref.prevClose = st.last;
+      const fresh = new SymbolState(sym, ref);
+      fresh.news = st.news.filter((n) => ts - n.ts <= window);
+      fresh.lastNewsTs = fresh.news.length ? fresh.news[0].ts : 0;
+      this.symbols.set(sym, fresh);
+    }
+    this.halts.clear();
+    this.pendingResume.clear();
+    this.alerts = [];
+    this.news = this.news.filter((n) => ts - n.ts <= window);
+    this.minuteKey = -1;
+    this.now = 0;
+    this.clock(ts);
   }
 
   // ---------------------------------------------------------------- eventos
@@ -403,12 +432,14 @@ export class Engine implements AlertSink {
     if (!st || !(price > 0)) return;
     this.clock(ts);
     if (st.halted && ts > st.haltTs + 15_000) this.markResumed(st, ts, 'inferido');
-    st.volume += size;
-    st.pv += price * size;
-    st.ticks++;
-    st.addFeedVolume(ts, size);
     const barsBefore = st.bars.length;
-    st.addToBar(ts, price, price, price, price, size, price * size, 1);
+    // El volumen del día sigue a las velas: solo suma lo que una vela aceptó (un print atrasado va a la suya).
+    if (st.addToBar(ts, price, price, price, price, size, price * size, 1)) {
+      st.volume += size;
+      st.pv += price * size;
+      st.ticks++;
+      st.addFeedVolume(ts, size);
+    }
     if (this.allSecBars || st.eligible || this.isWatched(sym)) {
       st.addToSecBar(ts, price, price, price, price, size, price * size, 1);
       st.addPrint({ seq: ++this.printSeq, ts, price, size, side: this.sideOf(st, price) });
@@ -444,7 +475,7 @@ export class Engine implements AlertSink {
       return;
     }
     // Agregado de 1 segundo: se acumula en la vela del minuto.
-    st.addToBar(ev.ts, ev.o, ev.h, ev.l, ev.c, ev.v, pv, ev.n ?? 1);
+    const accepted = st.addToBar(ev.ts, ev.o, ev.h, ev.l, ev.c, ev.v, pv, ev.n ?? 1);
     if (this.allSecBars || st.eligible) st.addToSecBar(ev.ts, ev.o, ev.h, ev.l, ev.c, ev.v, pv, ev.n ?? 1);
     if (st.bars.length > barsBefore && barsBefore > 0) onBarClosed(st, this);
     if (ev.dayVolume && ev.dayVolume >= st.volume) {
@@ -452,7 +483,7 @@ export class Engine implements AlertSink {
       const vw = ev.dayVwap ?? (st.vwap || st.last);
       st.volume = ev.dayVolume;
       st.pv = vw * ev.dayVolume;
-    } else {
+    } else if (accepted) {
       st.volume += ev.v;
       st.pv += pv;
     }
@@ -686,7 +717,13 @@ export class Engine implements AlertSink {
     return Math.round(this.evRate);
   }
 
-  detail(sym: string): SymbolDetail | null {
+  /**
+   * Ficha de un símbolo. Con `since`, un detalle parcial: solo las velas (de 1 min y de 10 s) con
+   * `t >= since` y los prints posteriores a `sinceSeq` (o desde `since` si no se indica); el resto de la
+   * ficha va completo. `mergeDetail` lo fusiona con la ficha anterior. Para saber si un parcial desde la
+   * última vela alcanza, el que lo manda compara `barsRev` del símbolo con el de la última ficha enviada.
+   */
+  detail(sym: string, since?: number, sinceSeq?: number): SymbolDetail | null {
     const st = this.symbols.get(sym);
     if (!st || !(st.last > 0)) return null;
     const ctx = this.metricCtx();
@@ -694,13 +731,19 @@ export class Engine implements AlertSink {
     const ema9 = st.ema9.peek(st.last);
     const ema20 = st.ema20.peek(st.last);
     const macd = st.macd.peek(st.last);
+    const partial = since !== undefined && since > 0;
+    let tape: TapePrint[];
+    if (!partial) tape = st.tape.slice(-150);
+    else if (sinceSeq !== undefined) tape = this.printsSince(sym, sinceSeq);
+    else tape = st.tape.filter((p) => p.ts >= since);
     return {
       sym,
       ref: st.ref,
       row,
-      bars: st.bars.slice(),
-      secBars: st.secBars.slice(),
-      tape: st.tape.slice(-150),
+      bars: partial ? st.bars.slice(lowerBound(st.bars, since)) : st.bars.slice(),
+      secBars: partial ? st.secBars.slice(lowerBound(st.secBars, since)) : st.secBars.slice(),
+      tape,
+      since: partial ? since : undefined,
       quote: this.quote(sym),
       open: st.open || st.dayOpen,
       pmHigh: st.pmHigh,
@@ -773,4 +816,28 @@ export class Engine implements AlertSink {
     }
     return out.sort((a, b) => a.length - b.length || a.localeCompare(b)).slice(0, limit);
   }
+}
+
+/**
+ * Fusiona una ficha parcial (`detail(sym, since)`) con la ficha anterior: las velas desde `since` reemplazan
+ * a las que había desde ahí y los prints nuevos se agregan al final. Una ficha completa (sin `since`)
+ * reemplaza a la anterior; un parcial sin base devuelve null (hay que pedir la completa).
+ */
+export function mergeDetail(prev: SymbolDetail | null, next: SymbolDetail | null): SymbolDetail | null {
+  if (!next || next.since === undefined) return next;
+  if (!prev || prev.sym !== next.sym) return null;
+  const since = next.since;
+  const bars = prev.bars.slice(0, lowerBound(prev.bars, since)).concat(next.bars);
+  const secBars = prev.secBars.slice(0, lowerBound(prev.secBars, since)).concat(next.secBars);
+  if (secBars.length > MAX_SEC_BARS + 120) secBars.splice(0, secBars.length - MAX_SEC_BARS);
+  let tape = prev.tape;
+  if (next.tape.length) {
+    const first = next.tape[0].seq;
+    let keep = prev.tape.length;
+    while (keep > 0 && prev.tape[keep - 1].seq >= first) keep--;
+    tape = prev.tape.slice(0, keep).concat(next.tape);
+    if (tape.length > 400) tape.splice(0, tape.length - 400);
+  }
+  const { since: _since, ...rest } = next;
+  return { ...rest, bars, secBars, tape };
 }

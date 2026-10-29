@@ -29,6 +29,9 @@
   --sell-hover: #5a5e68;
   --hot-buy: #00741b;
   --hot-sell: #e61b16;
+  /* Ventas en corto: naranja, distinto de la venta de un largo (gris) y de la compra (azul). */
+  --short: #d9701a;
+  --short-hover: #ef8428;
   /* Level 2: un color por nivel de precio, y la banda LULD */
   --l2-1: #00fd48;
   --l2-2: #ff7172;
@@ -141,6 +144,8 @@
   --bpused: #9a6a00;
   --sell: #6b707b;
   --sell-hover: #5a5f69;
+  --short: #c75f0c;
+  --short-hover: #a84f08;
   --tape-bg: #f7f8fa;
   --ts-mid: #2a2f3a;
   --ts-ask: #138a35;
@@ -1352,6 +1357,19 @@ a.news-headline:hover {
   color: var(--info);
   border-color: color-mix(in srgb, var(--info) 45%, transparent);
 }
+/* Etiqueta "CORTO" de una posición o un trade vendido en corto. */
+.tag.tag-short {
+  margin-left: 6px;
+  padding: 1px 5px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--short);
+  border-color: color-mix(in srgb, var(--short) 55%, transparent);
+}
+.t-short {
+  color: var(--short);
+}
 .detail-cols {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -1723,6 +1741,24 @@ a.news-headline:hover {
 .btn-buy:hover {
   background: var(--buy-hover);
 }
+/* "VENDER EN CORTO" / "AGREGAR AL CORTO": naranja, con el locate debajo. */
+.btn-short {
+  background: var(--short);
+}
+.btn-short:hover {
+  background: var(--short-hover);
+}
+.oe-sides button small {
+  display: block;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  opacity: 0.9;
+}
+.oe-sides button:disabled {
+  opacity: 0.5;
+}
 .oe-hot button {
   flex: 1;
   border: 0;
@@ -1893,6 +1929,9 @@ a.news-headline:hover {
 }
 .side-badge.buy {
   background: #3242df;
+}
+.side-badge.sell.short {
+  background: var(--short);
 }
 .side-badge.sell {
   background: #e05558;
@@ -3803,6 +3842,9 @@ legend {
 .mtb-sell {
   background: var(--hot-sell);
 }
+.mtb-sell.is-short {
+  background: var(--short);
+}
 .mtb-buy small,
 .mtb-sell small {
   font: 600 11px var(--font-data);
@@ -4079,4 +4121,119 @@ table.scan th .sort-arrow {
   padding: 6px 12px;
   font-size: 12.5px;
   color: var(--text);
+}
+
+/* ---------------------------------------------------------------- listas virtualizadas */
+/* Espaciadores de arriba y de abajo: miden lo que miden las filas que no se dibujan. */
+.v-spacer,
+.v-spacer td {
+  padding: 0 !important;
+  border: 0 !important;
+  background: none !important;
+  line-height: 0;
+}
+li.v-spacer {
+  list-style: none;
+}
+
+/* ---------------------------------------------------------------- avisos con acción (deshacer) */
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  pointer-events: auto;
+}
+.toast-action {
+  margin-left: auto;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--accent);
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.toast-action:hover,
+.toast-action:focus-visible {
+  border-color: var(--accent);
+}
+
+/* ---------------------------------------------------------------- confirmación de órdenes */
+.modal.confirm-modal {
+  width: min(380px, 100%);
+}
+.modal.confirm-modal.is-buy .modal-head {
+  border-bottom: 2px solid var(--buy);
+}
+.modal.confirm-modal.is-sell .modal-head {
+  border-bottom: 2px solid var(--sell);
+}
+.modal.confirm-modal.is-short .modal-head {
+  border-bottom: 2px solid var(--short);
+}
+/* Aviso de riesgo del primer corto de la sesión. */
+.confirm-warning {
+  margin: 10px 16px 0;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--short) 55%, transparent);
+  background: color-mix(in srgb, var(--short) 12%, transparent);
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+.confirm-body {
+  margin: 0;
+  padding: 12px 16px 4px;
+  display: grid;
+  gap: 6px;
+}
+.confirm-body > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+}
+.confirm-body dt {
+  color: var(--muted);
+}
+.confirm-body dd {
+  margin: 0;
+  font-weight: 600;
+}
+.modal.confirm-modal .modal-foot {
+  padding: 12px 16px;
+  gap: 8px;
+  align-items: center;
+}
+.modal.confirm-modal .modal-foot .small {
+  margin-right: auto;
+}
+.modal.confirm-modal .btn.primary.btn-buy {
+  background: var(--buy);
+  border-color: var(--buy);
+}
+.modal.confirm-modal .btn.primary.btn-sell {
+  background: var(--sell);
+  border-color: var(--sell);
+}
+.modal.confirm-modal .btn.primary.btn-short {
+  background: var(--short);
+  border-color: var(--short);
+}
+.check-wide {
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+
+/* ---------------------------------------------------------------- ticket durante un halt */
+.oe-sides button.is-halt {
+  font-size: 11.5px;
+  letter-spacing: 0;
+  text-transform: none;
+  opacity: 0.7;
+}
+
+/* Las pestañas del celular viven en un grupo con rol tablist: el grupo no cambia la grilla. */
+.mobile-tabs [role='tablist'] {
+  display: contents;
 }

@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react';
 import { CandlestickSeries, ColorType, createChart, createSeriesMarkers, LineStyle, type SeriesMarker, type Time, type UTCTimestamp } from 'lightweight-charts';
 import { etOffset, formatEtTime } from '../../engine/time';
 import type { Trade } from '../../trading/types';
+import { useFocusTrap } from '../lib/a11y';
 import { fmtMoney, fmtPct, fmtPrice } from '../lib/format';
 import { IconClose } from './Icons';
 
@@ -11,12 +12,9 @@ const toTime = (t: number) => Math.floor((t + etOffset(t)) / 1000) as UTCTimesta
 
 export function TradeReview({ trade, onClose }: { trade: Trade; onClose: () => void }) {
   const host = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  // Trampa de foco: Tab cicla adentro, Esc cierra y el foco vuelve al botón "Ver" del trade.
+  const dialog = useRef<HTMLDivElement>(null);
+  useFocusTrap(dialog, onClose);
 
   useEffect(() => {
     if (!host.current || !trade.bars?.length) return;
@@ -48,7 +46,7 @@ export function TradeReview({ trade, onClose }: { trade: Trade; onClose: () => v
   const mins = (trade.closedAt - trade.openedAt) / 60_000;
   return (
     <div className="modal-back" onClick={onClose}>
-      <div className="modal review" role="dialog" aria-modal="true" aria-labelledby="review-title" onClick={(e) => e.stopPropagation()}>
+      <div className="modal review" role="dialog" aria-modal="true" aria-labelledby="review-title" ref={dialog} tabIndex={-1} onClick={(e) => e.stopPropagation()}>
         <header className="modal-head">
           <h2 id="review-title">
             {trade.sym} · <span className={trade.net >= 0 ? 't-up' : 't-down'}>{trade.net >= 0 ? '+' : ''}{fmtMoney(trade.net)}</span>
@@ -61,13 +59,13 @@ export function TradeReview({ trade, onClose }: { trade: Trade; onClose: () => v
           <div className="review-chart" ref={host} />
           <dl className="review-stats mono">
             <div>
-              <dt>Entrada</dt>
+              <dt>{trade.side === 'short' ? 'Entrada (corto)' : 'Entrada'}</dt>
               <dd>
-                {trade.shares} a {fmtPrice(trade.avgEntry)} · {formatEtTime(trade.openedAt)}
+                {trade.side === 'short' && <span className="tag tag-short">CORTO</span>} {trade.shares} a {fmtPrice(trade.avgEntry)} · {formatEtTime(trade.openedAt)}
               </dd>
             </div>
             <div>
-              <dt>Salida</dt>
+              <dt>{trade.side === 'short' ? 'Cobertura' : 'Salida'}</dt>
               <dd>
                 {fmtPrice(trade.avgExit)} · {formatEtTime(trade.closedAt)} ({{ manual: 'manual', stop: 'stop', target: 'objetivo', eod: 'cierre del día' }[trade.exitReason]})
               </dd>

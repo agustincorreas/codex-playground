@@ -46,6 +46,11 @@ interface Client {
   id?: string;
   /** Símbolo que mira el IA Trader de esa página (recibe su ficha aparte de la seleccionada). */
   focus?: string | null;
+  /**
+   * Última ficha mandada por símbolo: hasta qué vela (`t`), qué print (`seq`) y con qué revisión de
+   * velas. Con eso, cada segundo va solo lo nuevo (`Engine.detail(sym, since)`) en vez del día entero.
+   */
+  sent: Map<string, { t: number; seq: number; rev: number }>;
 }
 
 const clients = new Set<Client>();
@@ -85,7 +90,7 @@ function wantSector(sym: string): void {
   void sectors.get(sym).then((industry) => {
     if (!industry) return;
     engine.updateReference(sym, { industry });
-    for (const c of clients) if (c.selected === sym) send(c, { t: 'detail', detail: engine.detail(sym) });
+    for (const c of clients) if (c.selected === sym) sendDetail(c, sym, false, true);
   });
 }
 const secRequested = new Set<string>();
@@ -150,7 +155,25 @@ function broadcast(msg: unknown): void {
   for (const c of clients) if (c.ws.readyState === WebSocket.OPEN) c.ws.send(data);
 }
 
+/**
+ * Ficha de un símbolo a un cliente. Completa al elegirlo, tras un relleno o si cambió alguna vela
+ * vieja (otra revisión); si no, parcial desde la última vela y el último print que ya tiene.
+ */
+function sendDetail(c: Client, sym: string, focus: boolean, full = false): void {
+  const prev = c.sent.get(sym);
+  const rev = engine.get(sym)?.barsRev ?? 0;
+  const partial = !full && prev !== undefined && prev.rev === rev;
+  const detail = partial ? engine.detail(sym, prev.t, prev.seq) : engine.detail(sym);
+  if (detail) {
+    const lastBar = detail.bars[detail.bars.length - 1];
+    const lastPrint = detail.tape[detail.tape.length - 1];
+    c.sent.set(sym, { t: lastBar?.t ?? prev?.t ?? 0, seq: lastPrint?.seq ?? prev?.seq ?? 0, rev });
+  } else c.sent.delete(sym);
+  send(c, focus ? { t: 'detail', detail, focus: true } : { t: 'detail', detail });
+}
+
 function hello(c: Client): void {
+  c.sent.clear();
   send(c, { t: 'hello', status, alerts: engine.alerts.slice(-400), news: engine.news.slice(0, 200), serverTime: provider.now() });
   send(c, { t: 'view', view: engine.view() });
 }
@@ -249,8 +272,8 @@ setInterval(() => {
   lastView = engine.view();
   broadcast({ t: 'view', view: lastView });
   for (const c of clients) {
-    if (c.selected) send(c, { t: 'detail', detail: engine.detail(c.selected) });
-    if (c.focus && c.focus !== c.selected) send(c, { t: 'detail', detail: engine.detail(c.focus), focus: true });
+    if (c.selected) sendDetail(c, c.selected, false);
+    if (c.focus && c.focus !== c.selected) sendDetail(c, c.focus, true);
   }
 }, 1000);
 
@@ -283,9 +306,22 @@ setInterval(() => {
 // Reinicio diario: a las 4:00 ET empieza una sesión nueva (cierres anteriores nuevos).
 setInterval(() => {
   const key = sessionDate(Date.now()).dateKey;
-  if (key === sessionKey || cfg.provider === 'demo') return;
-  log('info', `Nueva sesión ${key}: reinicio del proveedor y del motor.`);
+  if (key === sessionKey) return;
   sessionKey = key;
+  if (cfg.provider === 'demo') {
+    // Demo: el motor arranca el día de cero (el último precio pasa a cierre anterior) y el simulador
+    // genera el día nuevo; no hace falta recrear el motor.
+    log('info', `Nueva sesión ${key}: día nuevo del simulador.`);
+    provider.stop();
+    universe.clear();
+    historyCache.clear();
+    engine.newDay(Date.now(), true);
+    provider = makeProvider(cfg);
+    for (const c of clients) hello(c);
+    void startProvider();
+    return;
+  }
+  log('info', `Nueva sesión ${key}: reinicio del proveedor y del motor.`);
   provider.stop();
   universe.clear();
   backfilled.clear();
@@ -495,6 +531,7 @@ function handle(req: IncomingMessage, res: ServerResponse): void {
       message: status.message,
       symbols: universe.size,
       ai: !!cfg.anthropicKey,
+      instance: cfg.instance,
     });
   }
   if (url.pathname === '/api/search') return json(res, engine.search(url.searchParams.get('q') ?? ''));
@@ -560,7 +597,7 @@ const wss = new WebSocketServer({
 });
 wss.on('error', (e) => log('error', `WebSocket: ${e.message}`));
 wss.on('connection', (ws) => {
-  const client: Client = { ws, selected: null };
+  const client: Client = { ws, selected: null, sent: new Map() };
   clients.add(client);
   hello(client);
   ws.on('error', (e) => log('warn', `Cliente WebSocket: ${e.message}`));
@@ -576,7 +613,7 @@ wss.on('connection', (ws) => {
     } else if (msg.t === 'focus') {
       client.focus = msg.sym ? String(msg.sym).toUpperCase() : null;
       if (client.focus) {
-        send(client, { t: 'detail', detail: engine.detail(client.focus), focus: true });
+        sendDetail(client, client.focus, true, true);
         wantSector(client.focus);
         void maybeBackfill(client.focus, client);
       }
@@ -584,7 +621,7 @@ wss.on('connection', (ws) => {
       client.selected = msg.sym ? String(msg.sym).toUpperCase() : null;
       const sym = client.selected;
       if (sym) {
-        send(client, { t: 'detail', detail: engine.detail(sym) });
+        sendDetail(client, sym, false, true);
         wantSector(sym);
         void maybeBackfill(sym, client);
       }
@@ -618,7 +655,7 @@ async function maybeBackfill(sym: string, client: Client, refill = false): Promi
       if (bars?.length) {
         if (refill) engine.mergeBars(sym, bars);
         else engine.setBars(sym, bars);
-        send(client, { t: 'detail', detail: engine.detail(sym) });
+        sendDetail(client, sym, client.focus === sym && client.selected !== sym, true);
       }
     } catch (e) {
       log('warn', `Velas de ${sym}: ${(e as Error).message}`);
@@ -629,7 +666,7 @@ async function maybeBackfill(sym: string, client: Client, refill = false): Promi
       const push = (bars: Bar[]) => {
         if (refill) engine.mergeSecBars(sym, bars);
         else engine.setSecBars(sym, bars);
-        if (client.selected === sym) send(client, { t: 'detail', detail: engine.detail(sym) });
+        if (client.selected === sym) sendDetail(client, sym, false, true);
       };
       const sec = await provider.backfillSec(sym, push);
       if (sec?.length) push(sec);
@@ -640,15 +677,27 @@ async function maybeBackfill(sym: string, client: Client, refill = false): Promi
 }
 
 server.on('error', (e: NodeJS.ErrnoException) => {
-  if (e.code === 'EADDRINUSE') log('error', `El puerto ${cfg.port} ya está en uso (¿otro Pulso abierto?). Cerralo o cambiá PORT.`);
+  if (e.code === 'EADDRINUSE') log('error', `El puerto ${cfg.port} ya está en uso (¿otro Pulso abierto?). Cerralo, cambiá PORT o poné PORT=0 para que el sistema elija uno libre.`);
   else log('error', `Servidor: ${e.message}`);
   process.exit(1);
 });
+// La app de escritorio comprueba por este encabezado que quien responde `/api/health` es el servidor que
+// ella arrancó (PULSO_INSTANCE) y no otro Pulso que quedó abierto en el mismo puerto.
+if (cfg.instance) {
+  const instance = cfg.instance;
+  server.prependListener('request', (req: IncomingMessage, res: ServerResponse) => {
+    if (req.url?.startsWith('/api/health')) res.setHeader('X-Pulso-Instance', instance);
+  });
+}
 server.listen(cfg.port, cfg.host, () => {
-  const where = `http://${cfg.host === '0.0.0.0' ? 'localhost' : cfg.host}:${cfg.port}`;
+  const addr = server.address();
+  const port = addr && typeof addr === 'object' ? addr.port : cfg.port;
+  // Línea fija que lee la app de escritorio para saber el puerto real (con PORT=0 lo elige el sistema).
+  console.log(`PULSO_PORT=${port}`);
+  const where = `http://${cfg.host === '0.0.0.0' ? 'localhost' : cfg.host}:${port}`;
   log('info', `Pulso escuchando en ${where} · proveedor: ${provider.label}`);
   if (TOKEN) {
-    log('info', `Desde otro equipo de tu red: http://<ip-de-esta-computadora>:${cfg.port}/?t=${TOKEN} (las claves nunca salen del servidor).`);
+    log('info', `Desde otro equipo de tu red: http://<ip-de-esta-computadora>:${port}/?t=${TOKEN} (las claves nunca salen del servidor).`);
     if (!cfg.token) log('info', 'El token cambia en cada arranque; para uno fijo, definí PULSO_TOKEN en el .env.');
   }
   if (cfg.provider !== 'demo' && !cfg.secUserAgent) {

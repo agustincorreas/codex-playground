@@ -1,13 +1,16 @@
 // Barra de operación del celular: con el teléfono en vertical, el gráfico queda arriba y esta barra
 // fija abajo (sobre las pestañas), así comprás y vendés sin perder de vista la acción del precio.
 // Muestra el precio, el bid y el ask, tu posición con su resultado en vivo, la cantidad y los botones
-// rápidos: compra en el Ask + 0,05 y venta en el Bid − 0,05, como los atajos del escritorio.
+// rápidos: compra en el Ask + 0,05 y venta en el Bid − 0,05, como los atajos del escritorio. Sin
+// posición, VENDER abre un corto (con el locate del día); con un corto, COMPRAR pasa a CUBRIR.
 import type { Quote, ScanRow } from '../../engine/types';
 import { roundPx, tickOf } from '../../trading/depth';
+import { describeLocate } from '../../trading/locate';
 import type { Hotkey } from '../../trading/types';
+import { withConfirm } from '../lib/confirm';
 import { fmtInt, fmtMoney, fmtPct, fmtPrice } from '../lib/format';
 import type { TrainingController } from '../training';
-import type { TicketForm } from './Level2';
+import { num, type TicketForm } from './Level2';
 
 const OFFSET = 0.05;
 
@@ -63,6 +66,19 @@ export function MobileTradeBar({ c, sym, quote, row, ticket, setTicket, onHotkey
   const setQty = (n: number) => setTicket({ shares: String(Math.max(1, Math.floor(n))) });
   const change = row?.changePct;
   const maxQty = buyPx ? Math.floor((bp * 0.995) / buyPx) : 0;
+  // Sin posición, VENDER abre un corto; con un corto, COMPRAR cubre y VENDER lo agranda.
+  const short = pos?.side === 'short';
+  const opensShort = !pos || short;
+  const locate = opensShort ? c.locate(sym) : null;
+  const shortBlock = opensShort && ready ? c.shortBlock(sym) : null;
+  const shortNeed = sellPx ? sellPx * shares * 1.5 + (locate?.borrowFee ?? 0) * shares : 0;
+  const shortTooBig = opensShort && shares > 0 && shortNeed > bp;
+  const openShort = () =>
+    withConfirm({ sym, side: 'sell', kind: 'short', shares, type: 'limit', price: sellPx, approx: true, borrowFee: locate?.borrowFee }, () =>
+      c.short(sym, shares, { stop: num(ticket.stop), target: num(ticket.target), setup: ticket.setup, route: ticket.route, tif: ticket.tif }),
+    );
+  const coverQty = pos ? Math.min(pos.shares, shares || pos.shares) : 0;
+  const cover = () => withConfirm({ sym, side: 'buy', kind: 'cover', shares: coverQty, type: 'limit', price: buyPx, approx: true }, () => c.sell(sym, 1, 'bid', -OFFSET, coverQty));
 
   return (
     <div className="mtb" role="region" aria-label={`Operar ${sym}`}>
@@ -75,7 +91,13 @@ export function MobileTradeBar({ c, sym, quote, row, ticket, setTicket, onHotkey
         ) : (
           quote && (
             <span className="mtb-quote mono">
-              <span className="t-up">B {fmtPrice(quote.bid)}</span> · <span className="t-down">A {fmtPrice(quote.ask)}</span>
+              <span className="t-up" title="Mejor compra (bid)">
+                C {fmtPrice(quote.bid)}
+              </span>{' '}
+              ·{' '}
+              <span className="t-down" title="Mejor venta (ask)">
+                V {fmtPrice(quote.ask)}
+              </span>
             </span>
           )
         )}
@@ -84,6 +106,7 @@ export function MobileTradeBar({ c, sym, quote, row, ticket, setTicket, onHotkey
       <div className="mtb-pos">
         {pos ? (
           <>
+            {short && <span className="tag tag-short">CORTO</span>}
             <span className="mono">
               {pos.shares} @ {fmtPrice(pos.avgCost)}
             </span>
@@ -131,15 +154,42 @@ export function MobileTradeBar({ c, sym, quote, row, ticket, setTicket, onHotkey
             +
           </button>
         </div>
-        {/* Mismo criterio que el ticket del escritorio: sin poder de compra no se compra; sin posición no se vende. */}
-        <button id="mtb-buy" type="button" className="mtb-buy" disabled={!ready || halted || !shares || !buyPx || tooBig} onClick={() => onHotkey(BUY)} title={tooBig ? `Te alcanza para ${fmtInt(maxQty)} acciones` : undefined}>
-          COMPRAR {fmtInt(shares)}
-          <small className={tooBig ? 'mtb-short' : undefined}>{buyPx ? `a ${fmtPrice(buyPx)} · ${fmtMoney(cost)}` : '—'}</small>
-        </button>
-        <button id="mtb-sell" type="button" className="mtb-sell" disabled={!ready || halted || !pos || !sellPx} onClick={() => c.sell(sym, 1, 'bid', -OFFSET, sellQty)}>
-          VENDER {pos ? fmtInt(sellQty) : ''}
-          <small>{pos && sellPx ? `a ${fmtPrice(sellPx)}` : 'sin posición'}</small>
-        </button>
+        {/* Mismo criterio que el ticket del escritorio: sin poder de compra no se entra; sin posición, VENDER abre un corto si hay locate. */}
+        {short ? (
+          <button id="mtb-buy" type="button" className="mtb-buy" disabled={!ready || halted || !buyPx || !coverQty} onClick={cover} title="Comprar para devolver las acciones prestadas">
+            CUBRIR {fmtInt(coverQty)}
+            <small>{buyPx ? `a ${fmtPrice(buyPx)}` : '—'}</small>
+          </button>
+        ) : (
+          <button id="mtb-buy" type="button" className="mtb-buy" disabled={!ready || halted || !shares || !buyPx || tooBig} onClick={() => onHotkey(BUY)} title={tooBig ? `Te alcanza para ${fmtInt(maxQty)} acciones` : undefined}>
+            COMPRAR {fmtInt(shares)}
+            <small className={tooBig ? 'mtb-short' : undefined}>{buyPx ? `a ${fmtPrice(buyPx)} · ${fmtMoney(cost)}` : '—'}</small>
+          </button>
+        )}
+        {opensShort ? (
+          <button
+            id="mtb-sell"
+            type="button"
+            className="mtb-sell is-short"
+            disabled={!ready || halted || !shares || !sellPx || !!shortBlock || shortTooBig}
+            onClick={openShort}
+            title={shortBlock ?? (shortTooBig ? `El corto bloquea el 150 % de la venta: ${fmtMoney(shortNeed)}` : 'Vender acciones prestadas: ganás si baja')}
+          >
+            {short ? 'AGREGAR' : 'CORTO'} {fmtInt(shares)}
+            <small className={shortTooBig ? 'mtb-short' : undefined}>{sellPx ? `a ${fmtPrice(sellPx)} · ${locate ? describeLocate(locate) : '—'}` : '—'}</small>
+          </button>
+        ) : (
+          <button
+            id="mtb-sell"
+            type="button"
+            className="mtb-sell"
+            disabled={!ready || halted || !pos || !sellPx}
+            onClick={() => withConfirm({ sym, side: 'sell', shares: sellQty, type: 'limit', price: sellPx, approx: true }, () => c.sell(sym, 1, 'bid', -OFFSET, sellQty))}
+          >
+            VENDER {pos ? fmtInt(sellQty) : ''}
+            <small>{pos && sellPx ? `a ${fmtPrice(sellPx)}` : 'sin posición'}</small>
+          </button>
+        )}
       </div>
     </div>
   );
