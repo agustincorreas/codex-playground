@@ -18,9 +18,47 @@ export interface PlaybookRules {
   maxLosers: number;
   /** Pérdida máxima del día en R (múltiplos del riesgo por trade). */
   maxLossR: number;
+  /** Puntaje mínimo (0-100) para que una candidata merezca mirarse de cerca. */
+  minScore: number;
+  /** El objetivo tiene que pagar al menos tantas veces el riesgo (si Claude propone otro stop/objetivo). */
+  minRewardR: number;
+  /** Multiplica el riesgo por trade de la cuenta (0,5 = la mitad; 1,5 = una vez y media). */
+  riskMult: number;
+  /** Objetivo del plan en múltiplos del riesgo (2 = 2:1). */
+  targetR: number;
+  /** Minutos sin avanzar antes de salir sin esperar el stop. */
+  timeStopMin: number;
 }
 
-export const DEFAULT_RULES: PlaybookRules = { entryFrom: 7 * 60, entryTo: 11 * 60 + 30, maxTrades: 8, maxLosers: 3, maxLossR: 3 };
+export const DEFAULT_RULES: PlaybookRules = { entryFrom: 7 * 60, entryTo: 11 * 60 + 30, maxTrades: 8, maxLosers: 3, maxLossR: 3, minScore: 45, minRewardR: 1.5, riskMult: 1, targetR: 2, timeStopMin: 6 };
+
+/** Perfiles del modo automático: fijan todas las reglas de una vez. "Personalizado" = reglas tocadas a mano. */
+export type AiProfile = 'conservador' | 'equilibrado' | 'agresivo' | 'personalizado';
+
+export const PROFILES: Record<Exclude<AiProfile, 'personalizado'>, PlaybookRules> = {
+  // Solo la primera hora, pocas entradas, medio riesgo, exige la obvia y un objetivo 2:1 limpio.
+  conservador: { entryFrom: 9 * 60 + 30, entryTo: 10 * 60 + 30, maxTrades: 4, maxLosers: 2, maxLossR: 2, minScore: 65, minRewardR: 2, riskMult: 0.5, targetR: 2, timeStopMin: 5 },
+  equilibrado: { ...DEFAULT_RULES },
+  // Pre-market y hasta el mediodía, más trades, una vez y media el riesgo, acepta setups menos obvios y apunta a 3:1.
+  agresivo: { entryFrom: 7 * 60, entryTo: 12 * 60 + 30, maxTrades: 15, maxLosers: 4, maxLossR: 5, minScore: 35, minRewardR: 1.2, riskMult: 1.5, targetR: 3, timeStopMin: 8 },
+};
+
+export const PROFILE_LABEL: Record<AiProfile, string> = { conservador: 'Conservador', equilibrado: 'Equilibrado', agresivo: 'Agresivo', personalizado: 'Personalizado' };
+
+export const PROFILE_HINT: Record<AiProfile, string> = {
+  conservador: 'Solo de 9:30 a 10:30, hasta 4 trades, para a los 2 perdedores o 2R, la mitad del riesgo, exige la obvia del día (65+) y objetivo 2:1 que pague 2R.',
+  equilibrado: 'Lo que hace Ross: de 7:00 a 11:30, hasta 8 trades, para a los 3 perdedores o 3R, riesgo normal, candidatas de 45+ y objetivo 2:1.',
+  agresivo: 'De 7:00 a 12:30, hasta 15 trades, para a los 4 perdedores o 5R, una vez y media el riesgo, acepta candidatas de 35+ y apunta a 3:1 dejando correr más.',
+  personalizado: 'Reglas tocadas a mano (elegí un perfil para volver a los valores de fábrica).',
+};
+
+/** Qué perfil representan estas reglas (o "personalizado" si no coinciden con ninguno). */
+export function profileOf(rules: PlaybookRules): AiProfile {
+  for (const [name, r] of Object.entries(PROFILES) as Array<[Exclude<AiProfile, 'personalizado'>, PlaybookRules]>) {
+    if ((Object.keys(r) as Array<keyof PlaybookRules>).every((k) => Math.abs(r[k] - rules[k]) < 1e-9)) return name;
+  }
+  return 'personalizado';
+}
 
 export interface Candidate {
   sym: string;
@@ -112,14 +150,14 @@ export const entryLabel = (k: EntryKind) => LABEL[k];
 const r2 = (p: number) => Math.round(p * 100) / 100;
 const tick = (p: number) => (p >= 1 ? 0.01 : 0.0001);
 
-/** Un plan solo sirve si el stop está cerca (hasta 6 % del precio, menos en acciones caras) y paga 2:1. */
-function finish(kind: EntryKind, entry: number, stop: number, reason: string, nextLevel?: number): EntryPlan | null {
+/** Un plan solo sirve si el stop está cerca (hasta 6 % del precio, menos en acciones caras) y paga el objetivo (2:1 por defecto). */
+function finish(kind: EntryKind, entry: number, stop: number, reason: string, nextLevel?: number, targetR = 2): EntryPlan | null {
   if (!(entry > 0) || !(stop > 0) || stop >= entry) return null;
   const risk = entry - stop;
   if (risk / entry > 0.06 || risk < tick(entry) * 2) return null;
-  let target = r2(entry + 2 * risk);
-  // Si hay un nivel redondo cerca por encima del objetivo, se apunta ahí (nunca por debajo de 2R).
-  if (nextLevel && nextLevel > target && nextLevel - entry <= 3 * risk) target = r2(nextLevel);
+  let target = r2(entry + targetR * risk);
+  // Si hay un nivel redondo cerca por encima del objetivo, se apunta ahí (nunca por debajo del objetivo).
+  if (nextLevel && nextLevel > target && nextLevel - entry <= (targetR + 1) * risk) target = r2(nextLevel);
   return { kind, entry: r2(entry), stop: r2(stop), target, reason };
 }
 
@@ -138,8 +176,9 @@ function recentVolumeOk(bars: Bar[]): boolean {
  * 4. Ruptura del máximo del pre-market en los primeros minutos de la rueda.
  * Devuelve null si no hay nada limpio: no entrar también es una decisión.
  */
-export function findEntry(detail: SymbolDetail, quote: Quote | null, now: number): EntryPlan | null {
+export function findEntry(detail: SymbolDetail, quote: Quote | null, now: number, rules: Pick<PlaybookRules, 'targetR'> = DEFAULT_RULES): EntryPlan | null {
   const { row, bars, setup } = detail;
+  const tr = rules.targetR;
   if (row.halted || bars.length < 3) return null;
   const ask = quote?.ask || row.ask || row.price;
   const bid = quote?.bid || row.bid || row.price;
@@ -152,7 +191,7 @@ export function findEntry(detail: SymbolDetail, quote: Quote | null, now: number
 
   // 1. Bull flag del motor.
   if (setup.flag && ask >= setup.flag.entry && ask <= setup.flag.entry * 1.01 && setup.aboveVwap) {
-    return finish('bullFlag', ask, setup.flag.stop, 'Bull flag: la vela supera el máximo del banderín con el precio sobre VWAP', setup.nextLevel);
+    return finish('bullFlag', ask, setup.flag.stop, 'Bull flag: la vela supera el máximo del banderín con el precio sobre VWAP', setup.nextLevel, tr);
   }
 
   // 2. Micro pullback.
@@ -171,7 +210,7 @@ export function findEntry(detail: SymbolDetail, quote: Quote | null, now: number
       const retrace = (poleHigh - restLow) / Math.max(tick(poleHigh), poleHigh - lowStart);
       const breaking = last.h > prev.h && ask >= prev.h && ask <= prev.h * 1.012;
       if (restVol < poleVol && retrace <= 0.5 && breaking && restLow > 0) {
-        return finish('microPullback', ask, restLow - tick(ask), `Micro pullback: ${rest.length} vela${rest.length === 1 ? '' : 's'} de descanso con menos volumen y rompe el máximo de la anterior`, setup.nextLevel);
+        return finish('microPullback', ask, restLow - tick(ask), `Micro pullback: ${rest.length} vela${rest.length === 1 ? '' : 's'} de descanso con menos volumen y rompe el máximo de la anterior`, setup.nextLevel, tr);
       }
     }
   }
@@ -180,14 +219,14 @@ export function findEntry(detail: SymbolDetail, quote: Quote | null, now: number
   if (prev && setup.aboveVwap && setup.aboveEma9 && row.hod > 0 && ask >= row.hod && ask <= row.hod * 1.008 && last.v >= prev.v * 0.8) {
     const lows = closed.slice(-3).map((b) => b.l);
     const stop = Math.max(Math.min(...lows), detail.ema9 > 0 ? Math.min(detail.ema9, ask * 0.97) : 0);
-    return finish('hodBreak', ask, stop, 'Rompe el máximo del día con volumen, sobre VWAP y EMA 9', setup.nextLevel);
+    return finish('hodBreak', ask, stop, 'Rompe el máximo del día con volumen, sobre VWAP y EMA 9', setup.nextLevel, tr);
   }
 
   // 4. Ruptura del máximo del pre-market al abrir.
   const m = etParts(now).minutes;
   if (prev && m >= REG_OPEN && m <= REG_OPEN + 15 && detail.pmHigh > 0 && ask >= detail.pmHigh && ask <= detail.pmHigh * 1.01 && setup.aboveVwap) {
     const stop = Math.max(Math.min(...closed.slice(-2).map((b) => b.l)), ask * 0.95);
-    return finish('pmhBreak', ask, stop, 'Rompe el máximo del pre-market en los primeros minutos de la rueda', setup.nextLevel);
+    return finish('pmhBreak', ask, stop, 'Rompe el máximo del pre-market en los primeros minutos de la rueda', setup.nextLevel, tr);
   }
   return null;
 }
@@ -230,7 +269,7 @@ export function newMemory(now: number, price: number): PositionMemory {
  * sube al precio de entrada; el resto se deja correr mientras el precio respete la EMA 9 de 1 minuto y
  * el VWAP; si en 6 minutos no avanzó, se sale; y si se extendió mucho y aparece una mecha arriba, se toma.
  */
-export function manage(pos: Position, detail: SymbolDetail, quote: Quote | null, now: number, mem: PositionMemory): ExitAdvice {
+export function manage(pos: Position, detail: SymbolDetail, quote: Quote | null, now: number, mem: PositionMemory, rules: Pick<PlaybookRules, 'targetR' | 'timeStopMin'> = DEFAULT_RULES): ExitAdvice {
   const last = quote?.last || detail.row.price;
   const bid = quote?.bid || detail.row.bid || last;
   if (!(last > 0)) return { action: 'hold', reason: '' };
@@ -238,7 +277,7 @@ export function manage(pos: Position, detail: SymbolDetail, quote: Quote | null,
   const stop = pos.stop ?? pos.planStop ?? pos.initialStop;
   const risk = pos.initialStop ? pos.avgCost - pos.initialStop : pos.avgCost * 0.03;
   const r = risk > 0 ? (last - pos.avgCost) / risk : 0;
-  const target = pos.target ?? pos.planTarget ?? pos.avgCost + 2 * risk;
+  const target = pos.target ?? pos.planTarget ?? pos.avgCost + rules.targetR * risk;
 
   if (detail.row.halted) return { action: 'hold', reason: 'En halt: no se puede operar.' };
   // Stop: sin discutir (con el bid, que es lo que se cobra).
@@ -261,7 +300,7 @@ export function manage(pos: Position, detail: SymbolDetail, quote: Quote | null,
     if (r >= 3 && range > 0 && (prev.h - prev.c) / range > 0.6) return { action: mem.halfTaken ? 'sellAll' : 'sellHalf', reason: `Mecha de rechazo con ${r.toFixed(1)}R de ganancia` };
   }
   // Tiempo: si no avanza, afuera.
-  if (!mem.halfTaken && now - mem.enteredAt > 6 * MIN && last < pos.avgCost + 0.25 * risk) return { action: 'sellAll', reason: 'Seis minutos sin avanzar: se sale sin esperar el stop' };
+  if (!mem.halfTaken && now - mem.enteredAt > rules.timeStopMin * MIN && last < pos.avgCost + 0.25 * risk) return { action: 'sellAll', reason: `${rules.timeStopMin} minutos sin avanzar: se sale sin esperar el stop` };
   return { action: 'hold', reason: '' };
 }
 

@@ -158,3 +158,39 @@ describe('libro de jugadas', () => {
     expect(parseDecision('no hay json')).toBeNull();
   });
 });
+
+describe('perfiles del automático', () => {
+  it('cada perfil se reconoce por sus reglas y "personalizado" al tocar una', async () => {
+    const { PROFILES, profileOf } = await import('../src/trading/playbook');
+    expect(profileOf(PROFILES.conservador)).toBe('conservador');
+    expect(profileOf(PROFILES.equilibrado)).toBe('equilibrado');
+    expect(profileOf(DEFAULT_RULES)).toBe('equilibrado');
+    expect(profileOf(PROFILES.agresivo)).toBe('agresivo');
+    expect(profileOf({ ...PROFILES.agresivo, maxTrades: 9 })).toBe('personalizado');
+    expect(PROFILES.conservador.riskMult).toBeLessThan(PROFILES.equilibrado.riskMult);
+    expect(PROFILES.agresivo.riskMult).toBeGreaterThan(PROFILES.equilibrado.riskMult);
+    expect(PROFILES.conservador.minScore).toBeGreaterThan(PROFILES.agresivo.minScore);
+  });
+
+  it('el objetivo del plan y el tiempo sin avanzar siguen al perfil', async () => {
+    const { PROFILES } = await import('../src/trading/playbook');
+    const t0 = at(10, 0);
+    const bars = [bar(t0, 4.2, 4.5, 4.18, 4.46, 90_000), bar(t0 + 60_000, 4.46, 4.48, 4.42, 4.44, 30_000), bar(t0 + 120_000, 4.44, 4.47, 4.43, 4.46, 25_000), bar(t0 + 180_000, 4.46, 4.49, 4.45, 4.47, 20_000), bar(t0 + 240_000, 4.47, 4.5, 4.45, 4.48, 20_000), bar(t0 + 300_000, 4.48, 4.5, 4.47, 4.5, 30_000)];
+    const r = row({ sym: 'RUNR', price: 4.5, hod: 4.5, pctFromHod: 0, vwap: 4.3 });
+    const base = findEntry(detail(bars, r, { ema9: 4.3 }), quote(4.5), t0 + 330_000);
+    const aggressive = findEntry(detail(bars, r, { ema9: 4.3 }), quote(4.5), t0 + 330_000, PROFILES.agresivo);
+    expect(base).not.toBeNull();
+    expect(aggressive).not.toBeNull();
+    const risk = base!.entry - base!.stop;
+    expect(base!.target).toBeCloseTo(base!.entry + 2 * risk, 2);
+    expect(aggressive!.target).toBeCloseTo(aggressive!.entry + 3 * risk, 2);
+    // Sin avanzar: el conservador sale a los 5 min, el agresivo aguanta 8.
+    const pos: Position = { sym: 'RUNR', shares: 200, avgCost: 4.46, openedAt: t0, boughtShares: 200, boughtCost: 892, soldShares: 0, soldValue: 0, fees: 0, realized: 0, initialStop: 4.35, planStop: 4.35, high: 4.5, low: 4.44, fills: 1 } as Position;
+    const quiet = [bar(t0, 4.4, 4.5, 4.38, 4.46, 50_000), bar(t0 + 60_000, 4.46, 4.55, 4.44, 4.5, 50_000)];
+    const mem = newMemory(t0, 4.46);
+    mem.lastBarT = quiet[0].t;
+    const d = detail(quiet, row({ sym: 'RUNR', price: 4.47, vwap: 4.3 }), { ema9: 4.4 });
+    expect(manage(pos, d, quote(4.47), t0 + 6 * 60_000, mem, PROFILES.conservador).action).toBe('sellAll');
+    expect(manage(pos, d, quote(4.47), t0 + 6 * 60_000, mem, PROFILES.agresivo).action).toBe('hold');
+  });
+});

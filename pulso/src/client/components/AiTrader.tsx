@@ -2,6 +2,7 @@
 // sugerencia del momento con sus botones, la opinión de Claude, las candidatas, las reglas y el registro.
 import { useAiVersion, type AiTrader } from '../aitrader';
 import { formatEtTime } from '../../engine/time';
+import { PROFILE_HINT, PROFILE_LABEL } from '../../trading/playbook';
 
 interface Props {
   trader: AiTrader;
@@ -119,8 +120,25 @@ export function AiTraderPanel({ trader, selected, onSelect }: Props) {
         </div>
       )}
 
+      <div className="ai-card ai-profile">
+        <div className="ai-sub">Perfil del automático</div>
+        <div className="seg" role="group" aria-label="Perfil del IA Trader">
+          {(['conservador', 'equilibrado', 'agresivo'] as const).map((p) => (
+            <button key={p} className={s.profile === p ? 'is-active' : ''} onClick={() => trader.update({ profile: p })} title={PROFILE_HINT[p]}>
+              {PROFILE_LABEL[p]}
+            </button>
+          ))}
+          {s.profile === 'personalizado' && (
+            <button className="is-active" disabled>
+              {PROFILE_LABEL.personalizado}
+            </button>
+          )}
+        </div>
+        <p className="t-muted small ai-note">{PROFILE_HINT[s.profile]}</p>
+      </div>
+
       <details className="ai-card ai-rules">
-        <summary>Reglas</summary>
+        <summary>Reglas{s.profile === 'personalizado' ? ' (personalizadas)' : ''}</summary>
         <div className="ai-rules-grid">
           <label>
             Entradas desde
@@ -142,6 +160,26 @@ export function AiTraderPanel({ trader, selected, onSelect }: Props) {
             Pérdida máxima (R)
             <input type="number" min={1} max={10} step={0.5} value={s.rules.maxLossR} onChange={(e) => trader.update({ rules: { ...s.rules, maxLossR: Math.max(0.5, Number(e.target.value) || 1) } })} />
           </label>
+          <label title="Puntaje mínimo (0-100) para mirar de cerca una candidata; para sugerirla hacen falta 10 más.">
+            Candidata mínima
+            <input type="number" min={0} max={100} value={s.rules.minScore} onChange={(e) => trader.update({ rules: { ...s.rules, minScore: Math.min(100, Math.max(0, Math.round(Number(e.target.value) || 0))) } })} />
+          </label>
+          <label title="Multiplica el riesgo por trade de la cuenta (1 = el de Preferencias de práctica).">
+            Riesgo ×
+            <input type="number" min={0.25} max={3} step={0.25} value={s.rules.riskMult} onChange={(e) => trader.update({ rules: { ...s.rules, riskMult: Math.min(3, Math.max(0.25, Number(e.target.value) || 1)) } })} />
+          </label>
+          <label title="Objetivo del plan en múltiplos del riesgo (2 = 2:1).">
+            Objetivo (R)
+            <input type="number" min={1} max={5} step={0.5} value={s.rules.targetR} onChange={(e) => trader.update({ rules: { ...s.rules, targetR: Math.min(5, Math.max(1, Number(e.target.value) || 2)) } })} />
+          </label>
+          <label title="Si Claude propone otro stop u objetivo, el objetivo tiene que pagar al menos tantas veces el riesgo.">
+            Mínimo que pague (R)
+            <input type="number" min={1} max={3} step={0.1} value={s.rules.minRewardR} onChange={(e) => trader.update({ rules: { ...s.rules, minRewardR: Math.min(3, Math.max(1, Number(e.target.value) || 1.5)) } })} />
+          </label>
+          <label title="Minutos sin avanzar antes de salir sin esperar el stop.">
+            Sin avanzar (min)
+            <input type="number" min={2} max={20} value={s.rules.timeStopMin} onChange={(e) => trader.update({ rules: { ...s.rules, timeStopMin: Math.min(20, Math.max(2, Math.round(Number(e.target.value) || 6))) } })} />
+          </label>
           <label title="Tope diario de consultas a Claude (0 = sin tope). Hoy van las que muestra el contador.">
             Consultas por día
             <input type="number" min={0} max={2000} value={s.maxCalls} onChange={(e) => trader.update({ maxCalls: Math.max(0, Math.round(Number(e.target.value) || 0)) })} />
@@ -154,8 +192,8 @@ export function AiTraderPanel({ trader, selected, onSelect }: Props) {
           <input type="checkbox" checked={s.follow} onChange={(e) => trader.update({ follow: e.target.checked })} /> Mostrar en el gráfico lo que mira la IA (en automático)
         </label>
         <p className="t-muted small">
-          Horario de Nueva York. Entra solo con un setup limpio (bull flag, micro pullback o ruptura con volumen sobre VWAP y EMA 9), stop ajustado y objetivo 2:1; vende la mitad en el objetivo, sube el stop a la
-          entrada y deja correr el resto mientras respete la EMA 9. Las salidas van por reglas; Claude opina en las entradas.
+          Horario de Nueva York. Entra solo con un setup limpio (bull flag, micro pullback o ruptura con volumen sobre VWAP y EMA 9), stop ajustado y el objetivo del perfil; vende la mitad en el objetivo, sube el stop
+          a la entrada y deja correr el resto mientras respete la EMA 9. Las salidas van por reglas; Claude opina en las entradas.
         </p>
       </details>
 
