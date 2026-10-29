@@ -202,7 +202,10 @@ de práctica**, nunca órdenes reales.
   riesgo, exige la obvia del día y objetivo 2:1 que pague 2R), *Equilibrado* (lo que hace Ross: 7:00 a
   11:30, 8 trades, 3 perdedores o 3R, riesgo normal, objetivo 2:1) y *Agresivo* (7:00 a 12:30, 15
   trades, 4 perdedores o 5R, una vez y media el riesgo, candidatas menos obvias y objetivo 3:1). Si
-  tocás una regla a mano queda como *Personalizado*. Para que opere seguido en la cuenta de práctica
+  tocás una regla a mano queda como *Personalizado*. En *Equilibrado* y *Agresivo* las reglas mandan:
+  si encuentran el setup, un "esperar" de Claude sin un motivo firme no frena la entrada (solo un "no"
+  o un "esperar" con 70 % o más de convicción); el *Conservador* respeta siempre a Claude.
+  Para que opere seguido en la cuenta de práctica
   hace falta poder de compra: con cuenta cash lo vendido se libera recién al día siguiente (T+1) y con
   cuenta margen de menos de US$ 25.000 la regla PDT frena al cuarto day trade de la semana; el panel
   lo avisa y en *Preferencias de práctica* se puede subir el saldo o desactivar esas dos reglas.

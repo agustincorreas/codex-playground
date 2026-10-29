@@ -403,16 +403,24 @@ describe('escenario ideal para cada perfil', () => {
   }
 });
 
-describe('perfil agresivo con Claude', () => {
-  it('un "esperar" de Claude sin convicción no frena al agresivo; un "skip" sí', async () => {
+describe('perfiles con Claude', () => {
+  it('un "esperar" de Claude sin convicción no frena al equilibrado ni al agresivo (al conservador sí); un "skip" frena a todos', async () => {
     ai.ask.mockResolvedValue('{"decision":"wait","confidence":55,"reason":"mmm"}');
-    const { c, t, tick, flush, log } = await arm({ consult: true });
-    t.update({ profile: 'agresivo' });
-    tick();
-    await flush();
-    expect(t.state.phase).toBe('entering');
-    expect(c.broker!.orders('RUN')[0]?.side).toBe('buy');
-    expect(log().some((x) => /entra igual/.test(x))).toBe(true);
+    for (const profile of ['equilibrado', 'agresivo'] as const) {
+      const { c, t, tick, flush, log } = await arm({ consult: true });
+      t.update({ profile });
+      tick();
+      await flush();
+      expect(t.state.phase).toBe('entering');
+      expect(c.broker!.orders('RUN')[0]?.side).toBe('buy');
+      expect(log().some((x) => /entra igual/.test(x))).toBe(true);
+    }
+    const cons = await arm({ consult: true });
+    cons.t.update({ profile: 'conservador' });
+    cons.tick();
+    await cons.flush();
+    expect(cons.t.state.phase).toBe('watching');
+    expect(cons.c.broker!.orders('RUN')).toHaveLength(0);
     ai.ask.mockResolvedValue('{"decision":"skip","confidence":90,"reason":"dilución"}');
     const second = await arm({ consult: true });
     second.t.update({ profile: 'agresivo' });

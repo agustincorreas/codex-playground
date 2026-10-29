@@ -577,11 +577,11 @@ export class AiTrader {
       const verdict = d.decision === 'enter' ? 'entra' : d.decision === 'wait' ? 'espera' : 'no entra';
       this.log(`Claude ${verdict}${d.confidence !== undefined ? ` (${d.confidence} %)` : ''}: ${d.reason}`, 'ai');
       if (!execute) return;
-      // Perfil agresivo: las reglas mandan. Un "esperar" de Claude sin mucha convicción no frena la entrada;
-      // solo un "no" (skip) o un "esperar" muy seguro (70 % o más) la vetan.
+      // Las reglas mandan (salvo en el perfil conservador): un "esperar" de Claude sin mucha convicción no
+      // frena la entrada; solo un "no" (skip) o un "esperar" muy seguro (70 % o más) la vetan.
       let decision = d.decision;
-      if (decision === 'wait' && this.settings.profile === 'agresivo' && (d.confidence ?? 0) < 70) {
-        this.log(`${sym}: el perfil agresivo entra igual (Claude dudaba sin un motivo fuerte).`, 'info');
+      if (decision === 'wait' && this.settings.profile !== 'conservador' && (d.confidence ?? 0) < 70) {
+        this.log(`${sym}: el perfil ${PROFILE_LABEL[this.settings.profile].toLowerCase()} entra igual (Claude dudaba sin un motivo fuerte).`, 'info');
         decision = 'enter';
       }
       if (decision === 'enter') {
