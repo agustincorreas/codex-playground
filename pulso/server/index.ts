@@ -426,24 +426,25 @@ function handleAccount(req: IncomingMessage, res: ServerResponse, pathname: stri
 }
 
 function serveStatic(req: IncomingMessage, res: ServerResponse): void {
-  if (!existsSync(DIST)) {
-    res.writeHead(503, { 'Content-Type': 'text/html; charset=utf-8' });
-    res.end('<h1>Falta compilar la interfaz</h1><p>Corré <code>npm start</code> (compila y arranca) en la carpeta <code>pulso</code>.</p>');
-    return;
-  }
   let file = staticPath(DIST, req.url ?? '/');
   if (!file) {
     res.writeHead(400, { 'Content-Type': 'text/plain; charset=utf-8' });
     res.end('Dirección inválida');
     return;
   }
-  if (!existsSync(file) || statSync(file).isDirectory()) file = join(DIST, 'index.html');
-  const type = MIME[extname(file)] ?? 'application/octet-stream';
-  const headers: Record<string, string> = { 'Content-Type': type, 'Cache-Control': isAsset(DIST, file) ? 'public, max-age=31536000, immutable' : 'no-cache' };
+  const headers: Record<string, string> = {};
   // El celular entra con `?t=` una vez; la cookie lo deja entrar después sin el token en la dirección.
   if (TOKEN && !isLoopback(req) && tokenOf(req) === TOKEN && !req.headers.cookie?.includes(`pulso_t=${TOKEN}`)) {
     headers['Set-Cookie'] = `pulso_t=${TOKEN}; Path=/; Max-Age=31536000; SameSite=Strict; HttpOnly`;
   }
+  if (!existsSync(DIST)) {
+    res.writeHead(503, { ...headers, 'Content-Type': 'text/html; charset=utf-8' });
+    res.end('<h1>Falta compilar la interfaz</h1><p>Corré <code>npm start</code> (compila y arranca) en la carpeta <code>pulso</code>.</p>');
+    return;
+  }
+  if (!existsSync(file) || statSync(file).isDirectory()) file = join(DIST, 'index.html');
+  headers['Content-Type'] = MIME[extname(file)] ?? 'application/octet-stream';
+  headers['Cache-Control'] = isAsset(DIST, file) ? 'public, max-age=31536000, immutable' : 'no-cache';
   res.writeHead(200, headers);
   res.end(readFileSync(file));
 }
