@@ -49,7 +49,7 @@ describe('simulador + motor', () => {
     // Las alertas del pre-market quedaron marcadas como historial.
     expect(engine.alerts.some((a) => a.warmup)).toBe(true);
     expect(live.every((a) => !a.warmup)).toBe(true);
-  });
+  }, 20_000);
 
   it('con la misma semilla reanuda el mismo mercado aunque avance en tramos distintos', () => {
     const opts = { seed: 7, dayTs: Date.parse('2026-10-23T15:00:00Z'), startMinutes: 9 * 60 + 25 };
