@@ -333,3 +333,19 @@ describe('IA Trader', () => {
     expect(t.state.phase).toBe('inPosition');
   });
 });
+
+describe('perfiles', () => {
+  it('elegir un perfil carga sus reglas, tocar una lo vuelve personalizado, y el riesgo del perfil cambia el tamaño', async () => {
+    const { PROFILES } = await import('../src/trading/playbook');
+    const { t } = await arm();
+    t.update({ profile: 'agresivo' });
+    expect(t.settings.profile).toBe('agresivo');
+    expect(t.settings.rules).toEqual(PROFILES.agresivo);
+    expect(t.state.log.some((l) => /Perfil agresivo/.test(l.text))).toBe(true);
+    t.update({ rules: { ...t.settings.rules, maxTrades: 9 } });
+    expect(t.settings.profile).toBe('personalizado');
+    t.update({ profile: 'conservador' });
+    expect(t.settings.rules.riskMult).toBe(0.5);
+    expect(t.settings.rules.entryFrom).toBe(9 * 60 + 30);
+  });
+});

@@ -191,7 +191,12 @@ de práctica**, nunca órdenes reales.
   apretás *Hacer este trade* o *Ignorar*.
 - **Automático:** hace todo eso solo, con límites: horario de entradas (7:00 a 11:30 ET por defecto),
   máximo de trades por día, perdedores seguidos y pérdida máxima del día en R. Si *Mostrar en el
-  gráfico* está activo, ves lo que mira.
+  gráfico* está activo, ves lo que mira. Tres **perfiles** fijan todas las reglas de una vez:
+  *Conservador* (solo de 9:30 a 10:30, hasta 4 trades, para a los 2 perdedores o 2R, la mitad del
+  riesgo, exige la obvia del día y objetivo 2:1 que pague 2R), *Equilibrado* (lo que hace Ross: 7:00 a
+  11:30, 8 trades, 3 perdedores o 3R, riesgo normal, objetivo 2:1) y *Agresivo* (7:00 a 12:30, 15
+  trades, 4 perdedores o 5R, una vez y media el riesgo, candidatas menos obvias y objetivo 3:1). Si
+  tocás una regla a mano queda como *Personalizado*.
 - **Claude:** si hay IA disponible (dentro de Claude, o una clave de Anthropic en el servidor:
   `ANTHROPIC_API_KEY`, o en la app de escritorio en *Claves y conexión*), Claude opina antes de cada
   entrada con el contexto completo (velas, cinta, noticias, cuenta) y elige entre las candidatas; en

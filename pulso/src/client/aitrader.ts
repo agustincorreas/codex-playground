@@ -5,7 +5,7 @@
 import { DEFAULT_SETTINGS, type Settings, type SymbolDetail, type ViewModel } from '../engine/types';
 import { ADVISOR_SYSTEM, entryPrompt, exitPrompt, parseDecision, pickPrompt, type AccountBrief } from '../trading/advisor';
 import { roundPx } from '../trading/depth';
-import { DEFAULT_RULES, entryLabel, findEntry, inEntryWindow, manage, newMemory, rankCandidates, sizeFor, type Candidate, type EntryPlan, type ExitAdvice, type PlaybookRules, type PositionMemory } from '../trading/playbook';
+import { DEFAULT_RULES, entryLabel, findEntry, inEntryWindow, manage, newMemory, PROFILE_LABEL, PROFILES, profileOf, rankCandidates, sizeFor, type AiProfile, type Candidate, type EntryPlan, type ExitAdvice, type PlaybookRules, type PositionMemory } from '../trading/playbook';
 import { aiAvailable, type Asker } from './lib/ai';
 import { load, save } from './lib/storage';
 import type { DataSource } from './source/types';
@@ -22,6 +22,8 @@ export interface AiSettings {
   /** Mostrar en el gráfico la acción que mira la IA. */
   follow: boolean;
   rules: PlaybookRules;
+  /** Perfil del automático: fija las reglas de una vez; "personalizado" cuando se tocaron a mano. */
+  profile: AiProfile;
   /** Tope de consultas a Claude por día (0 = sin tope). Al llegar, el IA Trader sigue solo con las reglas. */
   maxCalls: number;
 }
@@ -70,7 +72,7 @@ export interface AiState {
   thinking: boolean;
 }
 
-const DEFAULT_AI: AiSettings = { mode: 'off', consult: true, follow: true, rules: DEFAULT_RULES, maxCalls: 120 };
+const DEFAULT_AI: AiSettings = { mode: 'off', consult: true, follow: true, rules: DEFAULT_RULES, profile: 'equilibrado', maxCalls: 120 };
 const px = (v: number) => (v >= 1 ? v.toFixed(2) : v.toFixed(4));
 const ASK_TIMEOUT = 15_000;
 /** Una compra que no se ejecutó en este tiempo se cancela (si se ejecutó en parte, se cancela el resto). */
@@ -82,8 +84,7 @@ const PLAN_RETRY = 180_000;
 /** Después de salir de un trade no se busca otro por 20 s; de una salida perdedora, no se vuelve a esa acción por 5 min. */
 const COOLDOWN = 20_000;
 const LOSER_SKIP = 5 * 60_000;
-/** El objetivo tiene que pagar al menos esto por cada peso de riesgo (con el stop final). */
-const MIN_REWARD_R = 1.5;
+// El objetivo mínimo en R, el puntaje mínimo y el multiplicador del riesgo salen del perfil (settings.rules).
 const LIVE: ReadonlySet<Order['status']> = new Set(['sent', 'open', 'partial']);
 
 export class AiTrader {
@@ -123,6 +124,7 @@ export class AiTrader {
   ) {
     const saved = load<Partial<AiSettings>>('ai-settings', {});
     this.settings = { ...DEFAULT_AI, ...saved, rules: { ...DEFAULT_RULES, ...(saved.rules ?? {}) } };
+    this.settings.profile = profileOf(this.settings.rules);
     this.state.phase = this.settings.mode === 'off' ? 'off' : 'scanning';
     void aiAvailable().then((ai) => {
       this.asker = ai?.ask ?? null;
@@ -182,8 +184,12 @@ export class AiTrader {
   }
 
   update(patch: Partial<AiSettings>): void {
+    // Elegir un perfil carga sus reglas; tocar una regla a mano deja el perfil en "personalizado".
+    if (patch.profile && patch.profile !== 'personalizado') patch = { ...patch, rules: { ...PROFILES[patch.profile] } };
     this.settings = { ...this.settings, ...patch, rules: { ...this.settings.rules, ...(patch.rules ?? {}) } };
+    this.settings.profile = profileOf(this.settings.rules);
     save('ai-settings', this.settings);
+    if (patch.profile && patch.profile !== 'personalizado') this.log(`Perfil ${PROFILE_LABEL[patch.profile].toLowerCase()}: ${this.profileSummary()}`, 'info');
     if (patch.mode !== undefined) {
       if (patch.mode === 'off') {
         this.setPhase('off');
@@ -193,6 +199,17 @@ export class AiTrader {
       this.log(patch.mode === 'off' ? 'IA Trader apagado.' : patch.mode === 'auto' ? 'Modo automático: opera solo la cuenta de práctica.' : 'Modo sugerencias: propone y vos decidís.', 'info');
     }
     this.emit();
+  }
+
+  private profileSummary(): string {
+    const r = this.settings.rules;
+    const hhmm = (m: number) => `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`;
+    return `entradas de ${hhmm(r.entryFrom)} a ${hhmm(r.entryTo)}, hasta ${r.maxTrades} trades, ${r.maxLosers} perdedores o ${r.maxLossR}R, riesgo ×${r.riskMult}, candidatas de ${r.minScore}+, objetivo ${r.targetR}:1.`;
+  }
+
+  /** Riesgo por trade de este perfil: el de la cuenta por el multiplicador del perfil. */
+  private risk(): number {
+    return this.c.riskAmount() * this.settings.rules.riskMult;
   }
 
   private log(text: string, tone: AiLogEntry['tone'] = 'info'): void {
@@ -249,7 +266,7 @@ export class AiTrader {
 
   private brief(): AccountBrief {
     const sum = this.c.summary();
-    return { equity: sum.equity, riskPerTrade: this.c.riskAmount(), dayPnl: sum.dayPnl, tradesToday: this.c.active?.trades.length ?? 0, losersInARow: this.losersInARow() };
+    return { equity: sum.equity, riskPerTrade: this.risk(), dayPnl: sum.dayPnl, tradesToday: this.c.active?.trades.length ?? 0, losersInARow: this.losersInARow() };
   }
 
   private losersInARow(): number {
@@ -315,8 +332,8 @@ export class AiTrader {
       } else if (this.state.focus) {
         const detail = this.detailOf(this.state.focus);
         if (!detail) return;
-        const plan = findEntry(detail, this.source.quote(detail.sym), now);
-        const shares = plan ? sizeFor(this.c.riskAmount(), plan.entry, plan.stop, this.c.summary().buyingPower, this.liquidity(detail)) : 0;
+        const plan = findEntry(detail, this.source.quote(detail.sym), now, this.settings.rules);
+        const shares = plan ? sizeFor(this.risk(), plan.entry, plan.stop, this.c.summary().buyingPower, this.liquidity(detail)) : 0;
         const d = plan && shares > 0 ? await this.ask(entryPrompt(detail, this.source.quote(detail.sym), plan, shares, now, this.brief())) : await this.ask(pickPrompt(this.state.candidates, now, this.brief()));
         if (d) this.state.advice = { ts: now, sym: d.sym ?? detail.sym, decision: d.decision, text: d.reason };
       } else if (this.state.candidates.length) {
@@ -413,7 +430,7 @@ export class AiTrader {
     const top = this.state.candidates[0];
     const focusStillGood = this.state.focus && this.state.candidates.slice(0, 4).some((x) => x.sym === this.state.focus);
     if (!focusStillGood) {
-      if (top && top.score >= 45) this.focusOn(top.sym, 'la mejor del escáner');
+      if (top && top.score >= this.settings.rules.minScore) this.focusOn(top.sym, 'la mejor del escáner');
       else this.focusOn(null);
     }
     // Claude elige entre las candidatas: solo en el horario de entradas, no más seguido que cada 2 min, y
@@ -441,11 +458,11 @@ export class AiTrader {
     const until = this.skip.get(detail.sym);
     if (until && until > now) return;
     const quote = this.source.quote(detail.sym);
-    const plan = findEntry(detail, quote, now);
+    const plan = findEntry(detail, quote, now, this.settings.rules);
     if (!plan) return;
     const key = `${detail.sym}:${plan.kind}`;
     if (key === this.lastPlanKey && now - this.lastPlanAt < PLAN_RETRY) return;
-    const shares = sizeFor(this.c.riskAmount(), plan.entry, plan.stop, this.c.summary().buyingPower, this.liquidity(detail));
+    const shares = sizeFor(this.risk(), plan.entry, plan.stop, this.c.summary().buyingPower, this.liquidity(detail));
     this.lastPlanKey = key;
     this.lastPlanAt = now;
     if (shares < 1) {
@@ -471,7 +488,7 @@ export class AiTrader {
     const rows = [...Object.values(this.view.scanners).flat(), ...this.view.watch];
     this.state.candidates = rankCandidates(rows, this.scanSettings).slice(0, 8);
     const top = this.state.candidates[0];
-    if (this.settings.mode === 'suggest' && top && top.score >= 55 && top.sym !== this.lastTop) {
+    if (this.settings.mode === 'suggest' && top && top.score >= this.settings.rules.minScore + 10 && top.sym !== this.lastTop) {
       this.lastTop = top.sym;
       this.suggest({ kind: 'pick', sym: top.sym, title: `Mirá ${top.sym}`, text: `${top.reasons.join(', ')}${top.warnings.length ? ` · ojo: ${top.warnings.join(', ')}` : ''}.` });
     }
@@ -485,7 +502,7 @@ export class AiTrader {
     const losers = this.losersInARow();
     if (losers >= r.maxLosers) return `${losers} perdedores seguidos: Ross para por hoy. Mañana se vuelve a empezar.`;
     const loss = -this.c.summary().dayPnl;
-    const max = r.maxLossR * this.c.riskAmount();
+    const max = r.maxLossR * this.risk();
     if (loss >= max) return `Pérdida del día de $${loss.toFixed(0)} (${r.maxLossR}R): no se abren más trades hoy.`;
     return '';
   }
@@ -527,13 +544,14 @@ export class AiTrader {
         const stop = d.stop && d.stop < plan.entry && d.stop > plan.entry * 0.93 ? d.stop : plan.stop;
         const target = d.target && d.target > plan.entry ? d.target : plan.target;
         const risk = plan.entry - stop;
-        const sized = sizeFor(this.c.riskAmount(), plan.entry, stop, this.c.summary().buyingPower, this.liquidity(detail));
+        const sized = sizeFor(this.risk(), plan.entry, stop, this.c.summary().buyingPower, this.liquidity(detail));
         if (sized < 1) {
           this.log(`${sym}: con el stop en $${px(stop)} no alcanza el poder de compra o la liquidez para el tamaño por riesgo.`, 'info');
           return;
         }
-        if (target < plan.entry + MIN_REWARD_R * risk - 1e-9) {
-          this.log(`${sym}: el objetivo $${px(target)} no paga ${MIN_REWARD_R}R con el stop en $${px(stop)} (riesgo $${px(risk)} por acción): se espera.`, 'info');
+        const minR = this.settings.rules.minRewardR;
+        if (target < plan.entry + minR * risk - 1e-9) {
+          this.log(`${sym}: el objetivo $${px(target)} no paga ${minR}R con el stop en $${px(stop)} (riesgo $${px(risk)} por acción): se espera.`, 'info');
           this.state.advice = { ts: this.now, sym, decision: 'wait', text: `Objetivo $${px(target)} corto para el stop $${px(stop)}: esperar un plan mejor.` };
           this.lastPlanAt = this.now;
           return;
@@ -585,7 +603,7 @@ export class AiTrader {
     }
     // La mitad cuenta como tomada cuando se ejecutó la venta, no cuando se mandó.
     if (pos.soldShares > 0) mem.halfTaken = true;
-    const advice = manage(pos, detail, this.source!.quote(sym), this.now, mem);
+    const advice = manage(pos, detail, this.source!.quote(sym), this.now, mem, this.settings.rules);
     if (advice.action === 'hold') return;
     if (advice.action === this.lastExit.action && this.now - this.lastExit.at < 20_000) return;
     this.lastExit = { action: advice.action, at: this.now };
