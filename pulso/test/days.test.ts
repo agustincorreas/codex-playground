@@ -72,7 +72,7 @@ describe('días de práctica', () => {
     expect(c.state.settings.clock).toBe('ny');
     // Con órdenes en espera, al volver se repasa desde donde quedó (con solo posiciones no hace falta).
     a.simNow = Date.now();
-    a.positions.push({ sym: 'RUN', shares: 10, avgCost: 3, openedAt: 0, boughtShares: 10, boughtCost: 30, soldShares: 0, soldValue: 0, fees: 0, realized: 0, high: 3, low: 3, fills: 1 });
+    a.positions.push({ sym: 'RUN', side: 'long', shares: 10, avgCost: 3, openedAt: 0, boughtShares: 10, boughtCost: 30, soldShares: 0, soldValue: 0, fees: 0, realized: 0, high: 3, low: 3, fills: 1 });
     expect(c.simConfig?.catchUpFrom).toBeUndefined();
     a.orders.push({ id: 'o1', sym: 'RUN', side: 'sell', type: 'stop', role: 'stop', shares: 10, stopPrice: 2.8, tif: 'DAY+', route: 'SMRT', status: 'open', createdAt: 0, activeAt: 0, updatedAt: 0, filled: 0, avgPrice: 0 });
     expect(c.simConfig?.catchUpFrom).toBe(a.simNow);
@@ -151,7 +151,7 @@ describe('días de práctica', () => {
     at('2026-10-27T13:00:00Z'); // al otro día, 9:00 ET
     const empty = new TrainingController(memoryStore(), { state: structuredClone(st), sessions: [] }, 'local');
     expect(empty.active?.dayKey).toBe('2026-10-27');
-    st.active!.positions.push({ sym: 'RUN', shares: 10, avgCost: 3, openedAt: 0, boughtShares: 10, boughtCost: 30, soldShares: 0, soldValue: 0, fees: 0, realized: 0, high: 3, low: 3, fills: 1 });
+    st.active!.positions.push({ sym: 'RUN', side: 'long', shares: 10, avgCost: 3, openedAt: 0, boughtShares: 10, boughtCost: 30, soldShares: 0, soldValue: 0, fees: 0, realized: 0, high: 3, low: 3, fills: 1 });
     st.active!.simNow = etWallToTs(2026, 10, 26, 11 * 60);
     const open = new TrainingController(memoryStore(), { state: st, sessions: [] }, 'local');
     expect(open.active?.dayKey).toBe('2026-10-26');
@@ -244,7 +244,7 @@ describe('venta desde la barra del celular', () => {
     const src = fakeSource(clock);
     src.quote = (sym) => ({ sym, last: 3, bid: 2.99, ask: 3.01, bidSize: 500, askSize: 500, real: true, ts: clock.now, halted: false, volPerMin: 10_000 });
     c.attach(src);
-    c.active!.positions.push({ sym: 'RUN', shares: 100, avgCost: 3, openedAt: 0, boughtShares: 100, boughtCost: 300, soldShares: 0, soldValue: 0, fees: 0, realized: 0, high: 3, low: 3, fills: 1 });
+    c.active!.positions.push({ sym: 'RUN', side: 'long', shares: 100, avgCost: 3, openedAt: 0, boughtShares: 100, boughtCost: 300, soldShares: 0, soldValue: 0, fees: 0, realized: 0, high: 3, low: 3, fills: 1 });
     expect(c.sell('RUN', 1, 'bid', -0.05, 37).ok).toBe(true);
     const first = c.orderLog()[0];
     expect([first.side, first.shares, first.price]).toEqual(['sell', 37, 2.94]);

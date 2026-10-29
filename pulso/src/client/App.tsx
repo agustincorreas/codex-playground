@@ -15,19 +15,24 @@ import { Level2, num, type TicketForm } from './components/Level2';
 import { IconVoice } from './components/Icons';
 import { MobileTradeBar } from './components/MobileTradeBar';
 import { DayResult, MyTrades } from './components/MyTrades';
+import { OrderConfirm } from './components/OrderConfirm';
 import { Empty, Panel } from './components/Panel';
 import { PracticeSettings } from './components/PracticeSettings';
 import { SCANNER_COLUMNS, ScannerTable } from './components/ScannerTable';
 import { WindowGrid, type PanelId } from './components/WindowGrid';
 import { DEFAULT_SOUND_TYPES } from './lib/alertMeta';
+import { useFocusTrap } from './lib/a11y';
 import { beep, playOrder, speak, unlockAudio } from './lib/audio';
+import { setConfirmOrders, withConfirm, type OrderPreview } from './lib/confirm';
 import { matches, typing } from './lib/hotkeys';
 import { fmtVolume } from './lib/format';
 import { readNow, setClock } from './lib/now';
 import { useStable } from './lib/stable';
 import { fmtDay, HEAT_HINT, HEAT_LABEL } from './lib/days';
 import { crossAlerts, subscribeDrawings, symbolsWithAlerts } from './lib/drawings';
+import { roundPx } from '../trading/depth';
 import { load, save } from './lib/storage';
+import { dismissToast, useToasts } from './lib/toast';
 import { LocalSource, type SimConfig } from './source/local';
 import { detectServer, RemoteSource } from './source/remote';
 import type { HistoryTf } from '../engine/history';
@@ -45,6 +50,7 @@ const DEFAULT_PREFS: Prefs = {
   momentumMinScore: 3,
   theme: 'system',
   audioV: 2,
+  confirmOrders: false,
 };
 
 /** Señales que se leen en voz alta: las de momentum (algo que se está moviendo ahora) y los halts. */
@@ -88,6 +94,39 @@ function effectiveThemeNow(): 'dark' | 'light' {
   const attr = document.documentElement.getAttribute('data-theme');
   if (attr === 'light' || attr === 'dark') return attr;
   return window.matchMedia?.('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+}
+
+/** Avisos de la cuenta de práctica y de la interfaz (deshacer, etc.), en una misma pila. */
+function Toasts({ c }: { c: TrainingController }) {
+  const extra = useToasts();
+  const all = [...c.notices.map((n) => ({ key: `n${n.id}`, text: n.text, tone: n.tone, action: undefined as undefined | { label: string; run: () => void } })), ...extra.map((t) => ({ key: `t${t.id}`, text: t.text, tone: t.tone, action: t.action ? { label: t.action.label, run: () => (t.action!.run(), dismissToast(t.id)) } : undefined }))];
+  return (
+    <div className="toasts" role="status" aria-live="polite">
+      {all.map((n) => (
+        <div key={n.key} className={`toast ${n.tone}`}>
+          {n.text}
+          {n.action && (
+            <button type="button" className="toast-action" onClick={n.action.run}>
+              {n.action.label}
+            </button>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** El diario en el escritorio: una hoja sobre la página que atrapa el foco mientras está abierta. */
+function JournalOverlay({ onClose, children }: { onClose: () => void; children: ReactNode }) {
+  const sheet = useRef<HTMLDivElement>(null);
+  useFocusTrap(sheet, onClose);
+  return (
+    <div className="journal-overlay" onClick={onClose}>
+      <div className="journal-sheet" role="dialog" aria-modal="true" aria-label="Cuenta y métricas" ref={sheet} tabIndex={-1} onClick={(e) => e.stopPropagation()}>
+        {children}
+      </div>
+    </div>
+  );
 }
 
 function BootScreen({ message }: { message: string }) {
@@ -456,6 +495,9 @@ function Workspace({ server, hasServer, c }: { server: boolean; hasServer: boole
     return () => setClock(null);
   }, [source]);
 
+  // Modo "pedir confirmación": lo leen las órdenes del ticket, la barra del celular y los atajos.
+  useEffect(() => setConfirmOrders(!!prefs.confirmOrders), [prefs.confirmOrders]);
+
   // Tema: respeta el del sistema/visor salvo que el usuario elija uno en la app.
   useEffect(() => {
     if (prefs.theme !== 'system') document.documentElement.setAttribute('data-theme', prefs.theme);
@@ -496,16 +538,48 @@ function Workspace({ server, hasServer, c }: { server: boolean; hasServer: boole
       const sym = selectedRef.current;
       if (!sym) return;
       const t = ticketRef.current;
-      c.hotkey(h, sym, {
+      const ticket = {
         shares: Math.floor(Number(t.shares) || 0),
         stop: num(t.stop),
         target: num(t.target),
         setup: t.setup,
         route: t.route,
         tif: t.tif,
-      });
+      };
+      const run = () => c.hotkey(h, sym, ticket);
+      const a = h.action;
+      // Cancelar órdenes y mover el stop no son órdenes nuevas: salen sin preguntar.
+      if (a.kind !== 'buy' && a.kind !== 'sell') return run();
+      // Vista previa con los mismos cálculos del atajo; el precio final se toma al enviar.
+      const q = source?.quote(sym) ?? null;
+      let preview: OrderPreview;
+      const p = c.broker?.position(sym);
+      if (a.kind === 'sell') {
+        if (!p) return run();
+        const shares = a.fraction >= 1 ? p.shares : Math.max(1, Math.floor(p.shares * a.fraction));
+        // Con un corto, "vender" cubre: la referencia y el desplazamiento se espejan (Bid − 0,05 → Ask + 0,05).
+        const short = p.side === 'short';
+        const ref = short ? (a.ref === 'ask' ? 'bid' : 'ask') : a.ref;
+        const base = q ? (ref === 'ask' ? q.ask : q.bid) : undefined;
+        const offset = short ? -a.offset : a.offset;
+        preview = { sym, side: short ? 'buy' : 'sell', kind: short ? 'cover' : undefined, shares, type: q ? 'limit' : 'market', price: base ? roundPx(Math.max(0.0001, base + offset)) : undefined, approx: true };
+      } else if (p?.side === 'short') {
+        // Comprar con un corto abierto cubre (a Ask + 0,05, sin pasarse del corto).
+        const want = typeof a.shares === 'number' ? a.shares : ticket.shares;
+        preview = { sym, side: 'buy', kind: 'cover', shares: Math.min(p.shares, Math.max(1, want)), type: q ? 'limit' : 'market', price: q ? roundPx(q.ask + 0.05) : undefined, approx: true };
+      } else {
+        const base = q ? (a.ref === 'ask' ? q.ask : a.ref === 'bid' ? q.bid : q.last) : undefined;
+        const price = base ? roundPx(base + a.offset) : undefined;
+        let shares = typeof a.shares === 'number' ? a.shares : ticket.shares;
+        if (a.shares === 'risk') {
+          if (!ticket.stop || !price || ticket.stop >= price) return run();
+          shares = Math.max(1, Math.floor(c.riskAmount() / (price - ticket.stop)));
+        }
+        preview = { sym, side: 'buy', shares, type: q ? 'limit' : 'market', price, approx: true };
+      }
+      withConfirm(preview, run);
     },
-    [c],
+    [c, source],
   );
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -597,7 +671,7 @@ function Workspace({ server, hasServer, c }: { server: boolean; hasServer: boole
 
   // Posición, ejecuciones y órdenes de la acción elegida, con la misma referencia mientras no cambien.
   const pos = selected ? c.broker?.position(selected) : undefined;
-  const chartPos = useStable<ChartPosition | undefined>(pos ? { avgCost: pos.avgCost, shares: pos.shares, stop: pos.stop, target: pos.target, planStop: pos.planStop, planTarget: pos.planTarget } : undefined);
+  const chartPos = useStable<ChartPosition | undefined>(pos ? { side: pos.side, avgCost: pos.avgCost, shares: pos.shares, stop: pos.stop, target: pos.target, planStop: pos.planStop, planTarget: pos.planTarget } : undefined);
   const chartFills = useStable<ChartFill[] | undefined>(
     selected ? c.active?.fills.filter((f) => f.sym === selected).map((f) => ({ ts: f.ts, side: f.side, price: f.price, shares: f.shares })) : undefined,
   );
@@ -612,11 +686,9 @@ function Workspace({ server, hasServer, c }: { server: boolean; hasServer: boole
 
   const newDayDialog = newDay && <NewDayDialog c={c} initialMode={newDay === 'any' ? undefined : newDay} onClose={() => setNewDay(null)} />;
   const journalOverlay = showJournal && (
-    <div className="journal-overlay" onClick={() => setShowJournal(false)}>
-      <div className="journal-sheet" onClick={(e) => e.stopPropagation()}>
-        <Journal c={c} onClose={() => setShowJournal(false)} onSelect={select} onSettings={() => setPracticeSettings(true)} onNewDay={() => setNewDay('any')} />
-      </div>
-    </div>
+    <JournalOverlay onClose={() => setShowJournal(false)}>
+      <Journal c={c} onClose={() => setShowJournal(false)} onSelect={select} onSettings={() => setPracticeSettings(true)} onNewDay={() => setNewDay('any')} />
+    </JournalOverlay>
   );
 
   if (!view && closedUntil !== null && !sim) {
@@ -627,15 +699,7 @@ function Workspace({ server, hasServer, c }: { server: boolean; hasServer: boole
         {newDayDialog}
         {journalOverlay}
         {practiceSettings && <PracticeSettings c={c} onClose={() => setPracticeSettings(false)} />}
-        {c.notices.length > 0 && (
-          <div className="toasts" role="status" aria-live="polite">
-            {c.notices.map((n) => (
-              <div key={n.id} className={`toast ${n.tone}`}>
-                {n.text}
-              </div>
-            ))}
-          </div>
-        )}
+        <Toasts c={c} />
       </div>
     );
   }
@@ -850,7 +914,7 @@ function Workspace({ server, hasServer, c }: { server: boolean; hasServer: boole
 
       {isMobile ? (
         // En el celular se monta solo la pestaña que se ve: los otros paneles y gráficos no trabajan de fondo.
-        <main className="grid">
+        <main className="grid" id="mobile-main" role="tabpanel" aria-labelledby={`mtab-${mobileTab}`}>
           {(Object.keys(panels) as PanelId[])
             .filter((id) => PANEL_TAB[id] === mobileTab)
             .map((id) => (
@@ -877,9 +941,12 @@ function Workspace({ server, hasServer, c }: { server: boolean; hasServer: boole
         </div>
       )}
 
-      <footer className="statusbar">
-        <span className={`dot ${status?.connected ? 'on' : 'off'}`} />
-        <span>{status?.message}</span>
+      <footer className="statusbar" aria-label="Estado de la conexión">
+        <span className={`dot ${status?.connected ? 'on' : 'off'}`} aria-hidden="true" />
+        {/* Solo el estado de la conexión se anuncia; los contadores cambian cada segundo y serían ruido. */}
+        <span role="status" aria-live="polite">
+          {status?.message}
+        </span>
         <span className="t-muted">
           {view.stats.tracked.toLocaleString('es-AR')} símbolos · {view.stats.active.toLocaleString('es-AR')} activos · {view.stats.eventsPerSec.toLocaleString('es-AR')} eventos/s
         </span>
@@ -908,15 +975,7 @@ function Workspace({ server, hasServer, c }: { server: boolean; hasServer: boole
         />
       </div>
 
-      {c.notices.length > 0 && (
-        <div className="toasts" role="status" aria-live="polite">
-          {c.notices.map((n) => (
-            <div key={n.id} className={`toast ${n.tone}`}>
-              {n.text}
-            </div>
-          ))}
-        </div>
-      )}
+      <Toasts c={c} />
 
       {!isMobile && journalOverlay}
 
@@ -929,6 +988,8 @@ function Workspace({ server, hasServer, c }: { server: boolean; hasServer: boole
       {newDayDialog}
 
       {practiceSettings && <PracticeSettings c={c} onClose={() => setPracticeSettings(false)} />}
+
+      <OrderConfirm />
 
       {showSettings && (
         <SettingsModal

@@ -4,16 +4,24 @@ import type { Hotkey } from '../../trading/types';
 const REF = { ask: 'Ask', bid: 'Bid', last: 'Últ.' } as const;
 const off = (o: number) => (o === 0 ? '' : `${o > 0 ? '+' : '−'}${Math.abs(o).toFixed(2).replace(/^0/, '')}`);
 
-/** Etiqueta corta para un botón rápido (como "Buy 100 on +05" o "Sell Bid Full Bid -05"). */
-export function shortLabel(h: Hotkey, ticketShares: number): string {
+/**
+ * Etiqueta corta para un botón rápido (como "Buy 100 on +05" o "Sell Bid Full Bid -05"). Con un corto
+ * abierto (`side` = 'short') los atajos se espejan: "Vende todo Bid−.05" pasa a "Cubre todo Ask+.05".
+ */
+export function shortLabel(h: Hotkey, ticketShares: number, side: 'long' | 'short' = 'long'): string {
   const a = h.action;
   if (a.kind === 'cancel') return 'Cancelar órdenes';
   if (a.kind === 'breakeven') return 'Stop a BE';
   if (a.kind === 'buy') {
     const q = a.shares === 'ticket' ? String(ticketShares || '') : a.shares === 'risk' ? 'riesgo' : String(a.shares);
+    if (side === 'short') return `Cubre ${a.shares === 'risk' ? 'todo' : q} ${REF[a.ref]}${off(a.offset)}`;
     return `Compra ${q} ${REF[a.ref]}${off(a.offset)}`;
   }
   const part = a.fraction >= 1 ? 'todo' : a.fraction === 0.5 ? '½' : a.fraction === 0.25 ? '¼' : `${Math.round(a.fraction * 100)}%`;
+  if (side === 'short') {
+    const ref = a.ref === 'bid' ? 'ask' : a.ref === 'ask' ? 'bid' : 'last';
+    return `Cubre ${part} ${REF[ref]}${off(-a.offset)}`;
+  }
   return `Vende ${part} ${REF[a.ref]}${off(a.offset)}`;
 }
 

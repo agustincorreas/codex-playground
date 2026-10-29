@@ -64,11 +64,26 @@ export function addDrawing(sym: string, d: Omit<HLine, 'id'> | Omit<TLine, 'id'>
   return full;
 }
 
-export function removeDrawing(sym: string, id: string): void {
+/** Borra una línea y la devuelve (con la posición que tenía) para poder deshacer. */
+export function removeDrawing(sym: string, id: string): { drawing: Drawing; index: number } | undefined {
+  const list = drawingsOf(sym);
+  const index = list.findIndex((d) => d.id === id);
+  if (index < 0) return undefined;
+  const drawing = list[index];
   setDrawings(
     sym,
-    drawingsOf(sym).filter((d) => d.id !== id),
+    list.filter((d) => d.id !== id),
   );
+  return { drawing, index };
+}
+
+/** Deshacer un borrado: la línea vuelve a su lugar (si no la volvieron a crear). */
+export function restoreDrawing(sym: string, drawing: Drawing, index: number): void {
+  const list = drawingsOf(sym);
+  if (list.some((d) => d.id === drawing.id)) return;
+  const next = list.slice();
+  next.splice(Math.min(Math.max(0, index), next.length), 0, drawing);
+  setDrawings(sym, next);
 }
 
 export function clearDrawings(sym: string): void {

@@ -21,14 +21,16 @@ import {
   type UTCTimestamp,
 } from 'lightweight-charts';
 import { daily, fourHour, historyFor, monthly, TF_4H, TF_DAY, TF_MONTH, TF_WEEK, todayBar, vwapByDay, weekly, withPastDays, type HistoryTf } from '../../engine/history';
-import { aggregateBars, aggregateSpan, emaSeries, macdSeries, vwapSeries } from '../../engine/indicators';
+import { aggregateBars, aggregateSpan, vwapSeries } from '../../engine/indicators';
 import { etOffset, etParts, POST_CLOSE, PRE_OPEN, REG_CLOSE, REG_OPEN } from '../../engine/time';
 import type { Alert, Bar, SymbolDetail } from '../../engine/types';
-import { addDrawing, clearDrawings, removeDrawing, toggleAlert, useDrawings, type TLine } from '../lib/drawings';
+import { addDrawing, clearDrawings, removeDrawing, restoreDrawing, toggleAlert, useDrawings, type TLine } from '../lib/drawings';
 import { fmtPrice, fmtVolume } from '../lib/format';
 import { typing } from '../lib/hotkeys';
+import { IncrementalIndicators } from '../lib/incremental';
 import { readNow, useNow } from '../lib/now';
 import { load, save } from '../lib/storage';
+import { dismissToast, pushToast } from '../lib/toast';
 import { TrendLinesPrimitive } from './TrendLines';
 
 interface Series {
@@ -135,6 +137,8 @@ function applyTheme(chart: IChartApi, s: Series, p: Palette) {
 const toTime = (t: number) => Math.floor((t + etOffset(t)) / 1000) as UTCTimestamp;
 
 export interface ChartPosition {
+  /** Largo (compra) o corto (venta): cambia el color de la línea del costo; el stop queda arriba y el objetivo abajo. */
+  side?: 'long' | 'short';
   avgCost: number;
   shares: number;
   stop?: number;
@@ -235,6 +239,24 @@ function sessionColor(t: number, p: Palette): string {
 
 const fmt = fmtPrice;
 
+/** Borra una línea con un aviso de 5 segundos para deshacerlo. */
+function removeWithUndo(sym: string, id: string): void {
+  const removed = removeDrawing(sym, id);
+  if (!removed) return;
+  const d = removed.drawing;
+  const what = d.kind === 'h' ? `${d.alert ? 'Alerta' : 'Línea'} en ${fmt(d.price)}` : `Línea de tendencia ${fmt(d.a.price)} → ${fmt(d.b.price)}`;
+  const toast = pushToast(`${what} borrada`, 'info', {
+    ms: 5000,
+    action: {
+      label: 'Deshacer',
+      run: () => {
+        restoreDrawing(sym, d, removed.index);
+        dismissToast(toast);
+      },
+    },
+  });
+}
+
 interface Legend {
   o: number;
   h: number;
@@ -276,6 +298,9 @@ function ChartView({ id, defaultTf, detail, alerts, themeKey, position, fills, o
   const stateRef = useRef<{ sym: string; tf: number; len: number; first: number }>({ sym: '', tf: 1, len: 0, first: 0 });
   const legendsRef = useRef<Legend[]>([]);
   const barsRef = useRef<Bar[]>([]);
+  /** EMA y MACD por símbolo y temporalidad: con velas nuevas al final se extienden en vez de recalcularse. */
+  const indRef = useRef<IncrementalIndicators | null>(null);
+  if (!indRef.current) indRef.current = new IncrementalIndicators();
   /** El encuadre inicial quedó pendiente porque el gráfico estaba oculto (pestañas del celular). */
   const pendingRange = useRef(false);
   const [tf, setTf] = useState<number>(() => load(`chart-tf-${id}`, defaultTf));
@@ -468,7 +493,7 @@ function ChartView({ id, defaultTf, detail, alerts, themeKey, position, fills, o
       const list = drawingsRef.current;
       if (!list.length) return;
       e.preventDefault();
-      removeDrawing(sym, list[list.length - 1].id);
+      removeWithUndo(sym, list[list.length - 1].id);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -499,7 +524,7 @@ function ChartView({ id, defaultTf, detail, alerts, themeKey, position, fills, o
     if (!victim) victim = primRef.current?.lineNear(x, y, rect.width)?.id ?? null;
     if (!victim) return;
     e.preventDefault();
-    removeDrawing(sym, victim);
+    removeWithUndo(sym, victim);
   };
 
   useEffect(() => {
@@ -589,13 +614,15 @@ function ChartView({ id, defaultTf, detail, alerts, themeKey, position, fills, o
     const hasVwap = vw.length === bars.length;
     const p = palette(themeKey);
     const shade = (b: Bar) => (tf < TF_4H ? sessionColor(b.t, p) : 'rgba(0,0,0,0)');
-    const e9 = emaSeries(closes, 9);
-    const e20 = emaSeries(closes, 20);
-    const e200 = emaSeries(closes, 200);
-    const m = macdSeries(closes);
+    const ind = indRef.current!;
+    const changedFrom = ind.update(`${detail.sym}|${tf}`, closes);
+    const { e9, e20, e200 } = ind.series;
+    const m = ind.series;
     const precision = detail.row.price >= 1 ? 2 : 4;
     const st = stateRef.current;
-    const same = st.sym === detail.sym && st.tf === tf && st.first === bars[0].t && (bars.length === st.len || bars.length === st.len + 1);
+    // Mismas velas de antes con una nueva (o la última cambiada): se actualizan solo esas. Si cambiaron
+    // velas viejas (relleno de historia), los indicadores se recalcularon desde el principio y se vuelve a cargar todo.
+    const same = st.sym === detail.sym && st.tf === tf && st.first === bars[0].t && (bars.length === st.len || bars.length === st.len + 1) && changedFrom >= bars.length - 2;
     const volColor = (b: Bar) => (b.c >= b.o ? `${p.up}80` : `${p.down}80`);
     const histColor = (v: number, prev: number) => (v >= 0 ? (v >= prev ? '#26a69a' : '#b2dfdb') : v <= prev ? '#ff5252' : '#ffcdd2');
     // La EMA 200 recién vale con 200 velas.
@@ -678,10 +705,12 @@ function ChartView({ id, defaultTf, detail, alerts, themeKey, position, fills, o
       if (pmHigh > 0 && Math.abs(pmHigh - hod) > 1e-9) add(pmHigh, p.accent, 'PMH', LineStyle.Dotted);
       add(prevClose, p.faint, 'Cierre ant.', LineStyle.Dotted);
       if (position) {
-        add(position.avgCost, p.info, `Tu costo (${position.shares})`, LineStyle.Solid, 2);
-        if (position.stop) add(position.stop, p.down, 'Tu stop', LineStyle.Solid);
+        // Un corto se dibuja con el color de aviso: el stop (compra) queda arriba y el objetivo (compra) abajo del costo.
+        const short = position.side === 'short';
+        add(position.avgCost, short ? p.warn : p.info, short ? `Tu corto (${position.shares})` : `Tu costo (${position.shares})`, LineStyle.Solid, 2);
+        if (position.stop) add(position.stop, p.down, short ? 'Tu stop (cubre)' : 'Tu stop', LineStyle.Solid);
         else if (position.planStop) add(position.planStop, p.down, 'Stop plan', LineStyle.Dotted);
-        if (position.target) add(position.target, p.up, 'Tu objetivo', LineStyle.Solid);
+        if (position.target) add(position.target, p.up, short ? 'Tu objetivo (cubre)' : 'Tu objetivo', LineStyle.Solid);
         else if (position.planTarget) add(position.planTarget, p.up, 'Obj. plan', LineStyle.Dotted);
       } else if (flagEntry !== undefined && flagStop !== undefined) {
         add(flagEntry, p.ema9, 'Entrada BF', LineStyle.Dashed);
@@ -733,13 +762,13 @@ function ChartView({ id, defaultTf, detail, alerts, themeKey, position, fills, o
           MACD
         </button>
         <div className="seg draw" role="group" aria-label="Dibujar">
-          <button className={tool === 'h' ? 'is-active' : ''} onClick={() => pick('h')} title="Línea horizontal: después tocá el precio en el gráfico" aria-pressed={tool === 'h'}>
+          <button className={tool === 'h' ? 'is-active' : ''} onClick={() => pick('h')} title="Línea horizontal: después tocá el precio en el gráfico" aria-label="Línea horizontal" aria-pressed={tool === 'h'}>
             ─
           </button>
-          <button className={tool === 'alert' ? 'is-active' : ''} onClick={() => pick('alert')} title="Alerta de precio: una línea que suena y avisa cuando el precio la cruza" aria-pressed={tool === 'alert'}>
+          <button className={tool === 'alert' ? 'is-active' : ''} onClick={() => pick('alert')} title="Alerta de precio: una línea que suena y avisa cuando el precio la cruza" aria-label="Alerta de precio" aria-pressed={tool === 'alert'}>
             🔔
           </button>
-          <button className={tool === 't' ? 'is-active' : ''} onClick={() => pick('t')} title="Línea de tendencia: tocá dos puntos. Para borrar: clic derecho sobre la línea, Supr (la última) o el botón Líneas" aria-pressed={tool === 't'}>
+          <button className={tool === 't' ? 'is-active' : ''} onClick={() => pick('t')} title="Línea de tendencia: tocá dos puntos. Para borrar: clic derecho sobre la línea, Supr (la última) o el botón Líneas" aria-label="Línea de tendencia" aria-pressed={tool === 't'}>
             ╱
           </button>
         </div>
@@ -768,7 +797,7 @@ function ChartView({ id, defaultTf, detail, alerts, themeKey, position, fills, o
                     {d.alert ? 'Sin alerta' : 'Alerta'}
                   </button>
                 )}
-                <button type="button" className="link" onClick={() => removeDrawing(detail.sym, d.id)}>
+                <button type="button" className="link" onClick={() => removeWithUndo(detail.sym, d.id)}>
                   Borrar
                 </button>
               </div>
@@ -826,7 +855,7 @@ function ChartView({ id, defaultTf, detail, alerts, themeKey, position, fills, o
                     {mcap !== undefined && (
                       <>
                         {' '}
-                        Market Cap <em className="lg-mcap">{fmtVolume(mcap)}</em>
+                        Capitalización <em className="lg-mcap">{fmtVolume(mcap)}</em>
                       </>
                     )}
                   </div>

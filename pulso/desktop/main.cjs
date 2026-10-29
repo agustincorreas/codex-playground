@@ -1,14 +1,15 @@
 // Pulso de escritorio: una ventana propia que arranca el servidor de Pulso como proceso hijo, pide las
-// claves la primera vez (quedan en el perfil del usuario, nunca en el código) y muestra la interfaz.
-// Sin claves corre el simulador; con las de Alpaca (gratis) muestra el mercado real.
-const { app, BrowserWindow, Menu, dialog, ipcMain, screen, shell, utilityProcess, clipboard } = require('electron');
+// claves la primera vez (quedan en el perfil del usuario, cifradas con el sistema, nunca en el código) y
+// muestra la interfaz. Sin claves corre el simulador; con las de Alpaca (gratis) muestra el mercado real.
+const { app, BrowserWindow, Menu, dialog, ipcMain, safeStorage, screen, shell, utilityProcess, clipboard } = require('electron');
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 const http = require('node:http');
 const os = require('node:os');
 const path = require('node:path');
+const { PREFERRED_PORT, pickPort, parsePortLine } = require('./port.cjs');
+const { SECRET_FIELDS, electronStore, openSettings, sealSettings } = require('./secrets.cjs');
 
-const PORT = 8787;
 const APP_DIR = path.join(__dirname, 'app');
 const SERVER = path.join(APP_DIR, 'server.cjs');
 const MAX_LOG = 400;
@@ -18,6 +19,12 @@ let setupWin = null;
 let server = null;
 let serverGen = 0;
 let serverReady = false;
+/** Puerto real del servidor en curso (0 hasta que el hijo lo avisa con `PULSO_PORT=`). */
+let port = 0;
+/** Identificador de este arranque del servidor: el health check lo exige para no confundirlo con otro Pulso. */
+let instance = '';
+/** Si el hijo murió por el puerto ocupado, se vuelve a arrancar una vez dejando que el sistema elija otro. */
+let forceAnyPort = false;
 let lastError = '';
 const logLines = [];
 
@@ -27,17 +34,37 @@ const userData = () => app.getPath('userData');
 const settingsPath = () => path.join(userData(), 'pulso.json');
 const logPath = () => path.join(userData(), 'pulso.log');
 
+/** Almacén seguro del sistema para las claves (solo sirve después de `app.whenReady()`). */
+const store = electronStore(safeStorage);
+let storeWarned = false;
+let migrated = false;
+
+/** Ajustes con las claves en claro (en el archivo van cifradas; ver secrets.cjs). */
 function readSettings() {
+  let raw;
   try {
-    return JSON.parse(fs.readFileSync(settingsPath(), 'utf8'));
+    raw = JSON.parse(fs.readFileSync(settingsPath(), 'utf8'));
   } catch {
     return {};
   }
+  const { settings, migrate, failed } = openSettings(raw, store);
+  if (failed.length) pushLog(`[Pulso] No se pudieron descifrar estas claves (cambió el usuario o el llavero del sistema): ${failed.join(', ')}. Volvé a cargarlas en Claves y conexión.`);
+  if (migrate && !migrated) {
+    // Primera lectura con el almacén disponible y claves en claro: se reescriben cifradas.
+    migrated = true;
+    writeSettings(settings);
+    pushLog('[Pulso] Las claves pasaron al almacenamiento seguro del sistema.');
+  }
+  if (!storeWarned && !store.available() && SECRET_FIELDS.some((f) => settings[f])) {
+    storeWarned = true;
+    pushLog('[Pulso] Aviso: el sistema no ofrece almacenamiento seguro (sin llavero); las claves quedan en claro en pulso.json, dentro de tu perfil de usuario.');
+  }
+  return settings;
 }
 
 function writeSettings(s) {
   fs.mkdirSync(userData(), { recursive: true });
-  fs.writeFileSync(settingsPath(), JSON.stringify(s, null, 2));
+  fs.writeFileSync(settingsPath(), JSON.stringify(sealSettings(s, store), null, 2));
 }
 
 function hasKeys(s) {
@@ -52,13 +79,14 @@ function ensureToken(s) {
   return s.token;
 }
 
-/** Dirección para abrir Pulso desde otro equipo de la red (con el token). */
+/** Dirección para abrir Pulso desde otro equipo de la red (con el token y el puerto actual, no uno guardado). */
 function lanUrl(s) {
   const ips = localIps();
-  return `http://${ips[0] ?? 'IP-DE-ESTA-COMPU'}:${PORT}/?t=${ensureToken(s)}`;
+  return `http://${ips[0] ?? 'IP-DE-ESTA-COMPU'}:${port || PREFERRED_PORT}/?t=${ensureToken(s)}`;
 }
 
-const LOCAL_ORIGIN = `http://127.0.0.1:${PORT}`;
+/** Origen de la interfaz en esta computadora (cambia si el puerto cambió entre arranques). */
+const localOrigin = () => `http://127.0.0.1:${port || PREFERRED_PORT}`;
 function originOf(url) {
   try {
     return new URL(url).origin;
@@ -73,7 +101,7 @@ function openOutside(url) {
 
 /**
  * Versión privada: las claves vienen dentro de la app (app/defaults.json, generado al compilar con
- * las claves del dueño). La primera vez se copian a los ajustes y no se pide nada.
+ * las claves del dueño). La primera vez se copian a los ajustes (cifradas, como las demás) y no se pide nada.
  */
 function applyDefaults() {
   const s = readSettings();
@@ -123,10 +151,13 @@ function localIps() {
 
 // ------------------------------------------------------------------ servidor
 
-function serverEnv(s) {
+const serverHost = (s) => (s.lan ? '0.0.0.0' : '127.0.0.1');
+
+/** Variables para el servidor hijo: las claves solo viajan por acá, nunca por archivo ni por la ventana. */
+function serverEnv(s, wantedPort, inst) {
   const env = {
-    PORT: String(PORT),
-    HOST: s.lan ? '0.0.0.0' : '127.0.0.1',
+    PORT: String(wantedPort),
+    HOST: serverHost(s),
     DATA_PROVIDER: hasKeys(s) ? 'alpaca' : 'demo',
     ALPACA_KEY_ID: s.alpacaKey || '',
     ALPACA_SECRET_KEY: s.alpacaSecret || '',
@@ -136,15 +167,16 @@ function serverEnv(s) {
     SEC_USER_AGENT: s.secUserAgent || '',
     ANTHROPIC_API_KEY: s.anthropicKey || '',
     PULSO_TOKEN: s.lan ? ensureToken(s) : '',
+    PULSO_INSTANCE: inst,
     PULSO_CACHE_DIR: path.join(userData(), 'cache'),
     PULSO_DATA_DIR: userData(),
     PULSO_DIST_DIR: path.join(APP_DIR, 'dist'),
     PULSO_DESKTOP: '1',
   };
   const merged = { ...process.env };
-  // Lo que el usuario dejó vacío no se manda (la configuración lo trata como "sin definir").
+  // Lo que el usuario dejó vacío no se manda (la configuración lo trata como "sin definir"), salvo PORT=0.
   for (const [k, v] of Object.entries(env)) {
-    if (v) merged[k] = v;
+    if (v || k === 'PORT') merged[k] = v;
     else delete merged[k];
   }
   delete merged.ELECTRON_RUN_AS_NODE;
@@ -156,6 +188,7 @@ function stopServer() {
   const s = server;
   server = null;
   serverReady = false;
+  port = 0;
   try {
     s.kill();
   } catch {
@@ -163,20 +196,37 @@ function stopServer() {
   }
 }
 
-function startServer() {
+async function startServer() {
   stopServer();
   const gen = ++serverGen;
   lastError = '';
   const s = readSettings();
+  // Primero el puerto de siempre; si está ocupado, uno libre que elige el sistema (el servidor lo avisa).
+  const wanted = forceAnyPort ? 0 : await pickPort(serverHost(s));
+  if (gen !== serverGen) return;
+  const inst = crypto.randomBytes(8).toString('hex');
+  instance = inst;
   pushLog(`[Pulso] Arrancando el servidor (${hasKeys(s) ? 'datos reales con Alpaca' : 'simulador'})…`);
-  const child = utilityProcess.fork(SERVER, [], { env: serverEnv(s), stdio: 'pipe', serviceName: 'pulso-server' });
+  const child = utilityProcess.fork(SERVER, [], { env: serverEnv(s, wanted, inst), stdio: 'pipe', serviceName: 'pulso-server' });
   server = child;
   let buf = '';
+  let sawAddrInUse = false;
   const onData = (chunk) => {
     buf += chunk.toString();
     const lines = buf.split('\n');
     buf = lines.pop() ?? '';
-    for (const line of lines) pushLog(line);
+    for (const line of lines) {
+      const p = parsePortLine(line);
+      if (p && gen === serverGen) {
+        port = p;
+        if (p !== PREFERRED_PORT) {
+          pushLog(`[Pulso] Aviso: el puerto ${PREFERRED_PORT} estaba ocupado (¿otro Pulso abierto u otro programa?), así que este arranque usa el ${p}. La dirección para el celular cambia: copiala de nuevo desde el menú Pulso.`);
+        }
+        continue;
+      }
+      if (/ya está en uso/.test(line)) sawAddrInUse = true;
+      pushLog(line);
+    }
   };
   child.stdout?.on('data', onData);
   child.stderr?.on('data', onData);
@@ -184,6 +234,14 @@ function startServer() {
     if (gen !== serverGen) return;
     server = null;
     serverReady = false;
+    port = 0;
+    // Alguien tomó el puerto entre la prueba y el arranque: se reintenta una vez con uno libre.
+    if (sawAddrInUse && !forceAnyPort) {
+      forceAnyPort = true;
+      pushLog('[Pulso] El puerto quedó ocupado justo antes de arrancar: se reintenta con uno libre.');
+      void startServer();
+      return;
+    }
     lastError = `El servidor se cerró (código ${code}).`;
     pushLog(`[Pulso] ${lastError}`);
     showStatus();
@@ -191,14 +249,17 @@ function startServer() {
   void waitForServer(gen);
 }
 
+/** `/api/health` del servidor en curso; solo cuenta si trae el identificador de este arranque. */
 function health() {
   return new Promise((resolve) => {
-    const req = http.get({ host: '127.0.0.1', port: PORT, path: '/api/health', timeout: 2000 }, (res) => {
+    if (!port) return resolve(null);
+    const req = http.get({ host: '127.0.0.1', port, path: '/api/health', timeout: 2000 }, (res) => {
       let body = '';
       res.on('data', (c) => (body += c));
       res.on('end', () => {
         try {
-          resolve(res.statusCode === 200 ? JSON.parse(body) : null);
+          const ours = res.headers['x-pulso-instance'] === instance;
+          resolve(res.statusCode === 200 && ours ? JSON.parse(body) : null);
         } catch {
           resolve(null);
         }
@@ -217,8 +278,9 @@ async function waitForServer(gen) {
     const h = await health();
     if (h && h.app === 'pulso') {
       serverReady = true;
+      forceAnyPort = false;
       pushLog('[Pulso] Interfaz lista.');
-      if (win && !win.isDestroyed()) void win.loadURL(`http://127.0.0.1:${PORT}/`);
+      if (win && !win.isDestroyed()) void win.loadURL(`${localOrigin()}/`);
       return;
     }
     await new Promise((r) => setTimeout(r, 500));
@@ -256,11 +318,11 @@ function createWindow() {
   });
   // Los links externos (noticias, documentación) se abren en el navegador.
   win.webContents.setWindowOpenHandler(({ url }) => {
-    if (originOf(url) !== LOCAL_ORIGIN) openOutside(url);
+    if (originOf(url) !== localOrigin()) openOutside(url);
     return { action: 'deny' };
   });
   win.webContents.on('will-navigate', (e, url) => {
-    if (originOf(url) !== LOCAL_ORIGIN && !url.startsWith('file:')) {
+    if (originOf(url) !== localOrigin() && !url.startsWith('file:')) {
       e.preventDefault();
       openOutside(url);
     }
@@ -317,9 +379,9 @@ function buildMenu() {
       label: 'Pulso',
       submenu: [
         { label: 'Claves y conexión…', accelerator: 'CmdOrCtrl+,', click: openSetup },
-        { label: 'Reiniciar el servidor', click: () => (showStatus(), startServer()) },
+        { label: 'Reiniciar el servidor', click: () => (showStatus(), void startServer()) },
         { type: 'separator' },
-        { label: 'Abrir en el navegador', click: () => shell.openExternal(`http://127.0.0.1:${PORT}/`) },
+        { label: 'Abrir en el navegador', click: openInBrowser },
         { label: 'Copiar la dirección para el celular', click: copyLanUrl },
         { label: 'Ver el registro del servidor', click: () => shell.openPath(logPath()) },
         { label: 'Abrir la carpeta de datos', click: () => shell.openPath(userData()) },
@@ -357,6 +419,7 @@ function buildMenu() {
       label: 'Ayuda',
       submenu: [
         { label: 'Cómo se usa (README)', click: () => shell.openExternal('https://github.com/agustincorreas/codex-playground/tree/main/pulso#readme') },
+        { label: 'Seguridad: celular, token y claves', click: () => shell.openExternal('https://github.com/agustincorreas/codex-playground/blob/main/pulso/SECURITY.md') },
         { label: 'Conseguir las claves de Alpaca (gratis)', click: () => shell.openExternal('https://alpaca.markets') },
         { label: 'Conseguir la clave de Massive (gratis, float)', click: () => shell.openExternal('https://massive.com') },
       ],
@@ -365,28 +428,56 @@ function buildMenu() {
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
+function openInBrowser() {
+  if (!serverReady || !port) {
+    dialog.showMessageBox(win, { type: 'info', message: 'El servidor todavía está arrancando: probá en unos segundos.', buttons: ['Entendido'] });
+    return;
+  }
+  void shell.openExternal(`${localOrigin()}/`);
+}
+
 function copyLanUrl() {
   const s = readSettings();
-  const ips = localIps();
   if (!s.lan) {
     dialog.showMessageBox(win, { type: 'info', message: 'Para abrirlo desde el celular, activá "Permitir desde el celular" en Claves y conexión.', buttons: ['Entendido'] });
     return;
   }
+  if (!serverReady || !port) {
+    dialog.showMessageBox(win, { type: 'info', message: 'El servidor todavía está arrancando: probá en unos segundos (la dirección lleva el puerto que le toque).', buttons: ['Entendido'] });
+    return;
+  }
   const url = lanUrl(s);
   clipboard.writeText(url);
-  dialog.showMessageBox(win, { type: 'info', message: `Dirección copiada: ${url}`, detail: 'Abrila en el celular conectado a la misma Wi-Fi. Lleva un token al final: sin él nadie de la red puede entrar.', buttons: ['Listo'] });
+  const portNote = port === PREFERRED_PORT ? '' : ` Este arranque usa el puerto ${port} porque el ${PREFERRED_PORT} estaba ocupado: la dirección de antes ya no sirve.`;
+  dialog.showMessageBox(win, { type: 'info', message: `Dirección copiada: ${url}`, detail: `Abrila en el celular conectado a la misma Wi-Fi. Lleva un token al final: sin él nadie de la red puede entrar.${portNote}`, buttons: ['Listo'] });
+}
+
+/** Token nuevo (el anterior deja de servir, cookies incluidas) y el servidor se reinicia si escucha la red. */
+function rotateToken() {
+  const s = readSettings();
+  delete s.token;
+  const token = ensureToken(s);
+  pushLog('[Pulso] Token nuevo para el celular: la dirección anterior (y la cookie de cada celular) ya no sirve.');
+  if (s.lan) {
+    showStatus();
+    void startServer();
+  }
+  return token;
 }
 
 // ------------------------------------------------------------------ IPC (lo que ven las páginas de la app)
 
+/** ¿El pedido viene de una página de la app (claves, carga) y no de la interfaz web? */
+const trustedFrame = (e) => String(e.senderFrame?.url ?? '').startsWith('file:');
+
 ipcMain.handle('settings:get', (e) => {
   const s = readSettings();
   // Las claves solo las ve la ventana de configuración (un archivo de la app), nunca la interfaz web.
-  const trusted = String(e.senderFrame?.url ?? '').startsWith('file:');
-  const out = trusted ? { ...s, token: s.lan ? ensureToken(s) : s.token } : { ...s, alpacaKey: '', alpacaSecret: '', massiveKey: '', anthropicKey: '', secUserAgent: '', token: '' };
-  return { ...out, ips: localIps(), port: PORT, hasKeys: hasKeys(s) };
+  const out = trustedFrame(e) ? { ...s, token: s.lan ? ensureToken(s) : s.token } : { ...s, alpacaKey: '', alpacaSecret: '', massiveKey: '', anthropicKey: '', secUserAgent: '', token: '' };
+  return { ...out, ips: localIps(), port, preferredPort: PREFERRED_PORT, serverReady, secureStore: store.available(), hasKeys: hasKeys(s) };
 });
-ipcMain.handle('settings:save', (_e, s) => {
+ipcMain.handle('settings:save', (e, s) => {
+  if (!trustedFrame(e)) return false;
   const clean = {
     alpacaKey: String(s.alpacaKey ?? '').trim(),
     alpacaSecret: String(s.alpacaSecret ?? '').trim(),
@@ -401,19 +492,20 @@ ipcMain.handle('settings:save', (_e, s) => {
   writeSettings(clean);
   if (setupWin && !setupWin.isDestroyed()) setupWin.close();
   showStatus();
-  startServer();
+  void startServer();
   return true;
 });
 ipcMain.handle('settings:demo', () => {
   const s = readSettings();
   if (!s.setupSeen) writeSettings({ ...s, setupSeen: true });
   if (setupWin && !setupWin.isDestroyed()) setupWin.close();
-  if (!server) startServer();
+  if (!server) void startServer();
   return true;
 });
+ipcMain.handle('token:rotate', (e) => (trustedFrame(e) ? rotateToken() : ''));
 ipcMain.handle('setup:open', () => (openSetup(), true));
 ipcMain.handle('log:get', () => logLines.slice());
-ipcMain.handle('server:restart', () => (showStatus(), startServer(), true));
+ipcMain.handle('server:restart', () => (showStatus(), void startServer(), true));
 ipcMain.handle('log:open', () => shell.openPath(logPath()));
 
 // ------------------------------------------------------------------ ciclo de vida
@@ -431,7 +523,7 @@ if (!app.requestSingleInstanceLock()) {
     buildMenu();
     createWindow();
     const s = applyDefaults();
-    startServer();
+    void startServer();
     if (!hasKeys(s) && !s.setupSeen) openSetup();
     app.on('activate', () => {
       if (!win) createWindow();

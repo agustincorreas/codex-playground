@@ -5,7 +5,19 @@ import type { Bar, NewsItem, ReferenceData, TapePrint, TradePlan } from './types
 const MIN = 60_000;
 const SEC10 = 10_000;
 /** Velas de 10 s que se guardan (~2 horas). */
-const MAX_SEC_BARS = 720;
+export const MAX_SEC_BARS = 720;
+
+/** Posición de la primera vela con `t >= t0` (búsqueda binaria; `bars.length` si no hay). */
+export function lowerBound(bars: Bar[], t0: number): number {
+  let lo = 0;
+  let hi = bars.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (bars[mid].t < t0) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo;
+}
 
 export interface FlagSetup extends TradePlan {
   poleHigh: number;
@@ -51,11 +63,18 @@ export class SymbolState {
   bars: Bar[] = [];
   /** Velas de 10 segundos de las últimas ~2 horas. */
   secBars: Bar[] = [];
+  /**
+   * Cambia cada vez que se modifica o inserta una vela que no es la última (print atrasado, vela
+   * consolidada, relleno): un detalle parcial "desde la última vela" no alcanza y hay que mandar el día entero.
+   */
+  barsRev = 0;
 
   ema9 = new Ema(9);
   ema20 = new Ema(20);
   macd = new Macd();
   private closedBarT = 0;
+  /** Índice de la última vela cerrada en los indicadores (−1 = ninguna): `closeBarsBefore` sigue desde ahí. */
+  private closedIdx = -1;
 
   halted = false;
   haltTs = 0;
@@ -134,54 +153,30 @@ export class SymbolState {
     return false;
   }
 
-  /** Suma un print a la vela del minuto correspondiente. */
-  addToBar(ts: number, o: number, h: number, l: number, c: number, v: number, pv: number, n: number): void {
+  /**
+   * Suma un print a la vela del minuto correspondiente. Un print atrasado va a su vela (en cualquier
+   * lugar del día) o abre una nueva en su posición. Devuelve true si una vela lo aceptó.
+   */
+  addToBar(ts: number, o: number, h: number, l: number, c: number, v: number, pv: number, n: number): boolean {
     const t = Math.floor(ts / MIN) * MIN;
-    const cur = this.bars[this.bars.length - 1];
-    if (cur && cur.t === t) {
-      if (h > cur.h) cur.h = h;
-      if (l < cur.l) cur.l = l;
-      cur.c = c;
-      cur.v += v;
-      cur.pv += pv;
-      cur.n += n;
-      return;
-    }
-    if (cur && cur.t > t) {
-      // Print atrasado: buscar su vela hacia atrás (sin reordenar el día completo).
-      for (let i = this.bars.length - 2; i >= Math.max(0, this.bars.length - 6); i--) {
-        const b = this.bars[i];
-        if (b.t === t) {
-          if (h > b.h) b.h = h;
-          if (l < b.l) b.l = l;
-          b.v += v;
-          b.pv += pv;
-          b.n += n;
-          return;
-        }
-      }
-      return;
-    }
-    this.closeBarsBefore(t);
-    this.bars.push({ t, o, h, l, c, v, pv, n });
+    let inserted = false;
+    addToSeries(this.bars, t, o, h, l, c, v, pv, n, (pos) => {
+      inserted = true;
+      if (pos === this.bars.length) this.closeBarsBefore(t);
+      else this.inserted(pos);
+    });
+    if (!inserted && this.bars[this.bars.length - 1].t !== t) this.barsRev++;
+    return true;
   }
 
-  /** Suma un print a la vela de 10 segundos correspondiente. */
-  addToSecBar(ts: number, o: number, h: number, l: number, c: number, v: number, pv: number, n: number): void {
+  /** Suma un print a la vela de 10 segundos correspondiente (igual que `addToBar`). */
+  addToSecBar(ts: number, o: number, h: number, l: number, c: number, v: number, pv: number, n: number): boolean {
     const t = Math.floor(ts / SEC10) * SEC10;
-    const cur = this.secBars[this.secBars.length - 1];
-    if (cur && cur.t === t) {
-      if (h > cur.h) cur.h = h;
-      if (l < cur.l) cur.l = l;
-      cur.c = c;
-      cur.v += v;
-      cur.pv += pv;
-      cur.n += n;
-      return;
-    }
-    if (cur && cur.t > t) return;
-    this.secBars.push({ t, o, h, l, c, v, pv, n });
+    const last = this.secBars[this.secBars.length - 1];
+    if (last && last.t > t) this.barsRev++;
+    addToSeries(this.secBars, t, o, h, l, c, v, pv, n, () => undefined);
     if (this.secBars.length > MAX_SEC_BARS + 120) this.secBars.splice(0, this.secBars.length - MAX_SEC_BARS);
+    return true;
   }
 
   /** Velas de 10 s anteriores a las propias (historia que se consigue después, p. ej. de las operaciones). */
@@ -191,6 +186,7 @@ export class SymbolState {
     if (!older.length) return;
     this.secBars = [...older, ...this.secBars];
     if (this.secBars.length > MAX_SEC_BARS) this.secBars.splice(0, this.secBars.length - MAX_SEC_BARS);
+    this.barsRev++;
   }
 
   /** Velas de 10 s en cualquier posición (relleno de un hueco tras una caída): reemplazan las del mismo instante. */
@@ -199,17 +195,26 @@ export class SymbolState {
     for (const b of bars) map.set(b.t, { ...b });
     this.secBars = [...map.values()].sort((a, b) => a.t - b.t);
     if (this.secBars.length > MAX_SEC_BARS) this.secBars.splice(0, this.secBars.length - MAX_SEC_BARS);
+    this.barsRev++;
   }
 
-  /** Volumen típico por minuto: promedio de las últimas 5 velas cerradas (o la actual si no hay). */
+  /**
+   * Volumen típico por minuto: el de las últimas 5 velas cerradas repartido en los minutos reales que
+   * abarcan (una acción fina no tiene una vela por minuto: 5 velas pueden ser media hora).
+   */
   volumePerMinute(): number {
     const n = this.bars.length;
     if (!n) return 0;
     if (n === 1) return this.bars[0].v;
     let v = 0;
     let k = 0;
-    for (let i = n - 2; i >= 0 && k < 5; i--, k++) v += this.bars[i].v;
-    return v / k;
+    let first = 0;
+    for (let i = n - 2; i >= 0 && k < 5; i--, k++) {
+      v += this.bars[i].v;
+      first = this.bars[i].t;
+    }
+    const minutes = Math.max(1, Math.round((this.bars[n - 2].t - first) / MIN) + 1);
+    return v / minutes;
   }
 
   /**
@@ -217,22 +222,7 @@ export class SymbolState {
    * por la diferencia con lo que ya se había acumulado print a print.
    */
   setMinuteBar(bar: Bar): { dv: number } {
-    const idx = this.findBar(bar.t);
-    if (idx >= 0) {
-      const old = this.bars[idx];
-      const dv = bar.v - old.v;
-      this.volume += dv;
-      this.pv += bar.pv - old.pv;
-      this.bars[idx] = { ...bar };
-      return { dv };
-    }
-    this.volume += bar.v;
-    this.pv += bar.pv;
-    let pos = this.bars.length;
-    while (pos > 0 && this.bars[pos - 1].t > bar.t) pos--;
-    if (pos === this.bars.length) this.closeBarsBefore(bar.t);
-    this.bars.splice(pos, 0, { ...bar });
-    return { dv: bar.v };
+    return { dv: this.upsertMinuteBar(bar) };
   }
 
   /**
@@ -241,46 +231,48 @@ export class SymbolState {
    * de volumen respecto de la vela que había.
    */
   upsertMinuteBar(bar: Bar): number {
-    let lo = 0;
-    let hi = this.bars.length;
-    while (lo < hi) {
-      const mid = (lo + hi) >> 1;
-      if (this.bars[mid].t < bar.t) lo = mid + 1;
-      else hi = mid;
-    }
-    const cur = this.bars[lo];
+    const pos = lowerBound(this.bars, bar.t);
+    const cur = this.bars[pos];
     if (cur && cur.t === bar.t) {
       const dv = bar.v - cur.v;
       this.volume += dv;
       this.pv += bar.pv - cur.pv;
-      this.bars[lo] = { ...bar };
+      this.bars[pos] = { ...bar };
+      if (pos < this.bars.length - 1) this.barsRev++;
       return dv;
     }
     this.volume += bar.v;
     this.pv += bar.pv;
-    if (lo === this.bars.length) this.closeBarsBefore(bar.t);
-    this.bars.splice(lo, 0, { ...bar });
+    if (pos === this.bars.length) this.closeBarsBefore(bar.t);
+    else this.inserted(pos);
+    this.bars.splice(pos, 0, { ...bar });
     return bar.v;
   }
 
-  private findBar(t: number): number {
-    for (let i = this.bars.length - 1; i >= Math.max(0, this.bars.length - 10); i--) {
-      if (this.bars[i].t === t) return i;
-      if (this.bars[i].t < t) return -1;
-    }
-    return -1;
+  /** Índice de la vela de 1 minuto que empieza en `t` (−1 si no hay). */
+  findBarAt(t: number): number {
+    const pos = lowerBound(this.bars, t);
+    return pos < this.bars.length && this.bars[pos].t === t ? pos : -1;
+  }
+
+  /** Se insertó una vela en `pos` (no al final): corre el índice de la última cerrada y marca la revisión. */
+  inserted(pos: number): void {
+    if (pos <= this.closedIdx) this.closedIdx++;
+    this.barsRev++;
   }
 
   /** Cierra en los indicadores todas las velas anteriores a `t`. Devuelve cuántas cerró. */
   closeBarsBefore(t: number): number {
     let closed = 0;
-    for (const b of this.bars) {
+    for (let i = this.closedIdx + 1; i < this.bars.length; i++) {
+      const b = this.bars[i];
       if (b.t <= this.closedBarT) continue;
       if (b.t >= t) break;
       this.ema9.push(b.c);
       this.ema20.push(b.c);
       this.macd.push(b.c);
       this.closedBarT = b.t;
+      this.closedIdx = i;
       closed++;
     }
     return closed;
@@ -296,6 +288,7 @@ export class SymbolState {
     this.ema20 = new Ema(20);
     this.macd = new Macd();
     this.closedBarT = 0;
+    this.closedIdx = -1;
     if (this.bars.length) this.closeBarsBefore(this.bars[this.bars.length - 1].t);
   }
 
@@ -395,4 +388,35 @@ export class SymbolState {
   mark(key: string, now: number): void {
     this.memo.set(key, now);
   }
+}
+
+/**
+ * Suma un print a la vela de `series` que empieza en `t`: la última si es la actual; si está atrasado,
+ * la busca en toda la serie (búsqueda binaria) o abre una en su posición. `onInsert(pos)` avisa antes
+ * de insertar una vela nueva (`pos === series.length` si va al final).
+ */
+function addToSeries(series: Bar[], t: number, o: number, h: number, l: number, c: number, v: number, pv: number, n: number, onInsert: (pos: number) => void): void {
+  const cur = series[series.length - 1];
+  if (cur && cur.t === t) {
+    if (h > cur.h) cur.h = h;
+    if (l < cur.l) cur.l = l;
+    cur.c = c;
+    cur.v += v;
+    cur.pv += pv;
+    cur.n += n;
+    return;
+  }
+  const pos = !cur || cur.t < t ? series.length : lowerBound(series, t);
+  const b = series[pos];
+  if (b && b.t === t) {
+    // Print atrasado: entra a su vela sin tocar el cierre (el último print de ese minuto ya pasó).
+    if (h > b.h) b.h = h;
+    if (l < b.l) b.l = l;
+    b.v += v;
+    b.pv += pv;
+    b.n += n;
+    return;
+  }
+  onInsert(pos);
+  series.splice(pos, 0, { t, o, h, l, c, v, pv, n });
 }

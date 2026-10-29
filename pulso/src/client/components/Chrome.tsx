@@ -1,8 +1,9 @@
 // Encabezado (reloj ET, sesión, modo, buscador, controles), ajustes y barra de pestañas del celular.
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { AlertType, ProviderStatus, Session, Settings } from '../../engine/types';
 import { DEFAULT_SETTINGS } from '../../engine/types';
 import { formatCountdown, formatEtClock, nextSessionChange, SESSION_LABEL } from '../../engine/time';
+import { useFocusTrap } from '../lib/a11y';
 import { ALERT_META } from '../lib/alertMeta';
 import { fmtMoney } from '../lib/format';
 import { useNow } from '../lib/now';
@@ -19,6 +20,8 @@ export interface Prefs {
   theme: 'system' | 'dark' | 'light';
   /** Versión de los valores de audio (2: alertas con sonido y voz prendidas por defecto). */
   audioV?: number;
+  /** Pedir confirmación antes de enviar cualquier orden (ticket, barra del celular y atajos). */
+  confirmOrders?: boolean;
 }
 
 interface HeaderProps {
@@ -152,31 +155,31 @@ export function Header({ session, status, speed, onSpeed, prefs, onPrefs, onSett
       <div className="controls">
         {canSpeed && (
           <div className="seg speed" role="group" aria-label="Velocidad de la simulación">
-            <button className={speed === 0 ? 'is-active' : ''} onClick={() => onSpeed(0)} aria-label="Pausar">
+            <button className={speed === 0 ? 'is-active' : ''} onClick={() => onSpeed(0)} aria-label="Pausar" aria-pressed={speed === 0}>
               <IconPause />
             </button>
             {[1, 2, 5, 10].map((x) => (
-              <button key={x} className={speed === x ? 'is-active' : ''} onClick={() => onSpeed(x)}>
+              <button key={x} className={speed === x ? 'is-active' : ''} onClick={() => onSpeed(x)} aria-pressed={speed === x}>
                 {x}x
               </button>
             ))}
           </div>
         )}
-        <button className={`icon-btn ${prefs.sound ? 'is-on' : ''}`} onClick={() => onPrefs({ sound: !prefs.sound })} aria-pressed={prefs.sound} title={prefs.sound ? 'Silenciar alertas' : 'Activar sonido de alertas'}>
+        <button className={`icon-btn ${prefs.sound ? 'is-on' : ''}`} onClick={() => onPrefs({ sound: !prefs.sound })} aria-pressed={prefs.sound} aria-label="Sonido de alertas" title={prefs.sound ? 'Silenciar alertas' : 'Activar sonido de alertas'}>
           {prefs.sound ? <IconSound /> : <IconMute />}
         </button>
-        <button className={`icon-btn ${prefs.voice ? 'is-on' : ''}`} onClick={() => onPrefs({ voice: !prefs.voice })} aria-pressed={prefs.voice} title={prefs.voice ? 'Apagar voz' : 'Leer las alertas en voz alta'}>
+        <button className={`icon-btn ${prefs.voice ? 'is-on' : ''}`} onClick={() => onPrefs({ voice: !prefs.voice })} aria-pressed={prefs.voice} aria-label="Alertas en voz alta" title={prefs.voice ? 'Apagar voz' : 'Leer las alertas en voz alta'}>
           <IconVoice />
         </button>
         {layoutEditing !== undefined && onLayout && (
-          <button className={`icon-btn ${layoutEditing ? 'is-on' : ''}`} onClick={onLayout} aria-pressed={layoutEditing} title={layoutEditing ? 'Terminar de reacomodar las ventanas' : 'Reacomodar ventanas: moverlas y cambiarles el tamaño'}>
+          <button className={`icon-btn ${layoutEditing ? 'is-on' : ''}`} onClick={onLayout} aria-pressed={layoutEditing} aria-label="Reacomodar ventanas" title={layoutEditing ? 'Terminar de reacomodar las ventanas' : 'Reacomodar ventanas: moverlas y cambiarles el tamaño'}>
             <IconLayout />
           </button>
         )}
-        <button className="icon-btn" onClick={() => onPrefs({ theme: effectiveTheme === 'dark' ? 'light' : 'dark' })} title="Cambiar tema claro / oscuro">
+        <button className="icon-btn" onClick={() => onPrefs({ theme: effectiveTheme === 'dark' ? 'light' : 'dark' })} title="Cambiar tema claro / oscuro" aria-label={effectiveTheme === 'dark' ? 'Cambiar al tema claro' : 'Cambiar al tema oscuro'}>
           {effectiveTheme === 'dark' ? <IconSun /> : <IconMoon />}
         </button>
-        <button className="icon-btn" onClick={onSettings} title="Ajustes de los escáneres y alertas">
+        <button id="open-settings" className="icon-btn" onClick={onSettings} title="Ajustes de los escáneres y alertas" aria-label="Ajustes" aria-haspopup="dialog">
           <IconGear />
         </button>
       </div>
@@ -218,15 +221,13 @@ export function SettingsModal({ settings, prefs, onSave, onClose, onPractice }: 
     onCommit: (v: number) => setS((cur) => ({ ...cur, [k]: v * scale })),
   });
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  // Trampa de foco: Tab cicla adentro, Esc cierra y el foco vuelve al botón de ajustes.
+  const dialog = useRef<HTMLDivElement>(null);
+  useFocusTrap(dialog, onClose);
 
   return (
     <div className="modal-back" onClick={onClose}>
-      <div className="modal" role="dialog" aria-modal="true" aria-labelledby="settings-title" onClick={(e) => e.stopPropagation()}>
+      <div className="modal" role="dialog" aria-modal="true" aria-labelledby="settings-title" ref={dialog} tabIndex={-1} onClick={(e) => e.stopPropagation()}>
         <header className="modal-head">
           <h2 id="settings-title">Ajustes de escáneres y alertas</h2>
           {onPractice && (
@@ -291,6 +292,14 @@ export function SettingsModal({ settings, prefs, onSave, onClose, onPractice }: 
                 <NumberInput id="set-hod-min" {...num('hodMinChangePct')} min={0} />
               </Field>
             </div>
+          </fieldset>
+          <fieldset>
+            <legend>Operar</legend>
+            <label className="type-check check-wide">
+              <input id="set-confirm-orders" type="checkbox" checked={!!p.confirmOrders} onChange={(e) => setP({ ...p, confirmOrders: e.target.checked })} />
+              Pedir confirmación antes de enviar una orden
+            </label>
+            <p className="legend-hint">Con esto activo, el ticket, la barra del celular y los atajos muestran la orden (símbolo, lado, cantidad, tipo y precio) y esperan Enter para enviarla; Esc la cancela.</p>
           </fieldset>
           <fieldset>
             <legend>Sonido y voz</legend>
@@ -360,13 +369,15 @@ export function MobileTabs({ tab, onTab, haltCount }: { tab: MobileTab; onTab: (
   ];
   return (
     <nav className="mobile-tabs" aria-label="Secciones">
-      {items.map((i) => (
-        <button key={i.id} className={tab === i.id ? 'is-active' : ''} onClick={() => onTab(i.id)} aria-current={tab === i.id ? 'page' : undefined}>
-          {i.icon}
-          <span>{i.label}</span>
-          {i.id === 'momo' && haltCount > 0 && <em className="dot-count">{haltCount}</em>}
-        </button>
-      ))}
+      <div role="tablist" aria-label="Secciones">
+        {items.map((i) => (
+          <button key={i.id} id={`mtab-${i.id}`} role="tab" aria-selected={tab === i.id} aria-controls="mobile-main" tabIndex={tab === i.id ? 0 : -1} className={tab === i.id ? 'is-active' : ''} onClick={() => onTab(i.id)}>
+            {i.icon}
+            <span>{i.label}</span>
+            {i.id === 'momo' && haltCount > 0 && <em className="dot-count" aria-label={`${haltCount} halts`}>{haltCount}</em>}
+          </button>
+        ))}
+      </div>
     </nav>
   );
 }

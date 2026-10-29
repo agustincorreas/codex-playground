@@ -150,7 +150,7 @@ export function Detail({ detail, settings: s, watched, onToggleWatch }: Props) {
           <dd className={r.price >= r.vwap ? 't-up' : 't-down'}>{fmtPrice(r.vwap)}</dd>
         </div>
         <div>
-          <dt>Short interest</dt>
+          <dt>Interés en corto</dt>
           <dd>{ref.shortInterest && ref.float ? `${((ref.shortInterest / ref.float) * 100).toFixed(0)}% del float` : '—'}</dd>
         </div>
         <div>

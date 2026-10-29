@@ -341,8 +341,9 @@ export class AiTrader {
   }
 
   /** Acciones con posición de verdad (las órdenes vivas solas no cuentan). */
+  /** Posiciones que maneja la IA: solo las compradas (los cortos que abra el usuario a mano no son de ella). */
   private positions(): string[] {
-    return this.c.broker?.session.positions.map((p) => p.sym) ?? [];
+    return this.c.broker?.session.positions.filter((p) => p.side !== 'short').map((p) => p.sym) ?? [];
   }
 
   /** La compra mandada por la IA, si sigue viva en el mercado. */
@@ -550,6 +551,11 @@ export class AiTrader {
   }
 
   private execute(sym: string, plan: EntryPlan, shares: number, by: string): void {
+    // La IA opera solo comprada: con un corto abierto a mano en esa acción, una compra lo cubriría.
+    if (this.c.broker?.position(sym)?.side === 'short') {
+      this.log(`${sym}: tenés un corto abierto; la IA no compra (lo cubriría).`, 'info');
+      return;
+    }
     const q = this.source?.quote(sym);
     const ask = q?.ask ?? plan.entry;
     const price = roundPx(Math.min(ask + 0.05, plan.entry * 1.012));
@@ -570,7 +576,7 @@ export class AiTrader {
   private managePosition(sym: string): void {
     const pos = this.c.broker?.position(sym);
     const detail = this.detailOf(sym);
-    if (!pos || !detail) return;
+    if (!pos || pos.side === 'short' || !detail) return;
     this.setPhase('inPosition');
     let mem = this.mem.get(sym);
     if (!mem) {
@@ -589,7 +595,8 @@ export class AiTrader {
 
   private applyExit(sym: string, advice: ExitAdvice, by: string): void {
     const pos = this.c.broker?.position(sym);
-    if (!pos) return;
+    // Solo sobre una posición comprada: `sell` nunca abre un corto, pero tampoco hay que cubrir uno ajeno.
+    if (!pos || pos.side === 'short') return;
     const mem = this.mem.get(sym) ?? newMemory(pos.openedAt, pos.avgCost);
     this.mem.set(sym, mem);
     if (advice.action === 'sellHalf') {

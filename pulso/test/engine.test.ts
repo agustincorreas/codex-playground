@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { Engine } from '../src/engine/engine';
+import { Engine, mergeDetail } from '../src/engine/engine';
 import { aggregateBars, emaSeries, macdSeries, vwapSeries } from '../src/engine/indicators';
 import { etWallToTs } from '../src/engine/time';
 import type { Alert, Bar } from '../src/engine/types';
@@ -356,5 +356,196 @@ describe('motor: correcciones de la auditoría', () => {
     const st = engine.get('TEST')!;
     expect(st.hod).toBe(2.5);
     expect(st.hodTs).toBe(at(9, 41) - 1);
+  });
+});
+
+describe('motor: mejoras tras la auditoría', () => {
+  it('detail(sym, since) manda solo lo nuevo y la fusión de dos parciales reproduce la ficha completa', () => {
+    const { engine, trade } = setup();
+    for (let i = 0; i < 6; i++) {
+      trade(at(9, 31 + i, 5), 2 + i * 0.01, 1000);
+      trade(at(9, 31 + i, 35), 2.005 + i * 0.01, 500);
+    }
+    engine.setWatchlist(['TEST']); // con la acción seguida se arman las velas de 10 s y la cinta
+    const first = engine.detail('TEST')!;
+    expect(first.since).toBeUndefined();
+    expect(first.bars).toHaveLength(6);
+    const lastT = first.bars[first.bars.length - 1].t;
+    const lastSeq = first.tape.length ? first.tape[first.tape.length - 1].seq : 0;
+    // Pasa un rato: la vela actual cambia y aparecen dos velas nuevas con sus prints.
+    trade(at(9, 36, 50), 2.07, 300);
+    trade(at(9, 37, 10), 2.08, 400);
+    const p1 = engine.detail('TEST', lastT, lastSeq)!;
+    expect(p1.since).toBe(lastT);
+    expect(p1.bars.map((b) => b.t)).toEqual([at(9, 36), at(9, 37)]);
+    expect(p1.bars[0].v).toBe(1800);
+    expect(p1.secBars.every((b) => b.t >= lastT)).toBe(true);
+    expect(p1.tape.every((x) => x.seq > lastSeq)).toBe(true);
+    expect(p1.tape).toHaveLength(2);
+    trade(at(9, 38, 10), 2.09, 100);
+    const p2 = engine.detail('TEST', p1.bars[p1.bars.length - 1].t, p1.tape[p1.tape.length - 1].seq)!;
+    expect(p2.bars.map((b) => b.t)).toEqual([at(9, 37), at(9, 38)]);
+    const merged = mergeDetail(mergeDetail(first, p1), p2)!;
+    const full = engine.detail('TEST')!;
+    expect(merged.since).toBeUndefined();
+    expect(merged.bars).toEqual(full.bars);
+    expect(merged.secBars).toEqual(full.secBars);
+    expect(merged.tape).toEqual(full.tape);
+    expect(merged.row).toEqual(full.row);
+    // Un parcial sin base no se puede aplicar; una ficha completa reemplaza.
+    expect(mergeDetail(null, p2)).toBeNull();
+    expect(mergeDetail(first, full)).toBe(full);
+    // Una vela vieja que cambia (consolidada atrasada) sube la revisión: el servidor manda el día entero.
+    const rev = engine.get('TEST')!.barsRev;
+    engine.applyDelayed([{ sym: 'TEST', ts: at(9, 33, 59), last: 2.02, high: 2.1, low: 2, volume: 0, minute: { t: at(9, 33), o: 2.02, h: 2.1, l: 2, c: 2.03, v: 9000, pv: 18_270, n: 30 } }]);
+    expect(engine.get('TEST')!.barsRev).toBeGreaterThan(rev);
+  });
+
+  it('newDay deja a cada símbolo de cero conservando los datos de referencia (en demo, el último precio es el cierre anterior)', () => {
+    const { engine, alerts, trade } = setup({ float: 100_000 });
+    const nextDay = etWallToTs(2026, 10, 26, 4 * 60);
+    trade(at(9, 35), 2.0, 60_000);
+    trade(at(9, 36), 2.4, 60_000);
+    engine.ingest({ kind: 'status', sym: 'TEST', ts: at(9, 37), halted: true, reason: 'LUDP' });
+    engine.tick(at(9, 40));
+    engine.view();
+    const before = engine.get('TEST')!;
+    expect(before.hod).toBe(2.4);
+    expect(before.rotationLevel).toBe(1);
+    expect(before.memo.size).toBeGreaterThan(0);
+    expect(alerts.length).toBeGreaterThan(0);
+    expect(engine.view().halts).toHaveLength(1);
+    // Dos noticias: una del domingo a la noche (sigue vigente el lunes) y una del viernes (ya no).
+    engine.ingest({ kind: 'news', item: { id: 'n1', ts: at(9, 0), headline: 'Test Co Announces FDA Approval', symbols: ['TEST'] } });
+    engine.ingest({ kind: 'news', item: { id: 'n2', ts: nextDay - 19 * 3_600_000, headline: 'Test Co Signs Distribution Deal', symbols: ['TEST'] } });
+    engine.newDay(nextDay, true);
+    const st = engine.get('TEST')!;
+    expect(st).not.toBe(before);
+    expect(st.ref.float).toBe(100_000);
+    expect(st.ref.avgVolume).toBe(1_000_000);
+    expect(st.prevClose).toBe(2.4);
+    expect(st.ref.prevClose).toBe(2.4);
+    expect(st.hod).toBe(0);
+    expect(st.volume).toBe(0);
+    expect(st.bars).toHaveLength(0);
+    expect(st.halted).toBe(false);
+    expect(st.memo.size).toBe(0);
+    expect(st.rotationLevel).toBe(0);
+    expect(st.inGappers).toBe(false);
+    expect(st.pmHigh).toBe(0);
+    expect(engine.alerts).toHaveLength(0);
+    expect(engine.view().halts).toHaveLength(0);
+    expect(engine.session).toBe('pre');
+    // La noticia de hace 19 h sigue dentro de la ventana de 24 h; la del viernes, no.
+    expect(st.news.map((n) => n.id)).toEqual(['n2']);
+    expect(engine.news.map((n) => n.id)).toEqual(['n2']);
+    // Sin demo, el cierre anterior se conserva tal cual.
+    const other = setup();
+    other.trade(at(9, 35), 3.0, 1000);
+    other.engine.newDay(nextDay);
+    expect(other.engine.get('TEST')!.prevClose).toBe(2);
+  });
+
+  it('un print 8 minutos atrasado va a su vela (o abre una) y suma al volumen del día', () => {
+    const { engine, trade } = setup();
+    for (let i = 0; i < 10; i++) trade(at(10, i), 2, 1000);
+    const st = engine.get('TEST')!;
+    expect(st.volume).toBe(10_000);
+    // A una vela que existe: 10:01, ocho minutos antes de la última (10:09).
+    trade(at(10, 1, 30), 2.5, 700);
+    expect(st.bars).toHaveLength(10);
+    expect(st.bars[1]).toMatchObject({ t: at(10, 1), v: 1700, h: 2.5, c: 2 });
+    expect(st.volume).toBe(10_700);
+    expect(st.last).toBe(2.5); // el precio sí se actualiza (el feed lo manda como print nuevo)
+    // A un minuto sin vela (9:55): se inserta en su lugar, en orden.
+    trade(at(9, 55, 10), 1.9, 300);
+    expect(st.bars).toHaveLength(11);
+    expect(st.bars[0]).toMatchObject({ t: at(9, 55), v: 300, o: 1.9 });
+    expect(st.bars.every((b, i) => i === 0 || b.t > st.bars[i - 1].t)).toBe(true);
+    expect(st.volume).toBe(11_000);
+    // La suma de las velas sigue siendo el volumen del día.
+    expect(st.bars.reduce((v, b) => v + b.v, 0)).toBe(st.volume);
+    // Lo mismo con las velas de 10 s (la acción seguida las arma).
+    engine.setWatchlist(['TEST']);
+    trade(at(10, 10, 0), 2, 100);
+    trade(at(10, 10, 20), 2, 100);
+    trade(at(10, 10, 5), 2, 50);
+    expect(st.secBars.map((b) => [b.t, b.v])).toEqual([
+      [at(10, 10, 0), 150],
+      [at(10, 10, 20), 100],
+    ]);
+    // Tras el print atrasado, los cierres de velas nuevas siguen bien (el índice de cierre no se desfasa).
+    const closedBefore = st.lastClosedBarT;
+    trade(at(10, 11), 2, 100);
+    expect(st.lastClosedBarT).toBe(at(10, 10));
+    expect(closedBefore).toBe(at(10, 9));
+  });
+
+  it('volumePerMinute reparte las últimas velas en los minutos reales que abarcan (acción fina)', () => {
+    const { engine, trade } = setup();
+    // Opera cada 5 minutos: 5 velas cerradas de 1.000 acciones cubren 21 minutos.
+    for (const m of [0, 5, 10, 15, 20]) trade(at(10, m), 2, 1000);
+    trade(at(10, 25), 2, 1000);
+    const st = engine.get('TEST')!;
+    expect(st.volumePerMinute()).toBeCloseTo(5000 / 21, 6);
+    expect(engine.quote('TEST')!.volPerMin).toBeCloseTo(5000 / 21, 6);
+    // Una acción que opera todos los minutos: el promedio de siempre.
+    const dense = setup();
+    for (let i = 0; i < 7; i++) dense.trade(at(11, i), 2, 1000 + i * 100);
+    expect(dense.engine.get('TEST')!.volumePerMinute()).toBeCloseTo((1100 + 1200 + 1300 + 1400 + 1500) / 5, 6);
+  });
+
+  it('la calibración de la escala ignora velas con menos de 100 acciones y promedia todas las muestras', () => {
+    const engine = new Engine({ allSecBars: true });
+    engine.setReference([{ sym: 'RUNR', prevClose: 2, avgVolume: 390_000 }]);
+    const t = (m: number, s = 0) => etWallToTs(2026, 10, 23, m) + s * 1000;
+    const minute = (m: number, v: number) => ({ t: t(m), o: 3, h: 3, l: 3, c: 3, v, pv: 3 * v, n: 10 });
+    engine.ingest({ kind: 'trade', sym: 'RUNR', ts: t(9 * 60 + 30, 5), price: 3, size: 20 });
+    engine.ingest({ kind: 'trade', sym: 'RUNR', ts: t(9 * 60 + 31, 5), price: 3, size: 200 });
+    engine.ingest({ kind: 'trade', sym: 'RUNR', ts: t(9 * 60 + 32, 5), price: 3, size: 100 });
+    const st = engine.get('RUNR')!;
+    // 20 acciones en el feed: la relación (100x) sería ruido y no cuenta.
+    engine.applyDelayed([{ sym: 'RUNR', ts: t(9 * 60 + 30, 59), last: 3, high: 3, low: 3, volume: 0, minute: minute(9 * 60 + 30, 2000) }]);
+    expect(st.scaleSamples).toBe(0);
+    expect(st.volumeScale).toBe(1);
+    engine.applyDelayed([{ sym: 'RUNR', ts: t(9 * 60 + 31, 59), last: 3, high: 3, low: 3, volume: 0, minute: minute(9 * 60 + 31, 2000) }]);
+    expect(st.scaleSamples).toBe(1);
+    expect(st.volumeScale).toBe(10);
+    engine.applyDelayed([{ sym: 'RUNR', ts: t(9 * 60 + 32, 59), last: 3, high: 3, low: 3, volume: 0, minute: minute(9 * 60 + 32, 3000) }]);
+    expect(st.scaleSamples).toBe(2);
+    expect(st.volumeScale).toBe((10 + 30) / 2);
+    // La vela consolidada se ubicó con findBarAt (sin recorrer el día).
+    expect(st.findBarAt(t(9 * 60 + 31))).toBe(1);
+    expect(st.findBarAt(t(9 * 60 + 29))).toBe(-1);
+    expect(st.bars[1].v).toBe(2000);
+  });
+
+  it('los indicadores incrementales coinciden con las series en lote, también tras un relleno', () => {
+    const { engine, trade } = setup();
+    for (let i = 0; i < 40; i++) trade(at(10, i), 2 + Math.sin(i / 3) * 0.2, 1000);
+    const st = engine.get('TEST')!;
+    const closes = () => st.bars.map((b) => b.c);
+    const check = () => {
+      const c = closes();
+      const closed = c.slice(0, -1);
+      expect(st.lastClosedBarT).toBe(st.bars[st.bars.length - 2].t);
+      expect(st.ema9.value).toBeCloseTo(emaSeries(closed, 9)[closed.length - 1], 10);
+      expect(st.ema20.value).toBeCloseTo(emaSeries(closed, 20)[closed.length - 1], 10);
+      expect(st.ema9.peek(st.last)).toBeCloseTo(emaSeries(c, 9)[c.length - 1], 10);
+      const m = macdSeries(c);
+      const live = st.macd.peek(st.last);
+      expect(live.macd).toBeCloseTo(m.macd[c.length - 1], 10);
+      expect(live.signal).toBeCloseTo(m.signal[c.length - 1], 10);
+      expect(live.hist).toBeCloseTo(m.hist[c.length - 1], 10);
+    };
+    check();
+    // Relleno con velas consolidadas distintas: resetIndicators recalcula y vuelve a coincidir.
+    const bars: Bar[] = [];
+    for (let i = 5; i < 15; i++) bars.push({ t: at(10, i), o: 2, h: 2.3, l: 1.9, c: 2.1 + i * 0.01, v: 5000, pv: 10_500, n: 20 });
+    engine.mergeBars('TEST', bars);
+    expect(st.bars[5].c).toBe(2.15);
+    check();
+    for (let i = 40; i < 45; i++) trade(at(10, i), 2.1, 1000);
+    check();
   });
 });

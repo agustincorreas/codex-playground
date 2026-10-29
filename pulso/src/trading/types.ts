@@ -1,6 +1,8 @@
 // Tipos del bróker de práctica: órdenes, ejecuciones, posiciones, trades, cuenta y sesiones.
 
 export type OrderSide = 'buy' | 'sell';
+/** Lado de una posición: comprada (long) o vendida en corto (short). */
+export type PositionSide = 'long' | 'short';
 /** `stop` es un stop a mercado; fuera de la rueda regular se dispara como límite (como en los brókers). */
 export type OrderType = 'market' | 'limit' | 'stop';
 export type OrderRole = 'entry' | 'exit' | 'stop' | 'target' | 'eod';
@@ -41,10 +43,12 @@ export interface Order {
   triggered?: boolean;
   /** Motivo de rechazo, cancelación o espera. */
   note?: string;
-  /** En compras: stop y objetivo que se colocan cuando la orden se ejecuta. */
+  /** En entradas (compra o venta en corto): stop y objetivo que se colocan cuando la orden se ejecuta. */
   bracket?: { stop?: number; target?: number };
-  /** En compras sin stop automático: el stop y el objetivo del plan (no se envían como órdenes). */
+  /** En entradas sin stop automático: el stop y el objetivo del plan (no se envían como órdenes). */
   plan?: { stop?: number; target?: number };
+  /** Venta en corto de una acción difícil de pedir prestada (HTB): costo del locate por acción, cobrado al ejecutarse. */
+  borrowFee?: number;
   setup?: string;
   ctx?: EntryContext;
 }
@@ -84,17 +88,25 @@ export interface EntryContext {
 
 export interface Position {
   sym: string;
+  /**
+   * Comprada (long) o vendida en corto (short). En un corto `shares` sigue siendo positivo (lo que se
+   * debe), la entrada es lo vendido (`soldShares`/`soldValue`) y la cobertura lo comprado.
+   */
+  side: PositionSide;
+  /** Acciones abiertas (siempre positivo; el lado lo dice `side`). */
   shares: number;
+  /** Precio promedio de la entrada (compra en un largo, venta en un corto). */
   avgCost: number;
   openedAt: number;
   boughtShares: number;
   boughtCost: number;
   soldShares: number;
   soldValue: number;
+  /** Comisiones, tasas y, en un corto HTB, el costo del locate. */
   fees: number;
-  /** Ganancia o pérdida ya realizada con ventas parciales. */
+  /** Ganancia o pérdida ya realizada con salidas parciales (con el signo correcto para el lado). */
   realized: number;
-  /** Stop al momento de entrar: define el riesgo (1R) del trade. */
+  /** Stop al momento de entrar: define el riesgo (1R) del trade (debajo de la entrada en un largo, arriba en un corto). */
   initialStop?: number;
   /** Stop y objetivo como órdenes (OCO) puestas en el mercado. */
   stop?: number;
@@ -116,9 +128,12 @@ export interface Trade {
   id: string;
   sessionId: string;
   sym: string;
+  /** Largo o corto (los trades guardados antes de los cortos no lo traen: son largos). */
+  side?: PositionSide;
   openedAt: number;
   closedAt: number;
   shares: number;
+  /** Precio promedio de entrada (compra en un largo, venta en un corto) y de salida. */
   avgEntry: number;
   avgExit: number;
   gross: number;
@@ -128,7 +143,7 @@ export interface Trade {
   /** Resultado en múltiplos del riesgo inicial (solo si se puso stop al entrar). */
   r?: number;
   risk?: number;
-  /** Máxima ganancia y máxima pérdida flotante durante el trade, en %. */
+  /** Máxima ganancia y máxima pérdida flotante durante el trade, en % (en un corto, a favor es cuando baja). */
   mfePct: number;
   maePct: number;
   exitReason: ExitReason;
@@ -146,7 +161,10 @@ export interface Trade {
 export type HotkeyAction =
   /** Compra límite al precio de referencia más un desplazamiento (ej. Ask + 0,05). */
   | { kind: 'buy'; shares: number | 'risk' | 'ticket'; ref: 'ask' | 'bid' | 'last'; offset: number }
-  /** Vende una fracción de la posición, límite a la referencia más el desplazamiento (ej. Bid − 0,05). */
+  /**
+   * Vende una fracción de la posición, límite a la referencia más el desplazamiento (ej. Bid − 0,05).
+   * Con un corto abierto, cubre esa fracción (espejado: Ask + 0,05).
+   */
   | { kind: 'sell'; fraction: number; ref: 'ask' | 'bid' | 'last'; offset: number }
   | { kind: 'cancel' }
   | { kind: 'breakeven' };

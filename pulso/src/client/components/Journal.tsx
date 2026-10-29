@@ -2,7 +2,7 @@
 // tus aptitudes (ganancias y pérdidas, ganadores, perdedores), la "Profit Trifecta" de Ross Cameron
 // (constancia, % de aciertos y relación ganancia/pérdida), la rentabilidad por precio, horario, gap,
 // volumen y volumen relativo, el rendimiento por semana, la curva de capital y todos los trades.
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { formatEtTime } from '../../engine/time';
 import { breakdown, DAYS_PER_WEEK, DIMENSIONS, equityCurve, LEVELS, summarize, weeklyResults, type Bucket, type Dimension, type Summary, type WeekResult } from '../../trading/stats';
 import { SETUPS, type SessionRecord, type Trade } from '../../trading/types';
@@ -11,6 +11,7 @@ import { downloadText } from '../lib/download';
 import { buildFacts, claudeSampler, narrative, reviewPrompt, type ReviewFacts } from '../lib/review';
 import { load, save } from '../lib/storage';
 import { fmtMoney, fmtPct, fmtPrice } from '../lib/format';
+import { useVirtualRows } from '../lib/virtual';
 import type { TrainingController } from '../training';
 import { IconClose } from './Icons';
 import { TradeReview } from './TradeReview';
@@ -176,14 +177,14 @@ function Trifecta({ week }: { week?: WeekResult }) {
 
 /** Descarga los trades como CSV (en Claude, con el permiso de descargas; si no, con un enlace). */
 async function exportCsv(trades: Trade[]): Promise<void> {
-  const head = ['fecha', 'hora_et_entrada', 'hora_et_salida', 'simbolo', 'setup', 'acciones', 'entrada', 'salida', 'bruto', 'comisiones', 'neto', 'pct', 'r', 'salida_por', 'nota'];
+  const head = ['fecha', 'hora_et_entrada', 'hora_et_salida', 'simbolo', 'lado', 'setup', 'acciones', 'entrada', 'salida', 'bruto', 'comisiones', 'neto', 'pct', 'r', 'salida_por', 'nota'];
   const esc = (v: unknown) => {
     const s = v === undefined || v === null ? '' : String(v);
     return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
   const rows = [...trades]
     .sort((a, b) => a.openedAt - b.openedAt)
-    .map((t) => [new Date(t.openedAt).toISOString().slice(0, 10), formatEtTime(t.openedAt), formatEtTime(t.closedAt), t.sym, t.setup ?? '', t.shares, t.avgEntry, t.avgExit, t.gross, t.fees, t.net, t.returnPct, t.r ?? '', t.exitReason, t.note ?? ''].map(esc).join(','));
+    .map((t) => [new Date(t.openedAt).toISOString().slice(0, 10), formatEtTime(t.openedAt), formatEtTime(t.closedAt), t.sym, t.side === 'short' ? 'corto' : 'largo', t.setup ?? '', t.shares, t.avgEntry, t.avgExit, t.gross, t.fees, t.net, t.returnPct, t.r ?? '', t.exitReason, t.note ?? ''].map(esc).join(','));
   const data = [head.join(','), ...rows].join('\n');
   await downloadText(`pulso-trades-${new Date().toISOString().slice(0, 10)}.csv`, data, 'text/csv');
 }
@@ -291,6 +292,10 @@ export function Journal({ c, onClose, onSelect, onSettings, onNewDay }: { c: Tra
     scope === 'today' && a ? a.startCash : scope === 'today' && c.lastEnded ? c.lastEnded.startCash : (sessions.find((x) => x.id === scope)?.startCash ?? c.capital);
   const sum = c.summary();
   const rows = breakdown(trades, dim);
+  // La tabla de trades puede ser larga: se dibujan solo las filas a la vista (la hoja del diario en el
+  // escritorio, la página en el celular). Con pocos trades el margen las cubre a todas.
+  const tradesBody = useRef<HTMLTableSectionElement>(null);
+  const tv = useVirtualRows(tradesBody, 34, sorted.length, { scroller: '.journal-sheet', overscan: 20 });
 
   return (
     <div className="journal">
@@ -303,7 +308,7 @@ export function Journal({ c, onClose, onSelect, onSettings, onNewDay }: { c: Tra
               : c.storeKind === 'cuenta'
                 ? 'Se guarda en tu cuenta de Claude: lo ves desde cualquier dispositivo.'
                 : 'Se guarda en este navegador.'}{' '}
-            Solo compras (long), dinero ficticio.
+            Compras y ventas en corto (en cuenta margen), dinero ficticio.
           </p>
         </div>
         {onClose && (
@@ -315,7 +320,7 @@ export function Journal({ c, onClose, onSelect, onSettings, onNewDay }: { c: Tra
 
       <section className="journal-account">
         <div className="big-stat">
-          <span className="stat-label">Equity</span>
+          <span className="stat-label">Valor de la cuenta</span>
           <span className="big">{fmtMoney(sum.equity)}</span>
           <span className={sum.dayPnl > 0 ? 't-up' : sum.dayPnl < 0 ? 't-down' : 't-muted'}>Hoy {money(sum.dayPnl)}</span>
         </div>
@@ -440,7 +445,7 @@ export function Journal({ c, onClose, onSelect, onSettings, onNewDay }: { c: Tra
         {(
           [
             ['Trades', `${s.trades}`, `${s.wins} ganadores · ${s.losses} perdedores`],
-            ['Profit factor', ratio(s.profitFactor), 'total ganado / total perdido'],
+            ['Factor de ganancia', ratio(s.profitFactor), 'total ganado / total perdido'],
             ['R promedio', s.avgR !== undefined ? `${s.avgR.toFixed(2)}R` : '—', 'en trades con stop'],
             ['Esperanza', s.trades ? money(s.expectancy) : '—', 'resultado medio por trade'],
             ['Máx. drawdown', s.trades ? fmtMoney(-s.maxDrawdown) : '—', 'mayor caída desde un máximo'],
@@ -562,6 +567,7 @@ export function Journal({ c, onClose, onSelect, onSettings, onNewDay }: { c: Tra
         <ProfitBars title="Por volumen" buckets={breakdown(trades, 'volumen')} />
         <ProfitBars title="Por volumen relativo" buckets={breakdown(trades, 'rvol')} />
         <ProfitBars title="Por setup" buckets={breakdown(trades, 'setup')} />
+        <ProfitBars title="Por lado (largo / corto)" buckets={breakdown(trades, 'lado')} />
       </section>
 
       <h3 className="section-title">Rendimiento por semana</h3>
@@ -660,29 +666,39 @@ export function Journal({ c, onClose, onSelect, onSettings, onNewDay }: { c: Tra
             <table className="grid-table trades">
               <thead>
                 <tr>
-                  <th>Hora ET</th>
-                  <th>Sím.</th>
-                  <th>Setup</th>
-                  <th className="num">Acc.</th>
-                  <th className="num">Entrada</th>
-                  <th className="num">Salida</th>
-                  <th className="num">Resultado</th>
-                  <th className="num">%</th>
-                  <th className="num">R</th>
-                  <th className="num">Min.</th>
-                  <th>Salió por</th>
-                  <th>Nota</th>
-                  <th aria-label="Revisar" />
+                  <th scope="col">Hora ET</th>
+                  <th scope="col">Sím.</th>
+                  <th scope="col">Setup</th>
+                  <th scope="col" className="num">Acc.</th>
+                  <th scope="col" className="num">Entrada</th>
+                  <th scope="col" className="num">Salida</th>
+                  <th scope="col" className="num">Resultado</th>
+                  <th scope="col" className="num">%</th>
+                  <th scope="col" className="num">R</th>
+                  <th scope="col" className="num">Min.</th>
+                  <th scope="col">Salió por</th>
+                  <th scope="col">Nota</th>
+                  <th scope="col" aria-label="Revisar" />
                 </tr>
               </thead>
-              <tbody>
-                {sorted.slice(0, 300).map((t) => (
-                  <tr key={t.id}>
+              <tbody ref={tradesBody}>
+                {tv.top > 0 && (
+                  <tr className="v-spacer" style={{ height: tv.top }} aria-hidden="true">
+                    <td colSpan={13} />
+                  </tr>
+                )}
+                {sorted.slice(tv.start, tv.end).map((t, k) => (
+                  <tr key={t.id} data-vrow={tv.start + k}>
                     <td className="t-muted">{formatEtTime(t.openedAt, false)}</td>
                     <td>
                       <button className="link sym-link" onClick={() => onSelect(t.sym)}>
                         {t.sym}
                       </button>
+                      {t.side === 'short' && (
+                        <span className="tag tag-short" title="Venta en corto">
+                          C
+                        </span>
+                      )}
                     </td>
                     <td>
                       <select id={`setup-${t.id}`} className="inline-select" value={t.setup ?? ''} onChange={(e) => c.updateTrade(t.id, { setup: e.target.value || undefined })} aria-label="Setup del trade">
@@ -719,6 +735,11 @@ export function Journal({ c, onClose, onSelect, onSettings, onNewDay }: { c: Tra
                     </td>
                   </tr>
                 ))}
+                {tv.bottom > 0 && (
+                  <tr className="v-spacer" style={{ height: tv.bottom }} aria-hidden="true">
+                    <td colSpan={13} />
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>

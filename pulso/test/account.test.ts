@@ -28,7 +28,7 @@ describe('saldo de la cuenta', () => {
   it('no se cambia con posiciones abiertas ni a menos de US$ 1', () => {
     const c = new TrainingController(store, { state: null, sessions: [] }, 'local');
     expect(c.setBalance(0).ok).toBe(false);
-    c.active!.positions.push({ sym: 'RUN', shares: 10, avgCost: 3, openedAt: 0, boughtShares: 10, boughtCost: 30, soldShares: 0, soldValue: 0, fees: 0, realized: 0, high: 3, low: 3, fills: 1 });
+    c.active!.positions.push({ sym: 'RUN', side: 'long', shares: 10, avgCost: 3, openedAt: 0, boughtShares: 10, boughtCost: 30, soldShares: 0, soldValue: 0, fees: 0, realized: 0, high: 3, low: 3, fills: 1 });
     expect(c.setBalance(5000).message).toMatch(/Cerrá tus posiciones/);
     expect(c.active!.cash).toBe(1000);
   });

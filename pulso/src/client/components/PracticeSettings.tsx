@@ -1,7 +1,8 @@
 // Ajustes de la cuenta de práctica, como el panel de ajustes del simulador de Warrior Trading:
 // cuenta (tipo, saldo, apalancamiento, reglas), órdenes (tamaño, vigencia, latencia, comisiones) y
 // atajos de teclado configurables (con botón rápido en el ticket).
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
+import { useFocusTrap } from '../lib/a11y';
 import { fmtMoney } from '../lib/format';
 import { BalanceEditor } from './Account';
 import { DEFAULT_HOTKEYS, type Hotkey, type HotkeyAction, type Tif, type TradingSettings } from '../../trading/types';
@@ -212,11 +213,9 @@ export function PracticeSettings({ c, onClose, initial = 'cuenta' }: { c: Traini
   const [confirm, setConfirm] = useState<'reset' | 'wipe' | null>(null);
   const [dirty, setDirty] = useState(false);
   const sum = c.summary();
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  // Trampa de foco: Tab cicla adentro, Esc cierra y el foco vuelve a donde estaba.
+  const dialog = useRef<HTMLDivElement>(null);
+  useFocusTrap(dialog, onClose);
   const equity = c.summary().equity;
   const set = (patch: Partial<TradingSettings>) => {
     setS((x) => ({ ...x, ...patch }));
@@ -245,7 +244,7 @@ export function PracticeSettings({ c, onClose, initial = 'cuenta' }: { c: Traini
 
   return (
     <div className="modal-back" onClick={onClose}>
-      <div className="modal settings-modal" role="dialog" aria-modal="true" aria-labelledby="ps-title" onClick={(e) => e.stopPropagation()}>
+      <div className="modal settings-modal" role="dialog" aria-modal="true" aria-labelledby="ps-title" ref={dialog} tabIndex={-1} onClick={(e) => e.stopPropagation()}>
         <nav className="settings-nav" aria-label="Secciones">
           {(
             [
@@ -361,7 +360,7 @@ export function PracticeSettings({ c, onClose, initial = 'cuenta' }: { c: Traini
                   </div>
                 </dl>
                 <div className="av-equity">
-                  <span>Equity</span>
+                  <span>Valor de la cuenta</span>
                   <b>{fmtMoney(sum.equity)}</b>
                 </div>
                 <dl className="av-list">

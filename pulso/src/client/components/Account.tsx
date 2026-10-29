@@ -5,6 +5,7 @@ import { formatEtTime } from '../../engine/time';
 import { fmtInt, fmtMoney, fmtPrice, parseMoney } from '../lib/format';
 import { STATUS_LABEL } from '../../trading/broker';
 import type { Order, Trade } from '../../trading/types';
+import { sellAll } from '../lib/orders';
 import type { TrainingController } from '../training';
 import { Empty } from './Panel';
 
@@ -27,6 +28,8 @@ const money = (v: number) => Math.round(v * 100) / 100;
 
 interface PosRow {
   sym: string;
+  /** Largo o corto (solo las abiertas). */
+  side?: 'long' | 'short';
   shares: number;
   avgCost?: number;
   unreal: number;
@@ -47,9 +50,10 @@ export function PositionsWindow({ c, selected, onSelect }: { c: TrainingControll
   for (const t of [...(a?.trades ?? [])].reverse()) closed.set(t.sym, money((closed.get(t.sym) ?? 0) + t.net));
   const open: PosRow[] = (a?.positions ?? []).map((p) => {
     const last = c.marks(p.sym) ?? p.avgCost;
-    const unreal = money((last - p.avgCost) * p.shares);
+    // En un corto se gana cuando el precio baja.
+    const unreal = money((p.side === 'short' ? p.avgCost - last : last - p.avgCost) * p.shares);
     const realized = money(p.realized + (closed.get(p.sym) ?? 0));
-    return { sym: p.sym, shares: p.shares, avgCost: p.avgCost, unreal, realized, total: money(unreal + realized), open: true };
+    return { sym: p.sym, side: p.side, shares: p.shares, avgCost: p.avgCost, unreal, realized, total: money(unreal + realized), open: true };
   });
   const flat: PosRow[] = [...closed]
     .filter(([sym]) => !open.some((r) => r.sym === sym))
@@ -98,8 +102,13 @@ export function PositionsWindow({ c, selected, onSelect }: { c: TrainingControll
                 <tr key={r.sym} className={`${r.sym === selected ? 'is-selected' : ''} ${r.open ? '' : 'is-flat'}`} onClick={() => onSelect(r.sym)}>
                   <td>
                     <button className="link sym-link">{r.sym}</button>
+                    {r.side === 'short' && (
+                      <span className="tag tag-short" title="Vendida en corto">
+                        CORTO
+                      </span>
+                    )}
                   </td>
-                  <td className="num">{fmtInt(r.shares)}</td>
+                  <td className="num">{r.side === 'short' ? `−${fmtInt(r.shares)}` : fmtInt(r.shares)}</td>
                   <td className="num">{r.avgCost !== undefined ? fmtPrice(r.avgCost) : '—'}</td>
                   <td className={`num ${tone(r.unreal)}`}>{r.open ? signed(r.unreal) : '—'}</td>
                   <td className={`num hide-md ${tone(r.realized)}`}>{signed(r.realized)}</td>
@@ -112,11 +121,11 @@ export function PositionsWindow({ c, selected, onSelect }: { c: TrainingControll
                         className="btn-small sell"
                         onClick={(e) => {
                           e.stopPropagation();
-                          c.sell(r.sym, 1);
+                          sellAll(c, r.sym);
                         }}
-                        title="Vender toda la posición a Bid − 0,05"
+                        title={r.side === 'short' ? 'Cubrir todo el corto a Ask + 0,05' : 'Vender toda la posición a Bid − 0,05'}
                       >
-                        Cerrar
+                        {r.side === 'short' ? 'Cubrir' : 'Cerrar'}
                       </button>
                     )}
                   </td>
@@ -299,7 +308,8 @@ export function TradeActivity({ c, onSelect }: { c: TrainingController; onSelect
                     </button>
                   </td>
                   <td>
-                    <span className={`side-badge ${o.side}`}>{o.side === 'buy' ? 'COMPRA' : 'VENTA'}</span>
+                    {/* Una venta de entrada es un corto; una compra que no entra, una cobertura. */}
+                    <span className={`side-badge ${o.side} ${o.side === 'sell' && o.role === 'entry' ? 'short' : ''}`}>{o.side === 'buy' ? (o.role === 'entry' ? 'COMPRA' : 'CUBRE') : o.role === 'entry' ? 'CORTO' : 'VENTA'}</span>
                     {o.role === 'stop' ? <span className="t-muted"> stop</span> : o.role === 'target' ? <span className="t-muted"> obj.</span> : null}
                   </td>
                   <td className="num">{fmtInt(o.shares)}</td>
@@ -407,7 +417,7 @@ export function AccountValue({ c, onSettings }: { c: TrainingController; onSetti
         </div>
       </dl>
       <div className="av-equity">
-        <span>Equity</span>
+        <span>Valor de la cuenta</span>
         <b>{fmtMoney(s.equity)}</b>
       </div>
       <div className="av-balance">

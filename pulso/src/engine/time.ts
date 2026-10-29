@@ -76,16 +76,94 @@ export function etWallToTs(y: number, mo: number, d: number, minutes: number): n
   return ts;
 }
 
-// Feriados NYSE (mercado cerrado) y cierres anticipados a las 13:00 ET.
-const HOLIDAYS = new Set([
-  '2025-01-01', '2025-01-09', '2025-01-20', '2025-02-17', '2025-04-18', '2025-05-26', '2025-06-19',
-  '2025-07-04', '2025-09-01', '2025-11-27', '2025-12-25',
-  '2026-01-01', '2026-01-19', '2026-02-16', '2026-04-03', '2026-05-25', '2026-06-19', '2026-07-03',
-  '2026-09-07', '2026-11-26', '2026-12-25',
-  '2027-01-01', '2027-01-18', '2027-02-15', '2027-03-26', '2027-05-31', '2027-06-18', '2027-07-05',
-  '2027-09-06', '2027-11-25', '2027-12-24',
-]);
-const EARLY_CLOSE = new Set(['2025-07-03', '2025-11-28', '2025-12-24', '2026-11-27', '2026-12-24', '2027-11-26']);
+// Calendario NYSE por regla (feriados y cierres anticipados a las 13:00 ET), más los cierres excepcionales.
+/** Cierres excepcionales que ninguna regla da (duelo nacional, etc.). */
+const SPECIAL_CLOSED = new Set(['2025-01-09']); // Funeral de Estado de Jimmy Carter.
+
+const key = (y: number, mo: number, d: number) => `${y}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+const dowOf = (y: number, mo: number, d: number) => new Date(Date.UTC(y, mo - 1, d)).getUTCDay();
+/** Fecha corrida `days` días (en UTC, sin horario de verano de por medio). */
+function shift(y: number, mo: number, d: number, days: number): [number, number, number] {
+  const x = new Date(Date.UTC(y, mo - 1, d + days));
+  return [x.getUTCFullYear(), x.getUTCMonth() + 1, x.getUTCDate()];
+}
+/** El enésimo (`n`) día de la semana `dow` del mes (n = −1: el último). */
+function nthDow(y: number, mo: number, dow: number, n: number): [number, number, number] {
+  if (n > 0) {
+    const first = dowOf(y, mo, 1);
+    return [y, mo, 1 + ((dow - first + 7) % 7) + (n - 1) * 7];
+  }
+  const lastDay = new Date(Date.UTC(y, mo, 0)).getUTCDate();
+  const last = dowOf(y, mo, lastDay);
+  return [y, mo, lastDay - ((last - dow + 7) % 7)];
+}
+/** Domingo de Pascua (algoritmo de Meeus/Jones/Butcher, calendario gregoriano). */
+function easter(y: number): [number, number, number] {
+  const a = y % 19;
+  const b = Math.floor(y / 100);
+  const c = y % 100;
+  const d = Math.floor(b / 4);
+  const e = b % 4;
+  const f = Math.floor((b + 8) / 25);
+  const g = Math.floor((b - f + 1) / 3);
+  const h = (19 * a + b - d - g + 15) % 30;
+  const i = Math.floor(c / 4);
+  const k = c % 4;
+  const l = (32 + 2 * e + 2 * i - h - k) % 7;
+  const m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const mo = Math.floor((h + l - 7 * m + 114) / 31);
+  const d2 = ((h + l - 7 * m + 114) % 31) + 1;
+  return [y, mo, d2];
+}
+/**
+ * Observancia de un feriado de fecha fija: sábado → viernes anterior, domingo → lunes siguiente. Si el
+ * viernes cae en el año anterior (1 de enero sábado), la NYSE no lo observa.
+ */
+function observed(y: number, mo: number, d: number): [number, number, number] | null {
+  const dow = dowOf(y, mo, d);
+  if (dow === 6) {
+    const f = shift(y, mo, d, -1);
+    return f[0] === y ? f : null;
+  }
+  if (dow === 0) return shift(y, mo, d, 1);
+  return [y, mo, d];
+}
+
+const calendarCache = new Map<number, { holidays: Set<string>; early: Set<string> }>();
+
+/** Feriados y cierres anticipados NYSE de un año, calculados por regla. */
+export function nyseCalendar(y: number): { holidays: Set<string>; early: Set<string> } {
+  const hit = calendarCache.get(y);
+  if (hit) return hit;
+  const holidays = new Set<string>();
+  const early = new Set<string>();
+  const add = (x: [number, number, number] | null) => x && holidays.add(key(...x));
+  add(observed(y, 1, 1)); // Año Nuevo
+  add(nthDow(y, 1, 1, 3)); // Martin Luther King (tercer lunes de enero)
+  add(nthDow(y, 2, 1, 3)); // Presidentes (tercer lunes de febrero)
+  add(shift(...easter(y), -2)); // Viernes Santo
+  add(nthDow(y, 5, 1, -1)); // Memorial Day (último lunes de mayo)
+  add(observed(y, 6, 19)); // Juneteenth
+  add(observed(y, 7, 4)); // Independencia
+  add(nthDow(y, 9, 1, 1)); // Labor Day (primer lunes de septiembre)
+  const thanksgiving = nthDow(y, 11, 4, 4);
+  add(thanksgiving); // Acción de Gracias (cuarto jueves de noviembre)
+  add(observed(y, 12, 25)); // Navidad
+  const weekday = (x: [number, number, number]) => dowOf(...x) >= 1 && dowOf(...x) <= 5 && !holidays.has(key(...x));
+  // 3 de julio si es hábil y el 4 cae en día de semana; viernes después de Acción de Gracias; 24 de diciembre si es hábil.
+  const july3: [number, number, number] = [y, 7, 3];
+  if (weekday(july3) && dowOf(y, 7, 4) >= 1 && dowOf(y, 7, 4) <= 5) early.add(key(...july3));
+  early.add(key(...shift(...thanksgiving, 1)));
+  const dec24: [number, number, number] = [y, 12, 24];
+  if (weekday(dec24)) early.add(key(...dec24));
+  const out = { holidays, early };
+  calendarCache.set(y, out);
+  return out;
+}
+
+function isHoliday(dateKey: string): boolean {
+  return SPECIAL_CLOSED.has(dateKey) || nyseCalendar(Number(dateKey.slice(0, 4))).holidays.has(dateKey);
+}
 
 export const PRE_OPEN = 4 * 60;
 export const REG_OPEN = 9 * 60 + 30;
@@ -93,11 +171,11 @@ export const REG_CLOSE = 16 * 60;
 export const POST_CLOSE = 20 * 60;
 
 export function isTradingDay(p: EtParts): boolean {
-  return p.dow !== 0 && p.dow !== 6 && !HOLIDAYS.has(p.dateKey);
+  return p.dow !== 0 && p.dow !== 6 && !isHoliday(p.dateKey);
 }
 
 export function regularCloseMinutes(dateKey: string): number {
-  return EARLY_CLOSE.has(dateKey) ? 13 * 60 : REG_CLOSE;
+  return nyseCalendar(Number(dateKey.slice(0, 4))).early.has(dateKey) ? 13 * 60 : REG_CLOSE;
 }
 
 export function sessionAt(ts: number): Session {

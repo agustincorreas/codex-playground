@@ -231,27 +231,34 @@ describe('halts LULD del simulador', () => {
     let moves = 0;
     let missed = 0;
     const resumes = new Set(halts.map((h) => `${h.sym}:${h.resumeTs}`));
+    const perSym = new Map<string, number>();
+    for (const h of halts) perSym.set(h.sym, (perSym.get(h.sym) ?? 0) + 1);
     for (const st of engine.symbols.values()) {
       const haltsAt = halts.filter((h) => h.sym === st.sym).map((h) => h.ts);
       const bars = st.bars;
       for (let i = 5; i < bars.length; i++) {
         const b = bars[i];
         const m = etParts(b.t).minutes;
-        if (m < 9 * 60 + 45 || m >= 15 * 60 + 35 || b.c < 3) continue;
+        if (m < 9 * 60 + 45 || m >= 15 * 60 + 35) continue;
+        // La banda es del 10 % solo si la referencia (los 5 minutos previos) ya está en $3 o más.
         const ref = bars.slice(i - 5, i).reduce((a, x) => a + x.c, 0) / 5;
-        if (b.c / ref - 1 < 0.1) continue;
-        // El salto de una reapertura no cuenta (las bandas se rearman desde ese precio, como en el mercado).
-        if (halts.some((h) => h.sym === st.sym && h.resumeTs && h.resumeTs >= b.t - 120_000 && h.resumeTs <= b.t + 60_000)) continue;
+        if (ref < 3 || b.c / ref - 1 < 0.1) continue;
+        // El salto de una reapertura no cuenta (las bandas se rearman desde ese precio, como en el mercado):
+        // ni la vela de la reapertura ni las que la tienen entre sus 5 previas.
+        if (halts.some((h) => h.sym === st.sym && h.resumeTs && h.resumeTs >= b.t - 6 * 60_000 && h.resumeTs <= b.t + 60_000)) continue;
         moves++;
-        if (!haltsAt.some((t) => t >= b.t - 60_000 && t <= b.t + 60_000)) missed++;
+        // El estado límite dura 15 s: el halt puede caer hasta un minuto después de que cerró la vela de la subida.
+        if (!haltsAt.some((t) => t >= b.t - 60_000 && t <= b.t + 120_000)) missed++;
         i += 5;
       }
     }
     expect(resumes.size).toBe(halts.length);
     expect(moves).toBeGreaterThan(5);
-    // El ruido por segundo del simulador produce subidas que no se sostienen en la banda; queda como límite conocido.
-    expect(missed / moves).toBeLessThan(0.75);
-    expect(halts.length).toBeGreaterThan(40);
+    // Semilla 42 medida: 43 subidas, 9 sin halt (21 %), 124 halts en 43 acciones (máximo 10 en una).
+    expect(missed / moves).toBeLessThan(0.3);
+    expect(halts.length).toBeGreaterThanOrEqual(30);
+    expect(halts.length).toBeLessThanOrEqual(150);
+    expect(Math.max(...perSym.values())).toBeLessThanOrEqual(10);
     expect(bands).toBeGreaterThan(100);
   }, 30_000);
 
@@ -262,5 +269,64 @@ describe('halts LULD del simulador', () => {
       expect(h.resumeTs! - h.ts).toBeGreaterThanOrEqual(5 * 60_000);
       expect(h.resumeTs! - h.ts).toBeLessThanOrEqual(10 * 60_000 + 1000);
     }
+  }, 30_000);
+});
+
+describe('cinta y puntas realistas', () => {
+  /** Mañana en vivo con la cinta y las puntas de todas las acciones. */
+  function morning() {
+    const engine = new Engine({ allSecBars: true });
+    const sizes: number[] = [];
+    const quotes = new Map<string, Array<{ ts: number; spread: number }>>();
+    const resumes: Array<{ sym: string; ts: number }> = [];
+    const sim = new MarketSim(
+      (ev) => {
+        if (ev.kind === 'trade') sizes.push(ev.size);
+        if (ev.kind === 'quote' && ev.bid > 0) {
+          if (!quotes.has(ev.sym)) quotes.set(ev.sym, []);
+          quotes.get(ev.sym)!.push({ ts: ev.ts, spread: (ev.ask - ev.bid) / ev.ask });
+        }
+        if (ev.kind === 'status' && !ev.halted) resumes.push({ sym: ev.sym, ts: ev.ts });
+        engine.ingest(ev);
+      },
+      { seed: 42, dayTs: FRIDAY, startMinutes: 9 * 60 + 30 },
+    );
+    engine.setReference(sim.refs);
+    sim.warmup();
+    const target = sim.dayStart + (10 * 60 + 30 - 240) * 60_000;
+    while (sim.now < target) sim.advance(5000);
+    return { sizes, quotes, resumes };
+  }
+
+  it('solo una parte de los prints de 100 o más acciones son lotes redondos; el resto es libre', () => {
+    const { sizes } = morning();
+    const big = sizes.filter((x) => x >= 100);
+    const round = big.filter((x) => x % 100 === 0).length / big.length;
+    expect(big.length).toBeGreaterThan(1000);
+    expect(round).toBeGreaterThan(0.25);
+    expect(round).toBeLessThan(0.65);
+    // Tamaños libres de verdad (no solo múltiplos de 50).
+    expect(big.filter((x) => x % 50 !== 0).length / big.length).toBeGreaterThan(0.2);
+  }, 30_000);
+
+  it('tras un halt el spread reabre ancho y se cierra en los primeros minutos', () => {
+    const { quotes, resumes } = morning();
+    expect(resumes.length).toBeGreaterThan(2);
+    const avg = (q: Array<{ ts: number; spread: number }>, from: number, to: number) => {
+      const xs = q.filter((x) => x.ts >= from && x.ts < to).map((x) => x.spread);
+      return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : NaN;
+    };
+    let wider = 0;
+    let checked = 0;
+    for (const r of resumes) {
+      const q = quotes.get(r.sym) ?? [];
+      const first = avg(q, r.ts, r.ts + 30_000);
+      const later = avg(q, r.ts + 180_000, r.ts + 300_000);
+      if (Number.isNaN(first) || Number.isNaN(later)) continue;
+      checked++;
+      if (first > later * 1.3) wider++;
+    }
+    expect(checked).toBeGreaterThan(2);
+    expect(wider / checked).toBeGreaterThan(0.7);
   }, 30_000);
 });

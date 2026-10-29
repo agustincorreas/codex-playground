@@ -292,6 +292,11 @@ export interface SymbolDetail {
   secBars: Bar[];
   /** Últimos prints (Time & Sales), el más nuevo al final. */
   tape: TapePrint[];
+  /**
+   * Ficha parcial: `bars`, `secBars` y `tape` traen solo lo nuevo desde este instante (ver
+   * `Engine.detail` y `mergeDetail`). Ausente en una ficha completa.
+   */
+  since?: number;
   quote: Quote | null;
   open: number;
   pmHigh: number;

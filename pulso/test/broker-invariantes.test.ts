@@ -52,10 +52,13 @@ function setup(settings: Partial<TradingSettings> = {}, cash = 1000) {
 
 const LAT = 200;
 
-/** Efectivo + posiciones al costo − resultado realizado (parciales y trades cerrados) = efectivo inicial. */
+/**
+ * Efectivo + posiciones al costo − resultado realizado (parciales y trades cerrados) = efectivo inicial.
+ * Un corto entra con signo negativo: lo vendido está en el efectivo y se debe (a su precio de venta).
+ */
 function conserved(b: Broker): number {
   const s = b.session;
-  const held = s.positions.reduce((v, p) => v + p.shares * p.avgCost - p.realized, 0);
+  const held = s.positions.reduce((v, p) => v + (p.side === 'short' ? -1 : 1) * p.shares * p.avgCost - p.realized, 0);
   const closed = s.trades.reduce((v, t) => v + t.net, 0);
   return s.cash + held - closed;
 }
@@ -202,6 +205,61 @@ describe('conservación del dinero', () => {
     expect(b.session.positions).toHaveLength(0);
     expect(b.session.trades.length).toBeGreaterThanOrEqual(1);
     expect(b.session.fills.reduce((v, f) => v + f.fee, 0)).toBeGreaterThan(0);
+    check();
+  });
+
+  it('también con cortos: venta en corto con locate, agrandar, cubrir en partes, stop y objetivo invertidos y cierre', () => {
+    const { b, m, marks, print, quote, book } = setup({ account: 'margin', leverage: 2, commissionPerShare: 0.005, minCommission: 1, regFees: true }, 20_000);
+    m.locate = () => ({ shortable: 'htb', borrowFee: 0.015 });
+    const check = () => expect(conserved(b)).toBeCloseTo(20_000, 1);
+    let now = 0;
+    const step = () => {
+      now += LAT;
+      b.process(now, m, marks);
+      check();
+    };
+    b.place({ sym: 'RUN', side: 'sell', type: 'market', shares: 400 }, now, m, marks);
+    step();
+    expect(b.position('RUN')).toMatchObject({ side: 'short', shares: 400 });
+    // Lo vendido entró al efectivo; el equity no cambió más que por las tasas y el locate.
+    expect(b.session.cash).toBeGreaterThan(20_000);
+    expect(b.equity(marks)).toBeLessThan(20_000);
+    expect(b.equity(marks)).toBeGreaterThan(19_980);
+    b.place({ sym: 'RUN', side: 'sell', type: 'limit', price: 3.01, shares: 300 }, now, m, marks);
+    step();
+    print(3.02, 1000, 'ask');
+    step();
+    expect(b.position('RUN')!.shares).toBe(700);
+    b.setBracket('RUN', { stop: 3.25, target: 2.8 }, now, quote);
+    step();
+    // Cubre una parte a mano.
+    b.place({ sym: 'RUN', side: 'buy', type: 'market', shares: 150 }, now, m, marks);
+    step();
+    // El objetivo cubre la mitad en partes.
+    print(2.79, 100, 'bid');
+    step();
+    print(2.78, 1000, 'bid');
+    step();
+    expect(b.position('RUN')!.boughtShares).toBeGreaterThan(150);
+    expect(b.position('RUN')!.target).toBeUndefined();
+    // Agranda otra vez y después salta el stop.
+    b.place({ sym: 'RUN', side: 'sell', type: 'market', shares: 100 }, now, m, marks);
+    step();
+    quote.ask = 3.26;
+    book.asks = [lvl(3.26, 5000)];
+    print(3.26, 100, 'ask');
+    step();
+    step();
+    if (b.position('RUN')) {
+      b.flatten(now, m, marks);
+      check();
+    }
+    expect(b.session.positions).toHaveLength(0);
+    expect(b.session.trades.length).toBeGreaterThanOrEqual(1);
+    expect(b.session.trades.every((t) => t.side === 'short')).toBe(true);
+    // El locate se cobró en cada venta en corto (0,015 por acción) y está dentro de las comisiones del trade.
+    const sold = b.session.fills.filter((f) => f.side === 'sell').reduce((v, f) => v + f.shares, 0);
+    expect(b.session.trades.reduce((v, t) => v + t.fees, 0)).toBeGreaterThan(sold * 0.015);
     check();
   });
 });

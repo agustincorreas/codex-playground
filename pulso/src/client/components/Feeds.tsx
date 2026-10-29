@@ -1,11 +1,12 @@
 // Paneles de flujo: momentum (máximos del día), alertas, noticias, halts, watchlist y mapa de máximos.
-import { memo, useMemo, useState } from 'react';
+import { memo, useMemo, useRef, useState } from 'react';
 import type { Alert, AlertType, HaltRow, NewsItem, ScanRow } from '../../engine/types';
 import { formatCountdown, formatEtTime } from '../../engine/time';
 import { ALERT_META, GROUP_LABEL, MOMENTUM_TYPES, type AlertGroup } from '../lib/alertMeta';
 import { pressable } from '../lib/a11y';
 import { fmtFloat, fmtPct, fmtPrice, fmtRvol, timeAgo, toneOf } from '../lib/format';
 import { useNow } from '../lib/now';
+import { useVirtualRows } from '../lib/virtual';
 import { IconClose } from './Icons';
 import { Empty } from './Panel';
 import { ScoreDots } from './PillarDots';
@@ -50,24 +51,32 @@ export const MomentumFeed = memo(function MomentumFeed({
     }
     return out;
   }, [alerts, minScore]);
+  // Solo se dibujan las filas que entran en la ventana.
+  const body = useRef<HTMLTableSectionElement>(null);
+  const v = useVirtualRows(body, 24, rows.length, { scroller: '.panel-body' });
   if (!rows.length) return <Empty>Todavía no hay señales con {minScore}+ pilares.</Empty>;
   return (
     <div className="table-wrap">
       <table className="scan dtd">
         <thead>
           <tr>
-            <th>Hora</th>
-            <th>Símbolo</th>
-            <th className="num">Precio</th>
-            <th className="num dtd-vol" title="Volumen del día">Vol.</th>
-            <th className="num">Float</th>
-            <th className="num" title="Volumen relativo del día, ajustado por horario">RVOL</th>
-            <th className="num">%</th>
+            <th scope="col">Hora</th>
+            <th scope="col">Símbolo</th>
+            <th scope="col" className="num">Precio</th>
+            <th scope="col" className="num dtd-vol" title="Volumen del día">Vol.</th>
+            <th scope="col" className="num">Float</th>
+            <th scope="col" className="num" title="Volumen relativo del día, ajustado por horario">RVOL</th>
+            <th scope="col" className="num">%</th>
           </tr>
         </thead>
-        <tbody>
-          {rows.map(({ a, types, n }) => (
-            <tr key={a.id} className={`dtd-s${Math.min(5, Math.max(2, a.score))} ${a.sym === selected ? 'is-selected' : ''} ${a.warmup ? 'is-old' : ''}`} {...pressable(() => onSelect(a.sym), null)} title={a.text}>
+        <tbody ref={body}>
+          {v.top > 0 && (
+            <tr className="v-spacer" style={{ height: v.top }} aria-hidden="true">
+              <td colSpan={7} />
+            </tr>
+          )}
+          {rows.slice(v.start, v.end).map(({ a, types, n }, k) => (
+            <tr key={a.id} data-vrow={v.start + k} className={`dtd-s${Math.min(5, Math.max(2, a.score))} ${a.sym === selected ? 'is-selected' : ''} ${a.warmup ? 'is-old' : ''}`} {...pressable(() => onSelect(a.sym), null)} aria-selected={a.sym === selected} title={a.text}>
               <td className="dtd-time">
                 {formatEtTime(a.ts)}
                 {n > 1 && <small> ({n})</small>}
@@ -87,6 +96,11 @@ export const MomentumFeed = memo(function MomentumFeed({
               <td className={`num ${a.changePct >= 10 ? 'dtd-hit-chg' : ''}`}>{fmtPct(a.changePct)}</td>
             </tr>
           ))}
+          {v.bottom > 0 && (
+            <tr className="v-spacer" style={{ height: v.bottom }} aria-hidden="true">
+              <td colSpan={7} />
+            </tr>
+          )}
         </tbody>
       </table>
     </div>
@@ -114,6 +128,8 @@ export const AlertFeed = memo(function AlertFeed({
     }
     return out;
   }, [alerts, group, minScore]);
+  const list = useRef<HTMLOListElement>(null);
+  const v = useVirtualRows(list, 40, rows.length, { scroller: '.panel-body' });
   return (
     <div className="feed-wrap">
       <div className="chips" role="group" aria-label="Filtrar alertas">
@@ -136,9 +152,10 @@ export const AlertFeed = memo(function AlertFeed({
       {rows.length === 0 ? (
         <Empty>Sin alertas con este filtro.</Empty>
       ) : (
-        <ol className="alert-list">
-          {rows.map((a) => (
-            <li key={a.id} className={`alert tone-${a.tone} ${a.sym === selected ? 'is-selected' : ''} ${a.warmup ? 'is-old' : ''}`} {...pressable(() => onSelect(a.sym))} aria-label={`${a.sym}: ${a.text}`}>
+        <ol className="alert-list" ref={list}>
+          {v.top > 0 && <li className="v-spacer" style={{ height: v.top }} aria-hidden="true" />}
+          {rows.slice(v.start, v.end).map((a, k) => (
+            <li key={a.id} data-vrow={v.start + k} className={`alert tone-${a.tone} ${a.sym === selected ? 'is-selected' : ''} ${a.warmup ? 'is-old' : ''}`} {...pressable(() => onSelect(a.sym))} aria-label={`${a.sym}: ${a.text}`}>
               <span className="mono t-muted">{formatEtTime(a.ts)}</span>
               <b className="alert-sym">{a.sym}</b>
               <span className={`badge b-${a.type}`}>{ALERT_META[a.type].short}</span>
@@ -149,6 +166,7 @@ export const AlertFeed = memo(function AlertFeed({
               <ScoreDots score={a.score} />
             </li>
           ))}
+          {v.bottom > 0 && <li className="v-spacer" style={{ height: v.bottom }} aria-hidden="true" />}
         </ol>
       )}
     </div>

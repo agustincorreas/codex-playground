@@ -244,8 +244,16 @@ aceptan órdenes a mercado.
 - **Cuenta margen:** poder de compra 2x (4x con US$ 25.000 o más) y regla PDT: con menos de US$ 25.000, como
   máximo 3 day trades en 5 días.
 - **Pérdida máxima del día** opcional: al llegar, no te deja abrir nuevas posiciones.
-- Se rechazan los precios a más de 50% del último (un dedo de más). Solo compras (long), sin cortos: es el
-  estilo de Ross Cameron en small caps.
+- Se rechazan los precios a más de 50% del último (un dedo de más).
+- **Ventas en corto**, como en un bróker de small caps: sin posición, el botón VENDER pasa a *Vender en corto*
+  (y con un corto abierto, COMPRAR pasa a *Cubrir*). Antes de vender hay que conseguir las acciones
+  prestadas (*locate*): según el float y el precio, cada acción es ETB (fácil de prestar, sin costo), HTB
+  (difícil: se cobra un locate de US$ 0,005 a 0,05 por acción al ejecutarse) o directamente no se consigue
+  ese día (float chico o precio bajo, el 40 % de los días). Solo en cuenta margen y en la rueda regular
+  (9:30 a 16:00), nunca en halt ni debajo de US$ 1; la venta bloquea el 150 % de lo vendido como poder de
+  compra (lo vendido más el 50 %). El stop va arriba (compra) y el objetivo abajo; cualquier corto abierto al
+  cierre se cubre al último precio. Cuenta como day trade para la regla PDT y la pérdida máxima del día
+  también bloquea abrir cortos. El IA Trader sigue operando solo comprado, al estilo de Ross Cameron.
 
 Todo esto se cambia en *Ajustes de la cuenta* (botón en *Valor de la cuenta* o en *Cuenta y métricas*):
 saldo inicial, tipo de cuenta, apalancamiento, pérdida máxima, acciones y riesgo por defecto, vigencia,
@@ -408,13 +416,30 @@ copia anterior `.bak`). Desde el menú *Pulso*: cambiar las claves, reiniciar el
 dirección para el celular (misma Wi-Fi: ve la misma cuenta de práctica) y ver el registro. Esa dirección
 lleva un **token** al final (`?t=…`): sin él, nadie de la red puede ver el escáner, usar la cuenta de
 práctica ni gastar la clave de Claude. Después de la primera vez, en ese celular la dirección sin token
-también sirve (queda una cookie por un año).
+también sirve (queda una cookie por un año). Qué implica exactamente, dónde quedan las claves (cifradas
+con el almacenamiento seguro del sistema) y cómo generar otro token si perdiste el celular: en
+[SECURITY.md](SECURITY.md).
 
-La app no está firmada (firmarla cuesta ~US$ 99 por año en cada plataforma), así que la primera vez:
+**El puerto.** La app usa el `8787` de siempre; si al arrancar está ocupado (otro Pulso abierto, otro
+programa), deja que el sistema elija uno libre y lo avisa en la ventana de estado y en el registro. En
+ese caso la dirección para el celular cambia (lleva el puerto nuevo): copiala de nuevo desde el menú.
+El menú *Abrir en el navegador* y la ventana de claves usan siempre el puerto actual.
+
+La app no está firmada, así que la primera vez:
 
 - **Windows:** "Windows protegió tu PC" → *Más información* → *Ejecutar de todas formas*.
 - **Mac:** arrastrá Pulso a Aplicaciones y abrila con **clic derecho → Abrir**. Si igual la bloquea,
   *Ajustes del Sistema → Privacidad y seguridad → Abrir de todos modos*.
+
+Firmarla haría falta para que esos avisos no aparezcan, y requiere certificados pagos: en Mac, una cuenta
+Apple Developer (US$ 99 por año) con un certificado *Developer ID Application* más la notarización de
+Apple; en Windows, un certificado de firma de código OV o EV (desde ~US$ 200 por año; con OV el
+SmartScreen sigue avisando hasta juntar reputación). `electron-builder` ya sabe firmar: alcanza con
+definir en el workflow `desktop.yml` las variables `CSC_LINK` (el certificado `.p12` en base64) y
+`CSC_KEY_PASSWORD` (su contraseña), y para la notarización en Mac `APPLE_ID`,
+`APPLE_APP_SPECIFIC_PASSWORD` y `APPLE_TEAM_ID` (y sacar `CSC_IDENTITY_AUTO_DISCOVERY: 'false'`, poner
+`identity` y `hardenedRuntime: true` en `desktop/package.json`). Mientras no haya certificados, el
+workflow queda como está y las apps salen sin firmar.
 
 Para armar los instaladores: un tag `pulso-vX.Y.Z` dispara el workflow `desktop.yml`, que los compila en
 GitHub Actions (Windows y Mac) y los publica en el Release. A mano: `npm run build:desktop` y, en
@@ -442,11 +467,13 @@ npm start
 **Desde el celular:** poné `HOST=0.0.0.0` en `.env`, reiniciá y abrí la dirección que muestra el registro
 al arrancar (`http://IP-DE-TU-PC:8787/?t=TOKEN`) con el celular conectado a la misma red Wi-Fi. El token
 cambia en cada arranque salvo que fijes `PULSO_TOKEN` en `.env`. Sin token, solo entra la propia
-computadora (y una página web ajena abierta en el navegador tampoco puede hablar con el servidor).
+computadora (y una página web ajena abierta en el navegador tampoco puede hablar con el servidor). Qué
+puede hacer quien tenga el token y cómo rotarlo: [SECURITY.md](SECURITY.md).
 
 | Variable | Para qué |
 | --- | --- |
 | `PULSO_TOKEN` | Token fijo para entrar desde otro equipo de la red (si falta, se genera uno en cada arranque). |
+| `PORT`, `HOST` | Puerto (`8787`; con `0` lo elige el sistema y el registro lo muestra como `PULSO_PORT=…`) y dirección (`127.0.0.1` = solo esta computadora, `0.0.0.0` = también el celular). |
 | `ALPACA_KEY_ID`, `ALPACA_SECRET_KEY`, `ALPACA_FEED` | Alpaca (`auto` = detecta el plan al arrancar, `iex` = plan gratis en capas, `sip` = pago). |
 | `ALPACA_DELAYED_POLL_SEC`, `ALPACA_HOT_REFRESH_SEC` | Plan gratis: cada cuánto se repasa el mercado completo demorado (60) y se completan las velas consolidadas de los símbolos calientes (300). |
 | `PULSO_DATA_DIR` | Carpeta de la cuenta de práctica (`cuenta-de-practica.json`); por defecto `data/`. La app de escritorio usa tu perfil de usuario. |

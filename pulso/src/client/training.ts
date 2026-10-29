@@ -6,6 +6,7 @@ import { etDateTimeToTs, etParts, etWallToTs, nextSessionChange, POST_CLOSE, REG
 import { dayHeat, lastTradingDay, seedForDay } from '../sim/simulator';
 import { Broker, describeOrder, fmtMoney, fmtPx, type BrokerResult, type Marks, type MarketAccess, type OrderRequest } from '../trading/broker';
 import { roundPx, tickOf } from '../trading/depth';
+import { locateFor, type Locate } from '../trading/locate';
 import type { TrainingStore } from '../trading/store';
 import {
   DEFAULT_TRADING,
@@ -105,9 +106,14 @@ function nyDayOver(a: ActiveSession, now = Date.now()): boolean {
 function normalizeState(st: TrainingState | null): TrainingState {
   const base: TrainingState = { version: 1, settings: DEFAULT_TRADING, balance: DEFAULT_TRADING.startingBalance, dayIndex: 0, dayTrades: [], updatedAt: Date.now() };
   const s = st ?? base;
+  // Un día guardado antes de que existieran los cortos: sus posiciones y trades son largos.
+  const active = s.active
+    ? { ...s.active, positions: (s.active.positions ?? []).map((p) => ({ ...p, side: p.side ?? 'long' })), trades: (s.active.trades ?? []).map((t) => ({ ...t, side: t.side ?? 'long' })) }
+    : undefined;
   return {
     ...base,
     ...s,
+    active,
     dayIndex: s.dayIndex ?? 0,
     dayTrades: s.dayTrades ?? [],
     settings: { ...DEFAULT_TRADING, ...s.settings, hotkeys: s.settings?.hotkeys?.length ? s.settings.hotkeys : DEFAULT_TRADING.hotkeys },
@@ -140,6 +146,8 @@ export class TrainingController {
   /** Sesión recién terminada (para mostrar el resumen). */
   lastEnded: SessionRecord | null = null;
   private source: DataSource | null = null;
+  /** La fuente vista por el bróker, con los prestables del día para los cortos. */
+  private access: MarketAccess | null = null;
   private listeners = new Set<() => void>();
   private fillListeners = new Set<(e: FillEvent) => void>();
   private soundListeners = new Set<(s: OrderSound) => void>();
@@ -201,7 +209,8 @@ export class TrainingController {
         !a.history ||
         (a.clock === 'ny' && nyDayOver(a) && !a.positions.length && !a.orders.length));
     if (a && stale) {
-      const back = money(a.cash + a.positions.reduce((v, p) => v + p.shares * p.avgCost, 0));
+      // Los largos vuelven a su costo; lo vendido en corto se devuelve a su precio de venta.
+      const back = money(a.cash + a.positions.reduce((v, p) => v + (p.side === 'short' ? -1 : 1) * p.shares * p.avgCost, 0));
       this.archive(a, a.simNow ?? a.marketStart, back);
       this.state.balance = back;
       // Sus day trades cuentan para la regla PDT igual que los de un día terminado normalmente.
@@ -407,6 +416,14 @@ export class TrainingController {
 
   attach(source: DataSource): void {
     this.source = source;
+    this.access = {
+      quote: (sym) => source.quote(sym),
+      book: (sym) => source.book(sym),
+      printsSince: (sym, seq) => source.printsSince(sym, seq),
+      lastSeq: () => source.lastSeq(),
+      session: (now) => source.session(now),
+      locate: (sym) => this.locate(sym),
+    };
     // Una fuente nueva todavía no sabe qué símbolos seguir.
     this.trackedKey = '';
     const a = this.state.active;
@@ -451,10 +468,31 @@ export class TrainingController {
     if (this.source === source) {
       this.persistNow();
       this.source = null;
+      this.access = null;
     }
   }
 
   readonly marks: Marks = (sym) => this.source?.quote(sym)?.last;
+
+  /**
+   * Prestables de hoy para vender en corto una acción: según su float y su precio, fijo para el día
+   * (ETB sin costo, HTB con locate por acción o sin acciones para prestar). Null sin día activo.
+   */
+  locate(sym: string): Locate | null {
+    const a = this.state.active;
+    if (!a) return null;
+    const row = this.source?.row(sym);
+    const price = this.source?.quote(sym)?.last ?? row?.price;
+    return locateFor(sym, a.dayKey, { float: row?.float, price });
+  }
+
+  /** Por qué no se puede abrir un corto en esa acción ahora (null si se puede). */
+  shortBlock(sym: string): string | null {
+    const b = this.broker;
+    const src = this.source;
+    if (!b || !src || !this.access) return 'Todavía no hay un día de práctica activo.';
+    return b.shortBlock(sym, src.now(), this.access, this.marks);
+  }
 
   /** Day trades de los días anteriores dentro de la ventana de la regla PDT. */
   private priorDayTrades(): number {
@@ -468,7 +506,7 @@ export class TrainingController {
     const src = this.source;
     if (!b || !src?.ready) return;
     if (this.state.active && !this.state.active.marketStart) this.state.active.marketStart = now;
-    b.process(now, src, this.marks);
+    b.process(now, this.access ?? src, this.marks);
     this.checkDayEnd(now);
     this.syncTracked();
   }
@@ -482,7 +520,7 @@ export class TrainingController {
     const src = this.source;
     if (!b || !src || !this.state.active) return;
     if (!this.away) this.away = { fills: 0, trades: [] };
-    b.process(now, src, this.marks);
+    b.process(now, this.access ?? src, this.marks);
     this.checkDayEnd(now);
   }
 
@@ -564,12 +602,14 @@ export class TrainingController {
     const b = this.broker!;
     const src = this.source!;
     this.touched = true;
-    const ctx = req.side === 'buy' ? (req.ctx ?? this.context(req.sym)) : undefined;
+    // Una entrada (compra sin corto abierto, o venta en corto) lleva el contexto de la acción y el plan.
+    const entry = b.opens(req.sym, req.side);
+    const ctx = entry ? (req.ctx ?? this.context(req.sym)) : undefined;
     // Sin stop y objetivo automáticos, los del ticket quedan como plan: las salidas las hacés vos.
-    if (req.side === 'buy' && !this.state.settings.autoBracket && (req.stop !== undefined || req.target !== undefined)) {
+    if (entry && !this.state.settings.autoBracket && (req.stop !== undefined || req.target !== undefined)) {
       req = { ...req, planStop: req.stop, planTarget: req.target, stop: undefined, target: undefined };
     }
-    const res = b.place({ ...req, ctx }, src.now(), src, this.marks);
+    const res = b.place({ ...req, ctx }, src.now(), this.access ?? src, this.marks);
     if (!res.ok) this.reject(res);
     this.persistSoon();
     this.emit();
@@ -588,18 +628,44 @@ export class TrainingController {
   }
 
   /**
-   * Vender una fracción de la posición (o `qty` acciones, sin pasarse de la posición) con una orden
-   * límite agresiva (Bid − 0,05), como un atajo.
+   * Cerrar una fracción de la posición (o `qty` acciones, sin pasarse de la posición) con una orden
+   * límite agresiva, como un atajo: un largo se vende a Bid − 0,05; un corto se cubre espejado
+   * (Ask + 0,05). Nunca abre una posición: sin posición, rechaza.
    */
   sell(sym: string, fraction: number, ref: 'bid' | 'ask' = 'bid', offset = -0.05, qty?: number): BrokerResult {
     const p = this.broker?.position(sym);
     if (!p) return this.reject({ ok: false, message: `No tenés posición en ${sym}.`, fills: [] });
+    const short = p.side === 'short';
+    const side = short ? 'buy' : 'sell';
     const q = this.source?.quote(sym);
-    if (!q) return this.place({ sym, side: 'sell', type: 'market', shares: p.shares });
+    if (!q) return this.place({ sym, side, type: 'market', shares: p.shares });
     const shares = qty !== undefined ? Math.min(p.shares, Math.max(1, Math.floor(qty))) : fraction >= 1 ? p.shares : Math.max(1, Math.floor(p.shares * fraction));
-    const base = ref === 'bid' ? q.bid : q.ask;
-    const price = roundPx(Math.max(tickOf(base), base + offset));
-    return this.place({ sym, side: 'sell', type: 'limit', price, shares, tif: 'DAY+' });
+    // En un corto la referencia y el desplazamiento se espejan: "Bid − 0,05" pasa a ser "Ask + 0,05".
+    const at = short ? (ref === 'bid' ? 'ask' : 'bid') : ref;
+    const base = at === 'bid' ? q.bid : q.ask;
+    const price = roundPx(Math.max(tickOf(base), base + (short ? -offset : offset)));
+    return this.place({ sym, side, type: 'limit', price, shares, tif: 'DAY+' });
+  }
+
+  /** Cubrir una fracción del corto (o `qty` acciones) a Ask + 0,05. Igual que `sell` sobre un corto. */
+  cover(sym: string, fraction: number, qty?: number): BrokerResult {
+    const p = this.broker?.position(sym);
+    if (!p || p.side !== 'short') return this.reject({ ok: false, message: `No tenés un corto en ${sym}.`, fills: [] });
+    return this.sell(sym, fraction, 'bid', -0.05, qty);
+  }
+
+  /**
+   * Vender en corto con una orden límite agresiva (Bid − 0,05), como el botón del celular: abre el
+   * corto o lo agranda. El stop y el objetivo del ticket (si están del lado correcto) van como plan u OCO.
+   */
+  short(sym: string, shares: number, ticket: Partial<TicketState> = {}): BrokerResult {
+    const q = this.source?.quote(sym);
+    const base = q?.bid ?? 0;
+    const price = base > 0 ? roundPx(Math.max(tickOf(base), base - 0.05)) : undefined;
+    const stop = ticket.stop !== undefined && price !== undefined && ticket.stop > price ? ticket.stop : undefined;
+    const target = ticket.target !== undefined && price !== undefined && ticket.target < price ? ticket.target : undefined;
+    if (price === undefined) return this.place({ sym, side: 'sell', type: 'market', shares });
+    return this.place({ sym, side: 'sell', type: 'limit', price, shares, tif: ticket.tif ?? 'DAY+', route: ticket.route, stop, target, setup: ticket.setup });
   }
 
   /** Ejecuta un atajo de teclado o botón rápido sobre una acción. */
@@ -614,9 +680,13 @@ export class TrainingController {
       if (!p) return null;
       return this.setBracket(sym, p.avgCost, p.target);
     }
+    // "Vender" con un corto abierto cubre (espejado); nunca abre un corto.
     if (a.kind === 'sell') return this.sell(sym, a.fraction, a.ref === 'last' ? 'bid' : a.ref, a.offset);
     const q = this.source?.quote(sym);
     if (!q) return this.place({ sym, side: 'buy', type: 'market', shares: ticket.shares });
+    // Con un corto abierto, el atajo de compra cubre lo que haya (sin stop ni objetivo nuevos).
+    const pos = this.broker?.position(sym);
+    if (pos?.side === 'short') return this.sell(sym, 1, 'bid', -0.05, typeof a.shares === 'number' ? a.shares : ticket.shares);
     const base = a.ref === 'ask' ? q.ask : a.ref === 'bid' ? q.bid : q.last;
     const price = roundPx(base + a.offset);
     let shares = typeof a.shares === 'number' ? a.shares : ticket.shares;
@@ -654,7 +724,7 @@ export class TrainingController {
     const a = this.state.active;
     if (!a) return null;
     const now = this.source?.now() ?? Date.now();
-    if (this.broker && this.source) this.broker.flatten(now, this.source, this.marks);
+    if (this.broker && this.source) this.broker.flatten(now, this.access ?? this.source, this.marks);
     // Sin fuente (o si el mercado no tuvo liquidez), lo que siga abierto se cierra al último precio
     // conocido: una posición viva nunca se archiva sin cerrarse.
     if (a.positions.length || a.orders.length) (this.broker ?? new Broker(a, this.state.settings)).flatten(now, NO_MARKET, this.marks);
@@ -960,7 +1030,7 @@ export class TrainingController {
     const s = this.state.settings;
     if (!b || !a) {
       const bal = this.state.balance;
-      return { cash: bal, equity: bal, dayPnl: 0, buyingPower: bal, bpUsed: 0, positionValue: 0, marginBorrowed: 0, unsettled: 0, leverage: 1, dayTrades: this.priorDayTrades(), pdt: false, open: 0, trades: 0, realized: 0, account: s.account };
+      return { cash: bal, equity: bal, dayPnl: 0, buyingPower: bal, bpUsed: 0, positionValue: 0, shortValue: 0, marginBorrowed: 0, unsettled: 0, leverage: 1, dayTrades: this.priorDayTrades(), pdt: false, open: 0, trades: 0, realized: 0, account: s.account };
     }
     return {
       cash: a.cash,
@@ -969,7 +1039,8 @@ export class TrainingController {
       buyingPower: b.buyingPower(this.marks),
       bpUsed: b.buyingPowerUsed(this.marks),
       positionValue: b.positionValue(this.marks),
-      marginBorrowed: b.marginBorrowed(),
+      shortValue: b.shortValue(this.marks),
+      marginBorrowed: b.marginBorrowed(this.marks),
       unsettled: b.unsettled(),
       leverage: b.leverage(this.marks),
       dayTrades: b.dayTradeCount(),
@@ -993,15 +1064,18 @@ export class TrainingController {
     return [...(this.state.active?.trades ?? []), ...this.sessions.flatMap((s) => s.trades)];
   }
 
+  /** Resultado flotante de la posición (en un corto, gana cuando el precio baja). */
   unrealized(sym: string): { pnl: number; pct: number; last: number } | null {
     const p = this.broker?.position(sym);
     const last = this.marks(sym);
     if (!p || last === undefined) return null;
-    return { pnl: money((last - p.avgCost) * p.shares), pct: ((last - p.avgCost) / p.avgCost) * 100, last };
+    const move = p.side === 'short' ? p.avgCost - last : last - p.avgCost;
+    return { pnl: money(move * p.shares), pct: (move / p.avgCost) * 100, last };
   }
 
   describeFill(f: Fill, trade?: Trade): string {
-    return this.broker ? this.broker.describe(f, trade) : `${f.side === 'buy' ? 'Compraste' : 'Vendiste'} ${f.shares} ${f.sym} a $${fmtPx(f.price)}.`;
+    const verb = f.side === 'buy' ? (f.role === 'entry' ? 'Compraste' : 'Cubriste') : f.role === 'entry' ? 'Vendiste en corto' : 'Vendiste';
+    return this.broker ? this.broker.describe(f, trade) : `${verb} ${f.shares} ${f.sym} a $${fmtPx(f.price)}.`;
   }
 }
 

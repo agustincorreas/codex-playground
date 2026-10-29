@@ -5,6 +5,7 @@ contextBridge.exposeInMainWorld('pulso', {
   getSettings: () => ipcRenderer.invoke('settings:get'),
   saveSettings: (s) => ipcRenderer.invoke('settings:save', s),
   useDemo: () => ipcRenderer.invoke('settings:demo'),
+  rotateToken: () => ipcRenderer.invoke('token:rotate'),
   openSetup: () => ipcRenderer.invoke('setup:open'),
   restartServer: () => ipcRenderer.invoke('server:restart'),
   openLog: () => ipcRenderer.invoke('log:open'),

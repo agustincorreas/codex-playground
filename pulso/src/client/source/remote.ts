@@ -1,4 +1,5 @@
 // Modo en vivo: la interfaz se conecta por WebSocket al servidor de Pulso (que habla con el proveedor).
+import { mergeDetail } from '../../engine/engine';
 import { sessionAt } from '../../engine/time';
 import type { HistoryTf } from '../../engine/history';
 import type { Bar, Quote, ScanRow, Session, Settings, SymbolDetail, TapePrint } from '../../engine/types';
@@ -110,20 +111,35 @@ export class RemoteSource implements DataSource {
         case 'news':
           h.onNews(msg.items, false);
           break;
-        case 'detail':
+        case 'detail': {
+          // Cada segundo llega solo lo nuevo (velas y prints desde la última ficha): se fusiona con la que
+          // ya hay; una ficha completa la reemplaza. Un parcial sin base no sirve: se pide la completa.
+          const incoming = msg.detail as SymbolDetail | null;
           if (msg.focus) {
-            if (msg.detail?.sym === this.focused) {
-              this.focusedDetail = msg.detail;
-              if (msg.detail) this.rows.set(msg.detail.sym, msg.detail.row);
+            if (incoming?.sym === this.focused) {
+              const base = this.focusedDetail?.sym === this.focused ? this.focusedDetail : this.detail?.sym === this.focused ? this.detail : null;
+              const merged = mergeDetail(base, incoming);
+              if (!merged) {
+                this.send({ t: 'focus', sym: this.focused });
+                break;
+              }
+              this.focusedDetail = merged;
+              this.rows.set(merged.sym, merged.row);
             }
             break;
           }
-          if (msg.detail?.sym === this.selected || msg.detail === null) {
-            this.detail = msg.detail;
-            if (msg.detail) this.rows.set(msg.detail.sym, msg.detail.row);
-            h.onDetail(msg.detail);
+          if (incoming?.sym === this.selected || incoming === null) {
+            const merged = mergeDetail(this.detail, incoming);
+            if (incoming && !merged) {
+              this.send({ t: 'select', sym: this.selected });
+              break;
+            }
+            this.detail = merged;
+            if (merged) this.rows.set(merged.sym, merged.row);
+            h.onDetail(merged);
           }
           break;
+        }
         case 'status':
           h.onStatus(msg.status);
           break;
