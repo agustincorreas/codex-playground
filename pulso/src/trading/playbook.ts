@@ -28,27 +28,31 @@ export interface PlaybookRules {
   targetR: number;
   /** Minutos sin avanzar antes de salir sin esperar el stop. */
   timeStopMin: number;
+  /** Cuántas posiciones puede manejar a la vez (mientras administra una, sigue buscando otra). */
+  maxPositions: number;
+  /** Riesgo abierto total (entrada − stop actual, de todas las posiciones) en múltiplos del riesgo por trade. */
+  maxOpenRiskR: number;
 }
 
-export const DEFAULT_RULES: PlaybookRules = { entryFrom: 7 * 60, entryTo: 11 * 60 + 30, maxTrades: 8, maxLosers: 3, maxLossR: 3, minScore: 45, minRewardR: 1.5, riskMult: 1, targetR: 2, timeStopMin: 6 };
+export const DEFAULT_RULES: PlaybookRules = { entryFrom: 7 * 60, entryTo: 11 * 60 + 30, maxTrades: 8, maxLosers: 3, maxLossR: 3, minScore: 45, minRewardR: 1.5, riskMult: 1, targetR: 2, timeStopMin: 6, maxPositions: 2, maxOpenRiskR: 2 };
 
 /** Perfiles del modo automático: fijan todas las reglas de una vez. "Personalizado" = reglas tocadas a mano. */
 export type AiProfile = 'conservador' | 'equilibrado' | 'agresivo' | 'personalizado';
 
 export const PROFILES: Record<Exclude<AiProfile, 'personalizado'>, PlaybookRules> = {
   // Solo la primera hora, pocas entradas, medio riesgo, exige la obvia y un objetivo 2:1 limpio.
-  conservador: { entryFrom: 9 * 60 + 30, entryTo: 10 * 60 + 30, maxTrades: 4, maxLosers: 2, maxLossR: 2, minScore: 65, minRewardR: 2, riskMult: 0.5, targetR: 2, timeStopMin: 5 },
+  conservador: { entryFrom: 9 * 60 + 30, entryTo: 10 * 60 + 30, maxTrades: 4, maxLosers: 2, maxLossR: 2, minScore: 65, minRewardR: 2, riskMult: 0.5, targetR: 2, timeStopMin: 5, maxPositions: 1, maxOpenRiskR: 1 },
   equilibrado: { ...DEFAULT_RULES },
   // Pre-market y hasta el mediodía, más trades, una vez y media el riesgo, acepta setups menos obvios y apunta a 3:1.
-  agresivo: { entryFrom: 7 * 60, entryTo: 12 * 60 + 30, maxTrades: 15, maxLosers: 4, maxLossR: 5, minScore: 35, minRewardR: 1.2, riskMult: 1.5, targetR: 3, timeStopMin: 8 },
+  agresivo: { entryFrom: 7 * 60, entryTo: 12 * 60 + 30, maxTrades: 15, maxLosers: 4, maxLossR: 5, minScore: 35, minRewardR: 1.2, riskMult: 1.5, targetR: 3, timeStopMin: 8, maxPositions: 3, maxOpenRiskR: 3 },
 };
 
 export const PROFILE_LABEL: Record<AiProfile, string> = { conservador: 'Conservador', equilibrado: 'Equilibrado', agresivo: 'Agresivo', personalizado: 'Personalizado' };
 
 export const PROFILE_HINT: Record<AiProfile, string> = {
-  conservador: 'Solo de 9:30 a 10:30, hasta 4 trades, para a los 2 perdedores o 2R, la mitad del riesgo, exige la obvia del día (65+) y objetivo 2:1 que pague 2R.',
-  equilibrado: 'Lo que hace Ross: de 7:00 a 11:30, hasta 8 trades, para a los 3 perdedores o 3R, riesgo normal, candidatas de 45+ y objetivo 2:1.',
-  agresivo: 'De 7:00 a 12:30, hasta 15 trades, para a los 4 perdedores o 5R, una vez y media el riesgo, acepta candidatas de 35+ y apunta a 3:1 dejando correr más.',
+  conservador: 'Solo de 9:30 a 10:30, hasta 4 trades, para a los 2 perdedores o 2R, la mitad del riesgo, exige la obvia del día (65+) y objetivo 2:1 que pague 2R. Una posición a la vez, sin reentradas.',
+  equilibrado: 'Lo que hace Ross: de 7:00 a 11:30, hasta 8 trades, para a los 3 perdedores o 3R, riesgo normal, candidatas de 45+ y objetivo 2:1. Hasta 2 posiciones a la vez (2R de riesgo abierto).',
+  agresivo: 'De 7:00 a 12:30, hasta 15 trades, para a los 4 perdedores o 5R, una vez y media el riesgo, acepta candidatas de 35+ y apunta a 3:1 dejando correr más. Hasta 3 posiciones a la vez (3R de riesgo abierto).',
   personalizado: 'Reglas tocadas a mano (elegí un perfil para volver a los valores de fábrica).',
 };
 
@@ -176,9 +180,10 @@ function recentVolumeOk(bars: Bar[]): boolean {
  * 4. Ruptura del máximo del pre-market en los primeros minutos de la rueda.
  * Devuelve null si no hay nada limpio: no entrar también es una decisión.
  */
-export function findEntry(detail: SymbolDetail, quote: Quote | null, now: number, rules: Pick<PlaybookRules, 'targetR'> = DEFAULT_RULES): EntryPlan | null {
+export function findEntry(detail: SymbolDetail, quote: Quote | null, now: number, rules: Pick<PlaybookRules, 'targetR'> = DEFAULT_RULES, skip?: ReadonlySet<EntryKind>): EntryPlan | null {
   const { row, bars, setup } = detail;
   const tr = rules.targetR;
+  const ok = (k: EntryKind) => !skip?.has(k);
   if (row.halted || bars.length < 3) return null;
   const ask = quote?.ask || row.ask || row.price;
   const bid = quote?.bid || row.bid || row.price;
@@ -190,12 +195,12 @@ export function findEntry(detail: SymbolDetail, quote: Quote | null, now: number
   const prev = closed[closed.length - 1];
 
   // 1. Bull flag del motor.
-  if (setup.flag && ask >= setup.flag.entry && ask <= setup.flag.entry * 1.01 && setup.aboveVwap) {
+  if (ok('bullFlag') && setup.flag && ask >= setup.flag.entry && ask <= setup.flag.entry * 1.01 && setup.aboveVwap) {
     return finish('bullFlag', ask, setup.flag.stop, 'Bull flag: la vela supera el máximo del banderín con el precio sobre VWAP', setup.nextLevel, tr);
   }
 
   // 2. Micro pullback.
-  if (prev && setup.aboveVwap && setup.aboveEma9 && row.pctFromHod >= -6) {
+  if (ok('microPullback') && prev && setup.aboveVwap && setup.aboveEma9 && row.pctFromHod >= -6) {
     // Impulso en las últimas 6 velas cerradas y descanso de 1 a 3 velas.
     const window = closed.slice(-8);
     const lowStart = Math.min(...window.slice(0, 3).map((b) => b.l));
@@ -219,7 +224,7 @@ export function findEntry(detail: SymbolDetail, quote: Quote | null, now: number
   // los últimos 2 minutos, descanso de 1 a 3 velas de 10 s con menos volumen y la vela actual supera el
   // máximo de la anterior. Entra rápido para subirse al momentum.
   const sec = detail.secBars;
-  if (prev && sec.length >= 8 && setup.aboveVwap && setup.aboveEma9 && row.pctFromHod >= -6) {
+  if (ok('microPullback') && prev && sec.length >= 8 && setup.aboveVwap && setup.aboveEma9 && row.pctFromHod >= -6) {
     const plan = microPullback10s(sec, ask, tr, setup.nextLevel);
     if (plan) return plan;
   }
@@ -227,13 +232,13 @@ export function findEntry(detail: SymbolDetail, quote: Quote | null, now: number
   // 2c. La primera vela de 1 minuto que hace un máximo nuevo (la regla de Ross): en una acción en juego
   // sobre VWAP y EMA 9, después de 1 a 4 velas de retroceso (rojas o con máximos descendentes), la vela
   // actual supera el máximo de la anterior. Se compra ahí, con el stop en el mínimo del retroceso.
-  if (prev && setup.aboveVwap && setup.aboveEma9 && row.pctFromHod >= -8 && closed.length >= 4) {
+  if (ok('newHigh') && prev && setup.aboveVwap && setup.aboveEma9 && row.pctFromHod >= -8 && closed.length >= 4) {
     const plan = firstCandleNewHigh(closed, last, ask, tr, setup.nextLevel);
     if (plan) return plan;
   }
 
   // 3. Ruptura del máximo del día.
-  if (prev && setup.aboveVwap && setup.aboveEma9 && row.hod > 0 && ask >= row.hod && ask <= row.hod * 1.008 && last.v >= prev.v * 0.8) {
+  if (ok('hodBreak') && prev && setup.aboveVwap && setup.aboveEma9 && row.hod > 0 && ask >= row.hod && ask <= row.hod * 1.008 && last.v >= prev.v * 0.8) {
     const lows = closed.slice(-3).map((b) => b.l);
     const stop = Math.max(Math.min(...lows), detail.ema9 > 0 ? Math.min(detail.ema9, ask * 0.97) : 0);
     return finish('hodBreak', ask, stop, 'Rompe el máximo del día con volumen, sobre VWAP y EMA 9', setup.nextLevel, tr);
@@ -241,7 +246,7 @@ export function findEntry(detail: SymbolDetail, quote: Quote | null, now: number
 
   // 4. Ruptura del máximo del pre-market al abrir.
   const m = etParts(now).minutes;
-  if (prev && m >= REG_OPEN && m <= REG_OPEN + 15 && detail.pmHigh > 0 && ask >= detail.pmHigh && ask <= detail.pmHigh * 1.01 && setup.aboveVwap) {
+  if (ok('pmhBreak') && prev && m >= REG_OPEN && m <= REG_OPEN + 15 && detail.pmHigh > 0 && ask >= detail.pmHigh && ask <= detail.pmHigh * 1.01 && setup.aboveVwap) {
     const stop = Math.max(Math.min(...closed.slice(-2).map((b) => b.l)), ask * 0.95);
     return finish('pmhBreak', ask, stop, 'Rompe el máximo del pre-market en los primeros minutos de la rueda', setup.nextLevel, tr);
   }
@@ -323,33 +328,59 @@ export interface PositionMemory {
   enteredAt: number;
   /** Última vela de 1 minuto evaluada (las reglas de cierre se miran una vez por vela). */
   lastBarT: number;
+  /** Última vela de 10 s evaluada (la mecha de rechazo se mira una vez por vela). */
+  lastSecT: number;
   /** Máximo alcanzado desde la entrada. */
   high: number;
+  /** Precio de entrada original (antes de agregar): el "volvió a la entrada" se mide contra este. */
+  entry: number;
+  /** Stop dinámico de la IA (el mínimo del último pullback de 10 s con el trade en ganancia): solo sube. */
+  stop?: number;
+  /** Qué setup abrió la posición (para la memoria del día). */
+  kind?: EntryKind;
+  /** Acciones de la entrada original: al agregar no se supera ese tamaño. */
+  shares0: number;
+  /** Ya se agregó una vez a esta ganadora (se agrega una sola vez). */
+  addedOnce: boolean;
+  /** Es una segunda chance (reentrada después de un stop en la misma acción). */
+  secondChance?: boolean;
 }
 
-export function newMemory(now: number, price: number): PositionMemory {
-  return { halfTaken: false, breakeven: false, enteredAt: now, lastBarT: 0, high: price };
+export function newMemory(now: number, price: number, kind?: EntryKind, shares0 = 0): PositionMemory {
+  return { halfTaken: false, breakeven: false, enteredAt: now, lastBarT: 0, lastSecT: 0, high: price, entry: 0, kind, shares0, addedOnce: false };
 }
 
 /**
  * Cómo manejar una posición abierta, como Ross: stop sin discutir; en 2R se vende la mitad y el stop
  * sube al precio de entrada; el resto se deja correr mientras el precio respete la EMA 9 de 1 minuto y
  * el VWAP; si en 6 minutos no avanzó, se sale; y si se extendió mucho y aparece una mecha arriba, se toma.
+ * En 10 segundos: con el trade en ganancia (1,5R o más, o la mitad tomada) el stop sube al mínimo del último
+ * pullback de 10 s y no baja más; y a 2R o más, una vela de 10 s que cierra en el tercio inferior de su
+ * rango con volumen alto (mecha de rechazo) toma la mitad (o el resto).
  */
 export function manage(pos: Position, detail: SymbolDetail, quote: Quote | null, now: number, mem: PositionMemory, rules: Pick<PlaybookRules, 'targetR' | 'timeStopMin'> = DEFAULT_RULES): ExitAdvice {
   const last = quote?.last || detail.row.price;
   const bid = quote?.bid || detail.row.bid || last;
   if (!(last > 0)) return { action: 'hold', reason: '' };
   mem.high = Math.max(mem.high, last);
+  if (!mem.entry) mem.entry = pos.avgCost;
   const stop = pos.stop ?? pos.planStop ?? pos.initialStop;
   const risk = pos.initialStop ? pos.avgCost - pos.initialStop : pos.avgCost * 0.03;
   const r = risk > 0 ? (last - pos.avgCost) / risk : 0;
   const target = pos.target ?? pos.planTarget ?? pos.avgCost + rules.targetR * risk;
+  const sec = detail.secBars;
 
   if (detail.row.halted) return { action: 'hold', reason: 'En halt: no se puede operar.' };
   // Stop: sin discutir (con el bid, que es lo que se cobra).
   if (stop && bid <= stop && !pos.stop) return { action: 'sellAll', reason: `Tocó el stop (${stop.toFixed(2)})` };
-  if (mem.breakeven && !pos.stop && bid <= pos.avgCost) return { action: 'sellAll', reason: 'Volvió al precio de entrada después de tomar la mitad' };
+  // Stop dinámico de 10 s: el mínimo del último pullback, que solo sube mientras el trade va en ganancia.
+  if (sec.length >= 8 && (mem.halfTaken || r >= 1.5)) {
+    const recent = sec.slice(-7, -1);
+    const swingLow = Math.min(...recent.map((b) => b.l));
+    if (swingLow > pos.avgCost && swingLow > (mem.stop ?? 0)) mem.stop = swingLow;
+  }
+  if (mem.stop && bid < mem.stop) return { action: 'sellAll', reason: `Perdió el mínimo del último pullback de 10 s (${mem.stop.toFixed(2)}): ${mem.halfTaken ? 'se toma el resto' : 'se toma la ganancia'}` };
+  if (mem.breakeven && !pos.stop && bid <= (mem.entry || pos.avgCost)) return { action: 'sellAll', reason: 'Volvió al precio de entrada después de tomar la mitad' };
 
   // Objetivo: mitad afuera y el stop al precio de entrada.
   if (!mem.halfTaken && bid >= target) return { action: 'sellHalf', reason: `Llegó al objetivo (${target.toFixed(2)}, ${r.toFixed(1)}R): se vende la mitad` };
@@ -366,13 +397,18 @@ export function manage(pos: Position, detail: SymbolDetail, quote: Quote | null,
     const range = prev.h - prev.l;
     if (r >= 3 && range > 0 && (prev.h - prev.c) / range > 0.6) return { action: mem.halfTaken ? 'sellAll' : 'sellHalf', reason: `Mecha de rechazo con ${r.toFixed(1)}R de ganancia` };
   }
-  // "Ride the momentum" en 10 s: con la mitad tomada, el resto corre mientras el precio respete el mínimo del
-  // último descanso de 10 s (las últimas 6 velas cerradas de 10 s); si lo pierde, se toma el resto.
-  const sec = detail.secBars;
-  if (mem.halfTaken && sec.length >= 8) {
-    const recent = sec.slice(-7, -1);
-    const swingLow = Math.min(...recent.map((b) => b.l));
-    if (swingLow > pos.avgCost && bid < swingLow) return { action: 'sellAll', reason: `Perdió el mínimo del último pullback de 10 s (${swingLow.toFixed(2)}): se toma el resto` };
+  // Mecha de rechazo en 10 s: a 2R o más, una vela de 10 s que hizo el máximo de las últimas 7 y cerró en el
+  // tercio inferior de su rango con volumen alto (una vez y media el de las 6 anteriores) es el techo: se toma.
+  const prevSec = sec.length >= 8 ? sec[sec.length - 2] : undefined;
+  if (prevSec && prevSec.t !== mem.lastSecT) {
+    mem.lastSecT = prevSec.t;
+    const before = sec.slice(-8, -2);
+    const avgVol = before.reduce((v, b) => v + b.v, 0) / Math.max(1, before.length);
+    const range = prevSec.h - prevSec.l;
+    const topOfRecent = prevSec.h >= Math.max(...before.map((b) => b.h));
+    if (r >= 2 && range > 0 && topOfRecent && (prevSec.c - prevSec.l) / range <= 1 / 3 && prevSec.v >= avgVol * 1.5) {
+      return { action: mem.halfTaken ? 'sellAll' : 'sellHalf', reason: `Mecha de rechazo en 10 s con ${r.toFixed(1)}R de ganancia: ${mem.halfTaken ? 'se toma el resto' : 'se vende la mitad'}` };
+    }
   }
   // Tiempo: si no avanza, afuera (salvo que en 10 s siga haciendo máximos nuevos: el momentum sigue vivo).
   if (!mem.halfTaken && now - mem.enteredAt > rules.timeStopMin * MIN && last < pos.avgCost + 0.25 * risk) {
@@ -380,6 +416,24 @@ export function manage(pos: Position, detail: SymbolDetail, quote: Quote | null,
     if (!fresh) return { action: 'sellAll', reason: `${rules.timeStopMin} minutos sin avanzar: se sale sin esperar el stop` };
   }
   return { action: 'hold', reason: '' };
+}
+
+/** Tipos de setup con los que se agrega a una ganadora (micro pullback de 1 min o 10 s, primera vela con máximo nuevo). */
+export const ADD_KINDS: ReadonlySet<EntryKind> = new Set<EntryKind>(['microPullback', 'newHigh']);
+const NOT_ADD: ReadonlySet<EntryKind> = new Set<EntryKind>(['bullFlag', 'hodBreak', 'pmhBreak']);
+
+/**
+ * Agregar a la ganadora: con la mitad tomada y el stop en la entrada, si aparece otro setup (micro pullback o
+ * primera vela con máximo nuevo) con el stop por encima de la entrada original, se agrega una sola vez con el
+ * tamaño por riesgo medido desde el stop nuevo, sin superar el tamaño original; el stop de toda la posición
+ * sube al del setup nuevo. Devuelve el plan y las acciones, o null.
+ */
+export function findAdd(pos: Position, detail: SymbolDetail, quote: Quote | null, now: number, mem: PositionMemory, rules: Pick<PlaybookRules, 'targetR'>, riskAmount: number, buyingPower: number, volPerMin: number): { plan: EntryPlan; shares: number } | null {
+  if (!mem.halfTaken || !mem.breakeven || mem.addedOnce || mem.shares0 < 1) return null;
+  const plan = findEntry(detail, quote, now, rules, NOT_ADD);
+  if (!plan || plan.stop <= (mem.entry || pos.avgCost)) return null;
+  const shares = Math.min(mem.shares0, sizeFor(riskAmount, plan.entry, plan.stop, buyingPower, volPerMin));
+  return shares >= 1 ? { plan, shares } : null;
 }
 
 /** ¿Es hora de buscar entradas? (ET en minutos). */

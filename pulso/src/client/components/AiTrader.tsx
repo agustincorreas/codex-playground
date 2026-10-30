@@ -1,5 +1,6 @@
-// Panel del IA Trader: modo (apagado, sugerencias, automático), qué está mirando y por qué, la
-// sugerencia del momento con sus botones, la opinión de Claude, las candidatas, las reglas y el registro.
+// Panel del IA Trader: modo (apagado, sugerencias, automático), qué está mirando y por qué, las
+// posiciones que maneja con su R en vivo, la sugerencia del momento con sus botones, la opinión de
+// Claude, el resumen del día, las candidatas, las reglas y el registro.
 import { useAiVersion, type AiTrader } from '../aitrader';
 import { formatEtTime } from '../../engine/time';
 import { PROFILE_HINT, PROFILE_LABEL } from '../../trading/playbook';
@@ -18,6 +19,9 @@ const PHASE: Record<string, string> = {
   inPosition: 'Manejando la posición',
   paused: 'Parado por hoy',
 };
+
+const px = (v: number) => (v >= 1 ? v.toFixed(2) : v.toFixed(4));
+const fmtR = (r: number) => `${r >= 0 ? '+' : '−'}${Math.abs(r).toFixed(1)}R`;
 
 const hhmm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
 const toMin = (s: string) => {
@@ -59,9 +63,55 @@ export function AiTraderPanel({ trader, selected, onSelect }: Props) {
               </button>
             </>
           )}
-          {st.thinking && <em className="ai-thinking"> · Claude está pensando…</em>}
+          {st.thinking && <em className="ai-thinking"> · Claude está {st.asking === 'summary' ? 'resumiendo el día' : 'pensando'}…</em>}
           {st.phase === 'paused' && <div className="ai-paused">{st.pausedReason}</div>}
-          {(st.phase === 'scanning' || st.phase === 'watching') && st.waiting && <div className="t-muted small ai-waiting">{st.waiting}</div>}
+          {st.phase !== 'paused' && st.waiting && <div className="t-muted small ai-waiting">{st.waiting}</div>}
+          {st.plan && (
+            <div className="small ai-plan">
+              Plan: {st.plan.kind.toLowerCase()} en <span className="mono">{st.plan.sym}</span>, {st.plan.shares} a ${px(st.plan.entry)}, stop ${px(st.plan.stop)}, objetivo ${px(st.plan.target)}
+              {st.plan.note && <span className="t-muted"> · {st.plan.note}</span>}
+            </div>
+          )}
+          {(st.day.trades > 0 || st.day.avoid.length > 0) && (
+            <div className="t-muted small ai-day">
+              Hoy: {st.day.trades} trade{st.day.trades === 1 ? '' : 's'}
+              {st.day.trades > 0 && ` (${st.day.wins} ganador${st.day.wins === 1 ? '' : 'es'}), ${fmtR(st.day.netR)}`}
+              {st.day.avoid.length > 0 && `; evita ${st.day.avoid.join(', ')}`}
+            </div>
+          )}
+        </div>
+      )}
+
+      {s.mode !== 'off' && st.positions.length > 0 && (
+        <div className="ai-card ai-positions">
+          <div className="ai-sub">
+            Posiciones ({st.positions.length}
+            {s.rules.maxPositions > 1 ? ` de ${s.rules.maxPositions}` : ''})
+          </div>
+          {st.positions.map((p) => (
+            <div key={p.sym} className={`ai-cand ai-pos ${p.sym === selected ? 'is-focus' : ''}`}>
+              <button type="button" className="link mono" onClick={() => onSelect(p.sym)}>
+                {p.sym}
+              </button>
+              <b className={p.r >= 0 ? 't-up' : 't-down'}>{fmtR(p.r)}</b>
+              <span className="small">
+                {p.shares} a ${px(p.avgCost)}
+                {p.stop !== null && ` · stop ${px(p.stop)}`}
+                {p.target !== null && ` · obj. ${px(p.target)}`}
+                {p.halfTaken && ' · mitad tomada'}
+                {p.added && ' · agregó'}
+                {p.secondChance && ' · segunda chance'}
+              </span>
+              {p.kind && <span className="t-muted small"> · {p.kind}</span>}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {st.daySummary && (
+        <div className="ai-card ai-advice">
+          <b>Resumen del día (Claude)</b>
+          <div>{st.daySummary}</div>
         </div>
       )}
 
@@ -181,6 +231,14 @@ export function AiTraderPanel({ trader, selected, onSelect }: Props) {
             Sin avanzar (min)
             <input type="number" min={2} max={20} value={s.rules.timeStopMin} onChange={(e) => trader.update({ rules: { ...s.rules, timeStopMin: Math.min(20, Math.max(2, Math.round(Number(e.target.value) || 6))) } })} />
           </label>
+          <label title="Cuántas posiciones puede manejar a la vez (mientras administra una, sigue buscando otra).">
+            Posiciones a la vez
+            <input type="number" min={1} max={5} value={s.rules.maxPositions} onChange={(e) => trader.update({ rules: { ...s.rules, maxPositions: Math.min(5, Math.max(1, Math.round(Number(e.target.value) || 1))) } })} />
+          </label>
+          <label title="Riesgo abierto total (entrada − stop actual de todas las posiciones) en múltiplos del riesgo por trade.">
+            Riesgo abierto (R)
+            <input type="number" min={0.5} max={6} step={0.5} value={s.rules.maxOpenRiskR} onChange={(e) => trader.update({ rules: { ...s.rules, maxOpenRiskR: Math.min(6, Math.max(0.5, Number(e.target.value) || 1)) } })} />
+          </label>
           <label title="Tope diario de consultas a Claude (0 = sin tope). Hoy van las que muestra el contador.">
             Consultas por día
             <input type="number" min={0} max={2000} value={s.maxCalls} onChange={(e) => trader.update({ maxCalls: Math.max(0, Math.round(Number(e.target.value) || 0)) })} />
@@ -194,7 +252,7 @@ export function AiTraderPanel({ trader, selected, onSelect }: Props) {
         </label>
         <p className="t-muted small">
           Horario de Nueva York. Entra solo con un setup limpio (bull flag, micro pullback de 1 min o de 10 s, primera vela de 1 min que hace un máximo nuevo tras el retroceso, ruptura con volumen; siempre sobre VWAP y EMA 9), stop ajustado y el objetivo del perfil; vende la mitad en el
-          objetivo, sube el stop a la entrada y deja correr el resto mientras respete la EMA 9 y el mínimo del último pullback de 10 s. Las salidas van por reglas; Claude opina en las entradas.
+          objetivo, sube el stop a la entrada y deja correr el resto mientras respete la EMA 9 y el mínimo del último pullback de 10 s (desde 1R el stop sigue ese mínimo; a 2R una mecha de rechazo de 10 s toma ganancia). Con la mitad tomada agrega una vez si aparece otro setup. Maneja varias posiciones a la vez según el perfil, sin pasar el riesgo abierto ni abrir otra mientras una pierde más de 0,5R. Tras un stop, si la acción recupera el VWAP y arma otro setup, le da hasta dos segundas chances (el conservador no). Una acción con dos frenos o dos perdedores hoy baja en el ranking; un setup con dos perdedores sin ganar se evita el resto del día. Las salidas van por reglas; Claude opina en las entradas y resume el día al cierre.
         </p>
       </details>
 

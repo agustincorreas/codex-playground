@@ -4,7 +4,7 @@ import { formatEtTime } from '../engine/time';
 import type { Quote, SymbolDetail } from '../engine/types';
 import type { Candidate, EntryPlan, PositionMemory } from './playbook';
 import { entryLabel } from './playbook';
-import type { Position } from './types';
+import type { Position, Trade } from './types';
 
 export const ADVISOR_SYSTEM =
   'Sos un day trader profesional de momentum en small caps de EE.UU. que opera y enseña con el método de Ross Cameron ' +
@@ -23,6 +23,12 @@ export interface AccountBrief {
   losersInARow: number;
 }
 
+/** Los mejores niveles del libro (Level 2), ya sumados por precio: hasta 3 por lado. */
+export interface BookBrief {
+  bids: Array<{ price: number; size: number }>;
+  asks: Array<{ price: number; size: number }>;
+}
+
 const px = (v: number) => (v >= 1 ? v.toFixed(2) : v.toFixed(4));
 const k = (v: number) => (v >= 1e6 ? `${(v / 1e6).toFixed(1)}M` : v >= 1e3 ? `${Math.round(v / 1e3)}K` : String(Math.round(v)));
 
@@ -36,8 +42,10 @@ function rowLine(c: Candidate): string {
   );
 }
 
-function detailBrief(d: SymbolDetail, q: Quote | null): string {
+function detailBrief(d: SymbolDetail, q: Quote | null, book?: BookBrief | null): string {
   const bars = d.bars.slice(-15).map((b) => `${formatEtTime(b.t, false)} o${px(b.o)} h${px(b.h)} l${px(b.l)} c${px(b.c)} v${k(b.v)}`);
+  const secs = d.secBars.slice(-12).map((b) => `o${px(b.o)} h${px(b.h)} l${px(b.l)} c${px(b.c)} v${k(b.v)}`);
+  const lvl = (l: { price: number; size: number }) => `${px(l.price)}×${k(l.size)}`;
   const tape = d.tape.slice(-30);
   const atAsk = tape.filter((t) => t.side === 'ask').length;
   const atBid = tape.filter((t) => t.side === 'bid').length;
@@ -49,7 +57,11 @@ function detailBrief(d: SymbolDetail, q: Quote | null): string {
     `Cinta (últimos ${tape.length} prints): ${atAsk} al ask, ${atBid} al bid.`,
     news ? `Noticias: ${news}.` : 'Sin noticias recientes.',
     `Velas de 1 min (las últimas ${bars.length}): ${bars.join(' | ')}`,
-  ].join('\n');
+    secs.length ? `Velas de 10 s (las últimas ${secs.length}, de la más vieja a la más nueva): ${secs.join(' | ')}` : '',
+    book && (book.bids.length || book.asks.length) ? `Libro: bids ${book.bids.slice(0, 3).map(lvl).join(', ') || '-'} · asks ${book.asks.slice(0, 3).map(lvl).join(', ') || '-'}.` : '',
+  ]
+    .filter(Boolean)
+    .join('\n');
 }
 
 function accountLine(a: AccountBrief): string {
@@ -67,11 +79,13 @@ export function pickPrompt(cands: Candidate[], now: number, acct: AccountBrief):
 }
 
 /** ¿Entro con este plan? */
-export function entryPrompt(d: SymbolDetail, q: Quote | null, plan: EntryPlan, shares: number, now: number, acct: AccountBrief): string {
+export function entryPrompt(d: SymbolDetail, q: Quote | null, plan: EntryPlan, shares: number, now: number, acct: AccountBrief, book?: BookBrief | null): string {
+  const risk = plan.entry - plan.stop;
+  const rr = risk > 0 ? ((plan.target - plan.entry) / risk).toFixed(1) : '?';
   return (
-    `Son las ${formatEtTime(now, false)} hora de Nueva York. ${accountLine(acct)}\n${detailBrief(d, q)}\n\n` +
+    `Son las ${formatEtTime(now, false)} hora de Nueva York. ${accountLine(acct)}\n${detailBrief(d, q, book)}\n\n` +
     `Las reglas proponen: ${entryLabel(plan.kind)}. Comprar ${shares} acciones a $${px(plan.entry)}, stop $${px(plan.stop)} ` +
-    `(riesgo $${((plan.entry - plan.stop) * shares).toFixed(0)}), objetivo $${px(plan.target)} (2R). Motivo: ${plan.reason}.\n` +
+    `(riesgo $${(risk * shares).toFixed(0)}), objetivo $${px(plan.target)} (${rr}R). Motivo: ${plan.reason}.\n` +
     'Las reglas ya validaron el setup (sobre VWAP y EMA 9, stop cerca, objetivo que paga): tu trabajo es vetarlo solo si ves un ' +
     'motivo concreto (spread mayor al 2 %, extensión enorme sin descanso, cinta vendiendo al bid, riesgo de dilución, halt reciente, ' +
     'horario malo). Si no hay un motivo concreto, "enter". "wait" solo con un motivo y qué esperar; "skip" si la acción no vale la pena hoy. ' +
@@ -90,6 +104,41 @@ export function exitPrompt(d: SymbolDetail, q: Quote | null, pos: Position, mem:
     `objetivo ${pos.target ?? pos.planTarget ?? '-'}, va ${r >= 0 ? '+' : ''}${r.toFixed(1)}R${mem.halfTaken ? ', la mitad ya vendida' : ''}${mem.breakeven ? ', stop en la entrada' : ''}.\n` +
     '¿Qué hacés? JSON: {"decision": "hold" | "sellHalf" | "sellAll" | "stopToBreakeven", "reason": "..."}'
   );
+}
+
+/** Lo que hizo la IA hoy, para que Claude lo resuma en 4 o 5 frases. */
+export interface DayBrief {
+  profile: string;
+  trades: Trade[];
+  /** Las líneas del registro de hoy (lo que miró, por qué esperó, qué frenó). */
+  log: string[];
+}
+
+const money = (v: number) => `${v >= 0 ? '+' : '−'}$${Math.abs(v).toFixed(0)}`;
+
+/** Resumen del día: qué operó, qué funcionó, qué no y una sugerencia. */
+export function dayPrompt(d: DayBrief, now: number, acct: AccountBrief): string {
+  const trades = d.trades.map((t) => `${formatEtTime(t.openedAt, false)}-${formatEtTime(t.closedAt, false)} ${t.sym} ${t.shares} acc. $${px(t.avgEntry)} → $${px(t.avgExit)}: ${money(t.net)}${t.r !== undefined ? ` (${t.r.toFixed(1)}R)` : ''}, salida ${t.exitReason}${t.setup ? `, ${t.setup}` : ''}`);
+  return (
+    `Son las ${formatEtTime(now, false)} hora de Nueva York y terminó el día del IA Trader (perfil ${d.profile}). ${accountLine(acct)}\n` +
+    `Trades de hoy (${trades.length}):\n${trades.join('\n') || '(ninguno)'}\n\n` +
+    `Registro del día (lo último):\n${d.log.slice(-40).join('\n')}\n\n` +
+    'Resumí el día en 4 o 5 frases: qué operó la IA, qué funcionó, qué no, y una sugerencia concreta para mañana. ' +
+    'JSON: {"summary": "..."}'
+  );
+}
+
+/** Lee el resumen del día de la respuesta (o null si no se entiende). */
+export function parseSummary(text: string): string | null {
+  const m = text.match(/\{[\s\S]*\}/);
+  if (!m) return text.trim() ? text.trim().slice(0, 900) : null;
+  try {
+    const d = JSON.parse(m[0]) as { summary?: unknown; reason?: unknown };
+    const out = typeof d.summary === 'string' ? d.summary : typeof d.reason === 'string' ? d.reason : '';
+    return out.trim() ? out.trim().slice(0, 900) : null;
+  } catch {
+    return null;
+  }
 }
 
 export interface Decision {

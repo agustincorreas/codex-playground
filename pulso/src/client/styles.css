@@ -62,6 +62,8 @@
   /* Línea del máximo del día: un verde distinto al de las velas y al precio actual. */
   --chart-hod: #2ec4b6;
   --chart-draw: #ffffff;
+  /* Líneas del plan del IA Trader (entrada): un violeta que no se confunde con ninguna otra línea. */
+  --chart-ai: #c084fc;
   --chart-vwap: #fe902a;
   --chart-ema9: #c9ccd4;
   --chart-float: #f0d34a;
@@ -114,6 +116,7 @@
     --chart-down: #f23645;
     --chart-hod: #0f766e;
     --chart-draw: #111827;
+    --chart-ai: #7e22ce;
     --chart-ema9: #5d6273;
     --chart-float: #9a7400;
     --chart-mcap: #2563c9;
@@ -157,6 +160,7 @@
   --chart-down: #f23645;
   --chart-hod: #0f766e;
   --chart-draw: #111827;
+  --chart-ai: #7e22ce;
   --chart-ema9: #5d6273;
   --chart-float: #9a7400;
   --chart-mcap: #2563c9;
@@ -4105,6 +4109,86 @@ table.scan th .sort-arrow {
 .badge.ai-dec-sellAll {
   color: var(--down);
   background: color-mix(in srgb, var(--down) 14%, transparent);
+}
+
+/* ---------------------------------------------------------------- Backtest del IA Trader */
+.bt-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+}
+.bt-field input {
+  width: 92px;
+  font: inherit;
+  padding: 3px 6px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--text);
+}
+.bt-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.bt-bar {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--line);
+  overflow: hidden;
+}
+.bt-bar i {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.15s linear;
+}
+.bt-stats {
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+}
+.bt-curve {
+  display: block;
+  width: 100%;
+  height: 90px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--panel) 70%, transparent);
+}
+.bt-curve .bt-base {
+  stroke: var(--faint);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+.bt-curve polyline {
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+.bt-curve polyline.up {
+  stroke: var(--up);
+}
+.bt-curve polyline.down {
+  stroke: var(--down);
+}
+.bt-days {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11.5px;
+}
+.bt-days th,
+.bt-days td {
+  padding: 3px 4px;
+  text-align: right;
+  border-top: 1px solid color-mix(in srgb, var(--line) 50%, transparent);
+}
+.bt-days th {
+  color: var(--muted);
+  font-weight: 500;
+  border-top: 0;
+}
+.bt-days th:first-child,
+.bt-days td:first-child {
+  text-align: left;
 }
 
 /* ---------------------------------------------------------------- mercado real / simulador */
