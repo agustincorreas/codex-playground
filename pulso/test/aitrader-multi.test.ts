@@ -571,3 +571,138 @@ describe('Claude con más contexto y menos costo', () => {
     expect(t.state.daySummary).toBe('Día flojo.');
   });
 });
+
+describe('indicaciones del trader', () => {
+  it('un nivel ("si ABCD supera 3,50") sigue la acción aunque no esté en el escáner, entra al cruzar con volumen sobre VWAP y queda cumplido', async () => {
+    const abcd = fakeSym('ABCD', 3.4);
+    abcd.detail.setup.flag = undefined;
+    const { c, t, tick, buys, log } = await arm({ syms: [abcd] });
+    // ABCD no está en ningún escáner: solo la fuente la conoce.
+    t.setView(view([]), DEFAULT_SETTINGS);
+    tick();
+    expect(t.state.candidates).toHaveLength(0);
+    const ins = await t.addInstruction('si ABCD supera 3,50 me interesa comprar');
+    expect(ins?.rule).toEqual({ kind: 'level', sym: 'ABCD', price: 3.5, side: 'above' });
+    expect(ins?.by).toBe('reglas');
+    expect(log().some((x) => /Indicación: ABCD: comprar si supera 3,50/.test(x))).toBe(true);
+    tick(6000);
+    expect(t.state.candidates.map((x) => x.sym)).toEqual(['ABCD']);
+    expect(t.state.candidates[0].reasons).toContain('indicación tuya');
+    expect(t.state.focus).toBe('ABCD');
+    tick();
+    expect(buys('ABCD')).toHaveLength(0);
+    expect(t.state.waiting).toMatch(/Esperando un setup limpio en ABCD/);
+    // Cruza el nivel (ask 3,53) con la última vela trayendo volumen y sobre VWAP: entra con el stop a 3 % del nivel.
+    move(abcd, 3.52);
+    tick();
+    expect(buys('ABCD')).toHaveLength(1);
+    const buy = buys('ABCD')[0];
+    expect(buy.setup).toBe('IA · Nivel del trader');
+    expect(buy.plan?.stop).toBeCloseTo(3.4, 1);
+    expect(buy.plan?.target).toBeGreaterThan(3.7);
+    expect(log().some((x) => /Compra \d+ ABCD .*Nivel del trader/.test(x))).toBe(true);
+    expect(log().some((x) => /Indicación cumplida: ABCD: comprar si supera 3,50/.test(x))).toBe(true);
+    expect(t.instructions[0].done).toBe(true);
+    tick();
+    expect(c.broker!.position('ABCD')?.shares).toBeGreaterThan(0);
+    // Lo para el stop; vuelve a cruzar el nivel y no vuelve a disparar (la indicación ya se cumplió).
+    move(abcd, 3.3);
+    tick();
+    tick();
+    expect(c.broker!.position('ABCD')).toBeUndefined();
+    tick();
+    move(abcd, 3.52);
+    tick(4 * MIN);
+    tick();
+    expect(buys('ABCD')).toHaveLength(1);
+  });
+
+  it('"no operes RUN hoy" la saca del ranking y nunca la compra; "mirá" la mete aunque el escáner no la tenga', async () => {
+    const run = fakeSym('RUN', 3.0);
+    const abc = fakeSym('ABC', 5.0);
+    const { t, tick, buys } = await arm({ syms: [run, abc] });
+    await t.addInstruction('no operes RUN hoy');
+    tick();
+    expect(t.state.candidates.map((x) => x.sym)).toEqual(['ABC']);
+    tick();
+    tick();
+    expect(buys('RUN')).toHaveLength(0);
+    expect(buys('ABC')).toHaveLength(1);
+    // "mirá DEF": entra al ranking con la fila de la fuente aunque no esté en ningún escáner.
+    const def = fakeSym('DEF', 4.0, { changePct: 3, rvol: 1.5, hasNews: false });
+    const w = await arm({ syms: [def] });
+    w.t.setView(view([]), DEFAULT_SETTINGS);
+    w.tick();
+    expect(w.t.state.candidates).toHaveLength(0);
+    await w.t.addInstruction('mirá DEF aunque no esté en el escáner');
+    w.tick(6000);
+    expect(w.t.state.candidates.map((x) => x.sym)).toEqual(['DEF']);
+    expect(w.t.state.candidates[0].score).toBeGreaterThanOrEqual(w.t.settings.rules.minScore);
+    expect(w.t.state.focus).toBe('DEF');
+  });
+
+  it('"después de las 9 no entres" acota el horario del perfil; "máximo 1 trade" para después del primero; "solo micro pullbacks" deja pasar el bull flag', async () => {
+    const win = await arm();
+    await win.t.addInstruction('después de las 9 no entres');
+    win.tick();
+    win.tick();
+    expect(win.t.state.waiting).toMatch(/Fuera del horario de entradas que pediste \(7:00 a 9:00 NY\)/);
+    expect(win.buys('RUN')).toHaveLength(0);
+
+    const run = fakeSym('RUN', 3.0);
+    const max = await arm({ syms: [run] });
+    await max.t.addInstruction('máximo 1 trade hoy');
+    expect(max.t.instructions[0].rule).toEqual({ kind: 'maxTrades', n: 1 });
+    max.tick();
+    max.tick();
+    expect(max.c.broker!.position('RUN')?.shares).toBe(180);
+    move(run, 2.85);
+    max.tick();
+    max.tick();
+    expect(max.c.active!.trades).toHaveLength(1);
+    // El bull flag se vuelve a armar, pero el único trade del día ya se hizo: queda parado por hoy.
+    move(run, 3.0);
+    max.tick(4 * MIN);
+    expect(max.t.state.phase).toBe('paused');
+    expect(max.t.state.pausedReason).toMatch(/Ya hubo 1 trades hoy.*el tope que pediste/);
+    expect(max.buys('RUN')).toHaveLength(1);
+
+    const only = await arm();
+    await only.t.addInstruction('hoy solo micro pullbacks');
+    only.tick();
+    only.tick();
+    expect(only.buys('RUN')).toHaveLength(0);
+    expect(only.t.state.waiting).toMatch(/hoy evita bull flag/);
+  });
+
+  it('con IA, Claude convierte la indicación en regla (una consulta) y todas van en el prompt de cada entrada; si no la entiende, quedan las reglas', async () => {
+    ai.ask.mockImplementation(async (_s, prompt) => (/Convertila en una sola regla/.test(prompt) ? '{"kind":"avoid","sym":"ZZZZ"}' : '{"decision":"enter","confidence":80,"reason":"dale"}'));
+    const { t, tick, flush, log } = await arm({ consult: true, syms: [fakeSym('RUN', 3.0)] });
+    const a = await t.addInstruction('no operes ZZZZ hoy');
+    expect(a).toMatchObject({ by: 'claude', rule: { kind: 'avoid', sym: 'ZZZZ' } });
+    expect(t.state.calls).toBe(1);
+    expect(log().some((x) => /Claude entendió "no operes ZZZZ hoy" como: ZZZZ: no se opera/.test(x))).toBe(true);
+    ai.ask.mockImplementationOnce(async () => 'ni idea');
+    const b = await t.addInstruction('ojo con las extensiones');
+    expect(b).toMatchObject({ by: 'reglas', rule: { kind: 'note' } });
+    tick();
+    await flush();
+    const entry = ai.ask.mock.calls.map(([, p]) => p).find((p) => /Las reglas proponen/.test(p))!;
+    expect(entry).toMatch(/Indicaciones del trader[^\n]*\n- no operes ZZZZ hoy \[ZZZZ: no se opera\]\n- ojo con las extensiones\n/);
+    expect(t.state.phase).toBe('entering');
+  });
+
+  it('al cambiar el día se borran las indicaciones, salvo las permanentes', async () => {
+    const { c, t } = await arm();
+    await t.addInstruction('no operes ZZZZ hoy');
+    await t.addInstruction('máximo 3 trades hoy', true);
+    expect(t.instructions).toHaveLength(2);
+    t.setInstructionPermanent(t.instructions[0].id, true);
+    t.setInstructionPermanent(t.instructions[0].id, false);
+    c.newDay({ clock: 'practice', date: '2026-10-22' });
+    expect(t.instructions.map((i) => i.text)).toEqual(['máximo 3 trades hoy']);
+    expect(t.instructions[0].permanent).toBe(true);
+    t.removeInstruction(t.instructions[0].id);
+    expect(t.instructions).toEqual([]);
+  });
+});

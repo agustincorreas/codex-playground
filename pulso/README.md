@@ -244,8 +244,36 @@ de práctica**, nunca órdenes reales.
   *Preguntarle a Claude ahora* da su opinión en cualquier momento. Sin IA, las reglas alcanzan para
   operar.
 
-Las reglas están en `src/trading/playbook.ts` (candidatas, entradas, tamaño, manejo de la posición) y
-los textos que se le mandan a Claude en `src/trading/advisor.ts`.
+#### Indicaciones para la IA
+
+En el panel del IA Trader hay una caja de texto (**Indicaciones para la IA**) donde le escribís en
+castellano lo que vos ves y las reglas no: Enter agrega, Shift+Enter baja de línea. Cada indicación
+queda como una ficha que dice cómo se entendió, para que puedas corregirla si hace falta:
+
+- `si XYZ supera 4,50 me interesa comprar` → *XYZ: comprar si supera 4,50*. La acción se sigue aunque
+  no esté en ningún escáner y, cuando el ask cruza el nivel hacia arriba con volumen (la vela de 1 min
+  trae al menos 0,8× la anterior) y sobre VWAP, se arma una entrada *Nivel del trader* con el stop en
+  el mínimo de las últimas dos velas (nunca más de 3 % debajo del nivel) y el objetivo del perfil.
+  Respeta todo lo demás (tope de posiciones, riesgo abierto, PDT, horario). Una vez que dispara, la
+  ficha queda *cumplida* (tachada) y no vuelve a disparar.
+- `no operes ABC hoy` → sale del ranking y nunca se compra.
+- `mirá DEF aunque no esté en el escáner` → entra al ranking de candidatas con su fila del motor.
+- `hoy solo bull flags y rupturas del máximo` / `nada de micro pullbacks` → filtran los setups (los
+  nombres en castellano: bull flag, micro pullback, primera vela, ruptura del máximo, pre-market).
+- `después de las 11 no entres`, `antes de las 9:45 no`, `solo de 9:30 a 10:30` → acotan el horario de
+  entradas del perfil (siempre la intersección: nunca lo agrandan).
+- `máximo 3 trades hoy` → el menor entre el del perfil y el que pediste.
+- Lo que no entra en ninguna regla queda como *nota para Claude*.
+
+Si hay IA, al agregar una indicación se le pide a Claude que la convierta en la regla (una consulta,
+cuenta en el presupuesto del día); si no hay IA o no la entiende, la interpreta un lector simple
+(`src/trading/instructions.ts`). Todas las indicaciones, además, van en cada consulta a Claude (elegir
+candidata, entrar, salir) en un bloque *Indicaciones del trader*. Se guardan en el navegador por día
+del mercado y al cambiar el día se borran, salvo las que marcás como **permanentes**.
+
+Las reglas están en `src/trading/playbook.ts` (candidatas, entradas, tamaño, manejo de la posición),
+los textos que se le mandan a Claude en `src/trading/advisor.ts` y las indicaciones en
+`src/trading/instructions.ts`.
 
 #### Backtest: simular varios días con un clic
 
@@ -621,7 +649,7 @@ pulso/
 | --- | --- |
 | `npm run dev` | Interfaz en modo demo con recarga en caliente (http://localhost:5173). |
 | `npm start` | Compila la interfaz y arranca el servidor (datos reales si hay claves). |
-| `npm test` | Pruebas (280): motor, alertas, bull flag, halts LULD, Alpaca y Massive contra servidores falsos, el servidor entero (permisos, 413, 409, frames rotos), simulador (el mismo mercado a cualquier hora, volumen por hora, días, ofertas, after-hours), el plan gratis de Alpaca en capas, bróker de práctica (brackets, parciales, cortos, invariante de dinero), días de práctica, la cuenta guardada en el servidor, riesgo según la cuenta, temporalidades largas e historia, líneas y alertas de precio, el libro de jugadas y la máquina de estados del IA Trader (perfiles, varias posiciones, Claude), backtest, calendario, formateadores y métricas. |
+| `npm test` | Pruebas (297): motor, alertas, bull flag, halts LULD, Alpaca y Massive contra servidores falsos, el servidor entero (permisos, 413, 409, frames rotos), simulador (el mismo mercado a cualquier hora, volumen por hora, días, ofertas, after-hours), el plan gratis de Alpaca en capas, bróker de práctica (brackets, parciales, cortos, invariante de dinero), días de práctica, la cuenta guardada en el servidor, riesgo según la cuenta, temporalidades largas e historia, líneas y alertas de precio, el libro de jugadas y la máquina de estados del IA Trader (perfiles, varias posiciones, Claude, indicaciones del trader), backtest, calendario, formateadores y métricas. |
 | `npm run typecheck` | Chequeo de tipos de todo el proyecto. |
 | `npm run build:demo` | Página única del demo (`dist-demo/index.html`) para GitHub Pages. |
 | `npm run build:desktop` | Interfaz + servidor en un solo archivo para la app de escritorio (`desktop/app/`). |

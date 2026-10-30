@@ -563,8 +563,16 @@ export class TrainingController {
     this.syncTracked();
   }
 
+  /** Símbolos que el IA Trader quiere seguir por una indicación tuya ("mirá DEF", un nivel). */
+  private aiTracked: string[] = [];
+
+  setAiTracked(syms: string[]): void {
+    this.aiTracked = syms;
+    this.syncTracked();
+  }
+
   private syncTracked(): void {
-    const syms = [...new Set([...(this.broker?.symbols() ?? []), ...this.extraTracked])];
+    const syms = [...new Set([...(this.broker?.symbols() ?? []), ...this.extraTracked, ...this.aiTracked])];
     const key = syms.join(',');
     if (key !== this.trackedKey) {
       this.trackedKey = key;

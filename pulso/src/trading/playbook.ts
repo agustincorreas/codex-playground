@@ -80,17 +80,21 @@ const fmtM = (v: number) => (v >= 1e6 ? `${(v / 1e6).toFixed(1)}M` : v >= 1e3 ? 
  * volumen relativo más grande, el float más chico y noticia, y que todavía están cerca del máximo del
  * día. Descarta las que están en halt, muy lejos del máximo o con spread imposible.
  */
-export function rankCandidates(rows: ScanRow[], settings: Settings): Candidate[] {
+export function rankCandidates(rows: ScanRow[], settings: Settings, force?: ReadonlySet<string>): Candidate[] {
   const seen = new Set<string>();
   const out: Candidate[] = [];
   for (const r of rows) {
     if (seen.has(r.sym)) continue;
     seen.add(r.sym);
     if (r.halted || r.price <= 0) continue;
-    if (r.price < settings.priceMin || r.price > settings.priceMax) continue;
-    if (r.changePct < Math.min(settings.minChangePct, 5)) continue;
-    if (r.pctFromHod < -15) continue;
-    const reasons: string[] = [];
+    // Las que pidió el trader ("mirá DEF", un nivel) entran aunque no cumplan los filtros del escáner.
+    const forced = !!force?.has(r.sym);
+    if (!forced) {
+      if (r.price < settings.priceMin || r.price > settings.priceMax) continue;
+      if (r.changePct < Math.min(settings.minChangePct, 5)) continue;
+      if (r.pctFromHod < -15) continue;
+    }
+    const reasons: string[] = forced ? ['indicación tuya'] : [];
     const warnings: string[] = [];
     let score = 0;
     score += r.pillars.score * 12; // hasta 60
@@ -138,7 +142,7 @@ export function rankCandidates(rows: ScanRow[], settings: Settings): Candidate[]
   return out.sort((a, b) => b.score - a.score || b.row.rvol - a.row.rvol);
 }
 
-export type EntryKind = 'bullFlag' | 'microPullback' | 'newHigh' | 'hodBreak' | 'pmhBreak';
+export type EntryKind = 'bullFlag' | 'microPullback' | 'newHigh' | 'hodBreak' | 'pmhBreak' | 'level';
 
 export interface EntryPlan {
   kind: EntryKind;
@@ -148,7 +152,7 @@ export interface EntryPlan {
   reason: string;
 }
 
-const LABEL: Record<EntryKind, string> = { bullFlag: 'Bull flag', microPullback: 'Micro pullback', newHigh: 'Primera vela que hace máximo nuevo', hodBreak: 'Ruptura del máximo', pmhBreak: 'Ruptura del máximo pre-market' };
+const LABEL: Record<EntryKind, string> = { bullFlag: 'Bull flag', microPullback: 'Micro pullback', newHigh: 'Primera vela que hace máximo nuevo', hodBreak: 'Ruptura del máximo', pmhBreak: 'Ruptura del máximo pre-market', level: 'Nivel del trader' };
 export const entryLabel = (k: EntryKind) => LABEL[k];
 
 const r2 = (p: number) => Math.round(p * 100) / 100;
@@ -251,6 +255,27 @@ export function findEntry(detail: SymbolDetail, quote: Quote | null, now: number
     return finish('pmhBreak', ask, stop, 'Rompe el máximo del pre-market en los primeros minutos de la rueda', setup.nextLevel, tr);
   }
   return null;
+}
+
+/**
+ * Un nivel que marcó el trader ("si XYZ supera 4,50 me interesa comprar"): se entra cuando el ask lo
+ * cruza hacia arriba (hasta 2 % por encima, para no perseguir), la vela de 1 min actual trae volumen
+ * (al menos 0,8× la anterior) y el precio está sobre VWAP. El stop va en el mínimo de las últimas dos
+ * velas de 1 min, nunca más de 3 % debajo del nivel; el objetivo es el del perfil.
+ */
+export function findLevelEntry(detail: SymbolDetail, quote: Quote | null, level: number, rules: Pick<PlaybookRules, 'targetR'> = DEFAULT_RULES): EntryPlan | null {
+  const { row, bars, setup } = detail;
+  if (!(level > 0) || row.halted || bars.length < 2) return null;
+  const ask = quote?.ask || row.ask || row.price;
+  const bid = quote?.bid || row.bid || row.price;
+  if (!(ask > 0) || !(bid > 0) || (ask - bid) / ask > 0.02) return null;
+  if (ask < level || ask > level * 1.02) return null;
+  if (!setup.aboveVwap) return null;
+  const last = bars[bars.length - 1];
+  const prev = bars[bars.length - 2];
+  if (!(last.v >= prev.v * 0.8)) return null;
+  const stop = Math.max(Math.min(last.l, prev.l), level * 0.97);
+  return finish('level', ask, stop, `Supera el nivel ${r2(level).toFixed(2)} que marcaste, con volumen y sobre VWAP`, setup.nextLevel, rules.targetR);
 }
 
 /**
@@ -420,7 +445,7 @@ export function manage(pos: Position, detail: SymbolDetail, quote: Quote | null,
 
 /** Tipos de setup con los que se agrega a una ganadora (micro pullback de 1 min o 10 s, primera vela con máximo nuevo). */
 export const ADD_KINDS: ReadonlySet<EntryKind> = new Set<EntryKind>(['microPullback', 'newHigh']);
-const NOT_ADD: ReadonlySet<EntryKind> = new Set<EntryKind>(['bullFlag', 'hodBreak', 'pmhBreak']);
+const NOT_ADD: ReadonlySet<EntryKind> = new Set<EntryKind>(['bullFlag', 'hodBreak', 'pmhBreak', 'level']);
 
 /**
  * Agregar a la ganadora: con la mitad tomada y el stop en la entrada, si aparece otro setup (micro pullback o
