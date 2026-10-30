@@ -280,9 +280,10 @@ acción de 62 M de float con un stop de 1 %), el libro de jugadas tiene estas re
 - **No perseguir:** si la vela de 1 min actual ya lleva más de 3 % desde su apertura, no se compra
   (el que compra ahí compra el techo del impulso). Un nivel que marcaste vos no tiene este freno: ya se
   limita a 2 % por encima del nivel.
-- **Micro pullback y primera vela con máximo nuevo más estrictos:** el retroceso no puede comerse más
-  de la mitad del impulso, y el impulso tiene que haber sido el máximo del día (un pullback desde el
-  máximo, no una consolidación debajo de una resistencia).
+- **Primera vela con máximo nuevo más estricta:** el retroceso no puede comerse más de la mitad del
+  impulso (antes 60 %; el trade de las 8:10 entró con 57 %: una bandera caída, no un pullback). Exigir
+  además que el impulso fuera el máximo del día se probó y se descartó: en el simulador mataba
+  ganadoras (medido con 4 semillas) sin haber evitado ninguno de los tres perdedores reales.
 - **Stop con rango:** el stop no queda más cerca que la mitad del rango promedio de las últimas 5
   velas de 1 min (si el setup lo pone más cerca, se baja hasta ahí; si eso supera el 6 %, no hay
   trade). Un stop que ya está en el bid tampoco es una entrada.

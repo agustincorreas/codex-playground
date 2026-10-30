@@ -268,7 +268,7 @@ export function findEntry(detail: SymbolDetail, quote: Quote | null, now: number
   // sobre VWAP y EMA 9, después de 1 a 4 velas de retroceso (rojas o con máximos descendentes), la vela
   // actual supera el máximo de la anterior. Se compra ahí, con el stop en el mínimo del retroceso.
   if (ok('newHigh') && prev && setup.aboveVwap && setup.aboveEma9 && row.pctFromHod >= -8 && closed.length >= 4) {
-    const plan = firstCandleNewHigh(closed, last, ask, tr, setup.nextLevel, row.hod, minRisk, bid);
+    const plan = firstCandleNewHigh(closed, last, ask, tr, setup.nextLevel, minRisk, bid);
     if (plan) return plan;
   }
 
@@ -315,7 +315,7 @@ export function findLevelEntry(detail: SymbolDetail, quote: Quote | null, level:
  * menor que la anterior, de 1 a 4), exige que antes hubiera subida (el máximo previo al retroceso está
  * por encima del mínimo del retroceso) y que la vela actual rompa el máximo de la anterior.
  */
-function firstCandleNewHigh(closed: Bar[], last: Bar, ask: number, targetR: number, nextLevel: number | undefined, hod: number, minRisk: number, bid: number): EntryPlan | null {
+function firstCandleNewHigh(closed: Bar[], last: Bar, ask: number, targetR: number, nextLevel: number | undefined, minRisk: number, bid: number): EntryPlan | null {
   const prev = closed[closed.length - 1];
   let n = 0;
   for (let i = closed.length - 1; i >= 1 && n < 4; i--) {
@@ -331,10 +331,10 @@ function firstCandleNewHigh(closed: Bar[], last: Bar, ask: number, targetR: numb
   if (!pole.length) return null;
   const poleHigh = Math.max(...pole.map((b) => b.h));
   const poleLow = Math.min(...pole.map((b) => b.l));
-  // Subida previa de al menos 2 %, que haya sido el máximo del día (un pullback desde el máximo, no una
-  // consolidación debajo de una resistencia), y retroceso que no se comió más de la mitad de esa subida.
+  // Subida previa de al menos 2 % y retroceso que no se comió más de la mitad de esa subida (más que eso es
+  // una bandera caída, no un pullback). Exigir además que el impulso fuera el máximo del día mataba
+  // ganadoras en el simulador (medido con 4 semillas): no se exige; alcanza con estar a 8 % del máximo.
   if (!(poleHigh > poleLow) || (poleHigh - poleLow) / poleLow < 0.02 || (poleHigh - pullLow) / (poleHigh - poleLow) > 0.5) return null;
-  if (hod > 0 && poleHigh < hod * 0.97) return null;
   const breaking = last.h > prev.h && ask >= prev.h && ask <= prev.h * 1.012;
   if (!breaking || !(pullLow > 0)) return null;
   return finish('newHigh', ask, pullLow - tick(ask), `Primera vela de 1 min que hace un máximo nuevo tras ${n} vela${n === 1 ? '' : 's'} de retroceso`, nextLevel, targetR, minRisk, bid);

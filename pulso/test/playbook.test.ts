@@ -415,13 +415,13 @@ describe('lecciones del 30/10: no perseguir, retroceso corto, stop con rango, ta
     expect(findEntry(fresh, quote(4.55), t0 + 380_000)?.kind).toBe('newHigh');
   });
 
-  it('la primera vela con máximo nuevo exige que el retroceso no se coma más de la mitad del impulso y que el impulso sea el máximo del día (TNMG 8:10)', () => {
+  it('la primera vela con máximo nuevo exige que el retroceso no se coma más de la mitad del impulso (TNMG 8:10: 57 %)', () => {
     // Retroceso de 4,60 a 4,36 (60 % de la subida 4,20 → 4,60): una bandera caída, no un pullback.
     const deep = [bar(t0, 4.2, 4.3, 4.18, 4.29, 40_000), bar(t0 + 60_000, 4.29, 4.42, 4.28, 4.41, 45_000), bar(t0 + 120_000, 4.41, 4.52, 4.4, 4.5, 50_000), bar(t0 + 180_000, 4.5, 4.6, 4.49, 4.58, 60_000), bar(t0 + 240_000, 4.58, 4.59, 4.45, 4.46, 70_000), bar(t0 + 300_000, 4.46, 4.48, 4.36, 4.4, 80_000), bar(t0 + 360_000, 4.4, 4.5, 4.39, 4.49, 20_000)];
     expect(findEntry(detail(deep, row({ sym: 'RUNR', price: 4.49, hod: 4.6, pctFromHod: -2.4, vwap: 4.3 }), { ema9: 4.4 }), quote(4.49), t0 + 380_000)).toBeNull();
-    // Impulso hasta 4,60 con el máximo del día en 5,00 (8 % arriba): una consolidación debajo de una resistencia, no se compra.
-    const below = detail(impulse(bar(t0 + 360_000, 4.48, 4.56, 4.47, 4.55, 20_000)), row({ sym: 'RUNR', price: 4.55, hod: 5.0, pctFromHod: -9, vwap: 4.3 }), { ema9: 4.4 });
-    expect(findEntry(below, quote(4.55), t0 + 380_000)).toBeNull();
+    // Con el retroceso a la mitad justa (4,40) entra.
+    const half = [...deep.slice(0, 4), bar(t0 + 240_000, 4.58, 4.59, 4.45, 4.46, 70_000), bar(t0 + 300_000, 4.46, 4.48, 4.4, 4.42, 80_000), bar(t0 + 360_000, 4.42, 4.5, 4.41, 4.49, 20_000)];
+    expect(findEntry(detail(half, row({ sym: 'RUNR', price: 4.49, hod: 4.6, pctFromHod: -2.4, vwap: 4.3 }), { ema9: 4.4 }), quote(4.49), t0 + 380_000)?.kind).toBe('newHigh');
   });
 
   it('el stop no queda más cerca que medio rango de vela, y un stop en el bid (ya tocado) no es entrada (GDYN: stop a 1,1 % en velas de 3 %)', () => {
