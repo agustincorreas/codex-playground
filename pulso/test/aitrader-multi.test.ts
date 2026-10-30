@@ -298,7 +298,7 @@ describe('dos posiciones a la vez', () => {
 });
 
 describe('agregar a la ganadora', () => {
-  /** Velas de 1 min con subida, dos velas rojas de retroceso y la vela actual rompiendo el máximo de la anterior (stop 3,26). */
+  /** Velas de 1 min con subida, dos velas rojas de retroceso y la vela actual rompiendo el máximo de la anterior (stop 3,24: el mínimo del retroceso 3,27 queda más cerca que el rango de una vela, 0,10). */
   function newHighBars(t: number): Bar[] {
     const bar = (i: number, o: number, h: number, l: number, c: number, v: number): Bar => ({ t: t + i * MIN, o, h, l, c, v, pv: c * v, n: 10 });
     return [bar(0, 3.0, 3.1, 2.98, 3.09, 40_000), bar(1, 3.09, 3.22, 3.08, 3.21, 45_000), bar(2, 3.21, 3.32, 3.2, 3.3, 50_000), bar(3, 3.3, 3.4, 3.29, 3.38, 60_000), bar(4, 3.38, 3.39, 3.3, 3.32, 70_000), bar(5, 3.32, 3.33, 3.27, 3.31, 80_000), bar(6, 3.31, 3.36, 3.27, 3.33, 20_000)];
@@ -316,7 +316,7 @@ describe('agregar a la ganadora', () => {
     tick();
     expect(c.broker!.position('RUN')?.shares).toBe(90);
     expect(log().some((x) => /stop a la entrada/.test(x))).toBe(true);
-    // Aparece la primera vela de 1 min con máximo nuevo tras dos velas rojas: se agrega con el stop en 3,26.
+    // Aparece la primera vela de 1 min con máximo nuevo tras dos velas rojas: se agrega con el stop en 3,24.
     const now = t.state.since;
     run.detail.bars = newHighBars(now - 7 * MIN);
     run.detail.row.hod = 3.4;
@@ -331,9 +331,9 @@ describe('agregar a la ganadora', () => {
     const pos = c.broker!.position('RUN')!;
     expect(pos.shares).toBe(270);
     const stop = c.broker!.orders('RUN').find((o) => o.role === 'stop')!;
-    expect(stop.stopPrice).toBe(3.26);
+    expect(stop.stopPrice).toBe(3.24);
     expect(stop.shares).toBe(270);
-    expect(t.state.positions[0]).toMatchObject({ sym: 'RUN', shares: 270, added: true, stop: 3.26 });
+    expect(t.state.positions[0]).toMatchObject({ sym: 'RUN', shares: 270, added: true, stop: 3.24 });
     // No se agrega una segunda vez aunque el setup siga ahí.
     for (let i = 0; i < 3; i++) tick();
     expect(buys('RUN')).toHaveLength(2);

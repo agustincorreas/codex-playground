@@ -168,8 +168,8 @@ const tick = (p: number) => (p >= 1 ? 0.01 : 0.0001);
 
 /** Hasta cuánto puede llevar la vela de 1 min actual desde su apertura al momento de comprar: más que eso es perseguir. */
 export const MAX_CHASE = 0.03;
-/** El stop no puede ser más chico que este múltiplo del rango promedio de las últimas 5 velas de 1 min (el ruido de media vela). */
-export const MIN_STOP_RANGES = 0.5;
+/** El stop no puede ser más chico que este múltiplo del rango promedio de las últimas 5 velas de 1 min (el ruido de una vela: medido en el simulador con 8 semillas, 1× rango duplica el neto y reduce a la mitad los stops tocados en el primer minuto; 0,5× o 1,5× rinden peor). */
+export const MIN_STOP_RANGES = 1;
 
 /** Rango promedio (máximo − mínimo) de las últimas `n` velas cerradas. */
 export function avgRange(bars: Bar[], n = 5): number {

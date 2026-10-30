@@ -99,8 +99,10 @@ describe('libro de jugadas', () => {
     const plan = findEntry(detail(bars, r, { ema9: 4.3 }), quote(4.46), t0 + 330_000);
     expect(plan?.kind).toBe('microPullback');
     expect(plan!.entry).toBe(4.46);
-    expect(plan!.stop).toBe(4.35);
-    expect(plan!.target).toBeCloseTo(4.68, 2);
+    // El mínimo del descanso (4,36) queda más cerca que el rango promedio de las últimas 5 velas (0,19): el stop baja a 4,27.
+    expect(plan!.stop).toBe(4.27);
+    // Objetivo 2R = 4,84, pero el nivel redondo 5,00 queda a menos de 3R: se apunta ahí.
+    expect(plan!.target).toBeCloseTo(5, 2);
     // Sin ruptura de la vela anterior no hay entrada; tampoco con el precio debajo del VWAP.
     const flat = [...bars.slice(0, 5), bar(t0 + 300_000, 4.42, 4.43, 4.4, 4.41, 30_000)];
     expect(findEntry(detail(flat, row({ sym: 'RUNR', price: 4.41, hod: 4.52, pctFromHod: -2 })), quote(4.41), t0 + 330_000)).toBeNull();
@@ -210,7 +212,8 @@ describe('micro pullback de 10 s y "ride the momentum"', () => {
     const plan = findEntry(detail(flat, r, { ema9: 4.3, secBars }), quote(4.47), s0 + 125_000);
     expect(plan?.kind).toBe('microPullback');
     expect(plan?.reason).toMatch(/10 s/);
-    expect(plan?.stop).toBeCloseTo(4.42, 2);
+    // Velas de 1 min de 0,10 de rango: el stop no queda más cerca que eso (4,47 − 0,10).
+    expect(plan?.stop).toBeCloseTo(4.37, 2);
     expect(findEntry(detail(flat, r, { ema9: 4.3 }), quote(4.47), s0 + 125_000)).toBeNull();
   });
 
@@ -255,8 +258,9 @@ describe('primera vela de 1 min que hace un máximo nuevo', () => {
     const plan = findEntry(detail(bars, r, { ema9: 4.4 }), quote(4.55), t0 + 380_000);
     expect(plan?.kind).toBe('newHigh');
     expect(plan?.reason).toMatch(/2 velas de retroceso/);
-    expect(plan?.stop).toBeCloseTo(4.46, 2);
-    expect(plan?.target).toBeCloseTo(4.55 + 2 * (4.55 - 4.46), 2);
+    // El mínimo del retroceso (4,47 − 0,01 = 4,46) queda más cerca que el rango promedio de las velas (0,106): el stop baja a 4,44.
+    expect(plan?.stop).toBeCloseTo(4.44, 2);
+    expect(plan?.target).toBeCloseTo(4.55 + 2 * (4.55 - 4.44), 2);
     // Sin romper el máximo de la vela anterior (ask debajo), no hay entrada.
     expect(findEntry(detail(bars, row({ sym: 'RUNR', price: 4.5, hod: 4.6, pctFromHod: -2.2, vwap: 4.3 }), { ema9: 4.4 }), quote(4.5), t0 + 380_000)).toBeNull();
   });
@@ -337,9 +341,9 @@ describe('agregar a la ganadora (findAdd)', () => {
     const d = detail(bars, r, { ema9: 4.4 });
     const add = findAdd(pos, d, quote(4.55), t0 + 380_000, mem, DEFAULT_RULES, 20, 10_000, 50_000);
     expect(add?.plan.kind).toBe('newHigh');
-    expect(add?.plan.stop).toBeCloseTo(4.46, 2);
-    // $20 / 0,09 = 222 → 220, pero no más que las 200 originales.
-    expect(add?.shares).toBe(200);
+    expect(add?.plan.stop).toBeCloseTo(4.44, 2);
+    // $20 / 0,11 = 181 → 180 (menos que las 200 originales).
+    expect(add?.shares).toBe(180);
     // Sin la mitad tomada, ya agregado, o con el stop del setup debajo de la entrada: nada.
     expect(findAdd(pos, d, quote(4.55), t0 + 380_000, { ...mem, halfTaken: false }, DEFAULT_RULES, 20, 10_000, 50_000)).toBeNull();
     expect(findAdd(pos, d, quote(4.55), t0 + 380_000, { ...mem, addedOnce: true }, DEFAULT_RULES, 20, 10_000, 50_000)).toBeNull();
@@ -424,16 +428,16 @@ describe('lecciones del 30/10: no perseguir, retroceso corto, stop con rango, ta
     expect(findEntry(detail(half, row({ sym: 'RUNR', price: 4.49, hod: 4.6, pctFromHod: -2.4, vwap: 4.3 }), { ema9: 4.4 }), quote(4.49), t0 + 380_000)?.kind).toBe('newHigh');
   });
 
-  it('el stop no queda más cerca que medio rango de vela, y un stop en el bid (ya tocado) no es entrada (GDYN: stop a 1,1 % en velas de 3 %)', () => {
-    // Velas de 0,30 de rango y un retroceso chiquito (mínimo 4,90): el stop del setup (4,89, 0,10) se baja a la
-    // mitad del rango promedio de las últimas 5 velas (0,108) → 4,88.
+  it('el stop no queda más cerca que el rango de una vela, y un stop en el bid (ya tocado) no es entrada (GDYN: stop a 1,1 % en velas de 3 %)', () => {
+    // Velas de 0,30 de rango y un retroceso chiquito (mínimo 4,90): el stop del setup (4,89, 0,10) se baja al
+    // rango promedio de las últimas 5 velas (0,216) → 4,77.
     const wide = [bar(t0, 4.0, 4.3, 4.0, 4.25, 40_000), bar(t0 + 60_000, 4.25, 4.55, 4.25, 4.5, 45_000), bar(t0 + 120_000, 4.5, 4.8, 4.5, 4.75, 50_000), bar(t0 + 180_000, 4.75, 5.05, 4.75, 5.0, 60_000), bar(t0 + 240_000, 5.0, 5.02, 4.92, 4.94, 70_000), bar(t0 + 300_000, 4.94, 4.98, 4.9, 4.93, 80_000), bar(t0 + 360_000, 4.93, 4.99, 4.92, 4.99, 20_000)];
     const plan = findEntry(detail(wide, row({ sym: 'RUNR', price: 4.99, hod: 5.05, pctFromHod: -1.2, vwap: 4.5 }), { ema9: 4.7 }), quote(4.99), t0 + 380_000);
     expect(plan?.kind).toBe('newHigh');
-    expect(plan!.stop).toBe(4.88);
+    expect(plan!.stop).toBe(4.77);
     // Bid debajo del stop del setup: la compra se vendería al segundo siguiente. Nada.
     const d = detail(impulse(bar(t0 + 360_000, 4.48, 4.56, 4.47, 4.55, 20_000)), row({ sym: 'RUNR', price: 4.55, hod: 4.6, pctFromHod: -1.1, vwap: 4.3 }), { ema9: 4.4 });
-    expect(findEntry(d, quote(4.55), t0 + 380_000)?.stop).toBeCloseTo(4.46, 2);
+    expect(findEntry(d, quote(4.55), t0 + 380_000)?.stop).toBeCloseTo(4.44, 2);
     expect(findEntry(d, { ...quote(4.55), bid: 4.45 }, t0 + 380_000)).toBeNull();
   });
 
