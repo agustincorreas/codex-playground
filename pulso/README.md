@@ -271,9 +271,46 @@ cuenta en el presupuesto del día); si no hay IA o no la entiende, la interpreta
 candidata, entrar, salir) en un bloque *Indicaciones del trader*. Se guardan en el navegador por día
 del mercado y al cambiar el día se borran, salvo las que marcás como **permanentes**.
 
+#### Lecciones de un día real: no perseguir, retroceso corto, stop con rango, tamaño con tope
+
+Después de auditar un día de operación real del automático (tres perdedores: dos compras en el techo
+de una vela vertical en pre-market con el 98 % de la cuenta y una ruptura del máximo a las 11:20 en una
+acción de 62 M de float con un stop de 1 %), el libro de jugadas tiene estas reglas fijas:
+
+- **No perseguir:** si la vela de 1 min actual ya lleva más de 3 % desde su apertura, no se compra
+  (el que compra ahí compra el techo del impulso). Un nivel que marcaste vos no tiene este freno: ya se
+  limita a 2 % por encima del nivel.
+- **Micro pullback y primera vela con máximo nuevo más estrictos:** el retroceso no puede comerse más
+  de la mitad del impulso, y el impulso tiene que haber sido el máximo del día (un pullback desde el
+  máximo, no una consolidación debajo de una resistencia).
+- **Stop con rango:** el stop no queda más cerca que la mitad del rango promedio de las últimas 5
+  velas de 1 min (si el setup lo pone más cerca, se baja hasta ahí; si eso supera el 6 %, no hay
+  trade). Un stop que ya está en el bid tampoco es una entrada.
+- **Tope de tamaño por posición:** conservador 50 % del capital, equilibrado 75 %, agresivo 100 %, y
+  **la mitad en pre-market** (el libro es fino y el deslizamiento al salir se come el stop).
+- **Sin volumen relativo no se entra** (en vivo el promedio se carga de a poco: hasta que no está, el
+  panel dice "todavía no hay volumen relativo") y en el ranking resta 15 puntos; el **float grande**
+  (más que el *float blando* de Ajustes) resta 10.
+- Las salidas de la IA quedan anotadas en *Mis trades* como **stop** u **objetivo** según la regla que
+  las disparó (antes figuraban como venta manual).
+
+#### Informe del día de la IA
+
+Para auditar lo que hizo el automático (y mandárselo a Claude o a quien sea para sacar lecciones), el
+panel tiene **Descargar informe (.md)** y **Datos (.json)**. El informe se arma mientras opera y se
+guarda en el navegador (el de hoy y el del día anterior): perfil y reglas, indicaciones, resumen
+(trades, resultado, lo que dejó pasar, consultas), y por cada trade la entrada con su contexto
+(puntaje y motivos, cambio del día, distancia al máximo, RVOL, float, spread, cuánto llevaba la vela
+al comprar, qué parte del capital fue, si era pre-market), el setup, lo que dijo Claude (decisión,
+convicción, motivo, stop y objetivo sugeridos), cada paso del manejo (mitad, stop a la entrada,
+agregados, venta) con su motivo, y la salida (precio, por qué, minutos en el trade, MFE/MAE, resultado
+en US$ y R). Después vienen las entradas que dejó pasar con el motivo (un "no" de Claude, se escapó,
+sin poder de compra, riesgo abierto al tope), todas las consultas a Claude, la memoria del día, el
+resumen de Claude y el registro completo. El JSON trae lo mismo más los trades de la cuenta.
+
 Las reglas están en `src/trading/playbook.ts` (candidatas, entradas, tamaño, manejo de la posición),
-los textos que se le mandan a Claude en `src/trading/advisor.ts` y las indicaciones en
-`src/trading/instructions.ts`.
+los textos que se le mandan a Claude en `src/trading/advisor.ts`, las indicaciones en
+`src/trading/instructions.ts` y el informe del día en `src/client/aijournal.ts`.
 
 #### Backtest: simular varios días con un clic
 
@@ -649,7 +686,7 @@ pulso/
 | --- | --- |
 | `npm run dev` | Interfaz en modo demo con recarga en caliente (http://localhost:5173). |
 | `npm start` | Compila la interfaz y arranca el servidor (datos reales si hay claves). |
-| `npm test` | Pruebas (297): motor, alertas, bull flag, halts LULD, Alpaca y Massive contra servidores falsos, el servidor entero (permisos, 413, 409, frames rotos), simulador (el mismo mercado a cualquier hora, volumen por hora, días, ofertas, after-hours), el plan gratis de Alpaca en capas, bróker de práctica (brackets, parciales, cortos, invariante de dinero), días de práctica, la cuenta guardada en el servidor, riesgo según la cuenta, temporalidades largas e historia, líneas y alertas de precio, el libro de jugadas y la máquina de estados del IA Trader (perfiles, varias posiciones, Claude, indicaciones del trader), backtest, calendario, formateadores y métricas. |
+| `npm test` | Pruebas (305): motor, alertas, bull flag, halts LULD, Alpaca y Massive contra servidores falsos, el servidor entero (permisos, 413, 409, frames rotos), simulador (el mismo mercado a cualquier hora, volumen por hora, días, ofertas, after-hours), el plan gratis de Alpaca en capas, bróker de práctica (brackets, parciales, cortos, invariante de dinero), días de práctica, la cuenta guardada en el servidor, riesgo según la cuenta, temporalidades largas e historia, líneas y alertas de precio, el libro de jugadas y la máquina de estados del IA Trader (perfiles, varias posiciones, Claude, indicaciones del trader, informe del día, las lecciones del día real), backtest, calendario, formateadores y métricas. |
 | `npm run typecheck` | Chequeo de tipos de todo el proyecto. |
 | `npm run build:demo` | Página única del demo (`dist-demo/index.html`) para GitHub Pages. |
 | `npm run build:desktop` | Interfaz + servidor en un solo archivo para la app de escritorio (`desktop/app/`). |
