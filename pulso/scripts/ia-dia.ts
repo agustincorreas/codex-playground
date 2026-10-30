@@ -6,6 +6,7 @@ import { TrainingController } from '../src/client/training';
 import { AiTrader } from '../src/client/aitrader';
 import { etParts } from '../src/engine/time';
 import type { TrainingStore } from '../src/trading/store';
+import type { Trade } from '../src/trading/types';
 
 (globalThis as any).localStorage = { getItem: () => null, setItem() {}, removeItem() {} };
 (globalThis as any).window = globalThis;
@@ -55,7 +56,10 @@ const trades = c.active?.trades ?? [];
 const wins = trades.filter((x) => x.net > 0).length;
 const adds = t.state.log.filter((l) => /: agrega \d+ a/.test(l.text)).length;
 const seconds = t.state.log.filter((l) => /^Segunda chance en/.test(l.text)).length;
-console.log('--- resumen ' + JSON.stringify({ seed, profile, account, balance, trades: trades.length, wins, net: trades.reduce((a, x) => a + x.net, 0).toFixed(2), avgR: (trades.reduce((a, x) => a + (x.r ?? 0), 0) / Math.max(1, trades.length)).toFixed(2), maxOpen, adds, seconds, paused: t.state.pausedReason.slice(0, 60) }));
+const inR = (x: Trade, pct: number) => +(((pct / 100) * x.avgEntry * x.shares) / (x.risk || 1)).toFixed(2);
+// Por trade: hasta dónde llegó a favor (MFE) y en contra (MAE) en R, cómo salió y cuánto duró: para calibrar las salidas.
+const detail = trades.map((x) => ({ sym: x.sym, setup: (x.setup ?? '').replace('IA · ', ''), r: x.r, mfe: inR(x, x.mfePct), mae: inR(x, x.maePct), exit: x.exitReason, min: +((x.closedAt - x.openedAt) / 60000).toFixed(1) }));
+console.log('--- resumen ' + JSON.stringify({ seed, profile, account, balance, trades: trades.length, wins, net: trades.reduce((a, x) => a + x.net, 0).toFixed(2), avgR: (trades.reduce((a, x) => a + (x.r ?? 0), 0) / Math.max(1, trades.length)).toFixed(2), maxOpen, adds, seconds, paused: t.state.pausedReason.slice(0, 60), detail }));
 console.log('--- esperas (segundos):');
 for (const [k, v] of [...waits.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8)) console.log(`${String(v).padStart(6)}  ${k.slice(0, 110)}`);
 const summary = c.summary();

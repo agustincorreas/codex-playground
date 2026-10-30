@@ -284,9 +284,12 @@ acción de 62 M de float con un stop de 1 %), el libro de jugadas tiene estas re
   impulso (antes 60 %; el trade de las 8:10 entró con 57 %: una bandera caída, no un pullback). Exigir
   además que el impulso fuera el máximo del día se probó y se descartó: en el simulador mataba
   ganadoras (medido con 4 semillas) sin haber evitado ninguno de los tres perdedores reales.
-- **Stop con rango:** el stop no queda más cerca que la mitad del rango promedio de las últimas 5
-  velas de 1 min (si el setup lo pone más cerca, se baja hasta ahí; si eso supera el 6 %, no hay
-  trade). Un stop que ya está en el bid tampoco es una entrada.
+- **Stop con rango:** el stop no queda más cerca que el rango promedio de las últimas 5 velas de 1
+  min (si el setup lo pone más cerca, se baja hasta ahí y el tamaño baja en proporción; si eso supera
+  el 6 %, no hay trade). Un stop que ya está en el bid tampoco es una entrada. Medido en el simulador
+  con 8 semillas en el perfil equilibrado: con medio rango, 13 de 42 trades tocaban el stop en el
+  primer minuto y el neto era negativo; con un rango entero, 7 de 41 y el neto pasa a positivo; con
+  1,5 o 2 rangos se pierden entradas (el stop pasa el 6 %) y rinde peor.
 - **Tope de tamaño por posición:** conservador 50 % del capital, equilibrado 75 %, agresivo 100 %, y
   **la mitad en pre-market** (el libro es fino y el deslizamiento al salir se come el stop).
 - **Sin volumen relativo no se entra** (en vivo el promedio se carga de a poco: hasta que no está, el
