@@ -462,3 +462,41 @@ describe('lecciones del 30/10: no perseguir, retroceso corto, stop con rango, ta
     expect(norv.score).toBeLessThan(small.score - 20);
   });
 });
+
+describe('perfil Ross (scalper)', () => {
+  const t0 = at(9, 40);
+  const pos: Position = { sym: 'RUNR', shares: 200, avgCost: 4.46, openedAt: t0, boughtShares: 200, boughtCost: 892, soldShares: 0, soldValue: 0, fees: 0, realized: 0, initialStop: 4.35, planStop: 4.35, planTarget: 4.68, high: 4.5, low: 4.44, fills: 1 } as Position;
+  const base = [bar(t0 - 120_000, 4.3, 4.4, 4.28, 4.38, 50_000), bar(t0 - 60_000, 4.38, 4.47, 4.36, 4.45, 60_000), bar(t0, 4.45, 4.5, 4.44, 4.48, 30_000)];
+  const d = detail(base, row({ sym: 'RUNR', price: 4.5, vwap: 4.3 }), { ema9: 4.4 });
+
+  it('vende la mitad a 0,5R (no espera el objetivo) y después el stop sube a la entrada', () => {
+    const mem = newMemory(t0, 4.46);
+    // 4,515 = 0,5R con riesgo 0,11 (se mira el bid).
+    expect(manage(pos, d, quote(4.53), t0 + 20_000, mem, PROFILES.ross).action).toBe('sellHalf');
+    expect(manage(pos, d, quote(4.53), t0 + 20_000, mem, PROFILES.ross).reason).toMatch(/Llegó a 0.5R/);
+    // El equilibrado a 0,5R aguanta.
+    expect(manage(pos, d, quote(4.53), t0 + 20_000, newMemory(t0, 4.46), PROFILES.equilibrado).action).toBe('hold');
+    mem.halfTaken = true;
+    expect(manage(pos, d, quote(4.53), t0 + 25_000, mem, PROFILES.ross).action).toBe('stopToBreakeven');
+  });
+
+  it('si en 45 segundos no arrancó (en rojo y nunca 0,5R a favor) se va; si ya fue a favor o está en verde, aguanta', () => {
+    const mem = newMemory(t0, 4.46);
+    expect(manage(pos, d, quote(4.45), t0 + 30_000, mem, PROFILES.ross).action).toBe('hold');
+    const bail = manage(pos, d, quote(4.45), t0 + 50_000, mem, PROFILES.ross);
+    expect(bail.action).toBe('sellAll');
+    expect(bail.reason).toMatch(/45 segundos y no arrancó/);
+    expect(manage(pos, d, quote(4.47), t0 + 50_000, newMemory(t0, 4.46), PROFILES.ross).action).toBe('hold');
+    const went = newMemory(t0, 4.46);
+    went.high = 4.53;
+    expect(manage(pos, d, quote(4.45), t0 + 50_000, went, PROFILES.ross).action).toBe('hold');
+    // El equilibrado no tiene esa regla.
+    expect(manage(pos, d, quote(4.45), t0 + 50_000, newMemory(t0, 4.46), PROFILES.equilibrado).action).toBe('hold');
+  });
+
+  it('el perfil fija la obvia de 9:30 a 11:00, una posición, la mitad a 0,5R, 45 s y sin esperar a Claude', () => {
+    expect(PROFILES.ross).toMatchObject({ entryFrom: 570, entryTo: 660, maxPositions: 1, minScore: 65, firstTakeR: 0.5, bailSec: 45, askBeforeEntry: 0 });
+    expect(inEntryWindow(at(9, 29), PROFILES.ross)).toBe(false);
+    expect(inEntryWindow(at(10, 0), PROFILES.ross)).toBe(true);
+  });
+});

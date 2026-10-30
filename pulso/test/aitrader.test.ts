@@ -535,3 +535,19 @@ describe('informe del día de la IA', () => {
     expect(b.c.broker!.orders('RUN')[0].shares).toBe(160);
   });
 });
+
+describe('perfil Ross: velocidad', () => {
+  it('con Claude activo entra igual en el mismo segundo del setup sin consultarlo antes; el equilibrado espera la respuesta', async () => {
+    ai.ask.mockResolvedValue('{"decision":"wait","confidence":90,"reason":"esperá"}');
+    const a = await arm({ consult: true });
+    a.t.update({ profile: 'ross' });
+    a.tick();
+    expect(a.c.broker!.orders('RUN')[0]?.side).toBe('buy');
+    expect(ai.ask).not.toHaveBeenCalled();
+    expect(a.log().some((x) => /Perfil ross: .*sin consultar a Claude antes de entrar/.test(x))).toBe(true);
+    const b = await arm({ consult: true });
+    b.tick();
+    expect(b.c.broker!.orders('RUN')).toHaveLength(0);
+    expect(ai.ask).toHaveBeenCalledTimes(1);
+  });
+});
