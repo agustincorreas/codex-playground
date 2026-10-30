@@ -1,5 +1,5 @@
 // Día entero del simulador con el IA Trader en automático, sin navegador: qué mira, por qué espera y
-// cuántos trades hace. Uso: npx tsx scripts/ia-dia.ts [semilla] [conservador|equilibrado|agresivo] [cash|margin] [saldo] [quiet]
+// cuántos trades hace. Uso: npx tsx scripts/ia-dia.ts [semilla] [ross|conservador|equilibrado|agresivo] [cash|margin] [saldo] [quiet]
 import { LocalSource } from '../src/client/source/local';
 import { DEFAULT_SETTINGS } from '../src/engine/types';
 import { TrainingController } from '../src/client/training';
@@ -11,7 +11,7 @@ import type { Trade } from '../src/trading/types';
 (globalThis as any).localStorage = { getItem: () => null, setItem() {}, removeItem() {} };
 (globalThis as any).window = globalThis;
 const seed = Number(process.argv[2] ?? 42);
-const profile = (process.argv[3] ?? 'agresivo') as 'conservador' | 'equilibrado' | 'agresivo';
+const profile = (process.argv[3] ?? 'agresivo') as 'ross' | 'conservador' | 'equilibrado' | 'agresivo';
 const account = (process.argv[4] ?? 'cash') as 'cash' | 'margin';
 const balance = Number(process.argv[5] ?? 1000);
 const quiet = process.argv[6] === 'quiet';

@@ -505,7 +505,7 @@ export class AiTrader {
   private profileSummary(): string {
     const r = this.settings.rules;
     const hhmm = (m: number) => `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`;
-    return `entradas de ${hhmm(r.entryFrom)} a ${hhmm(r.entryTo)}, hasta ${r.maxTrades} trades, ${r.maxLosers} perdedores o ${r.maxLossR}R, riesgo ×${r.riskMult}, candidatas de ${r.minScore}+, objetivo ${r.targetR}:1, ${r.maxPositions} posici${r.maxPositions === 1 ? 'ón' : 'ones'} a la vez (${r.maxOpenRiskR}R abiertos).`;
+    return `entradas de ${hhmm(r.entryFrom)} a ${hhmm(r.entryTo)}, hasta ${r.maxTrades} trades, ${r.maxLosers} perdedores o ${r.maxLossR}R, riesgo ×${r.riskMult}, candidatas de ${r.minScore}+, objetivo ${r.targetR}:1${r.firstTakeR < r.targetR ? ` (la mitad a ${r.firstTakeR}R)` : ''}${r.bailSec > 0 ? `, afuera si no arranca en ${r.bailSec} s` : ''}${r.askBeforeEntry ? '' : ', sin consultar a Claude antes de entrar'}, ${r.maxPositions} posici${r.maxPositions === 1 ? 'ón' : 'ones'} a la vez (${r.maxOpenRiskR}R abiertos).`;
   }
 
   /** Riesgo por trade de este perfil: el de la cuenta por el multiplicador del perfil. */
@@ -1102,7 +1102,8 @@ export class AiTrader {
       if (this.settings.consult && !this.state.thinking && this.canAsk()) void this.askEntry(detail, plan, shares, false);
       return this.wait('');
     }
-    if (this.settings.consult && this.canAsk()) {
+    // El perfil Ross entra en el segundo en que aparece el setup: Claude no se consulta antes (opina después, si se le pregunta).
+    if (this.settings.consult && r.askBeforeEntry > 0 && this.canAsk()) {
       this.log(`${sym}: ${entryLabel(plan.kind)} a $${px(plan.entry)} (stop $${px(plan.stop)}): le pregunto a Claude.`, 'info');
       this.setPlan({ sym, kind: entryLabel(plan.kind), entry: plan.entry, stop: plan.stop, target: plan.target, shares, note: 'consultando a Claude' });
       void this.askEntry(detail, plan, shares, true);

@@ -32,26 +32,37 @@ export interface PlaybookRules {
   maxPositions: number;
   /** Riesgo abierto total (entrada − stop actual, de todas las posiciones) en múltiplos del riesgo por trade. */
   maxOpenRiskR: number;
+  /** En cuántas R se vende la primera mitad (con el objetivo del plan como tope): 2 = en el objetivo; 0,5 = el scalp de Ross. */
+  firstTakeR: number;
+  /** Segundos para que el trade arranque: pasado ese tiempo, si está en rojo y nunca fue 0,5R a favor, se sale (0 = sin esta regla). */
+  bailSec: number;
+  /** 1 = en automático se le pregunta a Claude antes de entrar (si está activo); 0 = se entra con las reglas sin esperar (velocidad). */
+  askBeforeEntry: number;
 }
 
-export const DEFAULT_RULES: PlaybookRules = { entryFrom: 7 * 60, entryTo: 11 * 60 + 30, maxTrades: 8, maxLosers: 3, maxLossR: 3, minScore: 45, minRewardR: 1.5, riskMult: 1, targetR: 2, timeStopMin: 6, maxPositions: 2, maxOpenRiskR: 2 };
+export const DEFAULT_RULES: PlaybookRules = { entryFrom: 7 * 60, entryTo: 11 * 60 + 30, maxTrades: 8, maxLosers: 3, maxLossR: 3, minScore: 45, minRewardR: 1.5, riskMult: 1, targetR: 2, timeStopMin: 6, maxPositions: 2, maxOpenRiskR: 2, firstTakeR: 2, bailSec: 0, askBeforeEntry: 1 };
 
 /** Perfiles del modo automático: fijan todas las reglas de una vez. "Personalizado" = reglas tocadas a mano. */
-export type AiProfile = 'conservador' | 'equilibrado' | 'agresivo' | 'personalizado';
+export type AiProfile = 'ross' | 'conservador' | 'equilibrado' | 'agresivo' | 'personalizado';
 
 export const PROFILES: Record<Exclude<AiProfile, 'personalizado'>, PlaybookRules> = {
+  // Como opera Ross: la obvia del día de 9:30 a 11:00, pocas entradas, sin esperar a Claude (se entra en el
+  // segundo en que aparece el setup), la primera mitad afuera a 0,5R con el stop a la entrada, y si en 45 s
+  // no arrancó, afuera. Una posición a la vez.
+  ross: { entryFrom: 9 * 60 + 30, entryTo: 11 * 60, maxTrades: 5, maxLosers: 2, maxLossR: 2, minScore: 65, minRewardR: 1, riskMult: 1, targetR: 2, timeStopMin: 3, maxPositions: 1, maxOpenRiskR: 1, firstTakeR: 0.5, bailSec: 45, askBeforeEntry: 0 },
   // Solo la primera hora, pocas entradas, medio riesgo, exige la obvia y un objetivo 2:1 limpio.
-  conservador: { entryFrom: 9 * 60 + 30, entryTo: 10 * 60 + 30, maxTrades: 4, maxLosers: 2, maxLossR: 2, minScore: 65, minRewardR: 2, riskMult: 0.5, targetR: 2, timeStopMin: 5, maxPositions: 1, maxOpenRiskR: 1 },
+  conservador: { entryFrom: 9 * 60 + 30, entryTo: 10 * 60 + 30, maxTrades: 4, maxLosers: 2, maxLossR: 2, minScore: 65, minRewardR: 2, riskMult: 0.5, targetR: 2, timeStopMin: 5, maxPositions: 1, maxOpenRiskR: 1, firstTakeR: 2, bailSec: 0, askBeforeEntry: 1 },
   equilibrado: { ...DEFAULT_RULES },
   // Pre-market y hasta el mediodía, más trades, una vez y media el riesgo, acepta setups menos obvios y apunta a 3:1.
-  agresivo: { entryFrom: 7 * 60, entryTo: 12 * 60 + 30, maxTrades: 15, maxLosers: 4, maxLossR: 5, minScore: 35, minRewardR: 1.2, riskMult: 1.5, targetR: 3, timeStopMin: 8, maxPositions: 3, maxOpenRiskR: 3 },
+  agresivo: { entryFrom: 7 * 60, entryTo: 12 * 60 + 30, maxTrades: 15, maxLosers: 4, maxLossR: 5, minScore: 35, minRewardR: 1.2, riskMult: 1.5, targetR: 3, timeStopMin: 8, maxPositions: 3, maxOpenRiskR: 3, firstTakeR: 3, bailSec: 0, askBeforeEntry: 1 },
 };
 
-export const PROFILE_LABEL: Record<AiProfile, string> = { conservador: 'Conservador', equilibrado: 'Equilibrado', agresivo: 'Agresivo', personalizado: 'Personalizado' };
+export const PROFILE_LABEL: Record<AiProfile, string> = { ross: 'Ross', conservador: 'Conservador', equilibrado: 'Equilibrado', agresivo: 'Agresivo', personalizado: 'Personalizado' };
 
 export const PROFILE_HINT: Record<AiProfile, string> = {
+  ross: 'Scalper como Ross: la obvia del día (65+) de 9:30 a 11:00, hasta 5 trades, para a los 2 perdedores o 2R, entra en el segundo en que aparece el setup sin esperar a Claude, vende la mitad a 0,5R y sube el stop a la entrada, y si en 45 segundos no arrancó se va. Una posición a la vez.',
   conservador: 'Solo de 9:30 a 10:30, hasta 4 trades, para a los 2 perdedores o 2R, la mitad del riesgo, exige la obvia del día (65+) y objetivo 2:1 que pague 2R. Una posición a la vez, sin reentradas.',
-  equilibrado: 'Lo que hace Ross: de 7:00 a 11:30, hasta 8 trades, para a los 3 perdedores o 3R, riesgo normal, candidatas de 45+ y objetivo 2:1. Hasta 2 posiciones a la vez (2R de riesgo abierto).',
+  equilibrado: 'De 7:00 a 11:30, hasta 8 trades, para a los 3 perdedores o 3R, riesgo normal, candidatas de 45+ y objetivo 2:1 (la mitad afuera ahí). Hasta 2 posiciones a la vez (2R de riesgo abierto).',
   agresivo: 'De 7:00 a 12:30, hasta 15 trades, para a los 4 perdedores o 5R, una vez y media el riesgo, acepta candidatas de 35+ y apunta a 3:1 dejando correr más. Hasta 3 posiciones a la vez (3R de riesgo abierto).',
   personalizado: 'Reglas tocadas a mano (elegí un perfil para volver a los valores de fábrica).',
 };
@@ -364,7 +375,7 @@ function microPullback10s(sec: Bar[], ask: number, targetR: number, nextLevel: n
 
 /** Qué parte del capital puede ir a una sola posición según el perfil (y la mitad en pre-market, donde el libro es fino). */
 export function notionalCap(profile: AiProfile, preMarket: boolean): number {
-  const frac = profile === 'conservador' ? 0.5 : profile === 'agresivo' ? 1 : 0.75;
+  const frac = profile === 'conservador' ? 0.5 : profile === 'agresivo' || profile === 'ross' ? 1 : 0.75;
   return preMarket ? frac / 2 : frac;
 }
 
@@ -426,7 +437,7 @@ export function newMemory(now: number, price: number, kind?: EntryKind, shares0 
  * pullback de 10 s y no baja más; y a 2R o más, una vela de 10 s que cierra en el tercio inferior de su
  * rango con volumen alto (mecha de rechazo) toma la mitad (o el resto).
  */
-export function manage(pos: Position, detail: SymbolDetail, quote: Quote | null, now: number, mem: PositionMemory, rules: Pick<PlaybookRules, 'targetR' | 'timeStopMin'> = DEFAULT_RULES): ExitAdvice {
+export function manage(pos: Position, detail: SymbolDetail, quote: Quote | null, now: number, mem: PositionMemory, rules: Pick<PlaybookRules, 'targetR' | 'timeStopMin' | 'firstTakeR' | 'bailSec'> = DEFAULT_RULES): ExitAdvice {
   const last = quote?.last || detail.row.price;
   const bid = quote?.bid || detail.row.bid || last;
   if (!(last > 0)) return { action: 'hold', reason: '' };
@@ -450,8 +461,10 @@ export function manage(pos: Position, detail: SymbolDetail, quote: Quote | null,
   if (mem.stop && bid < mem.stop) return { action: 'sellAll', reason: `Perdió el mínimo del último pullback de 10 s (${mem.stop.toFixed(2)}): ${mem.halfTaken ? 'se toma el resto' : 'se toma la ganancia'}`, role: 'stop' };
   if (mem.breakeven && !pos.stop && bid <= (mem.entry || pos.avgCost)) return { action: 'sellAll', reason: 'Volvió al precio de entrada después de tomar la mitad', role: 'stop' };
 
-  // Objetivo: mitad afuera y el stop al precio de entrada.
-  if (!mem.halfTaken && bid >= target) return { action: 'sellHalf', reason: `Llegó al objetivo (${target.toFixed(2)}, ${r.toFixed(1)}R): se vende la mitad`, role: 'target' };
+  // Primera toma: la mitad afuera en el objetivo, o antes si el perfil toma en menos R (Ross: a 0,5R), y el stop a la entrada.
+  // Si el perfil toma antes que el objetivo (Ross: 0,5R), ahí; si no, en el objetivo del plan (que puede ser un nivel redondo más arriba).
+  const first = rules.firstTakeR < rules.targetR ? Math.min(target, pos.avgCost + rules.firstTakeR * risk) : target;
+  if (!mem.halfTaken && bid >= first) return { action: 'sellHalf', reason: first < target ? `Llegó a ${rules.firstTakeR}R (${first.toFixed(2)}): se vende la mitad y el stop sube a la entrada` : `Llegó al objetivo (${target.toFixed(2)}, ${r.toFixed(1)}R): se vende la mitad`, role: 'target' };
   if (mem.halfTaken && !mem.breakeven) return { action: 'stopToBreakeven', reason: 'Con la mitad tomada, el stop sube a la entrada' };
 
   // Reglas por vela cerrada: EMA 9 y VWAP.
@@ -477,6 +490,10 @@ export function manage(pos: Position, detail: SymbolDetail, quote: Quote | null,
     if (r >= 2 && range > 0 && topOfRecent && (prevSec.c - prevSec.l) / range <= 1 / 3 && prevSec.v >= avgVol * 1.5) {
       return { action: mem.halfTaken ? 'sellAll' : 'sellHalf', reason: `Mecha de rechazo en 10 s con ${r.toFixed(1)}R de ganancia: ${mem.halfTaken ? 'se toma el resto' : 'se vende la mitad'}` };
     }
+  }
+  // No arrancó: pasados los segundos del perfil (Ross: 45), si está en rojo y nunca fue 0,5R a favor, afuera con pérdida chica.
+  if (rules.bailSec > 0 && !mem.halfTaken && now - mem.enteredAt > rules.bailSec * 1000 && last <= pos.avgCost && mem.high < pos.avgCost + 0.5 * risk) {
+    return { action: 'sellAll', reason: `${rules.bailSec} segundos y no arrancó (nunca fue 0,5R a favor): afuera con pérdida chica` };
   }
   // Tiempo: si no avanza, afuera (salvo que en 10 s siga haciendo máximos nuevos: el momentum sigue vivo).
   if (!mem.halfTaken && now - mem.enteredAt > rules.timeStopMin * MIN && last < pos.avgCost + 0.25 * risk) {

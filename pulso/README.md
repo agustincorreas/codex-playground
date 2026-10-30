@@ -221,12 +221,21 @@ de práctica**, nunca órdenes reales.
   conservador no reentra.
 - **Automático:** hace todo eso solo, con límites: horario de entradas (7:00 a 11:30 ET por defecto),
   máximo de trades por día, perdedores seguidos y pérdida máxima del día en R. Si *Mostrar en el
-  gráfico* está activo, ves lo que mira. Tres **perfiles** fijan todas las reglas de una vez:
-  *Conservador* (solo de 9:30 a 10:30, hasta 4 trades, para a los 2 perdedores o 2R, la mitad del
-  riesgo, exige la obvia del día y objetivo 2:1 que pague 2R), *Equilibrado* (lo que hace Ross: 7:00 a
-  11:30, 8 trades, 3 perdedores o 3R, riesgo normal, objetivo 2:1) y *Agresivo* (7:00 a 12:30, 15
-  trades, 4 perdedores o 5R, una vez y media el riesgo, candidatas menos obvias y objetivo 3:1). Si
-  tocás una regla a mano queda como *Personalizado*. En *Equilibrado* y *Agresivo* las reglas mandan:
+  gráfico* está activo, ves lo que mira. Cuatro **perfiles** fijan todas las reglas de una vez:
+  *Ross* (el scalper: la obvia del día de 9:30 a 11:00, hasta 5 trades, para a los 2 perdedores o 2R,
+  **entra en el segundo en que aparece el setup sin esperar a Claude**, vende la mitad a 0,5R y sube
+  el stop a la entrada, y si en 45 segundos no arrancó se va con pérdida chica; una posición a la
+  vez), *Conservador* (solo de 9:30 a 10:30, hasta 4 trades, para a los 2 perdedores o 2R, la mitad
+  del riesgo, exige la obvia del día y objetivo 2:1 que pague 2R), *Equilibrado* (7:00 a 11:30, 8
+  trades, 3 perdedores o 3R, riesgo normal, objetivo 2:1) y *Agresivo* (7:00 a 12:30, 15 trades, 4
+  perdedores o 5R, una vez y media el riesgo, candidatas menos obvias y objetivo 3:1). Si tocás una
+  regla a mano queda como *Personalizado*. Tres reglas nuevas en la grilla: *Primera mitad (R)* (en
+  cuántas R se vende la primera mitad; el objetivo del plan es el tope), *Sin arrancar (s)* (segundos
+  para que el trade arranque: pasado ese tiempo, en rojo y sin haber ido 0,5R a favor, se sale; 0 =
+  apagado) y *Esperar la respuesta de Claude antes de entrar* (apagado, el automático entra con las
+  reglas en el mismo segundo y Claude opina después si se le pregunta). La velocidad de entrada es la
+  del dato: en vivo el servidor manda la ficha cada segundo y el bróker de práctica ejecuta en 150 ms,
+  así que la IA reacciona en un segundo o menos, como un trader con el dedo en el atajo. En *Equilibrado* y *Agresivo* las reglas mandan:
   si encuentran el setup, un "esperar" de Claude sin un motivo firme no frena la entrada (solo un "no"
   o un "esperar" con 70 % o más de convicción); el *Conservador* respeta siempre a Claude.
   Para que opere seguido en la cuenta de práctica
@@ -690,7 +699,7 @@ pulso/
 | --- | --- |
 | `npm run dev` | Interfaz en modo demo con recarga en caliente (http://localhost:5173). |
 | `npm start` | Compila la interfaz y arranca el servidor (datos reales si hay claves). |
-| `npm test` | Pruebas (305): motor, alertas, bull flag, halts LULD, Alpaca y Massive contra servidores falsos, el servidor entero (permisos, 413, 409, frames rotos), simulador (el mismo mercado a cualquier hora, volumen por hora, días, ofertas, after-hours), el plan gratis de Alpaca en capas, bróker de práctica (brackets, parciales, cortos, invariante de dinero), días de práctica, la cuenta guardada en el servidor, riesgo según la cuenta, temporalidades largas e historia, líneas y alertas de precio, el libro de jugadas y la máquina de estados del IA Trader (perfiles, varias posiciones, Claude, indicaciones del trader, informe del día, las lecciones del día real), backtest, calendario, formateadores y métricas. |
+| `npm test` | Pruebas (309): motor, alertas, bull flag, halts LULD, Alpaca y Massive contra servidores falsos, el servidor entero (permisos, 413, 409, frames rotos), simulador (el mismo mercado a cualquier hora, volumen por hora, días, ofertas, after-hours), el plan gratis de Alpaca en capas, bróker de práctica (brackets, parciales, cortos, invariante de dinero), días de práctica, la cuenta guardada en el servidor, riesgo según la cuenta, temporalidades largas e historia, líneas y alertas de precio, el libro de jugadas y la máquina de estados del IA Trader (perfiles, varias posiciones, Claude, indicaciones del trader, informe del día, las lecciones del día real), backtest, calendario, formateadores y métricas. |
 | `npm run typecheck` | Chequeo de tipos de todo el proyecto. |
 | `npm run build:demo` | Página única del demo (`dist-demo/index.html`) para GitHub Pages. |
 | `npm run build:desktop` | Interfaz + servidor en un solo archivo para la app de escritorio (`desktop/app/`). |

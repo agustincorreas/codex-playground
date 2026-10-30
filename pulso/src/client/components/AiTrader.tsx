@@ -245,7 +245,7 @@ export function AiTraderPanel({ trader, selected, onSelect }: Props) {
       <div className="ai-card ai-profile">
         <div className="ai-sub">Perfil del automático</div>
         <div className="seg" role="group" aria-label="Perfil del IA Trader">
-          {(['conservador', 'equilibrado', 'agresivo'] as const).map((p) => (
+          {(['ross', 'conservador', 'equilibrado', 'agresivo'] as const).map((p) => (
             <button key={p} className={s.profile === p ? 'is-active' : ''} onClick={() => trader.update({ profile: p })} title={PROFILE_HINT[p]}>
               {PROFILE_LABEL[p]}
             </button>
@@ -310,6 +310,14 @@ export function AiTraderPanel({ trader, selected, onSelect }: Props) {
             Riesgo abierto (R)
             <input type="number" min={0.5} max={6} step={0.5} value={s.rules.maxOpenRiskR} onChange={(e) => trader.update({ rules: { ...s.rules, maxOpenRiskR: Math.min(6, Math.max(0.5, Number(e.target.value) || 1)) } })} />
           </label>
+          <label title="En cuántas R se vende la primera mitad (el objetivo del plan es el tope): 2 = en el objetivo; 0,5 = el scalp de Ross.">
+            Primera mitad (R)
+            <input type="number" min={0.25} max={5} step={0.25} value={s.rules.firstTakeR} onChange={(e) => trader.update({ rules: { ...s.rules, firstTakeR: Math.min(5, Math.max(0.25, Number(e.target.value) || 2)) } })} />
+          </label>
+          <label title="Segundos para que el trade arranque: pasado ese tiempo, si está en rojo y nunca fue 0,5R a favor, se sale (0 = sin esta regla).">
+            Sin arrancar (s)
+            <input type="number" min={0} max={600} step={5} value={s.rules.bailSec} onChange={(e) => trader.update({ rules: { ...s.rules, bailSec: Math.min(600, Math.max(0, Math.round(Number(e.target.value) || 0))) } })} />
+          </label>
           <label title="Tope diario de consultas a Claude (0 = sin tope). Hoy van las que muestra el contador.">
             Consultas por día
             <input type="number" min={0} max={2000} value={s.maxCalls} onChange={(e) => trader.update({ maxCalls: Math.max(0, Math.round(Number(e.target.value) || 0)) })} />
@@ -317,6 +325,9 @@ export function AiTraderPanel({ trader, selected, onSelect }: Props) {
         </div>
         <label className="check-inline">
           <input type="checkbox" checked={s.consult} onChange={(e) => trader.update({ consult: e.target.checked })} /> Consultar a Claude antes de cada entrada (en Conservador, sin su visto bueno no entra; en los otros perfiles las reglas mandan)
+        </label>
+        <label className="check-inline" title="Apagado, el automático entra en el segundo en que aparece el setup sin esperar la respuesta de Claude (el perfil Ross lo trae apagado).">
+          <input type="checkbox" checked={s.rules.askBeforeEntry > 0} onChange={(e) => trader.update({ rules: { ...s.rules, askBeforeEntry: e.target.checked ? 1 : 0 } })} /> Esperar la respuesta de Claude antes de entrar en automático
         </label>
         <label className="check-inline">
           <input type="checkbox" checked={s.follow} onChange={(e) => trader.update({ follow: e.target.checked })} /> Mostrar en el gráfico lo que mira la IA (en automático)
