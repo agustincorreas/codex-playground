@@ -14,6 +14,7 @@ const ai = vi.hoisted(() => ({ ask: vi.fn<(system: string, prompt: string) => Pr
 vi.mock('../src/client/lib/ai', () => ({ aiAvailable: () => Promise.resolve({ via: 'servidor', ask: ai.ask }) }));
 
 import { AiTrader } from '../src/client/aitrader';
+import { journalFilename, journalMarkdown } from '../src/client/aijournal';
 
 const store: TrainingStore = { kind: 'navegador', load: async () => ({ state: null, sessions: [] }), saveState: async () => {}, saveSession: async () => {}, clear: async () => {} };
 
@@ -302,8 +303,8 @@ describe('IA Trader', () => {
     expect(t.state.phase).toBe('entering');
     expect(log().some((x) => /no paga 1.5R/.test(x) && /se apunta a/.test(x))).toBe(true);
     const buy = c.broker!.orders('RUN')[0];
-    // Riesgo $20 / 0,06 = 333 → tope por poder de compra (95 % de $1000 / 3,01 = 315) → lote de 10.
-    expect(buy).toMatchObject({ side: 'buy', shares: 310 });
+    // Riesgo $20 / 0,06 = 333 → tope de valor por posición del perfil equilibrado (75 % de $1000 / 3,01 = 249) → lote de 10.
+    expect(buy).toMatchObject({ side: 'buy', shares: 240 });
     // Objetivo: 2R sobre el stop de Claude (3,01 + 2 × 0,06 = 3,13).
     expect(buy.plan).toMatchObject({ stop: 2.95, target: 3.13 });
   });
@@ -449,5 +450,88 @@ describe('Claude que no responde', () => {
     await cons.flush();
     expect(cons.t.state.phase).toBe('watching');
     expect(cons.c.broker!.orders('RUN')).toHaveLength(0);
+  });
+});
+
+describe('informe del día de la IA', () => {
+  it('cada trade queda con su contexto, lo que dijo Claude, el manejo y la salida (anotada como stop, no como venta manual); lo que dejó pasar también', async () => {
+    ai.ask.mockResolvedValueOnce('{"decision":"enter","confidence":85,"reason":"bull flag limpio con volumen"}');
+    const { c, t, f, tick, flush } = await arm({ consult: true });
+    tick();
+    await flush();
+    expect(t.state.phase).toBe('entering');
+    tick();
+    expect(c.broker!.position('RUN')?.shares).toBe(180);
+    const j = t.journal;
+    expect(j.sessionId).toBe(c.active!.id);
+    expect(j.trades).toHaveLength(1);
+    const rec = j.trades[0];
+    expect(rec).toMatchObject({ sym: 'RUN', kind: 'Bull flag', by: 'Claude', shares: 180, stop: 2.9, target: 3.23 });
+    expect(rec.ctx).toMatchObject({ score: expect.any(Number), rvol: 20, float: 3e6, preMarket: false });
+    expect(rec.ctx.equityPct).toBeGreaterThan(50);
+    expect(rec.claude).toMatchObject({ decision: 'enter', confidence: 85, reason: 'bull flag limpio con volumen' });
+    // Toca el stop: la venta lleva el rol "stop" y el trade queda anotado así en Mis trades.
+    f.quote.bid = 2.89;
+    f.quote.last = 2.89;
+    f.quote.ask = 2.9;
+    f.book.bids = [lvl(2.89, 1000)];
+    tick();
+    expect(c.broker!.orders('RUN').find((o) => o.side === 'sell')?.role).toBe('stop');
+    tick();
+    tick();
+    const trade = c.active!.trades[0];
+    expect(trade.exitReason).toBe('stop');
+    expect(rec.steps.map((s) => s.action)).toEqual(['vende todo']);
+    expect(rec.exit).toMatchObject({ reason: 'stop', net: trade.net, avgExit: trade.avgExit });
+    expect(rec.exit!.minutes).toBeGreaterThan(0);
+    // Un "no" de Claude en la segunda chance queda como entrada dejada pasar, con su motivo.
+    ai.ask.mockResolvedValueOnce('{"decision":"skip","confidence":90,"reason":"ya se extendió demasiado"}');
+    f.quote.bid = 3.0;
+    f.quote.last = 3.0;
+    f.quote.ask = 3.01;
+    tick(25_000);
+    tick(4 * MIN);
+    await flush();
+    expect(j.missed).toHaveLength(1);
+    expect(j.missed[0]).toMatchObject({ sym: 'RUN', kind: 'Bull flag', why: expect.stringMatching(/Claude dijo que no \(90 %\): ya se extendió/) });
+    expect(j.claude.map((n) => n.kind)).toEqual(['entry', 'entry']);
+    expect(j.log.length).toBeGreaterThan(5);
+    // El informe en Markdown cuenta la historia completa.
+    const md = journalMarkdown(t.reportJournal(), c.active!.trades);
+    expect(md).toMatch(/^# Informe del IA Trader/);
+    expect(md).toMatch(/Trades de la IA: 1 \(1 cerrados, 0 ganadores, 1 perdedores\)/);
+    expect(md).toMatch(/### 1\. RUN · Bull flag/);
+    expect(md).toMatch(/\*\*Claude\*\*: enter \(85 %\): bull flag limpio/);
+    expect(md).toMatch(/\*\*Salida\*\*: .* por stop/);
+    expect(md).toMatch(/## Entradas que dejó pasar\n\n- .*RUN · Bull flag .*Claude dijo que no/);
+    expect(md).toMatch(/## Registro completo/);
+    expect(journalFilename(t.journal)).toMatch(/^pulso-ia-informe-\d{4}-\d{2}-\d{2}$/);
+  });
+
+  it('sin volumen relativo (el promedio todavía no cargó) no entra y lo dice', async () => {
+    const { c, t, f, tick } = await arm();
+    f.detail.row.rvol = 0;
+    f.detail.row.rvol5m = 0;
+    tick();
+    expect(t.state.phase).toBe('watching');
+    expect(t.state.waiting).toMatch(/todavía no hay volumen relativo/);
+    expect(c.broker!.orders('RUN')).toHaveLength(0);
+    f.detail.row.rvol = 20;
+    tick(6000);
+    expect(t.state.phase).toBe('entering');
+  });
+
+  it('el tamaño no pasa del 75 % del capital en equilibrado ni del 50 % en conservador (hoy TNMG y GDYN fueron con el 98 %)', async () => {
+    // Riesgo del 10 % ($100 / 0,10 = 1.000 acciones): el poder de compra solo lo bajaría a 310; el tope del perfil (75 % de $1.000 / 3,01 = 249) lo deja en 240.
+    const a = await arm();
+    a.c.updateSettings({ riskPct: 10 });
+    a.tick();
+    expect(a.c.broker!.orders('RUN')[0].shares).toBe(240);
+    // Conservador: riesgo a la mitad ($50 / 0,10 = 500) y tope del 50 % ($500 / 3,01 = 166) → 160.
+    const b = await arm();
+    b.c.updateSettings({ riskPct: 10 });
+    b.t.update({ profile: 'conservador' });
+    b.tick();
+    expect(b.c.broker!.orders('RUN')[0].shares).toBe(160);
   });
 });

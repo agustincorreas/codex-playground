@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS } from '../src/engine/types';
 import { etWallToTs } from '../src/engine/time';
 import type { Bar, Quote, ScanRow, SymbolDetail } from '../src/engine/types';
-import { findAdd, findEntry, inEntryWindow, manage, newMemory, rankCandidates, sizeFor, DEFAULT_RULES, PROFILES } from '../src/trading/playbook';
+import { findAdd, findEntry, inEntryWindow, manage, newMemory, notionalCap, rankCandidates, sizeFor, DEFAULT_RULES, PROFILES } from '../src/trading/playbook';
 import { dayPrompt, entryPrompt, parseDecision, parseSummary } from '../src/trading/advisor';
 import type { Position } from '../src/trading/types';
 
@@ -398,5 +398,63 @@ describe('lo que se le cuenta a Claude', () => {
     expect(parseSummary('Resumen sin JSON.')).toBe('Resumen sin JSON.');
     expect(parseSummary('{"summary": ""}')).toBeNull();
     expect(parseSummary('   ')).toBeNull();
+  });
+});
+
+describe('lecciones del 30/10: no perseguir, retroceso corto, stop con rango, tamaño con tope', () => {
+  const t0 = at(10, 0);
+  const impulse = (last: Bar) => [bar(t0, 4.2, 4.3, 4.18, 4.29, 40_000), bar(t0 + 60_000, 4.29, 4.42, 4.28, 4.41, 45_000), bar(t0 + 120_000, 4.41, 4.52, 4.4, 4.5, 50_000), bar(t0 + 180_000, 4.5, 4.6, 4.49, 4.58, 60_000), bar(t0 + 240_000, 4.58, 4.59, 4.5, 4.52, 70_000), bar(t0 + 300_000, 4.52, 4.54, 4.47, 4.48, 80_000), last];
+
+  it('no persigue una vela de 1 min que ya lleva más de 3 % desde su apertura (TNMG 8:00: compró +4,7 % y volvió en 3 s)', () => {
+    const r = row({ sym: 'RUNR', price: 4.7, hod: 4.7, pctFromHod: 0, vwap: 4.3 });
+    // La vela actual abrió en 4,48 y el ask ya está en 4,70 (+4,9 %): nada.
+    const chased = detail(impulse(bar(t0 + 360_000, 4.48, 4.7, 4.47, 4.69, 90_000)), r, { ema9: 4.4 });
+    expect(findEntry(chased, quote(4.7), t0 + 380_000)).toBeNull();
+    // La misma estructura con la vela recién rompiendo (+1,6 %): entra.
+    const fresh = detail(impulse(bar(t0 + 360_000, 4.48, 4.56, 4.47, 4.55, 20_000)), row({ sym: 'RUNR', price: 4.55, hod: 4.6, pctFromHod: -1.1, vwap: 4.3 }), { ema9: 4.4 });
+    expect(findEntry(fresh, quote(4.55), t0 + 380_000)?.kind).toBe('newHigh');
+  });
+
+  it('la primera vela con máximo nuevo exige que el retroceso no se coma más de la mitad del impulso (TNMG 8:10: 57 %)', () => {
+    // Retroceso de 4,60 a 4,36 (60 % de la subida 4,20 → 4,60): una bandera caída, no un pullback.
+    const deep = [bar(t0, 4.2, 4.3, 4.18, 4.29, 40_000), bar(t0 + 60_000, 4.29, 4.42, 4.28, 4.41, 45_000), bar(t0 + 120_000, 4.41, 4.52, 4.4, 4.5, 50_000), bar(t0 + 180_000, 4.5, 4.6, 4.49, 4.58, 60_000), bar(t0 + 240_000, 4.58, 4.59, 4.45, 4.46, 70_000), bar(t0 + 300_000, 4.46, 4.48, 4.36, 4.4, 80_000), bar(t0 + 360_000, 4.4, 4.5, 4.39, 4.49, 20_000)];
+    expect(findEntry(detail(deep, row({ sym: 'RUNR', price: 4.49, hod: 4.6, pctFromHod: -2.4, vwap: 4.3 }), { ema9: 4.4 }), quote(4.49), t0 + 380_000)).toBeNull();
+    // Con el retroceso a la mitad justa (4,40) entra.
+    const half = [...deep.slice(0, 4), bar(t0 + 240_000, 4.58, 4.59, 4.45, 4.46, 70_000), bar(t0 + 300_000, 4.46, 4.48, 4.4, 4.42, 80_000), bar(t0 + 360_000, 4.42, 4.5, 4.41, 4.49, 20_000)];
+    expect(findEntry(detail(half, row({ sym: 'RUNR', price: 4.49, hod: 4.6, pctFromHod: -2.4, vwap: 4.3 }), { ema9: 4.4 }), quote(4.49), t0 + 380_000)?.kind).toBe('newHigh');
+  });
+
+  it('el stop no queda más cerca que medio rango de vela, y un stop en el bid (ya tocado) no es entrada (GDYN: stop a 1,1 % en velas de 3 %)', () => {
+    // Velas de 0,30 de rango y un retroceso chiquito (mínimo 4,90): el stop del setup (4,89, 0,10) se baja a la
+    // mitad del rango promedio de las últimas 5 velas (0,108) → 4,88.
+    const wide = [bar(t0, 4.0, 4.3, 4.0, 4.25, 40_000), bar(t0 + 60_000, 4.25, 4.55, 4.25, 4.5, 45_000), bar(t0 + 120_000, 4.5, 4.8, 4.5, 4.75, 50_000), bar(t0 + 180_000, 4.75, 5.05, 4.75, 5.0, 60_000), bar(t0 + 240_000, 5.0, 5.02, 4.92, 4.94, 70_000), bar(t0 + 300_000, 4.94, 4.98, 4.9, 4.93, 80_000), bar(t0 + 360_000, 4.93, 4.99, 4.92, 4.99, 20_000)];
+    const plan = findEntry(detail(wide, row({ sym: 'RUNR', price: 4.99, hod: 5.05, pctFromHod: -1.2, vwap: 4.5 }), { ema9: 4.7 }), quote(4.99), t0 + 380_000);
+    expect(plan?.kind).toBe('newHigh');
+    expect(plan!.stop).toBe(4.88);
+    // Bid debajo del stop del setup: la compra se vendería al segundo siguiente. Nada.
+    const d = detail(impulse(bar(t0 + 360_000, 4.48, 4.56, 4.47, 4.55, 20_000)), row({ sym: 'RUNR', price: 4.55, hod: 4.6, pctFromHod: -1.1, vwap: 4.3 }), { ema9: 4.4 });
+    expect(findEntry(d, quote(4.55), t0 + 380_000)?.stop).toBeCloseTo(4.46, 2);
+    expect(findEntry(d, { ...quote(4.55), bid: 4.45 }, t0 + 380_000)).toBeNull();
+  });
+
+  it('el tamaño respeta el tope de valor por posición (50/75/100 % del capital, la mitad en pre-market)', () => {
+    expect(notionalCap('conservador', false)).toBe(0.5);
+    expect(notionalCap('equilibrado', false)).toBe(0.75);
+    expect(notionalCap('personalizado', false)).toBe(0.75);
+    expect(notionalCap('agresivo', false)).toBe(1);
+    expect(notionalCap('agresivo', true)).toBe(0.5);
+    // Riesgo $600 / 0,11 = 5.454 acciones ($24.300): con un tope de $7.500 quedan 1.600 (lote de 100).
+    expect(sizeFor(600, 4.46, 4.35, 30_000, 500_000, 7_500)).toBe(1600);
+    expect(sizeFor(600, 4.46, 4.35, 30_000, 500_000)).toBe(5400);
+  });
+
+  it('el ranking resta puntos al float grande (GDYN, 62 M) y a la acción sin volumen relativo todavía', () => {
+    const big = rankCandidates([row({ sym: 'BIGF', float: 62e6 })], DEFAULT_SETTINGS)[0];
+    const small = rankCandidates([row({ sym: 'SMLF', float: 3e6 })], DEFAULT_SETTINGS)[0];
+    expect(big.warnings).toContain('float grande (62.0M)');
+    expect(small.score - big.score).toBe(20);
+    const norv = rankCandidates([row({ sym: 'NORV', rvol: 0 })], DEFAULT_SETTINGS)[0];
+    expect(norv.warnings).toContain('sin volumen relativo todavía');
+    expect(norv.score).toBeLessThan(small.score - 20);
   });
 });

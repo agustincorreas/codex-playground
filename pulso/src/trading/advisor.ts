@@ -4,6 +4,7 @@ import { formatEtTime } from '../engine/time';
 import type { Quote, SymbolDetail } from '../engine/types';
 import type { Candidate, EntryPlan, PositionMemory } from './playbook';
 import { entryLabel } from './playbook';
+import { sanitizeRule, type InstructionRule } from './instructions';
 import type { Position, Trade } from './types';
 
 export const ADVISOR_SYSTEM =
@@ -68,10 +69,13 @@ function accountLine(a: AccountBrief): string {
   return `Cuenta de práctica: $${a.equity.toFixed(0)}, riesgo por trade $${a.riskPerTrade.toFixed(0)}, hoy ${a.dayPnl >= 0 ? '+' : ''}$${a.dayPnl.toFixed(0)}, ${a.tradesToday} trades, ${a.losersInARow} perdedores seguidos.`;
 }
 
+/** El bloque "Indicaciones del trader" (ya armado con `instructionsToPrompt`), con su salto de línea, o nada. */
+const instrBlock = (instructions?: string) => (instructions ? `${instructions}\n` : '');
+
 /** ¿Cuál de las candidatas mirar? */
-export function pickPrompt(cands: Candidate[], now: number, acct: AccountBrief): string {
+export function pickPrompt(cands: Candidate[], now: number, acct: AccountBrief, instructions?: string): string {
   return (
-    `Son las ${formatEtTime(now, false)} hora de Nueva York. ${accountLine(acct)}\n` +
+    `Son las ${formatEtTime(now, false)} hora de Nueva York. ${accountLine(acct)}\n${instrBlock(instructions)}` +
     `Candidatas del escáner, de mejor a peor según las reglas:\n${cands.slice(0, 6).map(rowLine).join('\n')}\n\n` +
     'Elegí una sola para mirar de cerca (la "obvia": volumen relativo, float, noticia, cerca del máximo) o ninguna si ' +
     'no vale la pena. JSON: {"sym": "XXXX" | null, "reason": "..."}'
@@ -79,11 +83,11 @@ export function pickPrompt(cands: Candidate[], now: number, acct: AccountBrief):
 }
 
 /** ¿Entro con este plan? */
-export function entryPrompt(d: SymbolDetail, q: Quote | null, plan: EntryPlan, shares: number, now: number, acct: AccountBrief, book?: BookBrief | null): string {
+export function entryPrompt(d: SymbolDetail, q: Quote | null, plan: EntryPlan, shares: number, now: number, acct: AccountBrief, book?: BookBrief | null, instructions?: string): string {
   const risk = plan.entry - plan.stop;
   const rr = risk > 0 ? ((plan.target - plan.entry) / risk).toFixed(1) : '?';
   return (
-    `Son las ${formatEtTime(now, false)} hora de Nueva York. ${accountLine(acct)}\n${detailBrief(d, q, book)}\n\n` +
+    `Son las ${formatEtTime(now, false)} hora de Nueva York. ${accountLine(acct)}\n${instrBlock(instructions)}${detailBrief(d, q, book)}\n\n` +
     `Las reglas proponen: ${entryLabel(plan.kind)}. Comprar ${shares} acciones a $${px(plan.entry)}, stop $${px(plan.stop)} ` +
     `(riesgo $${(risk * shares).toFixed(0)}), objetivo $${px(plan.target)} (${rr}R). Motivo: ${plan.reason}.\n` +
     'Las reglas ya validaron el setup (sobre VWAP y EMA 9, stop cerca, objetivo que paga): tu trabajo es vetarlo solo si ves un ' +
@@ -94,12 +98,12 @@ export function entryPrompt(d: SymbolDetail, q: Quote | null, plan: EntryPlan, s
 }
 
 /** ¿Qué hago con la posición? */
-export function exitPrompt(d: SymbolDetail, q: Quote | null, pos: Position, mem: PositionMemory, now: number, acct: AccountBrief): string {
+export function exitPrompt(d: SymbolDetail, q: Quote | null, pos: Position, mem: PositionMemory, now: number, acct: AccountBrief, instructions?: string): string {
   const risk = pos.initialStop ? pos.avgCost - pos.initialStop : pos.avgCost * 0.03;
   const last = q?.last || d.row.price;
   const r = risk > 0 ? (last - pos.avgCost) / risk : 0;
   return (
-    `Son las ${formatEtTime(now, false)} hora de Nueva York. ${accountLine(acct)}\n${detailBrief(d, q)}\n\n` +
+    `Son las ${formatEtTime(now, false)} hora de Nueva York. ${accountLine(acct)}\n${instrBlock(instructions)}${detailBrief(d, q)}\n\n` +
     `Posición: ${pos.shares} acciones a $${px(pos.avgCost)} desde hace ${Math.round((now - mem.enteredAt) / 60_000)} min, stop ${pos.stop ?? pos.planStop ?? pos.initialStop ?? '-'}, ` +
     `objetivo ${pos.target ?? pos.planTarget ?? '-'}, va ${r >= 0 ? '+' : ''}${r.toFixed(1)}R${mem.halfTaken ? ', la mitad ya vendida' : ''}${mem.breakeven ? ', stop en la entrada' : ''}.\n` +
     '¿Qué hacés? JSON: {"decision": "hold" | "sellHalf" | "sellAll" | "stopToBreakeven", "reason": "..."}'
@@ -126,6 +130,41 @@ export function dayPrompt(d: DayBrief, now: number, acct: AccountBrief): string 
     'Resumí el día en 4 o 5 frases: qué operó la IA, qué funcionó, qué no, y una sugerencia concreta para mañana. ' +
     'JSON: {"summary": "..."}'
   );
+}
+
+/**
+ * Una indicación del trader escrita en castellano, para que Claude la convierta en una regla del IA
+ * Trader (JSON). Lo que no entre en ninguna regla es una nota libre.
+ */
+export function instructionPrompt(text: string): string {
+  return (
+    `El trader le escribió esta indicación al IA Trader: "${text.replace(/"/g, "'")}"\n` +
+    'Convertila en una sola regla JSON, con uno de estos formatos (sin texto alrededor):\n' +
+    '{"kind":"level","sym":"XYZ","price":4.5} = comprar si supera ese precio (precio con punto decimal; "4,50" es 4.5)\n' +
+    '{"kind":"avoid","sym":"XYZ"} = no operar esa acción hoy\n' +
+    '{"kind":"watch","sym":"XYZ"} = seguirla aunque no esté en los escáneres\n' +
+    '{"kind":"setups","only":[...]} = solo estos setups; {"kind":"noSetups","skip":[...]} = estos no. Setups: ' +
+    '"bullFlag" (bull flag), "microPullback" (micro pullback), "newHigh" (primera vela de 1 min que hace máximo nuevo), ' +
+    '"hodBreak" (ruptura del máximo del día), "pmhBreak" (ruptura del máximo pre-market), "level" (niveles del trader)\n' +
+    '{"kind":"window","from":"HH:MM","to":"HH:MM"} = horario de entradas, hora de Nueva York (uno de los dos puede faltar: "después de las 11 no entres" es {"kind":"window","to":"11:00"})\n' +
+    '{"kind":"maxTrades","n":3} = tope de trades por día\n' +
+    '{"kind":"note"} = lo demás (consejos, contexto, lo que no sea una de las reglas de arriba)\n' +
+    'Respondé solo el JSON.'
+  );
+}
+
+/** Lee la regla que devolvió Claude para una indicación (o null si no es una regla válida). */
+export function parseInstructionRule(text: string): InstructionRule | null {
+  if (typeof text !== 'string') return null;
+  const m = text.match(/\{[\s\S]*\}/);
+  if (!m) return null;
+  try {
+    const raw = JSON.parse(m[0]) as unknown;
+    const inner = raw && typeof raw === 'object' && 'rule' in (raw as object) ? (raw as { rule: unknown }).rule : raw;
+    return sanitizeRule(inner);
+  } catch {
+    return null;
+  }
 }
 
 /** Lee el resumen del día de la respuesta (o null si no se entiende). */

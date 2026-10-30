@@ -159,7 +159,7 @@ export async function runBacktestDay(opts: BacktestOptions): Promise<BacktestDay
   c.newDay({ clock: 'practice', date: sim.dateKey, startMinutes, seed: opts.seed });
   c.attach(src);
 
-  const t = new AiTrader(c, noop);
+  const t = new AiTrader(c, noop, { instructions: false });
   t.attach(src);
   const custom = opts.profile === 'personalizado' && opts.rules ? { rules: opts.rules } : {};
   withoutSaving('pulso:ai-settings', () => t.update({ mode: 'auto', consult: false, follow: false, profile: opts.profile, ...custom }));

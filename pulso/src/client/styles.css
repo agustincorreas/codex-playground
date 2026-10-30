@@ -4111,6 +4111,75 @@ table.scan th .sort-arrow {
   background: color-mix(in srgb, var(--down) 14%, transparent);
 }
 
+/* Indicaciones del trader para la IA */
+.ai-instr-input {
+  width: 100%;
+  box-sizing: border-box;
+  font: inherit;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--text);
+  resize: vertical;
+  margin-bottom: 6px;
+}
+.ai-instr-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.ai-instr-help {
+  margin: 6px 0 0;
+}
+.ai-report {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ai-report-btns {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.ai-instr-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ai-instr-item {
+  padding: 6px 0 4px;
+  border-top: 1px solid color-mix(in srgb, var(--line) 50%, transparent);
+}
+.ai-instr-main {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.ai-instr-item.is-done .ai-instr-label,
+.ai-instr-item.is-done .ai-instr-text {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+.badge.ai-instr-state.is-active {
+  color: var(--up);
+  background: color-mix(in srgb, var(--up) 14%, transparent);
+}
+.badge.ai-instr-state.is-done {
+  color: var(--muted);
+  background: color-mix(in srgb, var(--muted) 14%, transparent);
+}
+.ai-instr-text {
+  margin-top: 2px;
+}
+.ai-instr-actions {
+  margin-top: 2px;
+  gap: 12px;
+}
+
 /* ---------------------------------------------------------------- Backtest del IA Trader */
 .bt-field {
   display: inline-flex;

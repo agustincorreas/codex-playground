@@ -1,9 +1,13 @@
 // Panel del IA Trader: modo (apagado, sugerencias, automático), qué está mirando y por qué, las
 // posiciones que maneja con su R en vivo, la sugerencia del momento con sus botones, la opinión de
-// Claude, el resumen del día, las candidatas, las reglas y el registro.
+// Claude, el resumen del día, tus indicaciones, las candidatas, las reglas y el registro.
+import { useState } from 'react';
 import { useAiVersion, type AiTrader } from '../aitrader';
 import { formatEtTime } from '../../engine/time';
+import { instructionLabel } from '../../trading/instructions';
 import { PROFILE_HINT, PROFILE_LABEL } from '../../trading/playbook';
+import { journalFilename, journalMarkdown } from '../aijournal';
+import { downloadText } from '../lib/download';
 
 interface Props {
   trader: AiTrader;
@@ -34,6 +38,21 @@ export function AiTraderPanel({ trader, selected, onSelect }: Props) {
   const st = trader.state;
   const s = trader.settings;
   const sug = st.suggestion;
+  const [instrText, setInstrText] = useState('');
+  const submitInstruction = () => {
+    const text = instrText.trim();
+    if (!text) return;
+    setInstrText('');
+    void trader.addInstruction(text);
+  };
+  const report = trader.reportJournal();
+  const hasReport = report.trades.length > 0 || report.log.length > 0;
+  const exportReport = async (kind: 'md' | 'json') => {
+    const trades = trader.tradesOf(report.sessionId);
+    const name = journalFilename(report);
+    if (kind === 'md') await downloadText(`${name}.md`, journalMarkdown(report, trades), 'text/markdown');
+    else await downloadText(`${name}.json`, JSON.stringify({ ...report, accountTrades: trades }, null, 2), 'application/json');
+  };
   const aiLabel = st.ai === 'claude' ? 'Claude (desde Claude)' : st.ai === 'servidor' ? 'Claude (clave en el servidor)' : st.ai === 'no' ? 'sin IA: solo reglas' : 'buscando IA…';
   return (
     <div className="ai-panel">
@@ -63,7 +82,7 @@ export function AiTraderPanel({ trader, selected, onSelect }: Props) {
               </button>
             </>
           )}
-          {st.thinking && <em className="ai-thinking"> · Claude está {st.asking === 'summary' ? 'resumiendo el día' : 'pensando'}…</em>}
+          {st.thinking && <em className="ai-thinking"> · Claude está {st.asking === 'summary' ? 'resumiendo el día' : st.asking === 'instruction' ? 'leyendo tu indicación' : 'pensando'}…</em>}
           {st.phase === 'paused' && <div className="ai-paused">{st.pausedReason}</div>}
           {st.phase !== 'paused' && st.waiting && <div className="t-muted small ai-waiting">{st.waiting}</div>}
           {st.plan && (
@@ -151,6 +170,58 @@ export function AiTraderPanel({ trader, selected, onSelect }: Props) {
           </button>
         </div>
       )}
+
+      <div className="ai-card ai-instr">
+        <div className="ai-sub">Indicaciones para la IA</div>
+        <textarea
+          className="ai-instr-input"
+          rows={2}
+          value={instrText}
+          placeholder="Escribí en castellano y apretá Enter: «si XYZ supera 4,50 me interesa comprar»"
+          aria-label="Indicación para el IA Trader"
+          onChange={(e) => setInstrText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              submitInstruction();
+            }
+          }}
+        />
+        <div className="ai-row">
+          <button type="button" className="btn primary small" onClick={submitInstruction} disabled={!instrText.trim()}>
+            Agregar
+          </button>
+          {st.thinking && st.asking === 'instruction' && <em className="ai-thinking">Claude la está leyendo…</em>}
+        </div>
+        <p className="t-muted small ai-instr-help">
+          Ejemplos: «si XYZ supera 4,50 me interesa comprar», «no operes ABC hoy», «mirá DEF aunque no esté en el escáner», «hoy solo bull flags y rupturas del máximo», «después de las 11 no entres», «máximo 3 trades hoy».
+          <br />
+          Enter agrega, Shift+Enter baja de línea. Se borran al cambiar el día, salvo las permanentes. Lo que no sea una regla se le cuenta a Claude igual.
+        </p>
+        {trader.instructions.length > 0 && (
+          <ul className="ai-instr-list">
+            {trader.instructions.map((i) => (
+              <li key={i.id} className={`ai-instr-item ${i.done ? 'is-done' : ''}`}>
+                <div className="ai-instr-main">
+                  <b className="ai-instr-label">{instructionLabel(i.rule)}</b>
+                  <span className={`badge ai-instr-state ${i.done ? 'is-done' : 'is-active'}`}>{i.done ? 'cumplida' : 'activa'}</span>
+                  {i.permanent && <span className="badge">permanente</span>}
+                  <span className="t-muted small">{i.by === 'claude' ? 'leída por Claude' : 'leída por las reglas'}</span>
+                </div>
+                <div className="t-muted small ai-instr-text">«{i.text}»</div>
+                <div className="ai-row ai-instr-actions">
+                  <button type="button" className="link" onClick={() => trader.setInstructionPermanent(i.id, !i.permanent)}>
+                    {i.permanent ? 'Solo hoy' : 'Hacer permanente'}
+                  </button>
+                  <button type="button" className="link" onClick={() => trader.removeInstruction(i.id)}>
+                    Borrar
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
 
       {s.mode !== 'off' && (
         <div className="ai-card">
@@ -255,6 +326,22 @@ export function AiTraderPanel({ trader, selected, onSelect }: Props) {
           objetivo, sube el stop a la entrada y deja correr el resto mientras respete la EMA 9 y el mínimo del último pullback de 10 s (desde 1R el stop sigue ese mínimo; a 2R una mecha de rechazo de 10 s toma ganancia). Con la mitad tomada agrega una vez si aparece otro setup. Maneja varias posiciones a la vez según el perfil, sin pasar el riesgo abierto ni abrir otra mientras una pierde más de 0,5R. Tras un stop, si la acción recupera el VWAP y arma otro setup, le da hasta dos segundas chances (el conservador no). Una acción con dos frenos o dos perdedores hoy baja en el ranking; un setup con dos perdedores sin ganar se evita el resto del día. Las salidas van por reglas; Claude opina en las entradas y resume el día al cierre.
         </p>
       </details>
+
+      {hasReport && (
+        <div className="ai-card ai-report">
+          <span className="t-muted small">
+            Informe del día {report.day} ({report.trades.length} trade{report.trades.length === 1 ? '' : 's'} de la IA): cada entrada con su contexto, lo que dijo Claude, el manejo, la salida, lo que dejó pasar y el registro completo. Mandáselo a Claude para sacar lecciones.
+          </span>
+          <div className="ai-report-btns">
+            <button className="btn small" onClick={() => void exportReport('md')} data-testid="ai-report-md">
+              Descargar informe (.md)
+            </button>
+            <button className="btn small" onClick={() => void exportReport('json')} data-testid="ai-report-json">
+              Datos (.json)
+            </button>
+          </div>
+        </div>
+      )}
 
       {st.log.length > 0 && (
         <div className="ai-card ai-log">

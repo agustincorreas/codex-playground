@@ -5,11 +5,13 @@
 // recorriendo las candidatas. Claude, si está disponible, opina antes de cada entrada, elige entre las
 // candidatas cuando no hay una obvia y resume el día al terminar.
 import { DEFAULT_SETTINGS, type Settings, type SymbolDetail, type ViewModel } from '../engine/types';
-import { etParts, formatEtTime } from '../engine/time';
+import { REG_OPEN, etParts, formatEtTime } from '../engine/time';
 import { fmtMoney } from './lib/format';
-import { ADVISOR_SYSTEM, dayPrompt, entryPrompt, exitPrompt, parseDecision, parseSummary, pickPrompt, type AccountBrief, type BookBrief } from '../trading/advisor';
+import { ADVISOR_SYSTEM, dayPrompt, entryPrompt, exitPrompt, instructionPrompt, parseDecision, parseInstructionRule, parseSummary, pickPrompt, type AccountBrief, type BookBrief } from '../trading/advisor';
 import { roundPx } from '../trading/depth';
-import { DEFAULT_RULES, entryLabel, findAdd, findEntry, inEntryWindow, manage, newMemory, PROFILE_LABEL, PROFILES, profileOf, rankCandidates, sizeFor, type AiProfile, type Candidate, type EntryKind, type EntryPlan, type ExitAdvice, type PlaybookRules, type PositionMemory } from '../trading/playbook';
+import { applyInstructions, avoidedSyms, instructionLabel, instructionsToPrompt, levelFor, parseInstruction, setupFilter, watchedSyms, type Instruction } from '../trading/instructions';
+import { DEFAULT_RULES, entryLabel, findAdd, findEntry, findLevelEntry, inEntryWindow, manage, newMemory, notionalCap, PROFILE_LABEL, PROFILES, profileOf, rankCandidates, sizeFor, type AiProfile, type Candidate, type EntryKind, type EntryPlan, type ExitAdvice, type PlaybookRules, type PositionMemory } from '../trading/playbook';
+import { JOURNAL_LOG_MAX, newJournal, type AiClaudeNote, type AiJournal, type AiTradeContext } from './aijournal';
 import { aiAvailable, type Asker } from './lib/ai';
 import { load, save } from './lib/storage';
 import type { DataSource } from './source/types';
@@ -147,8 +149,8 @@ export interface AiState {
   /** Qué IA hay: la de Claude (artifact), la del servidor (clave de Anthropic), ninguna o todavía no se sabe. */
   ai: 'claude' | 'servidor' | 'no' | '?';
   thinking: boolean;
-  /** Qué se le está preguntando a Claude ahora (una entrada bloquea otra entrada; elegir candidata, no). */
-  asking?: 'pick' | 'entry' | 'exit' | 'now' | 'summary';
+  /** Qué se le está preguntando a Claude ahora (una entrada bloquea otra entrada; elegir candidata o leer una indicación, no). */
+  asking?: 'pick' | 'entry' | 'exit' | 'now' | 'summary' | 'instruction';
   /** La entrada que está esperando o a punto de mandar (para mostrarla en el panel y en el gráfico). */
   plan: { sym: string; kind: string; entry: number; stop: number; target: number; shares: number; note: string } | null;
   /** Las posiciones que maneja, con su R en vivo. */
@@ -182,6 +184,13 @@ const DETAIL_MAX_AGE = 30_000;
 const REMOTE_ROTATE_EVERY = 4;
 /** Hora de cierre (16:00 NY): a partir de ahí no se abren más trades y se pide el resumen del día. */
 const MARKET_CLOSE = 16 * 60;
+/** Un nivel del trader se mira de cerca (la fuente manda su ficha) desde 2 % por debajo. */
+const LEVEL_NEAR = 0.98;
+/** Las indicaciones se guardan en el navegador con el día del mercado al que pertenecen. */
+interface SavedInstructions {
+  day: string;
+  list: Instruction[];
+}
 // El objetivo mínimo en R, el puntaje mínimo y el multiplicador del riesgo salen del perfil (settings.rules).
 const LIVE: ReadonlySet<Order['status']> = new Set(['sent', 'open', 'partial']);
 
@@ -235,15 +244,46 @@ export class AiTrader {
   private dilutionCounted = new Set<string>();
   /** Día ya resumido por Claude (una sola vez por día). */
   private summarizedDay = '';
+  /** Las indicaciones del trader (las del día y las permanentes). */
+  instructions: Instruction[] = [];
+  /** Día del mercado al que pertenecen las indicaciones guardadas. */
+  private instrDay = '';
+  /** Si se guardan en el navegador (el backtest usa un IA Trader aparte que no debe tocar las tuyas). */
+  private readonly persistInstr: boolean;
+  /** El informe del día: todo lo que hizo y por qué (se exporta desde el panel). */
+  journal: AiJournal = newJournal('', '', 'equilibrado', DEFAULT_RULES, 'off', 0, this.day);
+  /** El informe del día anterior (por si el día cambió antes de exportarlo). */
+  prevJournal: AiJournal | null = null;
+  private journalDirty = false;
+  private journalSavedAt = 0;
+  /** La última opinión de Claude sobre una entrada, por acción (se pega al trade si se compra). */
+  private claudeNotes = new Map<string, AiClaudeNote>();
+  /** Entradas dejadas pasar ya anotadas (una por acción, setup y motivo cada 3 min). */
+  private missedKeys = new Map<string, number>();
 
   constructor(
     private readonly c: TrainingController,
     private readonly onSelect: (sym: string) => void,
+    opts: { instructions?: boolean } = {},
   ) {
     const saved = load<Partial<AiSettings>>('ai-settings', {});
     this.settings = { ...DEFAULT_AI, ...saved, rules: { ...DEFAULT_RULES, ...(saved.rules ?? {}) } };
     this.settings.profile = profileOf(this.settings.rules);
     this.state.phase = this.settings.mode === 'off' ? 'off' : 'scanning';
+    this.persistInstr = opts.instructions !== false;
+    if (this.persistInstr) {
+      const sj = load<AiJournal | null>('ai-journal', null);
+      if (sj && typeof sj.sessionId === 'string' && Array.isArray(sj.trades) && Array.isArray(sj.log)) this.journal = { ...newJournal(sj.sessionId, sj.day, sj.profile, sj.rules ?? DEFAULT_RULES, sj.mode, sj.startedAt, sj.memory ?? newDayMemory()), ...sj };
+      const pj = load<AiJournal | null>('ai-journal-prev', null);
+      if (pj && typeof pj.sessionId === 'string' && Array.isArray(pj.trades)) this.prevJournal = pj;
+    }
+    if (this.persistInstr) {
+      const si = load<SavedInstructions>('ai-instructions', { day: '', list: [] });
+      this.instrDay = typeof si.day === 'string' ? si.day : '';
+      this.instructions = Array.isArray(si.list) ? si.list.filter((i) => i && typeof i.id === 'string' && typeof i.text === 'string' && i.rule && typeof i.rule.kind === 'string') : [];
+      this.rollInstructions();
+      this.syncInstrTracked();
+    }
     void aiAvailable().then((ai) => {
       this.asker = ai?.ask ?? null;
       this.state.ai = ai ? ai.via : 'no';
@@ -276,6 +316,8 @@ export class AiTrader {
     this.sessionId = '';
     this.details.clear();
     this.dilutionCounted.clear();
+    this.claudeNotes.clear();
+    this.missedKeys.clear();
     this.focusedDetail = undefined;
     this.state.candidates = [];
     this.state.suggestion = null;
@@ -284,10 +326,137 @@ export class AiTrader {
     this.state.positions = [];
     this.state.day = { trades: 0, wins: 0, netR: 0, avoid: [] };
     this.state.daySummary = null;
+    this.rollInstructions();
     this.focusOn(null);
     this.srcFocus(null);
     if (this.state.phase !== 'off') this.setPhase('scanning');
     this.emit();
+  }
+
+  // ------------------------------------------------------------------ indicaciones del trader
+
+  /**
+   * Agrega una indicación escrita en castellano. Se interpreta enseguida con las reglas simples y, si hay
+   * IA, se le pide a Claude que la convierta en una regla (una consulta, cuenta en el presupuesto): si
+   * la entiende, reemplaza la lectura de las reglas; si no, queda la de las reglas.
+   */
+  async addInstruction(text: string, permanent = false): Promise<Instruction | null> {
+    const clean = text.replace(/\s+/g, ' ').trim();
+    if (!clean) return null;
+    const ins: Instruction = { id: `${Date.now().toString(36)}-${++this.seq}`, text: clean, createdAt: Date.now(), permanent, rule: parseInstruction(clean), by: 'reglas' };
+    this.instructions = [...this.instructions, ins];
+    this.saveInstructions();
+    this.syncInstrTracked();
+    if (!this.journal.instructions.includes(clean)) this.journal.instructions.push(clean);
+    this.log(`Indicación: ${instructionLabel(ins.rule)}.`, 'info');
+    if (this.canAsk()) {
+      try {
+        const rule = parseInstructionRule(await this.askRaw(instructionPrompt(clean), 'instruction'));
+        if (rule) {
+          this.instructions = this.instructions.map((i) => (i.id === ins.id ? { ...i, rule, by: 'claude' } : i));
+          this.saveInstructions();
+          this.syncInstrTracked();
+          this.log(`Claude entendió "${clean}" como: ${instructionLabel(rule)}.`, 'ai');
+        } else this.log(`Claude no entendió la indicación: queda como la leyeron las reglas (${instructionLabel(ins.rule)}).`, 'info');
+      } catch (e) {
+        this.log(`Claude no leyó la indicación (${(e as Error).message}): queda como la leyeron las reglas.`, 'error');
+      }
+    }
+    this.emit();
+    return this.instructions.find((i) => i.id === ins.id) ?? ins;
+  }
+
+  removeInstruction(id: string): void {
+    this.instructions = this.instructions.filter((i) => i.id !== id);
+    this.saveInstructions();
+    this.syncInstrTracked();
+    this.emit();
+  }
+
+  setInstructionPermanent(id: string, permanent: boolean): void {
+    this.instructions = this.instructions.map((i) => (i.id === id ? { ...i, permanent } : i));
+    this.saveInstructions();
+    this.emit();
+  }
+
+  private saveInstructions(): void {
+    if (!this.persistInstr) return;
+    const saved: SavedInstructions = { day: this.instrDay, list: this.instructions };
+    save('ai-instructions', saved);
+  }
+
+  /** Otro día del mercado: se borran las indicaciones de ayer, salvo las permanentes (que vuelven a estar pendientes). */
+  private rollInstructions(): void {
+    const day = this.c.active?.dayKey ?? '';
+    if (!day || day === this.instrDay) return;
+    const first = !this.instrDay;
+    this.instrDay = day;
+    const before = this.instructions.length;
+    this.instructions = this.instructions.filter((i) => i.permanent).map((i) => (i.done ? { ...i, done: false } : i));
+    if (!first && before !== this.instructions.length) this.log(`Otro día: se borran las indicaciones de ayer${this.instructions.length ? ` (quedan ${this.instructions.length} permanente${this.instructions.length === 1 ? '' : 's'})` : ''}.`, 'info');
+    this.saveInstructions();
+    this.syncInstrTracked();
+  }
+
+  /** Las acciones de "mirá" y de niveles se siguen en la fuente aunque no estén en ningún escáner. */
+  private syncInstrTracked(): void {
+    this.c.setAiTracked([...watchedSyms(this.instructions)]);
+    this.lastRank = 0;
+  }
+
+  /** Las reglas del perfil acotadas por las indicaciones (horario y tope de trades). */
+  private rules(): PlaybookRules {
+    return applyInstructions(this.settings.rules, this.instructions);
+  }
+
+  private avoided(sym: string): boolean {
+    return avoidedSyms(this.instructions).has(sym);
+  }
+
+  /** El bloque "Indicaciones del trader" para los prompts ('' si no hay). */
+  private instrBlock(): string {
+    return instructionsToPrompt(this.instructions);
+  }
+
+  /** Un nivel del trader que se está cruzando ahora (con la ficha a mano y el setup limpio), o null. */
+  private levelReady(taken: ReadonlySet<string>, r: PlaybookRules): string | null {
+    if (setupFilter(this.instructions).has('level')) return null;
+    for (const i of this.instructions) {
+      if (i.rule.kind !== 'level' || i.done) continue;
+      const sym = i.rule.sym;
+      if (taken.has(sym) || this.avoided(sym)) continue;
+      const detail = this.detailOf(sym);
+      if (detail && findLevelEntry(detail, this.source?.quote(sym) ?? null, i.rule.price, r)) return sym;
+    }
+    return null;
+  }
+
+  /** Niveles del trader a menos de 2 % (la fuente tiene que mandar su ficha para ver el cruce). */
+  private nearLevels(): string[] {
+    const out: string[] = [];
+    for (const i of this.instructions) {
+      if (i.rule.kind !== 'level' || i.done || this.avoided(i.rule.sym)) continue;
+      const price = this.source?.quote(i.rule.sym)?.last || this.source?.row(i.rule.sym)?.price || 0;
+      if (price >= i.rule.price * LEVEL_NEAR && !out.includes(i.rule.sym)) out.push(i.rule.sym);
+    }
+    return out;
+  }
+
+  /** Un plan de entrada: primero un nivel del trader (si lo hay y se está cruzando), después los setups del libro. */
+  private findPlan(detail: SymbolDetail, quote: ReturnType<DataSource['quote']>, r: PlaybookRules, skip: ReadonlySet<EntryKind>): EntryPlan | null {
+    const lvl = skip.has('level') ? undefined : levelFor(this.instructions, detail.sym);
+    const byLevel = lvl ? findLevelEntry(detail, quote, lvl.rule.price, r) : null;
+    return byLevel ?? findEntry(detail, quote, this.now, r, skip);
+  }
+
+  /** Un nivel disparó su entrada: la indicación queda cumplida (tachada) y no vuelve a disparar. */
+  private fulfilLevel(sym: string): void {
+    const lvl = levelFor(this.instructions, sym);
+    if (!lvl) return;
+    this.instructions = this.instructions.map((i) => (i.id === lvl.id ? { ...i, done: true } : i));
+    this.saveInstructions();
+    this.syncInstrTracked();
+    this.log(`Indicación cumplida: ${instructionLabel(lvl.rule)}.`, 'info');
   }
 
   subscribe(cb: () => void): () => void {
@@ -345,8 +514,104 @@ export class AiTrader {
   }
 
   private log(text: string, tone: AiLogEntry['tone'] = 'info'): void {
-    this.state.log = [...this.state.log.slice(-79), { id: ++this.seq, ts: this.now || Date.now(), text, tone }];
+    const entry: AiLogEntry = { id: ++this.seq, ts: this.now || Date.now(), text, tone };
+    this.state.log = [...this.state.log.slice(-79), entry];
+    if (this.journal.log.length < JOURNAL_LOG_MAX) this.journal.log.push(entry);
+    this.journalDirty = true;
     this.emit();
+  }
+
+  // ------------------------------------------------------------------ informe del día
+
+  /** Otra sesión de práctica (otro día): el informe que había pasa a "anterior" y empieza uno nuevo. */
+  private startJournal(sessionId: string, day: string): void {
+    if (this.journal.sessionId === sessionId) {
+      this.day = this.journal.memory;
+      return;
+    }
+    if (this.journal.sessionId && (this.journal.trades.length || this.journal.log.length)) {
+      this.prevJournal = this.journal;
+      if (this.persistInstr) save('ai-journal-prev', this.prevJournal);
+    }
+    this.journal = newJournal(sessionId, day, PROFILE_LABEL[this.settings.profile].toLowerCase(), { ...this.settings.rules }, this.settings.mode, this.now || Date.now(), this.day);
+    this.journal.instructions = this.instructions.map((i) => i.text);
+    this.saveJournal();
+  }
+
+  private saveJournal(): void {
+    this.journalDirty = false;
+    this.journalSavedAt = this.now;
+    this.journal.memory = this.day;
+    this.journal.profile = PROFILE_LABEL[this.settings.profile].toLowerCase();
+    this.journal.mode = this.settings.mode;
+    if (this.persistInstr) save('ai-journal', this.journal);
+  }
+
+  /** Los trades de la cuenta de esa sesión (la activa o una terminada), para el informe. */
+  tradesOf(sessionId: string): Trade[] {
+    const a = this.c.active;
+    if (a && a.id === sessionId) return a.trades;
+    const rec = this.c.lastEnded;
+    if (rec && rec.id === sessionId) return rec.trades;
+    return [];
+  }
+
+  /** El informe para exportar: el de hoy si tiene algo; si no, el del día anterior. */
+  reportJournal(): AiJournal {
+    return this.journal.trades.length || this.journal.log.length || !this.prevJournal ? this.journal : this.prevJournal;
+  }
+
+  /** Anota una opinión de Claude en el informe (y, si es sobre una entrada, la guarda para pegarla al trade). */
+  private note(n: AiClaudeNote): void {
+    this.journal.claude.push(n);
+    if (n.kind === 'entry') this.claudeNotes.set(n.sym, n);
+    this.journalDirty = true;
+  }
+
+  /** Anota una entrada que se dejó pasar (una vez cada 3 min por acción, setup y motivo). */
+  private missed(sym: string, plan: EntryPlan, why: string): void {
+    const key = `${sym}:${plan.kind}:${why.slice(0, 40)}`;
+    const last = this.missedKeys.get(key) ?? 0;
+    if (this.now - last < 180_000) return;
+    this.missedKeys.set(key, this.now);
+    this.journal.missed.push({ at: this.now, sym, kind: entryLabel(plan.kind), entry: plan.entry, stop: plan.stop, why });
+    this.journalDirty = true;
+  }
+
+  /** El contexto de una entrada para el informe (puntaje, volumen, float, spread, vela, tamaño sobre el capital). */
+  private contextOf(sym: string, entry: number, shares: number): AiTradeContext {
+    const cand = this.state.candidates.find((c) => c.sym === sym);
+    const row = this.detailOf(sym)?.row ?? cand?.row ?? this.source?.row(sym) ?? null;
+    const bars = this.detailOf(sym)?.bars ?? [];
+    const last = bars[bars.length - 1];
+    const q = this.source?.quote(sym);
+    const ask = q?.ask || row?.ask || entry;
+    const bid = q?.bid || row?.bid || entry;
+    const equity = this.c.summary().equity;
+    return {
+      score: cand?.score ?? 0,
+      reasons: cand?.reasons ?? [],
+      warnings: cand?.warnings ?? [],
+      rvol: row?.rvol ?? 0,
+      rvol5m: row?.rvol5m ?? 0,
+      float: row?.float,
+      changePct: row?.changePct ?? 0,
+      pctFromHod: row?.pctFromHod ?? 0,
+      spreadPct: ask > 0 && bid > 0 ? ((ask - bid) / ask) * 100 : 0,
+      candlePct: last && last.o > 0 ? (entry / last.o - 1) * 100 : 0,
+      preMarket: this.preMarket(),
+      equityPct: equity > 0 ? ((entry * shares) / equity) * 100 : 0,
+    };
+  }
+
+  private preMarket(): boolean {
+    return etParts(this.now).minutes < REG_OPEN;
+  }
+
+  /** Tamaño por riesgo, acotado por el poder de compra, el tope de valor del perfil (la mitad en pre-market) y la liquidez. */
+  private size(entry: number, stop: number, detail: SymbolDetail): number {
+    const cap = this.c.summary().equity * notionalCap(this.settings.profile, this.preMarket());
+    return sizeFor(this.risk(), entry, stop, this.c.summary().buyingPower, this.liquidity(detail), cap);
   }
 
   private setPhase(phase: AiPhase, reason = ''): void {
@@ -389,7 +654,7 @@ export class AiTrader {
 
   /** La fuente manda la ficha de una sola acción: se turna entre las posiciones, las compras en curso y la candidata. */
   private rotateFocus(held: string[]): void {
-    const list = [...new Set([...held, ...this.pending.keys(), ...(this.state.focus ? [this.state.focus] : [])])];
+    const list = [...new Set([...held, ...this.pending.keys(), ...(this.state.focus ? [this.state.focus] : []), ...this.nearLevels()])];
     if (!list.length) return this.srcFocus(null);
     if (list.length === 1) return this.srcFocus(list[0]);
     if (this.source?.kind === 'remote' && ++this.steps % REMOTE_ROTATE_EVERY !== 0) return;
@@ -490,20 +755,23 @@ export class AiTrader {
         const pos = this.c.broker!.position(sym)!;
         const detail = this.detailOf(sym);
         if (!detail) return;
-        const d = await this.ask(exitPrompt(detail, this.source.quote(sym), pos, this.mem.get(sym) ?? newMemory(pos.openedAt, pos.avgCost), now, this.brief()));
+        const d = await this.ask(exitPrompt(detail, this.source.quote(sym), pos, this.mem.get(sym) ?? newMemory(pos.openedAt, pos.avgCost), now, this.brief(), this.instrBlock()));
         if (d) this.state.advice = { ts: now, sym, decision: d.decision, text: d.reason };
       } else if (this.state.focus) {
         const detail = this.detailOf(this.state.focus);
         if (!detail) return;
-        const plan = findEntry(detail, this.source.quote(detail.sym), now, this.settings.rules);
-        const shares = plan ? sizeFor(this.risk(), plan.entry, plan.stop, this.c.summary().buyingPower, this.liquidity(detail)) : 0;
-        const d = plan && shares > 0 ? await this.ask(entryPrompt(detail, this.source.quote(detail.sym), plan, shares, now, this.brief(), this.bookOf(detail.sym))) : await this.ask(pickPrompt(this.state.candidates, now, this.brief()));
+        const plan = this.findPlan(detail, this.source.quote(detail.sym), this.rules(), setupFilter(this.instructions));
+        const shares = plan ? this.size(plan.entry, plan.stop, detail) : 0;
+        const d = plan && shares > 0 ? await this.ask(entryPrompt(detail, this.source.quote(detail.sym), plan, shares, now, this.brief(), this.bookOf(detail.sym), this.instrBlock())) : await this.ask(pickPrompt(this.state.candidates, now, this.brief(), this.instrBlock()));
         if (d) this.state.advice = { ts: now, sym: d.sym ?? detail.sym, decision: d.decision, text: d.reason };
       } else if (this.state.candidates.length) {
-        const d = await this.ask(pickPrompt(this.state.candidates, now, this.brief()));
+        const d = await this.ask(pickPrompt(this.state.candidates, now, this.brief(), this.instrBlock()));
         if (d) this.state.advice = { ts: now, sym: d.sym ?? '', decision: d.decision, text: d.reason };
       }
-      if (this.state.advice) this.log(`Claude: ${this.state.advice.text}`, 'ai');
+      if (this.state.advice) {
+        this.note({ at: now, sym: this.state.advice.sym, kind: held.length ? 'exit' : 'pick', decision: this.state.advice.decision, reason: this.state.advice.text });
+        this.log(`Claude: ${this.state.advice.text}`, 'ai');
+      }
     } catch (e) {
       this.log(`Claude no respondió: ${(e as Error).message}`, 'error');
     }
@@ -570,7 +838,9 @@ export class AiTrader {
     if (a.id !== this.sessionId) {
       this.reset();
       this.sessionId = a.id;
+      this.startJournal(a.id, a.dayKey);
     }
+    if (this.journalDirty && now - this.journalSavedAt > 5000) this.saveJournal();
     // 1. Posiciones abiertas (tuyas o de la IA): cada una se maneja.
     const held = this.positions();
     for (const sym of held) this.managePosition(sym);
@@ -679,7 +949,7 @@ export class AiTrader {
   /** Busca otra entrada: candidatas, foco, setup, tamaño (respetando el tope de posiciones y el riesgo abierto). */
   private scan(held: string[]): void {
     const now = this.now;
-    const r = this.settings.rules;
+    const r = this.rules();
     const inFlight = [...this.pending.keys()].filter((s) => !held.includes(s));
     const busy = held.length + inFlight.length;
     const openPhase: AiPhase | null = held.length ? 'inPosition' : inFlight.length ? 'entering' : null;
@@ -717,10 +987,15 @@ export class AiTrader {
     const taken = new Set([...held, ...this.pending.keys()]);
     const eligible = this.state.candidates.filter((c) => !taken.has(c.sym));
     const top = eligible[0];
-    const focusStillGood = this.state.focus && !taken.has(this.state.focus) && eligible.slice(0, 4).some((x) => x.sym === this.state.focus);
-    if (!focusStillGood) {
-      if (top && top.score >= r.minScore) this.focusOn(top.sym, 'la mejor del escáner');
-      else this.focusOn(null);
+    // Un nivel del trader que se está cruzando manda sobre el ranking: se mira esa acción.
+    const level = this.levelReady(taken, r);
+    if (level) this.focusOn(level, 'nivel del trader');
+    else {
+      const focusStillGood = this.state.focus && !taken.has(this.state.focus) && eligible.slice(0, 4).some((x) => x.sym === this.state.focus);
+      if (!focusStillGood) {
+        if (top && top.score >= r.minScore) this.focusOn(top.sym, 'la mejor del escáner');
+        else this.focusOn(null);
+      }
     }
     // Claude elige entre las candidatas: solo en el horario de entradas, no más seguido que cada 2 min, solo si
     // cambiaron las 4 mejores o no hay ninguna en foco (cada consulta cuesta), y nunca si la mejor es obvia (80+).
@@ -748,7 +1023,8 @@ export class AiTrader {
     if (!detail) return this.wait(`Esperando los datos de ${sym}…`);
     if (!inEntryWindow(now, r)) {
       this.setPlan(null);
-      return this.wait(`Fuera del horario de entradas del perfil (${hhmm(r.entryFrom)} a ${hhmm(r.entryTo)} NY).`);
+      const own = r.entryFrom !== this.settings.rules.entryFrom || r.entryTo !== this.settings.rules.entryTo;
+      return this.wait(`Fuera del horario de entradas ${own ? 'que pediste' : 'del perfil'} (${hhmm(r.entryFrom)} a ${hhmm(r.entryTo)} NY).`);
     }
     const quote = this.source!.quote(sym);
     // Frenos (se cuentan una vez por episodio en la memoria del día): halt, spread ancho, riesgo de dilución.
@@ -756,6 +1032,11 @@ export class AiTrader {
     if (brake) {
       this.setPlan(null);
       return this.wait(brake);
+    }
+    // Sin volumen relativo no se sabe si la acción está "en juego": en vivo el promedio se carga de a poco.
+    if (!(detail.row.rvol > 0) && !(detail.row.rvol5m > 0)) {
+      this.setPlan(null);
+      return this.wait(`${sym}: todavía no hay volumen relativo (el promedio se está cargando); no se entra a ciegas.`);
     }
     const until = this.skip.get(sym);
     if (until && until > now) {
@@ -768,19 +1049,22 @@ export class AiTrader {
       this.setPlan(null);
       return this.wait(`${sym} perdió hace poco: una segunda chance solo si recupera el VWAP y arma otro setup (${sd.reentries + 1} de ${MAX_REENTRIES}).`);
     }
-    // Mientras Claude decide una entrada no se le pregunta otra; si solo está eligiendo candidata, se sigue.
-    if (this.state.thinking && this.state.asking !== 'pick') return this.wait(`Consultando a Claude sobre ${this.state.plan?.sym ?? sym}…`);
-    // Un tipo de setup que hoy perdió dos veces sin ganar se evita (el agresivo solo lo baja de prioridad).
-    const avoid = avoidedSetups(this.day);
-    let plan = findEntry(detail, quote, now, r, avoid);
-    if (!plan && avoid.size && this.settings.profile === 'agresivo') plan = findEntry(detail, quote, now, r);
+    // Mientras Claude decide una entrada no se le pregunta otra; si solo está eligiendo candidata o leyendo una indicación, se sigue.
+    if (this.state.thinking && this.state.asking !== 'pick' && this.state.asking !== 'instruction') return this.wait(`Consultando a Claude sobre ${this.state.plan?.sym ?? sym}…`);
+    // Un tipo de setup que hoy perdió dos veces sin ganar se evita (el agresivo solo lo baja de prioridad);
+    // los que dejan afuera tus indicaciones ("hoy solo bull flags") se evitan siempre.
+    const daySkip = avoidedSetups(this.day);
+    const instrSkip = setupFilter(this.instructions);
+    const avoid = new Set<EntryKind>([...daySkip, ...instrSkip]);
+    let plan = this.findPlan(detail, quote, r, avoid);
+    if (!plan && daySkip.size && this.settings.profile === 'agresivo') plan = this.findPlan(detail, quote, r, instrSkip);
     if (!plan) {
       this.setPlan(null);
       const avoided = [...avoid].map((k) => entryLabel(k).toLowerCase());
       return this.wait(`Esperando un setup limpio en ${sym} (bull flag, micro pullback de 1 min o 10 s, primera vela que hace máximo nuevo, ruptura con volumen; siempre sobre VWAP y EMA 9)${avoided.length ? `; hoy evita ${avoided.join(', ')}` : ''}.`);
     }
     const key = `${sym}:${plan.kind}`;
-    let shares = sizeFor(this.risk(), plan.entry, plan.stop, this.c.summary().buyingPower, this.liquidity(detail));
+    let shares = this.size(plan.entry, plan.stop, detail);
     if (key === this.lastPlanKey && now - this.lastPlanAt < this.replan()) {
       const at = formatEtTime(this.lastPlanAt + this.replan(), false);
       this.setPlan({ sym, kind: entryLabel(plan.kind), entry: plan.entry, stop: plan.stop, target: plan.target, shares, note: `se vuelve a considerar a las ${at}` });
@@ -790,6 +1074,7 @@ export class AiTrader {
     if (busy > 0) {
       if (this.riskBudget(held) < 0.5 * this.risk()) {
         this.setPlan({ sym, kind: entryLabel(plan.kind), entry: plan.entry, stop: plan.stop, target: plan.target, shares, note: 'riesgo abierto al tope: espera que una posición suba el stop' });
+        this.missed(sym, plan, `el riesgo abierto estaba al tope del perfil (${r.maxOpenRiskR}R)`);
         this.retryIn(30_000);
         return this.wait(`${sym}: ${entryLabel(plan.kind).toLowerCase()}, pero el riesgo abierto está al tope del perfil (${r.maxOpenRiskR}R): se espera que una posición suba el stop.`);
       }
@@ -804,6 +1089,7 @@ export class AiTrader {
     if (shares < 1) {
       const why = this.noBuyingPower();
       this.log(`${sym}: ${entryLabel(plan.kind)} pero no se puede comprar. ${why}`, 'error');
+      this.missed(sym, plan, why);
       this.retryIn(30_000);
       this.setPlan(null);
       return this.wait(`${sym}: ${why}`);
@@ -877,10 +1163,23 @@ export class AiTrader {
 
   private rank(): void {
     if (!this.view) return;
+    const avoid = avoidedSyms(this.instructions);
+    // Las que pediste ("mirá DEF", un nivel) entran con su fila del motor aunque no estén en ningún escáner.
+    const forced = watchedSyms(this.instructions);
     const rows = [...Object.values(this.view.scanners).flat(), ...this.view.watch];
-    const ranked = rankCandidates(rows, this.scanSettings);
+    const have = new Set(rows.map((x) => x.sym));
+    for (const sym of forced) {
+      if (have.has(sym)) continue;
+      const row = this.view.tracked.find((x) => x.sym === sym) ?? this.source?.row(sym) ?? null;
+      if (row) {
+        rows.push(row);
+        have.add(sym);
+      }
+    }
+    const ranked = rankCandidates(rows, this.scanSettings, forced).filter((c) => !avoid.has(c.sym));
     // Memoria del día: una acción con 2 frenos o 2 perdedores hoy baja 15 puntos.
     for (const c of ranked) {
+      if (forced.has(c.sym) && c.score < this.settings.rules.minScore) c.score = this.settings.rules.minScore;
       if (!penalized(this.day, c.sym)) continue;
       const d = this.day.syms[c.sym];
       c.score = Math.max(0, c.score - 15);
@@ -896,9 +1195,9 @@ export class AiTrader {
   }
 
   private limits(): string {
-    const r = this.settings.rules;
+    const r = this.rules();
     const trades = this.c.active?.trades.length ?? 0;
-    if (trades >= r.maxTrades) return `Ya hubo ${trades} trades hoy: por hoy no se abren más.`;
+    if (trades >= r.maxTrades) return `Ya hubo ${trades} trades hoy: por hoy no se abren más${r.maxTrades < this.settings.rules.maxTrades ? ' (el tope que pediste)' : ''}.`;
     const losers = this.losersInARow();
     if (losers >= r.maxLosers) return `${losers} perdedores seguidos: Ross para por hoy. Mañana se vuelve a empezar.`;
     const sum = this.c.summary();
@@ -940,9 +1239,10 @@ export class AiTrader {
 
   private async askPick(cands: Candidate[]): Promise<void> {
     try {
-      const d = await this.ask(pickPrompt(cands, this.now, this.brief()), 'pick');
+      const d = await this.ask(pickPrompt(cands, this.now, this.brief(), this.instrBlock()), 'pick');
       if (!d) return;
       this.state.advice = { ts: this.now, sym: d.sym ?? '', decision: d.decision, text: d.reason };
+      this.note({ at: this.now, sym: d.sym ?? '', kind: 'pick', decision: d.decision, confidence: d.confidence, reason: d.reason });
       this.log(`Claude elige ${d.sym ?? 'ninguna'}: ${d.reason}`, 'ai');
       if (d.sym && cands.some((x) => x.sym === d.sym) && d.sym !== this.state.focus && !this.positions().includes(d.sym) && !this.pending.has(d.sym)) this.focusOn(d.sym, 'Claude');
     } catch (e) {
@@ -953,12 +1253,13 @@ export class AiTrader {
   private async askEntry(detail: SymbolDetail, plan: EntryPlan, shares: number, execute: boolean): Promise<void> {
     const sym = detail.sym;
     try {
-      const d = await this.ask(entryPrompt(detail, this.source?.quote(sym) ?? null, plan, shares, this.now, this.brief(), this.bookOf(sym)), 'entry');
+      const d = await this.ask(entryPrompt(detail, this.source?.quote(sym) ?? null, plan, shares, this.now, this.brief(), this.bookOf(sym), this.instrBlock()), 'entry');
       if (!d) {
         this.log('Claude respondió algo que no se entiende.', 'error');
         return;
       }
       this.state.advice = { ts: this.now, sym, decision: d.decision, text: d.reason };
+      this.note({ at: this.now, sym, kind: 'entry', decision: d.decision, confidence: d.confidence, reason: d.reason, stop: d.stop, target: d.target });
       const verdict = d.decision === 'enter' ? 'entra' : d.decision === 'wait' ? 'espera' : 'no entra';
       this.log(`Claude ${verdict}${d.confidence !== undefined ? ` (${d.confidence} %)` : ''}: ${d.reason}`, 'ai');
       if (!execute) return;
@@ -976,12 +1277,13 @@ export class AiTrader {
         const q = this.source?.quote(sym);
         const ask = q?.ask ?? plan.entry;
         const fresh = this.detailOf(sym);
-        const again = fresh ? findEntry(fresh, q ?? null, this.now, this.settings.rules) : null;
+        const again = fresh ? this.findPlan(fresh, q ?? null, this.rules(), setupFilter(this.instructions)) : null;
         let live = plan;
         if (again && again.entry <= plan.entry * 1.03) live = again;
         else if (ask <= plan.entry * 1.03 && ask > plan.stop) live = { ...plan, entry: roundPx(ask), target: roundPx(ask + this.settings.rules.targetR * (ask - plan.stop)) };
         else {
           this.log(`${sym}: se escapó mientras Claude pensaba (ask $${px(ask)}, entrada $${px(plan.entry)}): se espera el próximo descanso.`, 'info');
+          this.missed(sym, plan, `se escapó mientras Claude pensaba (ask $${px(ask)})`);
           this.setPlan(null);
           this.retryIn(30_000);
           return;
@@ -998,10 +1300,11 @@ export class AiTrader {
           this.log(`${sym}: el objetivo $${px(target)} no paga ${minR}R con el stop en $${px(stop)}: se apunta a $${px(floor)} (${this.settings.rules.targetR}R).`, 'info');
           target = floor;
         }
-        const sized = this.fitRisk(live.entry, stop, sizeFor(this.risk(), live.entry, stop, this.c.summary().buyingPower, this.liquidity(detail)));
+        const sized = this.fitRisk(live.entry, stop, this.size(live.entry, stop, detail));
         if (sized < 1) {
           const why = this.noBuyingPower();
           this.log(`${sym}: con el stop en $${px(stop)} no se puede comprar. ${why}`, 'error');
+          this.missed(sym, { ...live, stop }, why);
           this.setPlan(null);
           this.retryIn(30_000);
           return;
@@ -1010,9 +1313,11 @@ export class AiTrader {
       } else if (decision === 'skip') {
         this.brake(sym, 'claude');
         this.skip.set(sym, this.now + 10 * 60_000);
+        this.missed(sym, plan, `Claude dijo que no${d.confidence !== undefined ? ` (${d.confidence} %)` : ''}: ${d.reason}`);
         this.setPlan(null);
       } else {
         // "Esperar": el mismo plan se vuelve a considerar a los 3 min (no a los 60 s).
+        this.missed(sym, plan, `Claude pidió esperar${d.confidence !== undefined ? ` (${d.confidence} %)` : ''}: ${d.reason}`);
         this.lastPlanAt = this.now;
       }
     } catch (e) {
@@ -1034,6 +1339,10 @@ export class AiTrader {
     const pos = this.c.broker?.position(sym);
     if (pos?.side === 'short') {
       this.log(`${sym}: tenés un corto abierto; la IA no compra (lo cubriría).`, 'info');
+      return;
+    }
+    if (this.avoided(sym)) {
+      this.log(`${sym}: tu indicación dice que hoy no se opera; no se compra.`, 'info');
       return;
     }
     // Nunca dos veces la misma acción (salvo para agregar a la ganadora).
@@ -1059,6 +1368,7 @@ export class AiTrader {
       // El stop de toda la posición sube al del setup nuevo (la orden, si hay, y el dinámico de la IA).
       mem.stop = Math.max(mem.stop ?? 0, plan.stop);
       if (pos.stop) this.c.setBracket(sym, plan.stop, pos.target);
+      this.step_(sym, 'agrega', `${shares} a $${px(price)}: ${entryLabel(plan.kind).toLowerCase()}, el stop de toda la posición sube a $${px(plan.stop)}`, by);
       this.log(`${sym}: agrega ${shares} a $${px(price)} (${by}): ${entryLabel(plan.kind).toLowerCase()}, el stop de toda la posición sube a $${px(plan.stop)}.`, 'ok');
       return;
     }
@@ -1072,7 +1382,12 @@ export class AiTrader {
     }
     this.mem.set(sym, mem);
     this.setPhase(this.positions().length ? 'inPosition' : 'entering');
+    const claude = this.claudeNotes.get(sym);
+    this.claudeNotes.delete(sym);
+    this.journal.trades.push({ id: ++this.seq, sym, kind: entryLabel(plan.kind), by, at: this.now, entry: price, stop: plan.stop, target: plan.target, shares, reason: plan.reason, secondChance: second, ctx: this.contextOf(sym, price, shares), claude: claude && this.now - claude.at < 120_000 ? claude : undefined, steps: [] });
+    this.journalDirty = true;
     this.log(`${second ? `Segunda chance en ${sym}: compra` : 'Compra'} ${shares} ${sym} a $${px(price)} (${by}): ${entryLabel(plan.kind)}, stop $${px(plan.stop)}, objetivo $${px(plan.target)}.`, 'ok');
+    if (plan.kind === 'level') this.fulfilLevel(sym);
     if (this.settings.follow) this.onSelect(sym);
   }
 
@@ -1092,8 +1407,8 @@ export class AiTrader {
     const advice = manage(pos, detail, quote, this.now, mem, this.settings.rules);
     if (advice.action === 'hold') {
       // Agregar a la ganadora: con la mitad tomada y el stop en la entrada, otro setup limpio en la misma acción.
-      if (!this.pending.has(sym) && inEntryWindow(this.now, this.settings.rules) && !this.limits()) {
-        const add = findAdd(pos, detail, quote, this.now, mem, this.settings.rules, this.risk(), this.c.summary().buyingPower, this.liquidity(detail));
+      if (!this.pending.has(sym) && inEntryWindow(this.now, this.rules()) && !this.limits()) {
+        const add = findAdd(pos, detail, quote, this.now, mem, this.rules(), this.risk(), this.c.summary().buyingPower, this.liquidity(detail));
         if (add) {
           if (this.settings.mode === 'auto') this.execute(sym, add.plan, add.shares, 'reglas', { add: true });
           else this.suggest({ kind: 'entry', sym, title: `Agregá ${add.shares} a ${sym}`, text: `${entryLabel(add.plan.kind)} a $${px(add.plan.entry)}: el stop de toda la posición sube a $${px(add.plan.stop)}. ${add.plan.reason}.`, plan: add.plan, shares: add.shares, add: true });
@@ -1108,6 +1423,14 @@ export class AiTrader {
     else this.suggest({ kind: 'exit', sym, title: advice.action === 'sellHalf' ? `Vendé la mitad de ${sym}` : advice.action === 'sellAll' ? `Vendé ${sym}` : `Stop a la entrada en ${sym}`, text: `${advice.reason}.`, exit: advice });
   }
 
+  /** Anota un paso del manejo en el informe (sobre el último trade abierto de esa acción). */
+  private step_(sym: string, action: string, reason: string, by: string): void {
+    const t = this.journal.trades.filter((x) => x.sym === sym && !x.exit).at(-1);
+    if (!t) return;
+    t.steps.push({ at: this.now, action, reason, by });
+    this.journalDirty = true;
+  }
+
   private applyExit(sym: string, advice: ExitAdvice, by: string): void {
     const pos = this.c.broker?.position(sym);
     // Solo sobre una posición comprada: `sell` nunca abre un corto, pero tampoco hay que cubrir uno ajeno.
@@ -1117,17 +1440,21 @@ export class AiTrader {
     if (advice.action === 'sellHalf') {
       // Si ya hay una venta (la del objetivo o una anterior) esperando en el mercado, no se duplica.
       if (this.c.broker?.orders(sym).some((o) => o.side === 'sell' && (o.role === 'target' || o.role === 'exit') && LIVE.has(o.status))) return;
-      const res = this.c.sell(sym, 0.5);
+      const res = this.c.sell(sym, 0.5, 'bid', -0.05, undefined, advice.role);
+      this.step_(sym, 'vende la mitad', advice.reason, by);
       this.log(`${sym}: vende la mitad (${by}). ${advice.reason}.`, res.ok ? 'ok' : 'error');
     } else if (advice.action === 'sellAll') {
       // Las órdenes que quedaban (stop, objetivo, una venta anterior, una compra para agregar) se cancelan antes de vender todo.
       this.c.cancelAll(sym);
       this.pending.delete(sym);
-      const res = this.c.sell(sym, 1);
+      // La venta queda anotada como "stop" u "objetivo" en Mis trades (no como venta manual) según la regla que la disparó.
+      const res = this.c.sell(sym, 1, 'bid', -0.05, undefined, advice.role);
+      this.step_(sym, 'vende todo', advice.reason, by);
       this.log(`${sym}: vende todo (${by}). ${advice.reason}.`, res.ok ? 'ok' : 'error');
     } else if (advice.action === 'stopToBreakeven') {
       mem.breakeven = true;
       if (pos.stop) this.c.setBracket(sym, pos.avgCost, pos.target);
+      this.step_(sym, 'stop a la entrada', advice.reason, by);
       this.log(`${sym}: stop a la entrada ($${px(pos.avgCost)}). ${advice.reason}.`, 'info');
     }
   }
@@ -1139,6 +1466,11 @@ export class AiTrader {
     const t = trades.filter((x) => x.sym === sym).at(-1);
     if (t && mem && t.closedAt >= mem.enteredAt) {
       this.log(`${sym} cerrado: ${t.net >= 0 ? '+' : '−'}$${Math.abs(t.net).toFixed(2)}${t.r !== undefined ? ` (${t.r.toFixed(1)}R)` : ''}.`, t.net >= 0 ? 'ok' : 'error');
+      const rec = this.journal.trades.filter((x) => x.sym === sym && !x.exit).at(-1);
+      if (rec) {
+        rec.exit = { at: t.closedAt, avgExit: t.avgExit, net: t.net, r: t.r, reason: t.exitReason, mfePct: t.mfePct, maePct: t.maePct, minutes: (t.closedAt - t.openedAt) / 60_000 };
+        this.journalDirty = true;
+      }
       this.remember(sym, t, mem.kind);
       if (t.net < 0) {
         const sd = symDay(this.day, sym);
@@ -1194,6 +1526,11 @@ export class AiTrader {
       const summary = parseSummary(text);
       if (!summary) return this.log('Claude no pudo resumir el día.', 'error');
       this.state.daySummary = summary;
+      const j = this.journal.sessionId === dayId ? this.journal : this.prevJournal?.sessionId === dayId ? this.prevJournal : null;
+      if (j) {
+        j.summary = summary;
+        if (this.persistInstr) save(j === this.journal ? 'ai-journal' : 'ai-journal-prev', j);
+      }
       this.log(`Resumen del día (Claude): ${summary}`, 'ai');
     } catch (e) {
       this.log(`Claude no resumió el día: ${(e as Error).message}`, 'error');

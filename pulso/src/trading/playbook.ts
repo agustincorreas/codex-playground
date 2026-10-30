@@ -80,17 +80,21 @@ const fmtM = (v: number) => (v >= 1e6 ? `${(v / 1e6).toFixed(1)}M` : v >= 1e3 ? 
  * volumen relativo más grande, el float más chico y noticia, y que todavía están cerca del máximo del
  * día. Descarta las que están en halt, muy lejos del máximo o con spread imposible.
  */
-export function rankCandidates(rows: ScanRow[], settings: Settings): Candidate[] {
+export function rankCandidates(rows: ScanRow[], settings: Settings, force?: ReadonlySet<string>): Candidate[] {
   const seen = new Set<string>();
   const out: Candidate[] = [];
   for (const r of rows) {
     if (seen.has(r.sym)) continue;
     seen.add(r.sym);
     if (r.halted || r.price <= 0) continue;
-    if (r.price < settings.priceMin || r.price > settings.priceMax) continue;
-    if (r.changePct < Math.min(settings.minChangePct, 5)) continue;
-    if (r.pctFromHod < -15) continue;
-    const reasons: string[] = [];
+    // Las que pidió el trader ("mirá DEF", un nivel) entran aunque no cumplan los filtros del escáner.
+    const forced = !!force?.has(r.sym);
+    if (!forced) {
+      if (r.price < settings.priceMin || r.price > settings.priceMax) continue;
+      if (r.changePct < Math.min(settings.minChangePct, 5)) continue;
+      if (r.pctFromHod < -15) continue;
+    }
+    const reasons: string[] = forced ? ['indicación tuya'] : [];
     const warnings: string[] = [];
     let score = 0;
     score += r.pillars.score * 12; // hasta 60
@@ -103,7 +107,11 @@ export function rankCandidates(rows: ScanRow[], settings: Settings): Candidate[]
       if (r.float <= 5e6) score += 10;
       else if (r.float <= settings.maxFloat) score += 6;
       else if (r.float <= settings.maxFloatSoft) score += 2;
-      else warnings.push(`float grande (${fmtM(r.float)})`);
+      else {
+        // Una acción de float grande no es una small cap de las de Ross: no hace los movimientos explosivos.
+        score -= 10;
+        warnings.push(`float grande (${fmtM(r.float)})`);
+      }
       if (r.float <= settings.maxFloat) reasons.push(`float ${fmtM(r.float)}`);
     } else warnings.push('float desconocido');
     if (r.hasNews) {
@@ -124,6 +132,10 @@ export function rankCandidates(rows: ScanRow[], settings: Settings): Candidate[]
       score -= 8;
       warnings.push('poco volumen ahora');
     }
+    if (!(r.rvol > 0)) {
+      score -= 15;
+      warnings.push('sin volumen relativo todavía');
+    }
     if (r.changePct > 150) {
       score -= 8;
       warnings.push(`muy extendida (+${r.changePct.toFixed(0)} %)`);
@@ -138,7 +150,7 @@ export function rankCandidates(rows: ScanRow[], settings: Settings): Candidate[]
   return out.sort((a, b) => b.score - a.score || b.row.rvol - a.row.rvol);
 }
 
-export type EntryKind = 'bullFlag' | 'microPullback' | 'newHigh' | 'hodBreak' | 'pmhBreak';
+export type EntryKind = 'bullFlag' | 'microPullback' | 'newHigh' | 'hodBreak' | 'pmhBreak' | 'level';
 
 export interface EntryPlan {
   kind: EntryKind;
@@ -148,15 +160,34 @@ export interface EntryPlan {
   reason: string;
 }
 
-const LABEL: Record<EntryKind, string> = { bullFlag: 'Bull flag', microPullback: 'Micro pullback', newHigh: 'Primera vela que hace máximo nuevo', hodBreak: 'Ruptura del máximo', pmhBreak: 'Ruptura del máximo pre-market' };
+const LABEL: Record<EntryKind, string> = { bullFlag: 'Bull flag', microPullback: 'Micro pullback', newHigh: 'Primera vela que hace máximo nuevo', hodBreak: 'Ruptura del máximo', pmhBreak: 'Ruptura del máximo pre-market', level: 'Nivel del trader' };
 export const entryLabel = (k: EntryKind) => LABEL[k];
 
 const r2 = (p: number) => Math.round(p * 100) / 100;
 const tick = (p: number) => (p >= 1 ? 0.01 : 0.0001);
 
-/** Un plan solo sirve si el stop está cerca (hasta 6 % del precio, menos en acciones caras) y paga el objetivo (2:1 por defecto). */
-function finish(kind: EntryKind, entry: number, stop: number, reason: string, nextLevel?: number, targetR = 2): EntryPlan | null {
+/** Hasta cuánto puede llevar la vela de 1 min actual desde su apertura al momento de comprar: más que eso es perseguir. */
+export const MAX_CHASE = 0.03;
+/** El stop no puede ser más chico que este múltiplo del rango promedio de las últimas 5 velas de 1 min (el ruido de media vela). */
+export const MIN_STOP_RANGES = 0.5;
+
+/** Rango promedio (máximo − mínimo) de las últimas `n` velas cerradas. */
+export function avgRange(bars: Bar[], n = 5): number {
+  const closed = bars.slice(0, -1).slice(-n);
+  if (!closed.length) return 0;
+  return closed.reduce((v, b) => v + Math.max(0, b.h - b.l), 0) / closed.length;
+}
+
+/**
+ * Un plan solo sirve si el stop está cerca (hasta 6 % del precio, menos en acciones caras) y paga el objetivo
+ * (2:1 por defecto). Si el stop del setup queda más cerca que el ruido de una vela (`minRisk`), se baja hasta
+ * ahí: un stop de 1 % en una acción que se mueve 3 % por vela es un segundo de ruido, no un stop.
+ */
+function finish(kind: EntryKind, entry: number, stop: number, reason: string, nextLevel?: number, targetR = 2, minRisk = 0, bid = 0): EntryPlan | null {
   if (!(entry > 0) || !(stop > 0) || stop >= entry) return null;
+  if (minRisk > 0 && entry - stop < minRisk) stop = r2(entry - minRisk);
+  // Un stop en el bid (o arriba) ya está tocado: se compraría para vender al segundo siguiente.
+  if (bid > 0 && stop >= bid) return null;
   const risk = entry - stop;
   if (risk / entry > 0.06 || risk < tick(entry) * 2) return null;
   let target = r2(entry + targetR * risk);
@@ -193,10 +224,14 @@ export function findEntry(detail: SymbolDetail, quote: Quote | null, now: number
   const last = bars[bars.length - 1];
   const closed = bars.slice(0, -1);
   const prev = closed[closed.length - 1];
+  // No perseguir: si la vela de 1 min actual ya lleva más de 2 % desde su apertura, el que compra ahora
+  // compra el techo de un impulso vertical (y el stop queda a una vela de distancia).
+  if (last.o > 0 && ask / last.o - 1 > MAX_CHASE) return null;
+  const minRisk = MIN_STOP_RANGES * avgRange(bars);
 
   // 1. Bull flag del motor.
   if (ok('bullFlag') && setup.flag && ask >= setup.flag.entry && ask <= setup.flag.entry * 1.01 && setup.aboveVwap) {
-    return finish('bullFlag', ask, setup.flag.stop, 'Bull flag: la vela supera el máximo del banderín con el precio sobre VWAP', setup.nextLevel, tr);
+    return finish('bullFlag', ask, setup.flag.stop, 'Bull flag: la vela supera el máximo del banderín con el precio sobre VWAP', setup.nextLevel, tr, minRisk, bid);
   }
 
   // 2. Micro pullback.
@@ -215,7 +250,7 @@ export function findEntry(detail: SymbolDetail, quote: Quote | null, now: number
       const retrace = (poleHigh - restLow) / Math.max(tick(poleHigh), poleHigh - lowStart);
       const breaking = last.h > prev.h && ask >= prev.h && ask <= prev.h * 1.012;
       if (restVol < poleVol && retrace <= 0.5 && breaking && restLow > 0) {
-        return finish('microPullback', ask, restLow - tick(ask), `Micro pullback: ${rest.length} vela${rest.length === 1 ? '' : 's'} de descanso con menos volumen y rompe el máximo de la anterior`, setup.nextLevel, tr);
+        return finish('microPullback', ask, restLow - tick(ask), `Micro pullback: ${rest.length} vela${rest.length === 1 ? '' : 's'} de descanso con menos volumen y rompe el máximo de la anterior`, setup.nextLevel, tr, minRisk, bid);
       }
     }
   }
@@ -225,7 +260,7 @@ export function findEntry(detail: SymbolDetail, quote: Quote | null, now: number
   // máximo de la anterior. Entra rápido para subirse al momentum.
   const sec = detail.secBars;
   if (ok('microPullback') && prev && sec.length >= 8 && setup.aboveVwap && setup.aboveEma9 && row.pctFromHod >= -6) {
-    const plan = microPullback10s(sec, ask, tr, setup.nextLevel);
+    const plan = microPullback10s(sec, ask, tr, setup.nextLevel, minRisk, bid);
     if (plan) return plan;
   }
 
@@ -233,7 +268,7 @@ export function findEntry(detail: SymbolDetail, quote: Quote | null, now: number
   // sobre VWAP y EMA 9, después de 1 a 4 velas de retroceso (rojas o con máximos descendentes), la vela
   // actual supera el máximo de la anterior. Se compra ahí, con el stop en el mínimo del retroceso.
   if (ok('newHigh') && prev && setup.aboveVwap && setup.aboveEma9 && row.pctFromHod >= -8 && closed.length >= 4) {
-    const plan = firstCandleNewHigh(closed, last, ask, tr, setup.nextLevel);
+    const plan = firstCandleNewHigh(closed, last, ask, tr, setup.nextLevel, minRisk, bid);
     if (plan) return plan;
   }
 
@@ -241,16 +276,38 @@ export function findEntry(detail: SymbolDetail, quote: Quote | null, now: number
   if (ok('hodBreak') && prev && setup.aboveVwap && setup.aboveEma9 && row.hod > 0 && ask >= row.hod && ask <= row.hod * 1.008 && last.v >= prev.v * 0.8) {
     const lows = closed.slice(-3).map((b) => b.l);
     const stop = Math.max(Math.min(...lows), detail.ema9 > 0 ? Math.min(detail.ema9, ask * 0.97) : 0);
-    return finish('hodBreak', ask, stop, 'Rompe el máximo del día con volumen, sobre VWAP y EMA 9', setup.nextLevel, tr);
+    return finish('hodBreak', ask, stop, 'Rompe el máximo del día con volumen, sobre VWAP y EMA 9', setup.nextLevel, tr, minRisk, bid);
   }
 
   // 4. Ruptura del máximo del pre-market al abrir.
   const m = etParts(now).minutes;
   if (ok('pmhBreak') && prev && m >= REG_OPEN && m <= REG_OPEN + 15 && detail.pmHigh > 0 && ask >= detail.pmHigh && ask <= detail.pmHigh * 1.01 && setup.aboveVwap) {
     const stop = Math.max(Math.min(...closed.slice(-2).map((b) => b.l)), ask * 0.95);
-    return finish('pmhBreak', ask, stop, 'Rompe el máximo del pre-market en los primeros minutos de la rueda', setup.nextLevel, tr);
+    return finish('pmhBreak', ask, stop, 'Rompe el máximo del pre-market en los primeros minutos de la rueda', setup.nextLevel, tr, minRisk, bid);
   }
   return null;
+}
+
+/**
+ * Un nivel que marcó el trader ("si XYZ supera 4,50 me interesa comprar"): se entra cuando el ask lo
+ * cruza hacia arriba (hasta 2 % por encima, para no perseguir), la vela de 1 min actual trae volumen
+ * (al menos 0,8× la anterior) y el precio está sobre VWAP. El stop va en el mínimo de las últimas dos
+ * velas de 1 min, nunca más de 3 % debajo del nivel; el objetivo es el del perfil.
+ */
+export function findLevelEntry(detail: SymbolDetail, quote: Quote | null, level: number, rules: Pick<PlaybookRules, 'targetR'> = DEFAULT_RULES): EntryPlan | null {
+  const { row, bars, setup } = detail;
+  if (!(level > 0) || row.halted || bars.length < 2) return null;
+  const ask = quote?.ask || row.ask || row.price;
+  const bid = quote?.bid || row.bid || row.price;
+  if (!(ask > 0) || !(bid > 0) || (ask - bid) / ask > 0.02) return null;
+  if (ask < level || ask > level * 1.02) return null;
+  if (!setup.aboveVwap) return null;
+  const last = bars[bars.length - 1];
+  const prev = bars[bars.length - 2];
+  if (!(last.v >= prev.v * 0.8)) return null;
+  // (Acá no aplica "no perseguir" por la vela: el nivel lo marcó el trader y ya se limita a 2 % por encima.)
+  const stop = Math.max(Math.min(last.l, prev.l), level * 0.97);
+  return finish('level', ask, stop, `Supera el nivel ${r2(level).toFixed(2)} que marcaste, con volumen y sobre VWAP`, setup.nextLevel, rules.targetR, MIN_STOP_RANGES * avgRange(bars), bid);
 }
 
 /**
@@ -258,7 +315,7 @@ export function findEntry(detail: SymbolDetail, quote: Quote | null, now: number
  * menor que la anterior, de 1 a 4), exige que antes hubiera subida (el máximo previo al retroceso está
  * por encima del mínimo del retroceso) y que la vela actual rompa el máximo de la anterior.
  */
-function firstCandleNewHigh(closed: Bar[], last: Bar, ask: number, targetR: number, nextLevel?: number): EntryPlan | null {
+function firstCandleNewHigh(closed: Bar[], last: Bar, ask: number, targetR: number, nextLevel: number | undefined, minRisk: number, bid: number): EntryPlan | null {
   const prev = closed[closed.length - 1];
   let n = 0;
   for (let i = closed.length - 1; i >= 1 && n < 4; i--) {
@@ -274,15 +331,17 @@ function firstCandleNewHigh(closed: Bar[], last: Bar, ask: number, targetR: numb
   if (!pole.length) return null;
   const poleHigh = Math.max(...pole.map((b) => b.h));
   const poleLow = Math.min(...pole.map((b) => b.l));
-  // Subida previa de al menos 2 % y retroceso que no se comió más del 60 % de esa subida.
-  if (!(poleHigh > poleLow) || (poleHigh - poleLow) / poleLow < 0.02 || (poleHigh - pullLow) / (poleHigh - poleLow) > 0.6) return null;
+  // Subida previa de al menos 2 % y retroceso que no se comió más de la mitad de esa subida (más que eso es
+  // una bandera caída, no un pullback). Exigir además que el impulso fuera el máximo del día mataba
+  // ganadoras en el simulador (medido con 4 semillas): no se exige; alcanza con estar a 8 % del máximo.
+  if (!(poleHigh > poleLow) || (poleHigh - poleLow) / poleLow < 0.02 || (poleHigh - pullLow) / (poleHigh - poleLow) > 0.5) return null;
   const breaking = last.h > prev.h && ask >= prev.h && ask <= prev.h * 1.012;
   if (!breaking || !(pullLow > 0)) return null;
-  return finish('newHigh', ask, pullLow - tick(ask), `Primera vela de 1 min que hace un máximo nuevo tras ${n} vela${n === 1 ? '' : 's'} de retroceso`, nextLevel, targetR);
+  return finish('newHigh', ask, pullLow - tick(ask), `Primera vela de 1 min que hace un máximo nuevo tras ${n} vela${n === 1 ? '' : 's'} de retroceso`, nextLevel, targetR, minRisk, bid);
 }
 
 /** Micro pullback sobre velas de 10 s: ventana de 12 velas cerradas (2 minutos), palo hasta el máximo y descanso corto. */
-function microPullback10s(sec: Bar[], ask: number, targetR: number, nextLevel?: number): EntryPlan | null {
+function microPullback10s(sec: Bar[], ask: number, targetR: number, nextLevel: number | undefined, minRisk: number, bid: number): EntryPlan | null {
   const closed = sec.slice(0, -1);
   const last = sec[sec.length - 1];
   const window = closed.slice(-12);
@@ -300,15 +359,22 @@ function microPullback10s(sec: Bar[], ask: number, targetR: number, nextLevel?: 
   const retrace = (poleHigh - restLow) / Math.max(tick(poleHigh), poleHigh - lowStart);
   const breaking = last.h > prev.h && ask >= prev.h && ask <= prev.h * 1.01;
   if (!(restVol < poleVol && retrace <= 0.5 && breaking && restLow > 0)) return null;
-  return finish('microPullback', ask, restLow - tick(ask), `Micro pullback de 10 s: ${rest.length} vela${rest.length === 1 ? '' : 's'} de descanso con menos volumen y rompe el máximo de la anterior`, nextLevel, targetR);
+  return finish('microPullback', ask, restLow - tick(ask), `Micro pullback de 10 s: ${rest.length} vela${rest.length === 1 ? '' : 's'} de descanso con menos volumen y rompe el máximo de la anterior`, nextLevel, targetR, minRisk, bid);
 }
 
-/** Cuántas acciones: por riesgo, sin pasar del poder de compra ni de la liquidez (y en lotes cómodos). */
-export function sizeFor(riskAmount: number, entry: number, stop: number, buyingPower: number, volPerMin: number): number {
+/** Qué parte del capital puede ir a una sola posición según el perfil (y la mitad en pre-market, donde el libro es fino). */
+export function notionalCap(profile: AiProfile, preMarket: boolean): number {
+  const frac = profile === 'conservador' ? 0.5 : profile === 'agresivo' ? 1 : 0.75;
+  return preMarket ? frac / 2 : frac;
+}
+
+/** Cuántas acciones: por riesgo, sin pasar del poder de compra, del tope de valor por posición ni de la liquidez (y en lotes cómodos). */
+export function sizeFor(riskAmount: number, entry: number, stop: number, buyingPower: number, volPerMin: number, maxNotional = 0): number {
   const risk = entry - stop;
   if (!(risk > 0) || !(entry > 0)) return 0;
   let shares = Math.floor(riskAmount / risk);
   shares = Math.min(shares, Math.floor((buyingPower * 0.95) / entry));
+  if (maxNotional > 0) shares = Math.min(shares, Math.floor(maxNotional / entry));
   if (volPerMin > 0) shares = Math.min(shares, Math.floor(volPerMin * 0.1));
   const lot = shares >= 1000 ? 100 : shares >= 100 ? 10 : 1;
   return Math.max(0, Math.floor(shares / lot) * lot);
@@ -319,6 +385,8 @@ export type ExitKind = 'hold' | 'sellHalf' | 'sellAll' | 'stopToBreakeven';
 export interface ExitAdvice {
   action: ExitKind;
   reason: string;
+  /** Qué salida es (para que el trade quede anotado como "stop" u "objetivo" y no como venta manual). */
+  role?: 'stop' | 'target';
 }
 
 /** Lo que el trader recuerda de una posición mientras la maneja. */
@@ -372,18 +440,18 @@ export function manage(pos: Position, detail: SymbolDetail, quote: Quote | null,
 
   if (detail.row.halted) return { action: 'hold', reason: 'En halt: no se puede operar.' };
   // Stop: sin discutir (con el bid, que es lo que se cobra).
-  if (stop && bid <= stop && !pos.stop) return { action: 'sellAll', reason: `Tocó el stop (${stop.toFixed(2)})` };
+  if (stop && bid <= stop && !pos.stop) return { action: 'sellAll', reason: `Tocó el stop (${stop.toFixed(2)})`, role: 'stop' };
   // Stop dinámico de 10 s: el mínimo del último pullback, que solo sube mientras el trade va en ganancia.
   if (sec.length >= 8 && (mem.halfTaken || r >= 1.5)) {
     const recent = sec.slice(-7, -1);
     const swingLow = Math.min(...recent.map((b) => b.l));
     if (swingLow > pos.avgCost && swingLow > (mem.stop ?? 0)) mem.stop = swingLow;
   }
-  if (mem.stop && bid < mem.stop) return { action: 'sellAll', reason: `Perdió el mínimo del último pullback de 10 s (${mem.stop.toFixed(2)}): ${mem.halfTaken ? 'se toma el resto' : 'se toma la ganancia'}` };
-  if (mem.breakeven && !pos.stop && bid <= (mem.entry || pos.avgCost)) return { action: 'sellAll', reason: 'Volvió al precio de entrada después de tomar la mitad' };
+  if (mem.stop && bid < mem.stop) return { action: 'sellAll', reason: `Perdió el mínimo del último pullback de 10 s (${mem.stop.toFixed(2)}): ${mem.halfTaken ? 'se toma el resto' : 'se toma la ganancia'}`, role: 'stop' };
+  if (mem.breakeven && !pos.stop && bid <= (mem.entry || pos.avgCost)) return { action: 'sellAll', reason: 'Volvió al precio de entrada después de tomar la mitad', role: 'stop' };
 
   // Objetivo: mitad afuera y el stop al precio de entrada.
-  if (!mem.halfTaken && bid >= target) return { action: 'sellHalf', reason: `Llegó al objetivo (${target.toFixed(2)}, ${r.toFixed(1)}R): se vende la mitad` };
+  if (!mem.halfTaken && bid >= target) return { action: 'sellHalf', reason: `Llegó al objetivo (${target.toFixed(2)}, ${r.toFixed(1)}R): se vende la mitad`, role: 'target' };
   if (mem.halfTaken && !mem.breakeven) return { action: 'stopToBreakeven', reason: 'Con la mitad tomada, el stop sube a la entrada' };
 
   // Reglas por vela cerrada: EMA 9 y VWAP.
@@ -420,7 +488,7 @@ export function manage(pos: Position, detail: SymbolDetail, quote: Quote | null,
 
 /** Tipos de setup con los que se agrega a una ganadora (micro pullback de 1 min o 10 s, primera vela con máximo nuevo). */
 export const ADD_KINDS: ReadonlySet<EntryKind> = new Set<EntryKind>(['microPullback', 'newHigh']);
-const NOT_ADD: ReadonlySet<EntryKind> = new Set<EntryKind>(['bullFlag', 'hodBreak', 'pmhBreak']);
+const NOT_ADD: ReadonlySet<EntryKind> = new Set<EntryKind>(['bullFlag', 'hodBreak', 'pmhBreak', 'level']);
 
 /**
  * Agregar a la ganadora: con la mitad tomada y el stop en la entrada, si aparece otro setup (micro pullback o
