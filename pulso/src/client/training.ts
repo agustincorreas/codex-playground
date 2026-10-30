@@ -16,6 +16,7 @@ import {
   type Fill,
   type Hotkey,
   type Order,
+  type OrderRole,
   type SessionRecord,
   type Tif,
   type Trade,
@@ -640,7 +641,7 @@ export class TrainingController {
    * límite agresiva, como un atajo: un largo se vende a Bid − 0,05; un corto se cubre espejado
    * (Ask + 0,05). Nunca abre una posición: sin posición, rechaza.
    */
-  sell(sym: string, fraction: number, ref: 'bid' | 'ask' = 'bid', offset = -0.05, qty?: number): BrokerResult {
+  sell(sym: string, fraction: number, ref: 'bid' | 'ask' = 'bid', offset = -0.05, qty?: number, role?: OrderRole): BrokerResult {
     const p = this.broker?.position(sym);
     if (!p) return this.reject({ ok: false, message: `No tenés posición en ${sym}.`, fills: [] });
     const short = p.side === 'short';
@@ -652,7 +653,8 @@ export class TrainingController {
     const at = short ? (ref === 'bid' ? 'ask' : 'bid') : ref;
     const base = at === 'bid' ? q.bid : q.ask;
     const price = roundPx(Math.max(tickOf(base), base + (short ? -offset : offset)));
-    return this.place({ sym, side, type: 'limit', price, shares, tif: 'DAY+' });
+    // Con `role` la salida queda anotada como stop u objetivo (es lo que hace el IA Trader al vender por regla).
+    return this.place({ sym, side, type: 'limit', price, shares, tif: 'DAY+', ...(role ? { role } : {}) });
   }
 
   /** Cubrir una fracción del corto (o `qty` acciones) a Ask + 0,05. Igual que `sell` sobre un corto. */

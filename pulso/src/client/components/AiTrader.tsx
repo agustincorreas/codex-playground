@@ -6,6 +6,8 @@ import { useAiVersion, type AiTrader } from '../aitrader';
 import { formatEtTime } from '../../engine/time';
 import { instructionLabel } from '../../trading/instructions';
 import { PROFILE_HINT, PROFILE_LABEL } from '../../trading/playbook';
+import { journalFilename, journalMarkdown } from '../aijournal';
+import { downloadText } from '../lib/download';
 
 interface Props {
   trader: AiTrader;
@@ -42,6 +44,14 @@ export function AiTraderPanel({ trader, selected, onSelect }: Props) {
     if (!text) return;
     setInstrText('');
     void trader.addInstruction(text);
+  };
+  const report = trader.reportJournal();
+  const hasReport = report.trades.length > 0 || report.log.length > 0;
+  const exportReport = async (kind: 'md' | 'json') => {
+    const trades = trader.tradesOf(report.sessionId);
+    const name = journalFilename(report);
+    if (kind === 'md') await downloadText(`${name}.md`, journalMarkdown(report, trades), 'text/markdown');
+    else await downloadText(`${name}.json`, JSON.stringify({ ...report, accountTrades: trades }, null, 2), 'application/json');
   };
   const aiLabel = st.ai === 'claude' ? 'Claude (desde Claude)' : st.ai === 'servidor' ? 'Claude (clave en el servidor)' : st.ai === 'no' ? 'sin IA: solo reglas' : 'buscando IA…';
   return (
@@ -316,6 +326,22 @@ export function AiTraderPanel({ trader, selected, onSelect }: Props) {
           objetivo, sube el stop a la entrada y deja correr el resto mientras respete la EMA 9 y el mínimo del último pullback de 10 s (desde 1R el stop sigue ese mínimo; a 2R una mecha de rechazo de 10 s toma ganancia). Con la mitad tomada agrega una vez si aparece otro setup. Maneja varias posiciones a la vez según el perfil, sin pasar el riesgo abierto ni abrir otra mientras una pierde más de 0,5R. Tras un stop, si la acción recupera el VWAP y arma otro setup, le da hasta dos segundas chances (el conservador no). Una acción con dos frenos o dos perdedores hoy baja en el ranking; un setup con dos perdedores sin ganar se evita el resto del día. Las salidas van por reglas; Claude opina en las entradas y resume el día al cierre.
         </p>
       </details>
+
+      {hasReport && (
+        <div className="ai-card ai-report">
+          <span className="t-muted small">
+            Informe del día {report.day} ({report.trades.length} trade{report.trades.length === 1 ? '' : 's'} de la IA): cada entrada con su contexto, lo que dijo Claude, el manejo, la salida, lo que dejó pasar y el registro completo. Mandáselo a Claude para sacar lecciones.
+          </span>
+          <div className="ai-report-btns">
+            <button className="btn small" onClick={() => void exportReport('md')} data-testid="ai-report-md">
+              Descargar informe (.md)
+            </button>
+            <button className="btn small" onClick={() => void exportReport('json')} data-testid="ai-report-json">
+              Datos (.json)
+            </button>
+          </div>
+        </div>
+      )}
 
       {st.log.length > 0 && (
         <div className="ai-card ai-log">

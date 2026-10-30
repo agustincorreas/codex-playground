@@ -4131,6 +4131,16 @@ table.scan th .sort-arrow {
 .ai-instr-help {
   margin: 6px 0 0;
 }
+.ai-report {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ai-report-btns {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
 .ai-instr-list {
   list-style: none;
   margin: 8px 0 0;
