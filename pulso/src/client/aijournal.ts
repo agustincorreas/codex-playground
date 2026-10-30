@@ -109,7 +109,7 @@ export function journalMarkdown(j: AiJournal, trades: Trade[] = []): string {
   const r = j.rules;
   out.push(`# Informe del IA Trader · ${j.day}`);
   out.push('');
-  out.push(`Perfil **${j.profile}** en modo ${j.mode}. Entradas de ${hhmm(r.entryFrom)} a ${hhmm(r.entryTo)} NY, hasta ${r.maxTrades} trades, para a los ${r.maxLosers} perdedores o ${r.maxLossR}R, riesgo ×${r.riskMult}, candidatas de ${r.minScore}+, objetivo ${r.targetR}:1, ${r.maxPositions} posición${r.maxPositions === 1 ? '' : 'es'} a la vez.`);
+  out.push(`Perfil **${j.profile}** en modo ${j.mode}. Entradas de ${hhmm(r.entryFrom)} a ${hhmm(r.entryTo)} NY, hasta ${r.maxTrades} trades, para a los ${r.maxLosers} perdedores o ${r.maxLossR}R, riesgo ×${r.riskMult}, candidatas de ${r.minScore}+, objetivo ${r.targetR}:1, ${r.maxPositions} posici${r.maxPositions === 1 ? 'ón' : 'ones'} a la vez.`);
   if (j.instructions.length) out.push(`Indicaciones del trader: ${j.instructions.join('; ')}.`);
   out.push('');
   const done = j.trades.filter((t) => t.exit);
