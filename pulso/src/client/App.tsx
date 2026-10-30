@@ -5,7 +5,7 @@ import { DEFAULT_SETTINGS } from '../engine/types';
 import { createTrainingStore, LocalTrainingStore, ServerTrainingStore, type TrainingStore } from '../trading/store';
 import type { Hotkey } from '../trading/types';
 import { AccountValue, PositionsWindow, TodayTrades, TradeActivity } from './components/Account';
-import { Chart, type ChartFill, type ChartOrder, type ChartPosition } from './components/Chart';
+import { Chart, type ChartFill, type ChartOrder, type ChartPlan, type ChartPosition } from './components/Chart';
 import { Header, MobileTabs, SettingsModal, type MobileTab, type Prefs } from './components/Chrome';
 import { Detail } from './components/Detail';
 import { AlertFeed, HaltsPanel, HodBoard, MomentumFeed, NewsPanel, WatchlistPanel } from './components/Feeds';
@@ -37,9 +37,24 @@ import { LocalSource, type SimConfig } from './source/local';
 import { detectServer, RemoteSource } from './source/remote';
 import type { HistoryTf } from '../engine/history';
 import type { DataSource } from './source/types';
-import { AiTrader } from './aitrader';
+import { AiTrader, type AiState } from './aitrader';
 import { AiTraderPanel } from './components/AiTrader';
+import { Backtest } from './components/Backtest';
 import { nyMarket, TrainingController, useTrainingVersion } from './training';
+
+/** El plan de entrada del IA Trader, re-renderizando solo cuando cambia (no con cada aviso de la IA). */
+function useAiPlan(t: AiTrader): AiState['plan'] {
+  const [plan, setPlan] = useState<AiState['plan']>(t.state.plan);
+  useEffect(
+    () =>
+      t.subscribe(() => {
+        const next = t.state.plan;
+        setPlan((cur) => (JSON.stringify(cur) === JSON.stringify(next) ? cur : next));
+      }),
+    [t],
+  );
+  return plan;
+}
 
 const DEFAULT_PREFS: Prefs = {
   sound: true,
@@ -683,6 +698,9 @@ function Workspace({ server, hasServer, c }: { server: boolean; hasServer: boole
           .map((o) => ({ side: o.side, price: o.price ?? o.stopPrice ?? 0, shares: o.shares - o.filled, kind: o.type === 'stop' ? 'stop' : 'limit' }))
       : undefined,
   );
+  // La entrada que espera el IA Trader, solo si es la acción del gráfico.
+  const aiPlan = useAiPlan(trader);
+  const chartPlan = useStable<ChartPlan | undefined>(aiPlan && aiPlan.sym === selected ? { entry: aiPlan.entry, stop: aiPlan.stop, target: aiPlan.target } : undefined);
 
   const newDayDialog = newDay && <NewDayDialog c={c} initialMode={newDay === 'any' ? undefined : newDay} onClose={() => setNewDay(null)} />;
   const journalOverlay = showJournal && (
@@ -762,6 +780,7 @@ function Workspace({ server, hasServer, c }: { server: boolean; hasServer: boole
           { id: 'alerts', label: 'Alertas' },
           { id: 'halts', label: 'Halts', count: activeHalts || undefined },
           { id: 'ia', label: 'IA Trader', count: trader.state.suggestion ? 1 : undefined },
+          { id: 'backtest', label: 'Backtest' },
         ]}
         activeTab={momoTab}
         onTab={(id) => setTab('momo', id)}
@@ -781,6 +800,7 @@ function Workspace({ server, hasServer, c }: { server: boolean; hasServer: boole
         {momoTab === 'alerts' && <AlertFeed alerts={alerts} selected={selected} onSelect={select} />}
         {momoTab === 'halts' && <HaltsPanel halts={view.halts} selected={selected} onSelect={select} />}
         {momoTab === 'ia' && <AiTraderPanel trader={trader} selected={selected} onSelect={select} />}
+        {momoTab === 'backtest' && <Backtest trader={trader} />}
       </Panel>
     ),
     scan: (
@@ -840,12 +860,12 @@ function Workspace({ server, hasServer, c }: { server: boolean; hasServer: boole
     ),
     chart1: (
       <Panel title="Gráfico 1 min" area="chart1" mtab={PANEL_TAB.chart1} className="p-chart p-chart1">
-        <Chart id="a" defaultTf={60} detail={detail} alerts={alerts} themeKey={theme} position={chartPos} fills={chartFills} orders={chartOrders} loadHistory={loadHistory} />
+        <Chart id="a" defaultTf={60} detail={detail} alerts={alerts} themeKey={theme} position={chartPos} fills={chartFills} orders={chartOrders} plan={chartPlan} loadHistory={loadHistory} />
       </Panel>
     ),
     chart5: (
       <Panel title="Gráfico 5 min" area="chart5" mtab={PANEL_TAB.chart5} className="p-chart p-chart5">
-        <Chart id="b" defaultTf={300} detail={detail} alerts={alerts} themeKey={theme} position={chartPos} fills={chartFills} orders={chartOrders} loadHistory={loadHistory} />
+        <Chart id="b" defaultTf={300} detail={detail} alerts={alerts} themeKey={theme} position={chartPos} fills={chartFills} orders={chartOrders} plan={chartPlan} loadHistory={loadHistory} />
       </Panel>
     ),
     pos: (

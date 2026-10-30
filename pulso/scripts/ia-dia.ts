@@ -32,7 +32,7 @@ await new Promise((r) => setTimeout(r, 50));
 t.attach(src);
 t.update({ mode: 'auto', consult: false, profile });
 const hhmm = (ts: number) => { const m = etParts(ts).minutes; return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`; };
-let lastWait = '', lastPhase = '', lastLog = 0;
+let lastWait = '', lastPhase = '', lastLog = 0, maxOpen = 0;
 const waits = new Map<string, number>();
 const end = sim.dayStart + (12 * 60 + 40 - 240) * 60_000;
 let now = sim.now;
@@ -40,6 +40,7 @@ while (now < end) {
   sim.advance(1000); now = sim.now; engine.tick(now); c.onTick(now);
   t.setView(engine.view(), DEFAULT_SETTINGS);
   t.step(now);
+  maxOpen = Math.max(maxOpen, t.state.positions.length);
   const w = t.state.waiting;
   const key = w.replace(/[A-Z]{2,5}/g, 'X').replace(/\d+[:.,]?\d*/g, 'N');
   waits.set(key, (waits.get(key) ?? 0) + 1);
@@ -47,12 +48,14 @@ while (now < end) {
     if (!quiet) console.log(`${hhmm(now)} [${t.state.phase}] ${t.state.focus ?? '-'} ${w}`);
     lastPhase = t.state.phase; lastWait = w;
   }
-  for (const l of t.state.log.slice(lastLog)) if (!quiet || /Compra|cerrado|vende/.test(l.text)) console.log(`${hhmm(l.ts)} LOG ${l.tone}: ${l.text}`);
+  for (const l of t.state.log.slice(lastLog)) if (!quiet || /Compra|cerrado|vende|agrega|Segunda chance|baja|evita/.test(l.text)) console.log(`${hhmm(l.ts)} LOG ${l.tone}: ${l.text}`);
   lastLog = t.state.log.length;
 }
 const trades = c.active?.trades ?? [];
 const wins = trades.filter((x) => x.net > 0).length;
-console.log('--- resumen ' + JSON.stringify({ seed, profile, account, balance, trades: trades.length, wins, net: trades.reduce((a, x) => a + x.net, 0).toFixed(2), avgR: (trades.reduce((a, x) => a + (x.r ?? 0), 0) / Math.max(1, trades.length)).toFixed(2), paused: t.state.pausedReason.slice(0, 60) }));
+const adds = t.state.log.filter((l) => /: agrega \d+ a/.test(l.text)).length;
+const seconds = t.state.log.filter((l) => /^Segunda chance en/.test(l.text)).length;
+console.log('--- resumen ' + JSON.stringify({ seed, profile, account, balance, trades: trades.length, wins, net: trades.reduce((a, x) => a + x.net, 0).toFixed(2), avgR: (trades.reduce((a, x) => a + (x.r ?? 0), 0) / Math.max(1, trades.length)).toFixed(2), maxOpen, adds, seconds, paused: t.state.pausedReason.slice(0, 60) }));
 console.log('--- esperas (segundos):');
 for (const [k, v] of [...waits.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8)) console.log(`${String(v).padStart(6)}  ${k.slice(0, 110)}`);
 const summary = c.summary();

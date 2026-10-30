@@ -188,7 +188,8 @@ describe('IA Trader', () => {
     expect(t.state.phase).toBe('scanning');
     expect(t.state.focus).toBeNull();
     expect(log().some((x) => /RUN cerrado: −\$/.test(x))).toBe(true);
-    // Perdió: en los 20 s siguientes no busca nada y en RUN no vuelve a entrar por 5 min.
+    // Perdió: en los 20 s siguientes no busca nada; en RUN recién vuelve a entrar como segunda chance
+    // (90 s después y sosteniendo el VWAP), y el mismo setup se vuelve a considerar a los 3 min.
     f.quote.bid = 3.0;
     f.quote.last = 3.0;
     f.quote.ask = 3.01;
@@ -197,11 +198,11 @@ describe('IA Trader', () => {
     tick(15_000);
     expect(t.state.focus).toBe('RUN');
     expect(t.state.phase).toBe('watching');
+    expect(t.state.waiting).toMatch(/segunda chance/);
     expect(c.broker!.orders('RUN')).toHaveLength(0);
     tick(4 * MIN);
-    expect(c.broker!.orders('RUN')).toHaveLength(0);
-    tick(2 * MIN);
     expect(t.state.phase).toBe('entering');
+    expect(log().some((x) => /Segunda chance en RUN/.test(x))).toBe(true);
   });
 
   it('una compra que no se ejecuta en 25 s se cancela y la IA vuelve a mirar (sin posición no hay nada que manejar)', async () => {
@@ -250,8 +251,9 @@ describe('IA Trader', () => {
     expect(t.state.candidates).toEqual([]);
   });
 
-  it('consulta a Claude solo en la ventana de entradas, cuando cambian las candidatas, y respeta el tope diario', async () => {
-    const rows = [row('RUN', 3.0), row('ABC', 5.0)];
+  it('consulta a Claude solo en la ventana de entradas, cuando cambian las candidatas (y ninguna es obvia), y respeta el tope diario', async () => {
+    // Candidatas de menos de 80 puntos (con 80 o más la mejor es obvia y no se le pregunta cuál mirar).
+    const rows = [{ ...row('RUN', 3.0), rvol: 4, hasNews: false, pctFromHod: -5 }, { ...row('ABC', 5.0), rvol: 4, hasNews: false, pctFromHod: -5 }];
     // Un "esperar" firme (90 %): el perfil equilibrado lo respeta.
     ai.ask.mockResolvedValue('{"decision":"wait","sym":"RUN","confidence":90,"reason":"espero"}');
     const { t, tick, flush, log } = await arm({ consult: true, rows, maxCalls: 3 });

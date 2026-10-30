@@ -96,6 +96,7 @@ function readPalette() {
     accent: css('--accent'),
     info: css('--info'),
     warn: css('--warn'),
+    ai: css('--chart-ai'),
   };
 }
 
@@ -163,6 +164,13 @@ export interface ChartOrder {
   kind: 'limit' | 'stop';
 }
 
+/** La entrada que el IA Trader está esperando en la acción del gráfico: entrada, stop y objetivo. */
+export interface ChartPlan {
+  entry: number;
+  stop: number;
+  target: number;
+}
+
 interface Props {
   /** Identifica el gráfico (recuerda la temporalidad elegida). */
   id: string;
@@ -174,6 +182,8 @@ interface Props {
   position?: ChartPosition;
   fills?: ChartFill[];
   orders?: ChartOrder[];
+  /** El plan del IA Trader para esta acción (líneas punteadas); nada si mira otra o no tiene plan. */
+  plan?: ChartPlan;
   /** Historia (días anteriores, horas, días) para las temporalidades que la necesitan. */
   loadHistory?: (sym: string, tf: HistoryTf) => Promise<Bar[]>;
 }
@@ -289,7 +299,7 @@ function CandleCountdown({ span, top, width }: { span: number; top: number; widt
   );
 }
 
-function ChartView({ id, defaultTf, detail, alerts, themeKey, position, fills, orders, loadHistory }: Props) {
+function ChartView({ id, defaultTf, detail, alerts, themeKey, position, fills, orders, plan, loadHistory }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<Series | null>(null);
@@ -816,9 +826,15 @@ function ChartView({ id, defaultTf, detail, alerts, themeKey, position, fills, o
       for (const o of orders ?? []) {
         add(o.price, o.side === 'buy' ? p.info : p.warn, `${o.side === 'buy' ? 'C' : 'V'} ${o.shares}${o.kind === 'stop' ? ' stop' : ''}`, LineStyle.LargeDashed);
       }
+      // Lo que espera el IA Trader en esta acción: se dibuja punteado y se borra solo cuando el plan se va o cambia de acción.
+      if (plan) {
+        add(plan.entry, p.ai, 'IA entra', LineStyle.Dotted);
+        add(plan.stop, p.down, 'IA stop', LineStyle.Dotted);
+        add(plan.target, p.up, 'IA obj.', LineStyle.Dotted);
+      }
     }
     linesRef.current = lines;
-  }, [sym, hod, pmHigh, prevClose, flagEntry, flagStop, position, orders, themeKey]);
+  }, [sym, hod, pmHigh, prevClose, flagEntry, flagStop, position, orders, plan, themeKey]);
 
   const changeTf = (x: number) => {
     setTf(x);

@@ -129,9 +129,33 @@ export function speak(alert: Alert, lang: 'es' | 'en'): void {
 }
 
 /**
- * Sonidos de las órdenes de práctica, uno distinto para cada cosa (como en TradingView): compra
- * ejecutada (dos notas que suben), venta ejecutada (dos que bajan), trade cerrado con ganancia o con
- * pérdida, ejecución parcial, orden en espera, cancelada y rechazada.
+ * Una moneda que cae: dos parciales metálicos agudos, no armónicos entre sí, con ataque instantáneo y
+ * caída rápida (lo que hace "clink" una moneda sobre otra). `pitch` sube o baja el tono.
+ */
+function coin(start: number, pitch = 1, gain = 0.06): void {
+  if (!ctx) return;
+  for (const [f, g, dur] of [
+    [2540 * pitch, gain, 0.16],
+    [3720 * pitch, gain * 0.55, 0.11],
+    [5160 * pitch, gain * 0.25, 0.07],
+  ] as const) {
+    const osc = ctx.createOscillator();
+    const amp = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = f;
+    amp.gain.setValueAtTime(g, start);
+    amp.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+    osc.connect(amp).connect(ctx.destination);
+    osc.start(start);
+    osc.stop(start + dur + 0.02);
+  }
+}
+
+/**
+ * Sonidos de las órdenes de práctica, uno distinto para cada cosa (como en TradingView): compra y
+ * venta ejecutadas suenan a monedas (dos que suben al comprar, tres que bajan al vender) para que se
+ * distingan del resto; trade cerrado con ganancia o con pérdida, ejecución parcial, orden en espera,
+ * cancelada y rechazada siguen con sus notas.
  */
 export function playOrder(kind: 'buy' | 'sell' | 'win' | 'loss' | 'partial' | 'placed' | 'canceled' | 'rejected'): void {
   if (!ctx) unlockAudio();
@@ -139,12 +163,13 @@ export function playOrder(kind: 'buy' | 'sell' | 'win' | 'loss' | 'partial' | 'p
   const t = ctx.currentTime;
   switch (kind) {
     case 'buy':
-      tone(784, t, 0.07, 'triangle', 0.08);
-      tone(1175, t + 0.08, 0.14, 'triangle', 0.08);
+      coin(t, 0.92);
+      coin(t + 0.09, 1.08);
       break;
     case 'sell':
-      tone(1175, t, 0.07, 'triangle', 0.08);
-      tone(784, t + 0.08, 0.14, 'triangle', 0.08);
+      coin(t, 1.08);
+      coin(t + 0.08, 0.97);
+      coin(t + 0.17, 0.86);
       break;
     case 'win':
       tone(784, t, 0.07, 'sine', 0.09);

@@ -165,8 +165,8 @@ que instalar nada.
 5. Para entrar y salir rápido están los **botones rápidos** (abajo de COMPRAR/VENDER) y los **atajos de
    teclado**. Con una posición abierta aparecen **Stop a BE** (pone el stop en tu precio de entrada) y
    **Poner stop/obj.** (coloca los del ticket como órdenes); en *Posiciones*, **Cerrar** vende todo.
-6. Cada orden suena distinto, como en TradingView: compra ejecutada (dos notas que suben), venta (dos que
-   bajan), trade cerrado con ganancia o con pérdida, ejecución parcial, orden en espera, cancelada y
+6. Cada orden suena distinto, como en TradingView: compra ejecutada (monedas que suben), venta (monedas
+   que bajan), trade cerrado con ganancia o con pérdida, ejecución parcial, orden en espera, cancelada y
    rechazada, con un aviso en pantalla. Se apagan en *Ajustes de la cuenta → Órdenes y costos*, donde también
    podés escucharlos.
 7. En *Posiciones* quedan también las acciones que ya cerraste, con lo que ganaste o perdiste en cada una, y
@@ -194,7 +194,31 @@ de práctica**, nunca órdenes reales.
   tus posiciones (vender la mitad en el objetivo, stop a la entrada, dejar correr el resto mientras
   respete la EMA 9 y el mínimo del último pullback de 10 s, salir si pierde el VWAP o no avanza en 6
   minutos sin hacer máximos nuevos). Vos apretás *Hacer este trade* o *Ignorar*. El panel dice en todo
-  momento por qué no está entrando (horario, sin setup, consultando a Claude, PDT…).
+  momento por qué no está entrando (horario, sin setup, consultando a Claude, PDT…) y muestra el plan
+  de entrada que está esperando (también se dibuja en el gráfico).
+- **Salidas por 10 segundos:** desde 1R de ganancia el stop sube al mínimo del último pullback de 10 s
+  y no baja más (no hace falta haber tomado la mitad); a 2R o más, una vela de 10 s que hace el máximo
+  y cierra en el tercio inferior de su rango con volumen alto es una *mecha de rechazo*: se vende la
+  mitad (o el resto). Con la mitad tomada y el stop en la entrada, si en esa misma acción aparece otro
+  setup (micro pullback o primera vela con máximo nuevo) **agrega una vez** con el tamaño por riesgo
+  desde el stop nuevo, sin pasar el tamaño original, y el stop de toda la posición sube al del setup
+  nuevo ("agrega N a $X" en el registro).
+- **Varias posiciones a la vez:** mientras administra una (o más) sigue recorriendo las candidatas y
+  puede entrar en otra si aparece un setup limpio, respetando el tope del perfil (*Posiciones a la
+  vez*: conservador 1, equilibrado 2, agresivo 3), el riesgo abierto total (*Riesgo abierto (R)*: la
+  suma de (entrada − stop actual) × acciones de todo lo abierto, con el stop en la entrada contando 0:
+  1R, 2R y 3R según el perfil; si no entra entero, la posición nueva se achica), nunca dos veces la
+  misma acción y nunca mientras otra va perdiendo más de 0,5R. El panel lista las posiciones que maneja
+  con su R en vivo.
+- **Memoria del día:** por acción cuenta cuántas veces la frenó algo (halt, spread mayor al 2 %,
+  riesgo de dilución, un "no" de Claude) y el resultado de los trades de hoy, también por tipo de
+  setup. Una acción con 2 frenos o 2 perdedores hoy baja 15 puntos en el ranking; un tipo de setup con
+  2 perdedores y ninguna ganadora se evita el resto del día (el agresivo solo lo baja de prioridad). El
+  panel lo resume ("Hoy: 2 trades, +1,2R; evita XYZ"). Se reinicia con cada día.
+- **Segundas chances:** después de un stop no se deja pasar la acción 5 minutos a ciegas: si recupera
+  el VWAP (dos velas de 1 min cerradas arriba, al menos 90 s después) y arma otro setup, reentra con el
+  mismo tamaño, hasta 2 veces por acción y día ("Segunda chance en XYZ" en el registro). El perfil
+  conservador no reentra.
 - **Automático:** hace todo eso solo, con límites: horario de entradas (7:00 a 11:30 ET por defecto),
   máximo de trades por día, perdedores seguidos y pérdida máxima del día en R. Si *Mostrar en el
   gráfico* está activo, ves lo que mira. Tres **perfiles** fijan todas las reglas de una vez:
@@ -211,13 +235,40 @@ de práctica**, nunca órdenes reales.
   lo avisa y en *Preferencias de práctica* se puede subir el saldo o desactivar esas dos reglas.
 - **Claude:** si hay IA disponible (dentro de Claude, o una clave de Anthropic en el servidor:
   `ANTHROPIC_API_KEY`, o en la app de escritorio en *Claves y conexión*), Claude opina antes de cada
-  entrada con el contexto completo (velas, cinta, noticias, cuenta) y elige entre las candidatas; en
-  automático no entra sin su visto bueno. Cada consulta cuesta unos US$ 0,02 (modelo `claude-opus-5-5`,
-  cambiable con `ANTHROPIC_MODEL`). *Preguntarle a Claude ahora* da su opinión en cualquier momento.
-  Sin IA, las reglas alcanzan para operar.
+  entrada con el contexto completo (velas de 1 min y las últimas 12 de 10 s, el libro con 3 niveles por
+  lado, cinta, noticias, cuenta) y elige entre las candidatas, salvo cuando la mejor saca 80 o más:
+  esa es la obvia y no hace falta gastar una consulta. Al terminar el día (al cambiar de día o al
+  cerrar el mercado a las 16:00) le pide un **resumen del día** de 4 o 5 frases (qué operó, qué
+  funcionó, qué no, una sugerencia), una sola vez por día, y lo muestra en el panel y en el registro.
+  Cada consulta cuesta unos US$ 0,02 (modelo `claude-opus-5-5`, cambiable con `ANTHROPIC_MODEL`).
+  *Preguntarle a Claude ahora* da su opinión en cualquier momento. Sin IA, las reglas alcanzan para
+  operar.
 
 Las reglas están en `src/trading/playbook.ts` (candidatas, entradas, tamaño, manejo de la posición) y
 los textos que se le mandan a Claude en `src/trading/advisor.ts`.
+
+#### Backtest: simular varios días con un clic
+
+En la pestaña **Backtest** (al lado de *IA Trader*) se simulan los últimos 5, 10 o 20 días hábiles
+con el perfil elegido en el IA Trader, solo con las reglas (sin Claude, así es repetible y no cuesta
+consultas), desde las 9:25 y en una cuenta de práctica aparte (margen de US$ 30.000 por día, o el saldo
+y el tipo de cuenta que elijas; cada día arranca con el mismo saldo, no se acumulan). Cada fecha usa el
+mismo mercado que tuvo *Mercado ahora* ese día, así que el backtest responde "cómo le habría ido a la
+IA esta semana". Mientras corre hay una barra de avance (cada día tarda unos 15 segundos) y al terminar
+se ven los trades, el porcentaje de aciertos, la R promedio, el neto, el mejor y el peor día, la racha
+máxima de pérdidas, el drawdown y la curva de capital trade a trade, más una tabla por día.
+
+La simulación corre en un *Web Worker* (`src/client/lib/backtest.worker.ts`) para no frenar la
+interfaz. En la página única del demo (`npm run build:demo`, todo el JS dentro del HTML) no hay archivo
+aparte para el Worker, así que ahí corre en el hilo principal en tandas de 40 ms con `setTimeout`: la
+página sigue respondiendo, aunque un poco más lenta. La corrida de un día está en
+`src/client/lib/backtest.ts` (`runBacktestDay`), que es lo mismo que mide `scripts/ia-dia.ts` desde la
+terminal. Es un mercado simulado: sirve para comparar perfiles y reglas entre sí, no para prever
+resultados con plata real.
+
+Cuando el IA Trader está esperando una entrada, el gráfico de esa acción muestra tres líneas punteadas:
+*IA entra* (violeta), *IA stop* (rojo) e *IA obj.* (verde). Se borran solas cuando el plan se va o la IA
+cambia de acción.
 
 ### Atajos de teclado
 
@@ -570,7 +621,7 @@ pulso/
 | --- | --- |
 | `npm run dev` | Interfaz en modo demo con recarga en caliente (http://localhost:5173). |
 | `npm start` | Compila la interfaz y arranca el servidor (datos reales si hay claves). |
-| `npm test` | Pruebas (109): motor, alertas, bull flag, halts, Alpaca y Massive contra servidores falsos, simulador (el mismo mercado a cualquier hora, volumen por hora, días, ofertas, after-hours), el plan gratis de Alpaca en capas, la detección del plan, bróker de práctica, días de práctica, respaldo, la cuenta guardada en el servidor, riesgo según la cuenta, temporalidades largas e historia, líneas y alertas de precio, el libro de jugadas del IA Trader, y métricas. |
+| `npm test` | Pruebas (280): motor, alertas, bull flag, halts LULD, Alpaca y Massive contra servidores falsos, el servidor entero (permisos, 413, 409, frames rotos), simulador (el mismo mercado a cualquier hora, volumen por hora, días, ofertas, after-hours), el plan gratis de Alpaca en capas, bróker de práctica (brackets, parciales, cortos, invariante de dinero), días de práctica, la cuenta guardada en el servidor, riesgo según la cuenta, temporalidades largas e historia, líneas y alertas de precio, el libro de jugadas y la máquina de estados del IA Trader (perfiles, varias posiciones, Claude), backtest, calendario, formateadores y métricas. |
 | `npm run typecheck` | Chequeo de tipos de todo el proyecto. |
 | `npm run build:demo` | Página única del demo (`dist-demo/index.html`) para GitHub Pages. |
 | `npm run build:desktop` | Interfaz + servidor en un solo archivo para la app de escritorio (`desktop/app/`). |
