@@ -28,8 +28,9 @@ export interface Variant {
   /** Solo las `topN` más en juego del día (20 = todas) y con volumen relativo de al menos `minRvol`. */
   topN?: number;
   minRvol?: number;
-  /** Vela de entrada: 'pesimista' (si toca el stop en la misma vela, es stop) u 'optimista' (solo si cierra más allá del stop). */
-  fill?: 'pesimista' | 'optimista';
+  /** Vela de entrada: 'pesimista' (si toca el stop en la misma vela, es stop), 'optimista' (solo si cierra más allá
+   *  del stop) o 'ticks' (lo deciden las operaciones reales del minuto, bajadas con ticks.ts; sin ticks, pesimista). */
+  fill?: 'pesimista' | 'optimista' | 'ticks';
   /** Costos: realistas (1 ¢ + 0,01 % por lado) o los del paper (0,35 ¢ por acción, sin deslizamiento). */
   cost?: 'real' | 'paper';
 }
@@ -111,7 +112,11 @@ export function simulate(day: string, sym: string, open5: Bar, mins: Bar[], v: V
   for (let j = i; j < after.length; j++) {
     const b = after[j];
     const touched = long ? b.l <= stop : b.h >= stop;
-    const hitStop = j === i && v.fill === 'optimista' ? (long ? b.c <= stop : b.c >= stop) : touched;
+    let hitStop = touched;
+    if (j === i && touched) {
+      if (v.fill === 'optimista') hitStop = long ? b.c <= stop : b.c >= stop;
+      else if (v.fill === 'ticks') hitStop = stopFirstByTicks(day, sym, entryMin, long, level, stop) ?? true;
+    }
     if (hitStop) return done(day, sym, long, entry, stop, risk, 'stop', minuteOf(b.t) - entryMin, v, entryMin);
     if (target && (long ? b.h >= target : b.l <= target)) return done(day, sym, long, entry, target, risk, 'target', minuteOf(b.t) - entryMin, v, entryMin);
     if (v.beAtR > 0 && !be && (long ? b.h >= entry + v.beAtR * risk : b.l <= entry - v.beAtR * risk)) {
@@ -121,6 +126,24 @@ export function simulate(day: string, sym: string, open5: Bar, mins: Bar[], v: V
   }
   const last = after[after.length - 1];
   return done(day, sym, long, entry, last.c, risk, 'close', minuteOf(last.t) - entryMin, v, entryMin);
+}
+
+type Tick = [string, number, number, string];
+const tickCache = new Map<string, Tick[] | null>();
+/** Con las operaciones del minuto: después de la primera operación que dispara la orden (al nivel), ¿hubo alguna al stop?
+ *  null si no hay ticks bajados. Se ignoran las operaciones fuera de secuencia o de horario extendido (Z, U, T). */
+export function stopFirstByTicks(day: string, sym: string, entryMin: number, long: boolean, level: number, stop: number): boolean | null {
+  const f = join(ROOT, 'ticks', day, `${sym}-${entryMin}.json`);
+  let ticks = tickCache.get(f);
+  if (ticks === undefined) {
+    ticks = existsSync(f) ? (load<Tick[]>(f)) : null;
+    tickCache.set(f, ticks);
+  }
+  if (!ticks) return null;
+  const seq = ticks.filter((t) => !/[ZUT]/.test(t[3])).sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+  const k = seq.findIndex((t) => (long ? t[1] >= level : t[1] <= level));
+  if (k < 0) return false;
+  return seq.slice(k + 1).some((t) => (long ? t[1] <= stop : t[1] >= stop));
 }
 
 function done(day: string, sym: string, long: boolean, entry: number, exit: number, risk: number, reason: Trade['reason'], minutes: number, v: Variant, entryMin: number): Trade {
@@ -211,6 +234,10 @@ function main() {
   variants.push({ name: 'PAPER · both · stop 0.1×ATR · al cierre · costos paper · entrada pesimista', stop: 'atr', k: 0.1, targetR: 0, entryUntil: 390, side: 'both', beAtR: 0, cost: 'paper' });
   variants.push({ name: 'PAPER · both · stop 0.1×ATR · al cierre · costos paper · entrada optimista', stop: 'atr', k: 0.1, targetR: 0, entryUntil: 390, side: 'both', beAtR: 0, cost: 'paper', fill: 'optimista' });
   variants.push({ name: 'PAPER · both · stop 0.1×ATR · al cierre · costos reales · entrada optimista', stop: 'atr', k: 0.1, targetR: 0, entryUntil: 390, side: 'both', beAtR: 0, fill: 'optimista' });
+  variants.push({ name: 'PAPER · both · stop 0.1×ATR · al cierre · costos paper · entrada por ticks', stop: 'atr', k: 0.1, targetR: 0, entryUntil: 390, side: 'both', beAtR: 0, cost: 'paper', fill: 'ticks' });
+  variants.push({ name: 'PAPER · both · stop 0.1×ATR · al cierre · costos reales · entrada por ticks', stop: 'atr', k: 0.1, targetR: 0, entryUntil: 390, side: 'both', beAtR: 0, fill: 'ticks' });
+  variants.push({ name: 'both · stop 0.25×ATR · al cierre · entrada por ticks', stop: 'atr', k: 0.25, targetR: 0, entryUntil: 390, side: 'both', beAtR: 0, fill: 'ticks' });
+  variants.push({ name: 'both · stop 0.5×ATR · al cierre · entrada por ticks', stop: 'atr', k: 0.5, targetR: 0, entryUntil: 390, side: 'both', beAtR: 0, fill: 'ticks' });
   variants.push({ name: 'both · stop 0.25×ATR · al cierre · entrada optimista', stop: 'atr', k: 0.25, targetR: 0, entryUntil: 390, side: 'both', beAtR: 0, fill: 'optimista' });
   variants.push({ name: 'both · stop 0.5×ATR · al cierre · entrada optimista', stop: 'atr', k: 0.5, targetR: 0, entryUntil: 390, side: 'both', beAtR: 0, fill: 'optimista' });
   variants.push({ name: 'both · stop vela apertura · obj 1R · entrada optimista', stop: 'range', k: 1, targetR: 1, entryUntil: 390, side: 'both', beAtR: 0, fill: 'optimista' });
