@@ -87,7 +87,7 @@ async function tradingDays(from: string, to: string): Promise<string[]> {
 
 // ---------------------------------------------------------------- A. universo por año
 async function universeFor(year: number, assets: string[]): Promise<string[]> {
-  const file = join(ROOT, 'universe', `${year}.json`);
+  const file = join(ROOT, 'universe', `${year}.v2.json`);
   const cached = loadJson<string[]>(file);
   if (cached) return cached;
   const start = `${year - 1}-12-01T00:00:00Z`;
@@ -138,25 +138,36 @@ function etOffset(day: string): string {
 
 async function openingBars(day: string, symbols: string[]): Promise<Record<string, Bar>> {
   const file = join(ROOT, 'open5', `${day}.json`);
-  const cached = loadJson<Record<string, Bar>>(file);
-  if (cached) return cached;
+  const cached = loadJson<Record<string, Bar>>(file) ?? {};
+  const asked = loadJson<string[]>(file + '.syms') ?? Object.keys(cached);
+  const missing = symbols.filter((s) => !asked.includes(s));
+  if (!missing.length) return cached;
   const off = etOffset(day);
-  const out: Record<string, Bar> = {};
-  for (const g of chunk(symbols, 250)) {
+  const out: Record<string, Bar> = { ...cached };
+  for (const g of chunk(missing, 250)) {
     const got = await bars(g, '5Min', `${day}T09:30:00${off}`, `${day}T09:34:59${off}`);
     for (const [sym, list] of Object.entries(got)) if (list[0]) out[sym] = list[0];
   }
   save(file, out);
+  save(file + '.syms', [...new Set([...asked, ...missing])]);
   return out;
 }
 
 // ---------------------------------------------------------------- D. velas de 1 min del día de las "en juego"
 async function minuteBars(day: string, symbols: string[]): Promise<void> {
   const file = join(ROOT, 'min', `${day}.json`);
-  if (existsSync(file)) return;
+  const cached = loadJson<Record<string, Bar[]>>(file) ?? {};
+  const missing = symbols.filter((s) => !(s in cached));
+  if (!missing.length) return;
   const off = etOffset(day);
-  const got = await bars(symbols, '1Min', `${day}T09:30:00${off}`, `${day}T16:00:00${off}`);
-  save(file, got);
+  const got = await bars(missing, '1Min', `${day}T09:30:00${off}`, `${day}T16:00:00${off}`);
+  for (const s of missing) cached[s] = got[s] ?? [];
+  save(file, cached);
+}
+
+/** ETFs, fondos y productos estructurados, por el nombre del activo. */
+export function isFund(name: string): boolean {
+  return /\b(ETF|ETN|Fund|Trust|iShares|Vanguard|SPDR|ProShares|Direxion|Invesco|WisdomTree|Index|Portfolio|Shares|Bitcoin|Ether|Treasury|Bond|Income|Preferred|Depositary|Warrant|Unit|Right)\b/i.test(name);
 }
 
 // ---------------------------------------------------------------- principal
@@ -164,8 +175,9 @@ async function main() {
   mkdirSync(ROOT, { recursive: true });
   const assetsFile = join(ROOT, 'assets.json');
   if (!existsSync(assetsFile)) throw new Error('falta data/assets.json (bajalo de /v2/assets)');
-  const assets = (JSON.parse(readFileSync(assetsFile, 'utf8')) as Array<{ symbol: string; tradable: boolean; exchange: string }>)
-    .filter((a) => a.tradable && ['NYSE', 'NASDAQ', 'ARCA', 'AMEX', 'BATS'].includes(a.exchange) && /^[A-Z]{1,5}$/.test(a.symbol))
+  // Solo acciones comunes: los ETFs y fondos quedan afuera (su volumen al abrir no es "noticia").
+  const assets = (JSON.parse(readFileSync(assetsFile, 'utf8')) as Array<{ symbol: string; name: string; tradable: boolean; exchange: string }>)
+    .filter((a) => a.tradable && ['NYSE', 'NASDAQ', 'ARCA', 'AMEX', 'BATS'].includes(a.exchange) && /^[A-Z]{1,5}$/.test(a.symbol) && !isFund(a.name ?? ''))
     .map((a) => a.symbol);
   console.log(`${assets.length} símbolos operables`);
   const days = await tradingDays(FROM, TO);
@@ -183,7 +195,9 @@ async function main() {
     const y = Number(day.slice(0, 4));
     const open = await openingBars(day, uni[y]);
     const ranked: Array<{ sym: string; rvol: number }> = [];
+    const inUni = new Set(uni[y]);
     for (const [sym, b] of Object.entries(open)) {
+      if (!inUni.has(sym)) continue;
       const h = history.get(sym) ?? [];
       if (h.length >= 5) {
         const avg = h.slice(-14).reduce((a, v) => a + v, 0) / Math.min(14, h.length);

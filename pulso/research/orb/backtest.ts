@@ -23,6 +23,9 @@ interface Variant {
   side: 'long' | 'short' | 'both';
   /** Stop a la entrada cuando el trade va `beAtR` R a favor (0 = nunca). */
   beAtR: number;
+  /** Solo las `topN` más en juego del día (20 = todas) y con volumen relativo de al menos `minRvol`. */
+  topN?: number;
+  minRvol?: number;
 }
 
 interface Trade {
@@ -37,8 +40,8 @@ interface Trade {
   minutes: number;
 }
 
-/** Costo por lado como fracción del precio: medio spread típico de una acción líquida más un tick. */
-const COST = 0.0005;
+/** Costo por lado: un centavo por acción (medio spread de una acción líquida) más 0,01 % del precio (deslizamiento). */
+const costOf = (price: number) => 0.01 + 0.0001 * price;
 
 const load = <T>(file: string): T => JSON.parse(readFileSync(file, 'utf8')) as T;
 const dailyCache = new Map<string, Bar[]>();
@@ -113,7 +116,7 @@ function simulate(day: string, sym: string, open5: Bar, mins: Bar[], v: Variant)
 
 function done(day: string, sym: string, long: boolean, entry: number, exit: number, risk: number, reason: Trade['reason'], minutes: number): Trade {
   const gross = long ? exit - entry : entry - exit;
-  const net = gross - COST * (entry + exit);
+  const net = gross - costOf(entry) - costOf(exit);
   return { day, sym, side: long ? 'long' : 'short', entry, exit, stop: long ? entry - risk : entry + risk, r: net / risk, reason, minutes };
 }
 
@@ -211,24 +214,31 @@ function main() {
   variants.push({ name: 'long · stop 0.25×ATR · obj 1R · solo 1.ª hora', stop: 'atr', k: 0.25, targetR: 1, entryUntil: 60, side: 'long', beAtR: 0 });
   variants.push({ name: 'long · stop vela apertura · obj 1R · solo 1.ª hora', stop: 'range', k: 1, targetR: 1, entryUntil: 60, side: 'long', beAtR: 0 });
   variants.push({ name: 'long · stop vela apertura · al cierre · BE a 1R', stop: 'range', k: 1, targetR: 0, entryUntil: 390, side: 'long', beAtR: 1 });
+  // Selección más exigente: solo las 5 más en juego, o volumen relativo de 3× o más.
+  variants.push({ name: 'long · top 5 · stop 0.5×ATR · obj 1R', stop: 'atr', k: 0.5, targetR: 1, entryUntil: 390, side: 'long', beAtR: 0, topN: 5 });
+  variants.push({ name: 'long · top 5 · stop 0.25×ATR · al cierre', stop: 'atr', k: 0.25, targetR: 0, entryUntil: 390, side: 'long', beAtR: 0, topN: 5 });
+  variants.push({ name: 'long · rvol ≥ 3 · stop 0.5×ATR · obj 1R', stop: 'atr', k: 0.5, targetR: 1, entryUntil: 390, side: 'long', beAtR: 0, minRvol: 3 });
+  variants.push({ name: 'both · rvol ≥ 3 · stop 0.25×ATR · al cierre', stop: 'atr', k: 0.25, targetR: 0, entryUntil: 390, side: 'both', beAtR: 0, minRvol: 3 });
+  variants.push({ name: 'long · rvol ≥ 3 · stop vela apertura · obj 2R · BE a 1R', stop: 'range', k: 1, targetR: 2, entryUntil: 390, side: 'long', beAtR: 1, minRvol: 3 });
 
   const results = variants.map((v) => ({ v, trades: [] as Trade[] }));
   for (const day of days) {
     const top = load<Array<{ sym: string; rvol: number }>>(join(ROOT, 'inplay', `${day}.json`));
     const open = load<Record<string, Bar>>(join(ROOT, 'open5', `${day}.json`));
     const mins = load<Record<string, Bar[]>>(join(ROOT, 'min', `${day}.json`));
-    for (const { sym } of top) {
+    top.forEach(({ sym, rvol }, rank) => {
       const o = open[sym];
       const m = mins[sym];
-      if (!o || !m) continue;
+      if (!o || !m) return;
       for (const r of results) {
+        if (rank >= (r.v.topN ?? 20) || rvol < (r.v.minRvol ?? 0)) continue;
         const t = simulate(day, sym, o, m, r.v);
         if (t) r.trades.push(t);
       }
-    }
+    });
   }
   console.log(`# ORB en acciones en juego · ${days[0]} a ${days[days.length - 1]} · ${days.length} días · velas reales de 1 min (Alpaca SIP)\n`);
-  console.log('Costos: 0,05 % por lado. Tamaño: 0,5 % del capital en riesgo por trade, tope 20 % del capital por posición. R = resultado neto sobre la distancia al stop.\n');
+  console.log('Costos: 1 ¢ por acción + 0,01 % por lado. Tamaño: 0,5 % del capital en riesgo por trade, tope 20 % del capital por posición. R = resultado neto sobre la distancia al stop.\n');
   console.log('| Variante | Trades | /día | Aciertos | R prom. | Gan. prom. (R) | Pérd. prom. (R) | Factor | Retorno | Drawdown | Por stop | Por objetivo |');
   console.log('|---|---|---|---|---|---|---|---|---|---|---|---|');
   for (const r of results) {
