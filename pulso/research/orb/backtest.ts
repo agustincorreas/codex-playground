@@ -131,7 +131,7 @@ export function simulate(day: string, sym: string, open5: Bar, mins: Bar[], v: V
 type Tick = [string, number, number, string];
 const tickCache = new Map<string, Tick[] | null>();
 /** Con las operaciones del minuto: después de la primera operación que dispara la orden (al nivel), ¿hubo alguna al stop?
- *  null si no hay ticks bajados. Se ignoran las operaciones fuera de secuencia o de horario extendido (Z, U, T). */
+ *  null si no hay ticks bajados. Se ignoran las operaciones fuera de secuencia, de horario extendido y los lotes impares (Z, U, T, I), que no disparan órdenes stop. */
 export function stopFirstByTicks(day: string, sym: string, entryMin: number, long: boolean, level: number, stop: number): boolean | null {
   const f = join(ROOT, 'ticks', day, `${sym}-${entryMin}.json`);
   let ticks = tickCache.get(f);
@@ -140,7 +140,7 @@ export function stopFirstByTicks(day: string, sym: string, entryMin: number, lon
     tickCache.set(f, ticks);
   }
   if (!ticks) return null;
-  const seq = ticks.filter((t) => !/[ZUT]/.test(t[3])).sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+  const seq = ticks.filter((t) => !/[ZUTI]/.test(t[3])).sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
   const k = seq.findIndex((t) => (long ? t[1] >= level : t[1] <= level));
   if (k < 0) return false;
   return seq.slice(k + 1).some((t) => (long ? t[1] <= stop : t[1] >= stop));
