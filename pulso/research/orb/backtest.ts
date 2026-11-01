@@ -10,6 +10,8 @@ import type { Bar } from './fetch';
 const ROOT = join(dirname(new URL(import.meta.url).pathname), 'data');
 const FROM = process.argv[2] ?? '2021-01-01';
 const TO = process.argv[3] ?? '2026-12-31';
+/** Carpeta de selección: 'inplay' (top 1000 por volumen en dólares del año) o 'inplay-paper' (filtros rodantes del paper). */
+const INPLAY = process.argv[4] ?? 'inplay';
 
 interface Variant {
   name: string;
@@ -26,6 +28,10 @@ interface Variant {
   /** Solo las `topN` más en juego del día (20 = todas) y con volumen relativo de al menos `minRvol`. */
   topN?: number;
   minRvol?: number;
+  /** Vela de entrada: 'pesimista' (si toca el stop en la misma vela, es stop) u 'optimista' (solo si cierra más allá del stop). */
+  fill?: 'pesimista' | 'optimista';
+  /** Costos: realistas (1 ¢ + 0,01 % por lado) o los del paper (0,35 ¢ por acción, sin deslizamiento). */
+  cost?: 'real' | 'paper';
 }
 
 interface Trade {
@@ -41,7 +47,7 @@ interface Trade {
 }
 
 /** Costo por lado: un centavo por acción (medio spread de una acción líquida) más 0,01 % del precio (deslizamiento). */
-const costOf = (price: number) => 0.01 + 0.0001 * price;
+const costOf = (price: number, cost: Variant['cost'] = 'real') => (cost === 'paper' ? 0.0035 : 0.01 + 0.0001 * price);
 
 const load = <T>(file: string): T => JSON.parse(readFileSync(file, 'utf8')) as T;
 const dailyCache = new Map<string, Bar[]>();
@@ -102,21 +108,22 @@ function simulate(day: string, sym: string, open5: Bar, mins: Bar[], v: Variant)
   // Primero se mira el resto de la vela de entrada (conservador: si toca el stop en la misma vela, se asume stop).
   for (let j = i; j < after.length; j++) {
     const b = after[j];
-    const hitStop = long ? b.l <= stop : b.h >= stop;
-    if (hitStop) return done(day, sym, long, entry, stop, risk, 'stop', minuteOf(b.t) - entryMin);
-    if (target && (long ? b.h >= target : b.l <= target)) return done(day, sym, long, entry, target, risk, 'target', minuteOf(b.t) - entryMin);
+    const touched = long ? b.l <= stop : b.h >= stop;
+    const hitStop = j === i && v.fill === 'optimista' ? (long ? b.c <= stop : b.c >= stop) : touched;
+    if (hitStop) return done(day, sym, long, entry, stop, risk, 'stop', minuteOf(b.t) - entryMin, v);
+    if (target && (long ? b.h >= target : b.l <= target)) return done(day, sym, long, entry, target, risk, 'target', minuteOf(b.t) - entryMin, v);
     if (v.beAtR > 0 && !be && (long ? b.h >= entry + v.beAtR * risk : b.l <= entry - v.beAtR * risk)) {
       be = true;
       stop = entry;
     }
   }
   const last = after[after.length - 1];
-  return done(day, sym, long, entry, last.c, risk, 'close', minuteOf(last.t) - entryMin);
+  return done(day, sym, long, entry, last.c, risk, 'close', minuteOf(last.t) - entryMin, v);
 }
 
-function done(day: string, sym: string, long: boolean, entry: number, exit: number, risk: number, reason: Trade['reason'], minutes: number): Trade {
+function done(day: string, sym: string, long: boolean, entry: number, exit: number, risk: number, reason: Trade['reason'], minutes: number, v: Variant): Trade {
   const gross = long ? exit - entry : entry - exit;
-  const net = gross - costOf(entry) - costOf(exit);
+  const net = gross - costOf(entry, v.cost) - costOf(exit, v.cost);
   return { day, sym, side: long ? 'long' : 'short', entry, exit, stop: long ? entry - risk : entry + risk, r: net / risk, reason, minutes };
 }
 
@@ -192,11 +199,20 @@ const pct = (v: number) => `${(v * 100).toFixed(0)} %`;
 const num = (v: number, d = 2) => (Number.isFinite(v) ? v.toFixed(d) : '∞');
 
 function main() {
-  const days = readdirSync(join(ROOT, 'inplay'))
+  const days = readdirSync(join(ROOT, INPLAY))
     .map((f) => f.slice(0, 10))
     .filter((d) => d >= FROM && d <= TO && existsSync(join(ROOT, 'min', `${d}.json`)))
     .sort();
   const variants: Variant[] = [];
+  // Réplica literal del paper: ambos lados, stop 0,1×ATR, salida al cierre; con sus costos y con los realistas,
+  // y con las dos lecturas de la vela de entrada.
+  variants.push({ name: 'PAPER · both · stop 0.1×ATR · al cierre · costos paper · entrada pesimista', stop: 'atr', k: 0.1, targetR: 0, entryUntil: 390, side: 'both', beAtR: 0, cost: 'paper' });
+  variants.push({ name: 'PAPER · both · stop 0.1×ATR · al cierre · costos paper · entrada optimista', stop: 'atr', k: 0.1, targetR: 0, entryUntil: 390, side: 'both', beAtR: 0, cost: 'paper', fill: 'optimista' });
+  variants.push({ name: 'PAPER · both · stop 0.1×ATR · al cierre · costos reales · entrada optimista', stop: 'atr', k: 0.1, targetR: 0, entryUntil: 390, side: 'both', beAtR: 0, fill: 'optimista' });
+  variants.push({ name: 'both · stop 0.25×ATR · al cierre · entrada optimista', stop: 'atr', k: 0.25, targetR: 0, entryUntil: 390, side: 'both', beAtR: 0, fill: 'optimista' });
+  variants.push({ name: 'both · stop 0.5×ATR · al cierre · entrada optimista', stop: 'atr', k: 0.5, targetR: 0, entryUntil: 390, side: 'both', beAtR: 0, fill: 'optimista' });
+  variants.push({ name: 'both · stop vela apertura · obj 1R · entrada optimista', stop: 'range', k: 1, targetR: 1, entryUntil: 390, side: 'both', beAtR: 0, fill: 'optimista' });
+  variants.push({ name: 'both · stop vela apertura · obj 2R · entrada optimista', stop: 'range', k: 1, targetR: 2, entryUntil: 390, side: 'both', beAtR: 0, fill: 'optimista' });
   for (const side of ['long', 'both'] as const) {
     for (const [stop, k] of [
       ['atr', 0.1],
@@ -223,7 +239,7 @@ function main() {
 
   const results = variants.map((v) => ({ v, trades: [] as Trade[] }));
   for (const day of days) {
-    const top = load<Array<{ sym: string; rvol: number }>>(join(ROOT, 'inplay', `${day}.json`));
+    const top = load<Array<{ sym: string; rvol: number }>>(join(ROOT, INPLAY, `${day}.json`));
     const open = load<Record<string, Bar>>(join(ROOT, 'open5', `${day}.json`));
     const mins = load<Record<string, Bar[]>>(join(ROOT, 'min', `${day}.json`));
     top.forEach(({ sym, rvol }, rank) => {
@@ -237,8 +253,8 @@ function main() {
       }
     });
   }
-  console.log(`# ORB en acciones en juego · ${days[0]} a ${days[days.length - 1]} · ${days.length} días · velas reales de 1 min (Alpaca SIP)\n`);
-  console.log('Costos: 1 ¢ por acción + 0,01 % por lado. Tamaño: 0,5 % del capital en riesgo por trade, tope 20 % del capital por posición. R = resultado neto sobre la distancia al stop.\n');
+  console.log(`# ORB en acciones en juego · ${days[0]} a ${days[days.length - 1]} · ${days.length} días · velas reales de 1 min (Alpaca SIP) · selección ${INPLAY === 'inplay' ? 'top 1000 por volumen en dólares del año' : 'filtros rodantes del paper (precio > 5, vol. 14 d ≥ 1 M, ATR > 0,50, rvol ≥ 1)'}\n`);
+  console.log('Costos: 1 ¢ por acción + 0,01 % por lado salvo que la variante diga "costos paper" (0,35 ¢ por acción). Vela de entrada pesimista (si toca el stop en la misma vela, cuenta como stop) salvo que diga "optimista". Tamaño: 0,5 % del capital en riesgo por trade, tope 20 % del capital por posición. R = resultado neto sobre la distancia al stop.\n');
   console.log('| Variante | Trades | /día | Aciertos | R prom. | Gan. prom. (R) | Pérd. prom. (R) | Factor | Retorno | Drawdown | Por stop | Por objetivo |');
   console.log('|---|---|---|---|---|---|---|---|---|---|---|---|');
   for (const r of results) {

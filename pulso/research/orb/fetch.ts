@@ -56,7 +56,7 @@ async function get(path: string, params: Record<string, string>): Promise<any> {
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /** Velas de varios símbolos (paginando) entre dos instantes. */
-async function bars(symbols: string[], timeframe: string, start: string, end: string, extra: Record<string, string> = {}): Promise<Record<string, Bar[]>> {
+export async function bars(symbols: string[], timeframe: string, start: string, end: string, extra: Record<string, string> = {}): Promise<Record<string, Bar[]>> {
   const out: Record<string, Bar[]> = {};
   let token: string | undefined;
   do {
@@ -67,15 +67,15 @@ async function bars(symbols: string[], timeframe: string, start: string, end: st
   return out;
 }
 
-const chunk = <T>(xs: T[], n: number): T[][] => Array.from({ length: Math.ceil(xs.length / n) }, (_, i) => xs.slice(i * n, (i + 1) * n));
-const save = (file: string, data: unknown) => {
+export const chunk = <T>(xs: T[], n: number): T[][] => Array.from({ length: Math.ceil(xs.length / n) }, (_, i) => xs.slice(i * n, (i + 1) * n));
+export const save = (file: string, data: unknown) => {
   mkdirSync(dirname(file), { recursive: true });
   writeFileSync(file, JSON.stringify(data));
 };
-const loadJson = <T>(file: string): T | null => (existsSync(file) ? (JSON.parse(readFileSync(file, 'utf8')) as T) : null);
+export const loadJson = <T>(file: string): T | null => (existsSync(file) ? (JSON.parse(readFileSync(file, 'utf8')) as T) : null);
 
 // ---------------------------------------------------------------- calendario (días con vela diaria de SPY)
-async function tradingDays(from: string, to: string): Promise<string[]> {
+export async function tradingDays(from: string, to: string): Promise<string[]> {
   const file = join(ROOT, 'days.json');
   const cached = loadJson<{ from: string; to: string; days: string[] }>(file);
   if (cached && cached.from === from && cached.to === to) return cached.days;
@@ -114,7 +114,7 @@ async function universeFor(year: number, assets: string[]): Promise<string[]> {
 }
 
 // ---------------------------------------------------------------- B. velas diarias del universo
-async function dailyFor(symbols: string[], from: string, to: string): Promise<void> {
+export async function dailyFor(symbols: string[], from: string, to: string): Promise<void> {
   const missing = symbols.filter((s) => !existsSync(join(ROOT, 'daily', `${s}.json`)));
   const groups = chunk(missing, 100);
   for (let i = 0; i < groups.length; i++) {
@@ -126,7 +126,7 @@ async function dailyFor(symbols: string[], from: string, to: string): Promise<vo
 
 // ---------------------------------------------------------------- C. primera vela de 5 min de cada día
 /** Hora de Nueva York a UTC para la fecha (horario de verano entre el 2.º domingo de marzo y el 1.º de noviembre). */
-function etOffset(day: string): string {
+export function etOffset(day: string): string {
   const [y, m, d] = day.split('-').map(Number);
   const nthSunday = (year: number, month: number, n: number) => {
     const first = new Date(Date.UTC(year, month - 1, 1)).getUTCDay();
@@ -136,7 +136,7 @@ function etOffset(day: string): string {
   return dst ? '-04:00' : '-05:00';
 }
 
-async function openingBars(day: string, symbols: string[]): Promise<Record<string, Bar>> {
+export async function openingBars(day: string, symbols: string[]): Promise<Record<string, Bar>> {
   const file = join(ROOT, 'open5', `${day}.json`);
   const cached = loadJson<Record<string, Bar>>(file) ?? {};
   const asked = loadJson<string[]>(file + '.syms') ?? Object.keys(cached);
@@ -154,7 +154,7 @@ async function openingBars(day: string, symbols: string[]): Promise<Record<strin
 }
 
 // ---------------------------------------------------------------- D. velas de 1 min del día de las "en juego"
-async function minuteBars(day: string, symbols: string[]): Promise<void> {
+export async function minuteBars(day: string, symbols: string[]): Promise<void> {
   const file = join(ROOT, 'min', `${day}.json`);
   const cached = loadJson<Record<string, Bar[]>>(file) ?? {};
   const missing = symbols.filter((s) => !(s in cached));
@@ -216,7 +216,17 @@ async function main() {
   console.log('listo');
 }
 
-main().catch((e) => {
-  console.error(e);
-  process.exit(1);
-});
+export const ROOT_DIR = ROOT;
+export function tradableAssets(): string[] {
+  const assetsFile = join(ROOT, 'assets.json');
+  if (!existsSync(assetsFile)) throw new Error('falta data/assets.json (bajalo de /v2/assets)');
+  return (JSON.parse(readFileSync(assetsFile, 'utf8')) as Array<{ symbol: string; name: string; tradable: boolean; exchange: string }>)
+    .filter((a) => a.tradable && ['NYSE', 'NASDAQ', 'ARCA', 'AMEX', 'BATS'].includes(a.exchange) && /^[A-Z]{1,5}$/.test(a.symbol) && !isFund(a.name ?? ''))
+    .map((a) => a.symbol);
+}
+
+if (process.argv[1]?.endsWith('fetch.ts'))
+  main().catch((e) => {
+    console.error(e);
+    process.exit(1);
+  });
