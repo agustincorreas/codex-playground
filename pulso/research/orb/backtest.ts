@@ -13,7 +13,7 @@ const TO = process.argv[3] ?? '2026-12-31';
 /** Carpeta de selección: 'inplay' (top 1000 por volumen en dólares del año) o 'inplay-paper' (filtros rodantes del paper). */
 const INPLAY = process.argv[4] ?? 'inplay';
 
-interface Variant {
+export interface Variant {
   name: string;
   /** Stop: 'atr' a `k` × ATR14 de la entrada, o 'range' en el otro extremo de la vela de apertura (con tope de k × ATR). */
   stop: 'atr' | 'range';
@@ -34,7 +34,7 @@ interface Variant {
   cost?: 'real' | 'paper';
 }
 
-interface Trade {
+export interface Trade {
   day: string;
   sym: string;
   side: 'long' | 'short';
@@ -44,6 +44,8 @@ interface Trade {
   r: number;
   reason: 'stop' | 'target' | 'close';
   minutes: number;
+  /** Minuto de la entrada desde las 9:30. */
+  entryMin: number;
 }
 
 /** Costo por lado: un centavo por acción (medio spread de una acción líquida) más 0,01 % del precio (deslizamiento). */
@@ -62,7 +64,7 @@ function daily(sym: string): Bar[] {
 }
 
 /** ATR de 14 días hasta el día anterior a `day` (rango verdadero promedio). */
-function atr14(sym: string, day: string): number {
+export function atr14(sym: string, day: string): number {
   const d = daily(sym);
   const idx = d.findIndex((b) => b.t.slice(0, 10) >= day);
   const upto = idx < 0 ? d : d.slice(0, idx);
@@ -77,7 +79,7 @@ function atr14(sym: string, day: string): number {
   return sum / (last.length - 1);
 }
 
-function simulate(day: string, sym: string, open5: Bar, mins: Bar[], v: Variant): Trade | null {
+export function simulate(day: string, sym: string, open5: Bar, mins: Bar[], v: Variant): Trade | null {
   if (!mins.length || open5.c === open5.o) return null;
   const long = open5.c > open5.o;
   if ((long && v.side === 'short') || (!long && v.side === 'long')) return null;
@@ -110,25 +112,25 @@ function simulate(day: string, sym: string, open5: Bar, mins: Bar[], v: Variant)
     const b = after[j];
     const touched = long ? b.l <= stop : b.h >= stop;
     const hitStop = j === i && v.fill === 'optimista' ? (long ? b.c <= stop : b.c >= stop) : touched;
-    if (hitStop) return done(day, sym, long, entry, stop, risk, 'stop', minuteOf(b.t) - entryMin, v);
-    if (target && (long ? b.h >= target : b.l <= target)) return done(day, sym, long, entry, target, risk, 'target', minuteOf(b.t) - entryMin, v);
+    if (hitStop) return done(day, sym, long, entry, stop, risk, 'stop', minuteOf(b.t) - entryMin, v, entryMin);
+    if (target && (long ? b.h >= target : b.l <= target)) return done(day, sym, long, entry, target, risk, 'target', minuteOf(b.t) - entryMin, v, entryMin);
     if (v.beAtR > 0 && !be && (long ? b.h >= entry + v.beAtR * risk : b.l <= entry - v.beAtR * risk)) {
       be = true;
       stop = entry;
     }
   }
   const last = after[after.length - 1];
-  return done(day, sym, long, entry, last.c, risk, 'close', minuteOf(last.t) - entryMin, v);
+  return done(day, sym, long, entry, last.c, risk, 'close', minuteOf(last.t) - entryMin, v, entryMin);
 }
 
-function done(day: string, sym: string, long: boolean, entry: number, exit: number, risk: number, reason: Trade['reason'], minutes: number, v: Variant): Trade {
+function done(day: string, sym: string, long: boolean, entry: number, exit: number, risk: number, reason: Trade['reason'], minutes: number, v: Variant, entryMin: number): Trade {
   const gross = long ? exit - entry : entry - exit;
   const net = gross - costOf(entry, v.cost) - costOf(exit, v.cost);
-  return { day, sym, side: long ? 'long' : 'short', entry, exit, stop: long ? entry - risk : entry + risk, r: net / risk, reason, minutes };
+  return { day, sym, side: long ? 'long' : 'short', entry, exit, stop: long ? entry - risk : entry + risk, r: net / risk, reason, minutes, entryMin };
 }
 
 /** Minutos desde las 9:30 NY de una vela (la hora viene en UTC; la fecha fija el huso). */
-function minuteOf(t: string): number {
+export function minuteOf(t: string): number {
   const d = new Date(t);
   const utcMin = d.getUTCHours() * 60 + d.getUTCMinutes();
   const openUtc = (d.getUTCMonth() + 1 > 3 && d.getUTCMonth() + 1 < 11) || isDst(d) ? 13 * 60 + 30 : 14 * 60 + 30;
@@ -145,7 +147,7 @@ function isDst(d: Date): boolean {
   return (m === 3 && day >= nthSunday(3, 2)) || (m === 11 && day < nthSunday(11, 1));
 }
 
-interface Stats {
+export interface Stats {
   trades: number;
   winRate: number;
   avgR: number;
@@ -160,7 +162,7 @@ interface Stats {
 }
 
 /** Tamaño por riesgo: 0,5 % del capital por trade, sin pasar el 20 % del capital en una posición (una vez la cuenta). */
-function stats(trades: Trade[], days: number): Stats {
+export function stats(trades: Trade[], days: number): Stats {
   const wins = trades.filter((t) => t.r > 0);
   const losses = trades.filter((t) => t.r <= 0);
   const sumW = wins.reduce((a, t) => a + t.r, 0);
@@ -276,4 +278,4 @@ function main() {
   }
 }
 
-main();
+if (process.argv[1]?.endsWith('backtest.ts')) main();
