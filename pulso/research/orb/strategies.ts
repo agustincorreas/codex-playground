@@ -238,6 +238,17 @@ function main() {
   variants.push({ kind: 'gap', name: 'GAP ≥ 5 % · 1.ª vela en contra · obj 1R · both · optimista', ...base, fill: 'optimista', entryUntil: 360, side: 'both', targetR: 1, minGap: 0.05, targetMode: 'R', entryMode: 'contra' });
   variants.push({ kind: 'gap', name: 'GAP ≥ 5 % · 1.ª vela en contra · obj 1R · both · riesgo ≤ 0,5 ATR', ...base, maxRiskAtr: 0.5, entryUntil: 360, side: 'both', targetR: 1, minGap: 0.05, targetMode: 'R', entryMode: 'contra' });
 
+  // Grilla fina de la única con señal: vender el gap al alza cuya primera vela va en contra.
+  if (process.argv[5] === 'gapup') {
+    variants.length = 0;
+    for (const minGap of [0.03, 0.04, 0.05, 0.06, 0.08, 0.1])
+      for (const targetR of [0.75, 1, 1.5])
+        for (const maxRiskAtr of [0.5, 1])
+          for (const entryUntil of [30, 90, 360])
+            variants.push({ kind: 'gap', name: `GAP ↑ ≥ ${pct(minGap)} · 1.ª vela roja · corto · obj ${targetR}R · riesgo ≤ ${maxRiskAtr} ATR · hasta ${entryUntil === 360 ? '15:30' : entryUntil === 90 ? '11:00' : '10:00'}`, ...base, maxRiskAtr, entryUntil, side: 'short', targetR, minGap, targetMode: 'R', entryMode: 'contra' });
+    for (const minGap of [0.05, 0.08])
+      variants.push({ kind: 'gap', name: `GAP ↑ ≥ ${pct(minGap)} · 1.ª vela roja · corto · cubrir el gap (tope 2R) · riesgo ≤ 1 ATR · hasta 15:30`, ...base, entryUntil: 360, side: 'short', targetR: 2, minGap, targetMode: 'gapfill', entryMode: 'contra' });
+  }
   const results = variants.map((v) => ({ v, trades: [] as Trade[] }));
   for (const day of days) {
     const top = load<Array<{ sym: string }>>(join(ROOT, INPLAY, `${day}.json`));
