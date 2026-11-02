@@ -1,6 +1,7 @@
 // Métricas derivadas por símbolo: volumen relativo, cambios por ventana y los 5 pilares.
-import type { SymbolState } from './symbol';
-import type { Pillars, ScanRow, Settings } from './types';
+import { lowerBound, type SymbolState } from './symbol';
+import { etParts, etWallToTs, REG_OPEN } from './time';
+import type { Bar, Pillars, ScanRow, Settings } from './types';
 
 export interface MetricCtx {
   now: number;
@@ -80,6 +81,27 @@ export function pillarsOf(st: SymbolState, ctx: MetricCtx, rvol = rvolOf(st, ctx
   return { price, change, rvol: rv, news, float, score };
 }
 
+/** La primera vela de 5 minutos de la rueda regular (9:30–9:35), armada con las de 1 min; null hasta que cierra. */
+export function openingCandle(bars: Bar[], now: number): ScanRow['open5'] | null {
+  const p = etParts(now);
+  const open = etWallToTs(p.y, p.mo, p.d, REG_OPEN);
+  const end = open + 5 * 60_000;
+  if (now < end) return null;
+  const i = lowerBound(bars, open);
+  let out: { o: number; h: number; l: number; c: number; v: number } | null = null;
+  for (let k = i; k < bars.length && bars[k].t < end; k++) {
+    const b = bars[k];
+    if (!out) out = { o: b.o, h: b.h, l: b.l, c: b.c, v: b.v };
+    else {
+      out.h = Math.max(out.h, b.h);
+      out.l = Math.min(out.l, b.l);
+      out.c = b.c;
+      out.v += b.v;
+    }
+  }
+  return out;
+}
+
 export function buildRow(st: SymbolState, ctx: MetricCtx): ScanRow {
   const { now } = ctx;
   const price = st.last;
@@ -119,6 +141,8 @@ export function buildRow(st: SymbolState, ctx: MetricCtx): ScanRow {
     flags: st.ref.flags,
     lastTs: st.lastTs,
     dir: st.dir,
+    avgVolume: st.ref.avgVolume,
+    open5: openingCandle(st.bars, now) ?? undefined,
   };
 }
 

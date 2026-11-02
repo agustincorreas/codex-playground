@@ -9,3 +9,5 @@ data/cuenta-de-practica.json*
 desktop/node_modules/
 desktop/app/
 desktop/release/
+research/orb/data/
+research/orb/logs/

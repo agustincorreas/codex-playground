@@ -9,9 +9,10 @@ import { etWallToTs, PRE_OPEN, previousTradingDays, sessionDate } from '../../en
 import type { MarketSim } from '../../sim/simulator';
 import { seedForDay } from '../../sim/simulator';
 import type { AiProfile, PlaybookRules } from '../../trading/playbook';
+import type { GapRules } from '../../trading/gap';
 import type { TrainingStore } from '../../trading/store';
 import type { Trade } from '../../trading/types';
-import { AiTrader } from '../aitrader';
+import { AiTrader, type Strategy } from '../aitrader';
 import { LocalSource } from '../source/local';
 import { TrainingController } from '../training';
 
@@ -40,6 +41,9 @@ export interface BacktestSetup {
   consult: false;
   /** Hora ET (minutos) desde la que se simula; por defecto 9:25. */
   startMinutes?: number;
+  /** Pulso (momentum) o Pulso: Gap (reversión del gap en corto), con sus reglas. */
+  strategy?: Strategy;
+  gapRules?: GapRules;
 }
 
 export interface BacktestOptions extends BacktestSetup {
@@ -162,10 +166,11 @@ export async function runBacktestDay(opts: BacktestOptions): Promise<BacktestDay
   const t = new AiTrader(c, noop, { instructions: false });
   t.attach(src);
   const custom = opts.profile === 'personalizado' && opts.rules ? { rules: opts.rules } : {};
-  withoutSaving('pulso:ai-settings', () => t.update({ mode: 'auto', consult: false, follow: false, profile: opts.profile, ...custom }));
+  withoutSaving('pulso:ai-settings', () => t.update({ mode: 'auto', consult: false, follow: false, profile: opts.profile, strategy: opts.strategy ?? 'pulso', ...(opts.gapRules ? { gapRules: opts.gapRules } : {}), ...custom }));
 
   const start = sim.now;
-  const windowEnd = sim.dayStart + (t.settings.rules.entryTo + AFTER_WINDOW - PRE_OPEN) * MIN;
+  const lastEntry = opts.strategy === 'gap' ? t.settings.gapRules.flatAt : t.settings.rules.entryTo;
+  const windowEnd = sim.dayStart + (lastEntry + AFTER_WINDOW - PRE_OPEN) * MIN;
   const hardEnd = sim.closeTs;
   const held = () => (c.active?.positions.length ?? 0) > 0;
   let sliceStart = Date.now();

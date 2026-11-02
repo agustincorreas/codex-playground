@@ -4396,3 +4396,35 @@ li.v-spacer {
 .chart-host.is-dragging * {
   cursor: grabbing !important;
 }
+
+/* Pulso: Gap: los gaps de hoy y qué dice la estrategia de cada uno. */
+.ai-gap-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.ai-gap-table th,
+.ai-gap-table td {
+  text-align: left;
+  padding: 3px 6px 3px 0;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+.ai-gap-table th {
+  color: var(--muted);
+  font-weight: 500;
+}
+.ai-gap-table tr.is-focus td {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+.ai-gap-table tr.is-descartado td,
+.ai-gap-table tr.is-vencido td {
+  opacity: 0.6;
+}
+.badge.gap-armado {
+  background: color-mix(in srgb, var(--up) 25%, transparent);
+  color: var(--up);
+}
+.badge.gap-esperando {
+  background: color-mix(in srgb, var(--warn, #d9a400) 20%, transparent);
+}

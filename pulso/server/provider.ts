@@ -41,6 +41,8 @@ export interface Provider {
   backfillSec?(sym: string, onBars?: (bars: Bar[]) => void): Promise<Bar[] | null>;
   /** Historia para el gráfico: velas de 1 min de los últimos días, de 1 hora de los últimos meses o diarias. */
   history?(sym: string, tf: HistoryTf): Promise<Bar[] | null>;
+  /** Pulso: Gap: ATR de 14 días y volumen normal de los primeros 5 minutos (promedio de 14 ruedas). */
+  gapStats?(sym: string): Promise<{ atr: number; avgOpen5: number } | null>;
 }
 
 export class DemoProvider implements Provider {

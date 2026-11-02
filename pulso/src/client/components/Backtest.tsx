@@ -6,6 +6,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useAiVersion, type AiTrader } from '../aitrader';
 import { PROFILE_LABEL } from '../../trading/playbook';
+import { GAP_PROFILE_LABEL, GAP_RESEARCH } from '../../trading/gap';
 import { DEFAULT_START, recentDays, runBacktest, summarizeBacktest, type BacktestDay, type BacktestDayResult, type BacktestMessage, type BacktestRequest, type BacktestSetup, type BacktestSummary } from '../lib/backtest';
 import { fmtDay, fmtMinutes } from '../lib/days';
 import { fmtMoney, fmtSignedMoney } from '../lib/format';
@@ -45,7 +46,8 @@ export function Backtest({ trader }: { trader: AiTrader }) {
   useEffect(() => () => stopRef.current?.(), []);
 
   const profile = trader.settings.profile;
-  const profileLabel = PROFILE_LABEL[profile];
+  const gap = trader.settings.strategy === 'gap';
+  const profileLabel = gap ? `Pulso: Gap (${GAP_PROFILE_LABEL[trader.settings.gapProfile].toLowerCase()})` : PROFILE_LABEL[profile];
   const okBalance = Number.isFinite(balance) && balance >= 100;
 
   const cancel = () => {
@@ -57,7 +59,7 @@ export function Backtest({ trader }: { trader: AiTrader }) {
   const start = (n: number) => {
     cancel();
     const days = recentDays(n);
-    const setup: BacktestSetup = { profile, rules: trader.settings.rules, account, balance, consult: false };
+    const setup: BacktestSetup = { profile, rules: trader.settings.rules, account, balance, consult: false, strategy: trader.settings.strategy, gapRules: trader.settings.gapRules };
     const results: BacktestDayResult[] = [];
     let over = false;
     setError('');
@@ -117,6 +119,40 @@ export function Backtest({ trader }: { trader: AiTrader }) {
 
   return (
     <div className="ai-panel bt-panel">
+      {gap && (
+        <div className="ai-card bt-research">
+          <div className="ai-sub">Lo medido con datos reales</div>
+          <p className="t-muted small">
+            Pulso: Gap viene de una investigación sobre {GAP_RESEARCH.period}, con costos de 1 ¢ por acción más 0,01 % por lado y 0,5 % de riesgo por trade. Es una ventaja chica y consistente: un trade cada dos días, mitad ganadores, ningún año perdedor con volumen de apertura de 5× o más. El simulador de abajo no reproduce esos números: sirve para ver cómo opera la IA, no para medir la estrategia.
+          </p>
+          <table className="ai-gap-table">
+            <thead>
+              <tr>
+                <th>Selección</th>
+                <th>Trades</th>
+                <th>/día</th>
+                <th>Aciertos</th>
+                <th>R por trade</th>
+                <th>Factor</th>
+                <th>Años con R ≥ 0</th>
+              </tr>
+            </thead>
+            <tbody>
+              {GAP_RESEARCH.rows.map((r) => (
+                <tr key={r.name}>
+                  <td>{r.name}</td>
+                  <td className="mono">{r.trades.toLocaleString('es-AR')}</td>
+                  <td className="mono">{r.perDay.toFixed(1)}</td>
+                  <td className="mono">{r.winRate} %</td>
+                  <td className="mono">{r.avgR >= 0 ? '+' : ''}{r.avgR.toFixed(2)}</td>
+                  <td className="mono">{r.pf.toFixed(2)}</td>
+                  <td>{r.years}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
       <p className="t-muted small ai-note">
         Simula los últimos días hábiles (el mismo mercado que tuvo <em>Mercado ahora</em> cada fecha) con el perfil <b>{profileLabel}</b> del IA Trader, solo con las reglas (sin Claude), desde las{' '}
         {fmtMinutes(DEFAULT_START)}. Cada día arranca con el saldo elegido en una cuenta de práctica aparte: la tuya no se toca.

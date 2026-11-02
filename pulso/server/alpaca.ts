@@ -9,7 +9,7 @@
 // los precios en vivo; el motor estima los últimos minutos escalando lo que vio IEX.
 import type { HistoryTf } from '../src/engine/history';
 import type { Bar, DaySnapshot, DelayedSnapshot, MarketEvent, NewsItem, ReferenceData } from '../src/engine/types';
-import { etParts, previousTradingDays, sessionAt, sessionDate, tradingDayStart, type EtDate } from '../src/engine/time';
+import { etParts, previousTradingDays, REG_OPEN, sessionAt, sessionDate, tradingDayStart, type EtDate } from '../src/engine/time';
 import type { Config } from './config';
 import { ReconnectingSocket, type Provider, type ProviderContext } from './provider';
 import { chunk, getJson, HttpError, RateLimiter, readCache, writeCache } from './util';
@@ -653,6 +653,31 @@ export class AlpacaProvider implements Provider {
       if (!token) break;
     }
     return out;
+  }
+
+  /**
+   * Pulso: Gap: el ATR de 14 días (velas diarias) y el volumen normal de los primeros 5 minutos de la rueda
+   * (promedio de la vela 9:30–9:35 de las últimas 14 ruedas, con velas de 5 min).
+   */
+  async gapStats(sym: string): Promise<{ atr: number; avgOpen5: number } | null> {
+    const days = previousTradingDays(this.session, 22);
+    if (!days.length) return null;
+    const start = new Date(tradingDayStart(Date.parse(`${days[days.length - 1].dateKey}T16:00:00Z`))).toISOString();
+    const end = `&end=${new Date(Date.parse(`${days[0].dateKey}T23:59:59Z`)).toISOString()}`;
+    const daily = (await this.get(`${this.cfg.dataUrl}/v2/stocks/bars?symbols=${encodeURIComponent(sym)}&timeframe=1Day&start=${start}${end}&limit=100&adjustment=split&feed=sip`)) as { bars: Record<string, AlpacaBar[]> };
+    const d = (daily.bars?.[sym] ?? []).map(barFromAlpaca);
+    const five = (await this.get(`${this.cfg.dataUrl}/v2/stocks/bars?symbols=${encodeURIComponent(sym)}&timeframe=5Min&start=${start}${end}&limit=10000&feed=sip`)) as { bars: Record<string, AlpacaBar[]> };
+    const opens = (five.bars?.[sym] ?? []).map(barFromAlpaca).filter((b) => etParts(b.t).minutes === REG_OPEN).slice(-14);
+    const last = d.slice(-15);
+    let tr = 0;
+    for (let i = 1; i < last.length; i++) {
+      const b = last[i];
+      const pc = last[i - 1].c;
+      tr += Math.max(b.h - b.l, Math.abs(b.h - pc), Math.abs(b.l - pc));
+    }
+    const atr = last.length > 5 ? tr / (last.length - 1) : 0;
+    const avgOpen5 = opens.length >= 5 ? opens.reduce((a, b) => a + b.v, 0) / opens.length : 0;
+    return { atr, avgOpen5 };
   }
 
   /**
