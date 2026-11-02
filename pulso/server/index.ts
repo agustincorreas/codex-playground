@@ -414,6 +414,29 @@ function accountChanged(rev: number, origin: string | undefined): void {
 
 /** Historia para el gráfico, con caché en memoria (la diaria cambia poco; la de minutos, cada rato). */
 const historyCache = new Map<string, { at: number; bars: Promise<Bar[]> }>();
+/** Pulso: Gap: ATR y volumen normal de apertura por acción, una vez por día (en memoria). */
+const gapCache = new Map<string, { day: string; v: { atr: number; avgOpen5: number } | null }>();
+async function gapStats(syms: string[]): Promise<Record<string, { atr: number; avgOpen5: number }>> {
+  const out: Record<string, { atr: number; avgOpen5: number }> = {};
+  if (!provider.gapStats) return out;
+  const day = sessionDate(Date.now()).dateKey;
+  for (const sym of syms) {
+    const hit = gapCache.get(sym);
+    let v = hit && hit.day === day ? hit.v : undefined;
+    if (v === undefined) {
+      try {
+        v = await provider.gapStats(sym);
+      } catch (e) {
+        log('warn', `Estadísticas de apertura de ${sym}: ${(e as Error).message}`);
+        v = null;
+      }
+      gapCache.set(sym, { day, v });
+    }
+    if (v) out[sym] = v;
+  }
+  return out;
+}
+
 function history(sym: string, tf: HistoryTf): Promise<Bar[]> {
   const key = `${sym}:${tf}`;
   const ttl = tf === 'day' ? 30 * 60_000 : 5 * 60_000;
@@ -545,6 +568,13 @@ function handle(req: IncomingMessage, res: ServerResponse): void {
         log('warn', `Historia de ${sym} (${tf}): ${e.message}`);
         json(res, { error: e.message }, 502);
       });
+    return;
+  }
+  if (url.pathname === '/api/gap/stats') {
+    const syms = (url.searchParams.get('syms') ?? '').toUpperCase().split(',').filter((x) => /^[A-Z.]{1,6}$/.test(x)).slice(0, 40);
+    void gapStats(syms)
+      .then((out) => json(res, out))
+      .catch((e: Error) => json(res, { error: e.message }, 502));
     return;
   }
   if (url.pathname === '/api/symbol') {

@@ -7,6 +7,7 @@ import type { Hotkey } from '../trading/types';
 import { AccountValue, PositionsWindow, TodayTrades, TradeActivity } from './components/Account';
 import { Chart, type ChartFill, type ChartOrder, type ChartPlan, type ChartPosition } from './components/Chart';
 import { Header, MobileTabs, SettingsModal, type MobileTab, type Prefs } from './components/Chrome';
+import { GAP_SCAN_SETTINGS } from '../trading/gap';
 import { Detail } from './components/Detail';
 import { AlertFeed, HaltsPanel, HodBoard, MomentumFeed, NewsPanel, WatchlistPanel } from './components/Feeds';
 import { Journal } from './components/Journal';
@@ -37,7 +38,7 @@ import { LocalSource, type SimConfig } from './source/local';
 import { detectServer, RemoteSource } from './source/remote';
 import type { HistoryTf } from '../engine/history';
 import type { DataSource } from './source/types';
-import { AiTrader, type AiState } from './aitrader';
+import { AiTrader, STRATEGY_LABEL, type AiState, type Strategy } from './aitrader';
 import { AiTraderPanel } from './components/AiTrader';
 import { Backtest } from './components/Backtest';
 import { nyMarket, TrainingController, useTrainingVersion } from './training';
@@ -315,6 +316,24 @@ function Workspace({ server, hasServer, c }: { server: boolean; hasServer: boole
   // El IA Trader vive mientras dura la página; elige la acción a mostrar a través de `select`.
   const selectRef = useRef<(sym: string) => void>(() => undefined);
   const [trader] = useState(() => new AiTrader(c, (sym) => selectRef.current(sym)));
+  const [strategy, setStrategy] = useState<Strategy>(() => trader.settings.strategy);
+  useEffect(() => {
+    document.title = strategy === 'gap' ? 'Pulso: Gap' : 'Pulso';
+  }, [strategy]);
+  /** Cambiar de estrategia cambia los escáneres: Gap mira acciones de US$ 5 o más con gap de 5 %; al volver se restauran los tuyos. */
+  const switchStrategy = (next: Strategy) => {
+    if (next === strategy) return;
+    trader.update({ strategy: next });
+    setStrategy(next);
+    let s: Settings;
+    if (next === 'gap') {
+      save('settings-pulso', settings);
+      s = { ...settings, ...GAP_SCAN_SETTINGS };
+    } else s = load<Settings>('settings-pulso', { ...settings, ...DEFAULT_SETTINGS });
+    setSettings(s);
+    save('settings', s);
+    source?.setSettings(s);
+  };
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
   const prefsRef = useRef(prefs);
@@ -799,7 +818,7 @@ function Workspace({ server, hasServer, c }: { server: boolean; hasServer: boole
         {momoTab === 'momentum' && <MomentumFeed alerts={alerts} minScore={prefs.momentumMinScore} selected={selected} onSelect={select} />}
         {momoTab === 'alerts' && <AlertFeed alerts={alerts} selected={selected} onSelect={select} />}
         {momoTab === 'halts' && <HaltsPanel halts={view.halts} selected={selected} onSelect={select} />}
-        {momoTab === 'ia' && <AiTraderPanel trader={trader} selected={selected} onSelect={select} />}
+        {momoTab === 'ia' && <AiTraderPanel trader={trader} selected={selected} onSelect={select} onStrategy={switchStrategy} />}
         {momoTab === 'backtest' && <Backtest trader={trader} />}
       </Panel>
     ),
@@ -930,6 +949,7 @@ function Workspace({ server, hasServer, c }: { server: boolean; hasServer: boole
         day={dayChip}
         sourceSwitch={hasServer ? { sim: !server, onSwitch: switchSource } : undefined}
         onDay={() => setNewDay('any')}
+        brand={STRATEGY_LABEL[strategy]}
       />
 
       {isMobile ? (

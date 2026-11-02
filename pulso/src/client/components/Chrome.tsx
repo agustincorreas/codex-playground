@@ -48,9 +48,11 @@ interface HeaderProps {
   onDay?: () => void;
   /** Con servidor de datos reales: elegir entre el mercado real y el simulador (misma cuenta). */
   sourceSwitch?: { sim: boolean; onSwitch: () => void };
+  /** Nombre de la app según la estrategia: "Pulso" o "Pulso: Gap". */
+  brand?: string;
 }
 
-export function Header({ session, status, speed, onSpeed, prefs, onPrefs, onSettings, onSearch, search, effectiveTheme, canSpeed, account, onJournal, layoutEditing, onLayout, day, onDay, sourceSwitch }: HeaderProps) {
+export function Header({ session, status, speed, onSpeed, prefs, onPrefs, onSettings, onSearch, search, effectiveTheme, canSpeed, account, onJournal, layoutEditing, onLayout, day, onDay, sourceSwitch, brand }: HeaderProps) {
   const [q, setQ] = useState('');
   const [suggest, setSuggest] = useState<string[]>([]);
   const next = useNow(1000);
@@ -87,7 +89,7 @@ export function Header({ session, status, speed, onSpeed, prefs, onPrefs, onSett
         <span className="brand-mark">
           <IconPulse size={20} />
         </span>
-        <span className="brand-name">Pulso</span>
+        <span className="brand-name">{brand ?? 'Pulso'}</span>
         <span className={`mode-badge ${badge.cls}`} title={status?.message}>
           {badge.text}
         </span>

@@ -225,6 +225,10 @@ export interface ScanRow {
   flags?: string[];
   lastTs: number;
   dir: 1 | -1 | 0;
+  /** Volumen diario promedio (referencia), para el volumen relativo de la apertura. */
+  avgVolume?: number;
+  /** La primera vela de 5 minutos de la rueda (9:30–9:35), una vez cerrada. */
+  open5?: { o: number; h: number; l: number; c: number; v: number };
 }
 
 export type ScannerId = 'gappers' | 'pillars' | 'running' | 'lowFloat' | 'rvol' | 'fades';

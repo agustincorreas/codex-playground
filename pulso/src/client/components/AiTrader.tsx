@@ -2,7 +2,8 @@
 // posiciones que maneja con su R en vivo, la sugerencia del momento con sus botones, la opinión de
 // Claude, el resumen del día, tus indicaciones, las candidatas, las reglas y el registro.
 import { useState } from 'react';
-import { useAiVersion, type AiTrader } from '../aitrader';
+import { STRATEGY_LABEL, useAiVersion, type AiTrader, type Strategy } from '../aitrader';
+import { GAP_PROFILE_HINT, GAP_PROFILE_LABEL } from '../../trading/gap';
 import { formatEtTime } from '../../engine/time';
 import { instructionLabel } from '../../trading/instructions';
 import { PROFILE_HINT, PROFILE_LABEL } from '../../trading/playbook';
@@ -13,7 +14,11 @@ interface Props {
   trader: AiTrader;
   selected: string | null;
   onSelect: (sym: string) => void;
+  /** Cambiar de estrategia (la app también ajusta los escáneres). */
+  onStrategy?: (s: Strategy) => void;
 }
+
+const GAP_STATUS: Record<string, string> = { armado: 'armado', esperando: 'esperando', descartado: 'no', vencido: 'vencido' };
 
 const PHASE: Record<string, string> = {
   off: 'Apagado',
@@ -33,10 +38,13 @@ const toMin = (s: string) => {
   return Number.isFinite(h) ? h * 60 + (Number.isFinite(m) ? m : 0) : 0;
 };
 
-export function AiTraderPanel({ trader, selected, onSelect }: Props) {
+export function AiTraderPanel({ trader, selected, onSelect, onStrategy }: Props) {
   useAiVersion(trader);
   const st = trader.state;
   const s = trader.settings;
+  const gap = s.strategy === 'gap';
+  const g = s.gapRules;
+  const setGap = (patch: Partial<typeof g>) => trader.update({ gapRules: { ...g, ...patch } });
   const sug = st.suggestion;
   const [instrText, setInstrText] = useState('');
   const submitInstruction = () => {
@@ -57,6 +65,15 @@ export function AiTraderPanel({ trader, selected, onSelect }: Props) {
   return (
     <div className="ai-panel">
       <div className="ai-row ai-head">
+        <div className="seg" role="group" aria-label="Estrategia">
+          {(['pulso', 'gap'] as const).map((k) => (
+            <button key={k} className={s.strategy === k ? 'is-active' : ''} onClick={() => (onStrategy ? onStrategy(k) : trader.update({ strategy: k }))} title={k === 'gap' ? 'Reversión del gap con volumen, en corto (medida sobre seis años de datos reales)' : 'Momentum al estilo Ross Cameron'}>
+              {STRATEGY_LABEL[k]}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="ai-row ai-head">
         <div className="seg" role="group" aria-label="Modo del IA Trader">
           {(['off', 'suggest', 'auto'] as const).map((m) => (
             <button key={m} className={s.mode === m ? 'is-active' : ''} onClick={() => trader.update({ mode: m })}>
@@ -69,7 +86,11 @@ export function AiTraderPanel({ trader, selected, onSelect }: Props) {
           {st.calls > 0 && ` · ${st.calls} consulta${st.calls === 1 ? '' : 's'} (≈ US$ ${(st.calls * 0.02).toFixed(2)})`}
         </span>
       </div>
-      <p className="t-muted small ai-note">Opera solo la cuenta de práctica (plata ficticia), con las reglas de momentum de Ross Cameron. No es asesoramiento financiero.</p>
+      <p className="t-muted small ai-note">
+        {gap
+          ? 'Opera solo la cuenta de práctica (plata ficticia): vende en corto el gap al alza con volumen cuando falla la primera vela de 5 minutos, stop en su máximo, objetivo en R, plano a las 15:55. No es asesoramiento financiero.'
+          : 'Opera solo la cuenta de práctica (plata ficticia), con las reglas de momentum de Ross Cameron. No es asesoramiento financiero.'}
+      </p>
 
       {s.mode !== 'off' && (
         <div className="ai-card ai-status">
@@ -163,7 +184,46 @@ export function AiTraderPanel({ trader, selected, onSelect }: Props) {
           <div>{st.advice.text}</div>
         </div>
       )}
-      {s.mode !== 'off' && st.ai !== 'no' && st.ai !== '?' && (
+      {gap && (
+        <div className="ai-card ai-gap">
+          <div className="ai-sub">Gaps de hoy ({st.gap.length})</div>
+          {st.gap.length === 0 && <div className="t-muted small">Todavía no hay gaps de {g.minGapPct} % o más en los escáneres (aparecen desde el pre-market; la primera vela cierra a las 9:35).</div>}
+          {st.gap.length > 0 && (
+            <table className="ai-gap-table">
+              <thead>
+                <tr>
+                  <th>Acción</th>
+                  <th>Gap</th>
+                  <th title="Volumen de la primera vela de 5 min contra lo normal a esa hora">Vol. apertura</th>
+                  <th>Estado</th>
+                  <th>Venta / stop / objetivo</th>
+                  <th>Por qué</th>
+                </tr>
+              </thead>
+              <tbody>
+                {st.gap.slice(0, 12).map((x) => (
+                  <tr key={x.sym} className={`is-${x.status}${x.sym === st.focus ? ' is-focus' : ''}`}>
+                    <td>
+                      <button type="button" className="link mono" onClick={() => onSelect(x.sym)}>
+                        {x.sym}
+                      </button>
+                    </td>
+                    <td className="mono">+{x.gapPct.toFixed(1)} %</td>
+                    <td className="mono">{x.rvol > 0 ? `${x.rvol.toFixed(1)}×` : '—'}</td>
+                    <td>
+                      <span className={`badge gap-${x.status}`}>{GAP_STATUS[x.status]}</span>
+                    </td>
+                    <td className="mono">{x.status === 'armado' ? `${px(x.trigger)} / ${px(x.stop)} / ${px(x.target)}` : '—'}</td>
+                    <td className="t-muted small">{x.why}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+
+      {!gap && s.mode !== 'off' && st.ai !== 'no' && st.ai !== '?' && (
         <div className="ai-row">
           <button type="button" className="btn small" onClick={() => void trader.askNow()} disabled={st.thinking}>
             Preguntarle a Claude ahora
@@ -171,6 +231,7 @@ export function AiTraderPanel({ trader, selected, onSelect }: Props) {
         </div>
       )}
 
+      {!gap && (
       <div className="ai-card ai-instr">
         <div className="ai-sub">Indicaciones para la IA</div>
         <textarea
@@ -222,8 +283,9 @@ export function AiTraderPanel({ trader, selected, onSelect }: Props) {
           </ul>
         )}
       </div>
+      )}
 
-      {s.mode !== 'off' && (
+      {!gap && s.mode !== 'off' && (
         <div className="ai-card">
           <div className="ai-sub">Candidatas (las reglas)</div>
           {st.candidates.length === 0 && <div className="t-muted small">Nada que valga la pena ahora: faltan gappers con volumen, noticia y float chico.</div>}
@@ -242,6 +304,74 @@ export function AiTraderPanel({ trader, selected, onSelect }: Props) {
         </div>
       )}
 
+      {gap && (
+        <div className="ai-card ai-profile">
+          <div className="ai-sub">Objetivo de Pulso: Gap</div>
+          <div className="seg" role="group" aria-label="Perfil de Pulso: Gap">
+            {(['seguro', 'rinde'] as const).map((p) => (
+              <button key={p} className={s.gapProfile === p ? 'is-active' : ''} onClick={() => trader.update({ gapProfile: p })} title={GAP_PROFILE_HINT[p]}>
+                {GAP_PROFILE_LABEL[p]}
+              </button>
+            ))}
+            {s.gapProfile === 'personalizado' && (
+              <button className="is-active" disabled>
+                {GAP_PROFILE_LABEL.personalizado}
+              </button>
+            )}
+          </div>
+          <p className="t-muted small ai-note">{GAP_PROFILE_HINT[s.gapProfile]}</p>
+        </div>
+      )}
+
+      {gap && (
+        <details className="ai-card ai-rules">
+          <summary>Reglas de Pulso: Gap{s.gapProfile === 'personalizado' ? ' (personalizadas)' : ''}</summary>
+          <div className="ai-rules-grid">
+            <label title="Gap mínimo de apertura respecto del cierre anterior.">
+              Gap mínimo (%)
+              <input type="number" min={2} max={30} step={0.5} value={g.minGapPct} onChange={(e) => setGap({ minGapPct: Math.min(30, Math.max(2, Number(e.target.value) || 5)) })} />
+            </label>
+            <label title="Volumen de la primera vela de 5 min contra lo normal a esa hora (la investigación: con menos de 5× no hay ventaja).">
+              Vol. apertura mínimo (×)
+              <input type="number" min={1} max={50} step={0.5} value={g.minRvol} onChange={(e) => setGap({ minRvol: Math.min(50, Math.max(1, Number(e.target.value) || 5)) })} />
+            </label>
+            <label title="Objetivo en múltiplos del riesgo (1 = 54 % de aciertos; 1,5 = 50 % y más ganancia por trade).">
+              Objetivo (R)
+              <input type="number" min={0.5} max={3} step={0.25} value={g.targetR} onChange={(e) => setGap({ targetR: Math.min(3, Math.max(0.5, Number(e.target.value) || 1)) })} />
+            </label>
+            <label title="Riesgo por trade como porcentaje del capital.">
+              Riesgo (%)
+              <input type="number" min={0.1} max={2} step={0.1} value={g.riskPct} onChange={(e) => setGap({ riskPct: Math.min(2, Math.max(0.1, Number(e.target.value) || 0.5)) })} />
+            </label>
+            <label title="Hasta qué hora se acepta la ruptura del mínimo de la primera vela.">
+              Entradas hasta
+              <input type="time" value={hhmm(g.entryUntil)} onChange={(e) => setGap({ entryUntil: toMin(e.target.value) })} />
+            </label>
+            <label title="A esta hora se cubre lo que quedó abierto.">
+              Plano a las
+              <input type="time" value={hhmm(g.flatAt)} onChange={(e) => setGap({ flatAt: toMin(e.target.value) })} />
+            </label>
+            <label title="Riesgo máximo (máximo − mínimo de la primera vela) como fracción del ATR de 14 días.">
+              Riesgo máximo (ATR)
+              <input type="number" min={0.25} max={3} step={0.25} value={g.maxRiskAtr} onChange={(e) => setGap({ maxRiskAtr: Math.min(3, Math.max(0.25, Number(e.target.value) || 1)) })} />
+            </label>
+            <label>
+              Precio mínimo ($)
+              <input type="number" min={1} max={100} value={g.minPrice} onChange={(e) => setGap({ minPrice: Math.min(100, Math.max(1, Number(e.target.value) || 5)) })} />
+            </label>
+            <label>
+              Trades por día
+              <input type="number" min={1} max={20} value={g.maxTrades} onChange={(e) => setGap({ maxTrades: Math.min(20, Math.max(1, Math.round(Number(e.target.value) || 4))) })} />
+            </label>
+            <label>
+              Posiciones a la vez
+              <input type="number" min={1} max={5} value={g.maxPositions} onChange={(e) => setGap({ maxPositions: Math.min(5, Math.max(1, Math.round(Number(e.target.value) || 2))) })} />
+            </label>
+          </div>
+        </details>
+      )}
+
+      {!gap && (
       <div className="ai-card ai-profile">
         <div className="ai-sub">Perfil del automático</div>
         <div className="seg" role="group" aria-label="Perfil del IA Trader">
@@ -258,7 +388,9 @@ export function AiTraderPanel({ trader, selected, onSelect }: Props) {
         </div>
         <p className="t-muted small ai-note">{PROFILE_HINT[s.profile]}</p>
       </div>
+      )}
 
+      {!gap && (
       <details className="ai-card ai-rules">
         <summary>Reglas{s.profile === 'personalizado' ? ' (personalizadas)' : ''}</summary>
         <div className="ai-rules-grid">
@@ -337,6 +469,7 @@ export function AiTraderPanel({ trader, selected, onSelect }: Props) {
           objetivo, sube el stop a la entrada y deja correr el resto mientras respete la EMA 9 y el mínimo del último pullback de 10 s (desde 1R el stop sigue ese mínimo; a 2R una mecha de rechazo de 10 s toma ganancia). Con la mitad tomada agrega una vez si aparece otro setup. Maneja varias posiciones a la vez según el perfil, sin pasar el riesgo abierto ni abrir otra mientras una pierde más de 0,5R. Tras un stop, si la acción recupera el VWAP y arma otro setup, le da hasta dos segundas chances (el conservador no). Una acción con dos frenos o dos perdedores hoy baja en el ranking; un setup con dos perdedores sin ganar se evita el resto del día. Las salidas van por reglas; Claude opina en las entradas y resume el día al cierre.
         </p>
       </details>
+      )}
 
       {hasReport && (
         <div className="ai-card ai-report">

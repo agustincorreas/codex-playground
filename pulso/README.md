@@ -325,6 +325,52 @@ Las reglas están en `src/trading/playbook.ts` (candidatas, entradas, tamaño, m
 los textos que se le mandan a Claude en `src/trading/advisor.ts`, las indicaciones en
 `src/trading/instructions.ts` y el informe del día en `src/client/aijournal.ts`.
 
+#### Pulso: Gap: la estrategia hermana, en corto, medida con datos reales
+
+Arriba del panel del IA Trader elegís la estrategia: **Pulso** (momentum al estilo Ross Cameron, todo lo de arriba) o
+**Pulso: Gap**. Las dos usan el mismo motor, la misma cuenta de práctica y el mismo informe del día; al cambiar, el
+nombre de la app cambia y los escáneres pasan a mirar acciones de US$ 5 o más con gap de 5 % (al volver se restauran
+los tuyos).
+
+Pulso: Gap no sale de un video: sale de una investigación sobre seis años de velas reales de 1 minuto (2021 a 2026,
+Alpaca SIP, costos de 1 ¢ por acción más 0,01 % por lado), que está entera en `research/orb/` con sus tablas. La
+estrategia, en palabras simples:
+
+1. **Qué busca.** Una acción que abre 5 % o más arriba del cierre de ayer (un gap, casi siempre por una noticia).
+2. **El filtro que importa.** En los primeros 5 minutos tiene que operarse al menos 5 veces el volumen normal de esa
+   acción a esa hora. Sin ese volumen la medición dio cero; con él, la ventaja aparece y crece con el volumen.
+3. **La señal.** La vela de 9:30 a 9:35 cierra en rojo: los que compraron el entusiasmo no pudieron sostener el precio.
+4. **La entrada.** Venta en corto cuando el precio rompe el mínimo de esa primera vela (orden límite al bid).
+5. **El stop.** El máximo de esa primera vela. Esa distancia es 1 R.
+6. **El objetivo.** 1 R (perfil «Objetivo 1 R»: 54 % de aciertos, +0,07 R por trade) o 1,5 R (perfil «Objetivo 1,5 R»:
+   50 % de aciertos, +0,12 R por trade). Lo que queda abierto se cubre a las 15:55: nunca se duerme con la posición.
+7. **El tamaño.** 0,5 % de la cuenta en riesgo por trade.
+8. **Qué esperar.** Un trade cada dos días, la mitad ganadores, ningún año perdedor en los seis medidos, y una ventaja
+   chica: entre +4 y +9 % por año en el backtest con ese riesgo. Es venta en corto: la acción tiene que estar
+   disponible para prestar (al elegir Pulso: Gap se activan solas las ventas en corto de la cuenta de práctica).
+
+El panel muestra los gaps de hoy con su gap, el volumen relativo de apertura, el estado (esperando la primera vela,
+armado, descartado y por qué, vencido) y, cuando está armado, el nivel de venta, el stop y el objetivo; el plan se ve en
+el gráfico. En automático vende sola al romper el nivel; en sugerencias te lo propone. Las reglas (gap mínimo, volumen
+mínimo, objetivo, riesgo, hora límite de entrada, hora de quedar plano) se tocan en «Reglas de Pulso: Gap». El ATR de 14
+días y el volumen normal de apertura los calcula el servidor con velas reales (`/api/gap/stats`); sin servidor (demo o
+simulador) se estiman con la historia diaria y el volumen promedio.
+
+Lo que midió la investigación, para no confundir el simulador con la realidad (el panel de backtest lo muestra):
+
+| Selección | Trades | Por día | Aciertos | R por trade | Factor | Años con R ≥ 0 |
+|---|---|---|---|---|---|---|
+| Todos los gaps ≥ 5 % · objetivo 1 R | 5.890 | 4,0 | 52 % | +0,01 | 1,03 | 4 de 6 |
+| Volumen de apertura ≥ 3× · objetivo 1 R | 1.674 | 1,1 | 53 % | +0,04 | 1,10 | 6 de 6 |
+| Volumen de apertura ≥ 5× · objetivo 1 R | 810 | 0,6 | 54 % | +0,07 | 1,19 | 6 de 6 |
+| Volumen de apertura ≥ 5× · objetivo 1,5 R | 810 | 0,6 | 50 % | +0,12 | 1,29 | 6 de 6 |
+
+La misma investigación replicó el ORB de 5 minutos en acciones en juego (Zarattini, Barbon y Aziz, 2024) con ticks
+reales y lo descartó (−0,09 R por trade con costos reales, 12 % de aciertos, apagado desde 2023), midió el retroceso a
+VWAP (−0,17 R, pierde todos los años) y relevó la evidencia publicada de otras estrategias intradía: ninguna combina más
+del 50 % de aciertos con esperanza neta positiva verificada fuera de muestra. Está todo en `research/orb/results.md` y
+`research/orb/estrategias-comprobables.md`.
+
 #### Backtest: simular varios días con un clic
 
 En la pestaña **Backtest** (al lado de *IA Trader*) se simulan los últimos 5, 10 o 20 días hábiles
@@ -699,7 +745,7 @@ pulso/
 | --- | --- |
 | `npm run dev` | Interfaz en modo demo con recarga en caliente (http://localhost:5173). |
 | `npm start` | Compila la interfaz y arranca el servidor (datos reales si hay claves). |
-| `npm test` | Pruebas (309): motor, alertas, bull flag, halts LULD, Alpaca y Massive contra servidores falsos, el servidor entero (permisos, 413, 409, frames rotos), simulador (el mismo mercado a cualquier hora, volumen por hora, días, ofertas, after-hours), el plan gratis de Alpaca en capas, bróker de práctica (brackets, parciales, cortos, invariante de dinero), días de práctica, la cuenta guardada en el servidor, riesgo según la cuenta, temporalidades largas e historia, líneas y alertas de precio, el libro de jugadas y la máquina de estados del IA Trader (perfiles, varias posiciones, Claude, indicaciones del trader, informe del día, las lecciones del día real), backtest, calendario, formateadores y métricas. |
+| `npm test` | Pruebas (316): motor, alertas, bull flag, halts LULD, Alpaca y Massive contra servidores falsos, el servidor entero (permisos, 413, 409, frames rotos), simulador (el mismo mercado a cualquier hora, volumen por hora, días, ofertas, after-hours), el plan gratis de Alpaca en capas, bróker de práctica (brackets, parciales, cortos, invariante de dinero), días de práctica, la cuenta guardada en el servidor, riesgo según la cuenta, temporalidades largas e historia, líneas y alertas de precio, el libro de jugadas y la máquina de estados del IA Trader (perfiles, varias posiciones, Claude, indicaciones del trader, informe del día, las lecciones del día real, Pulso: Gap), backtest, calendario, formateadores y métricas. |
 | `npm run typecheck` | Chequeo de tipos de todo el proyecto. |
 | `npm run build:demo` | Página única del demo (`dist-demo/index.html`) para GitHub Pages. |
 | `npm run build:desktop` | Interfaz + servidor en un solo archivo para la app de escritorio (`desktop/app/`). |

@@ -4,14 +4,15 @@
 // Maneja hasta `maxPositions` posiciones a la vez (según el perfil): mientras administra una, sigue
 // recorriendo las candidatas. Claude, si está disponible, opina antes de cada entrada, elige entre las
 // candidatas cuando no hay una obvia y resume el día al terminar.
-import { DEFAULT_SETTINGS, type Settings, type SymbolDetail, type ViewModel } from '../engine/types';
-import { REG_OPEN, etParts, formatEtTime } from '../engine/time';
+import { DEFAULT_SETTINGS, type Bar, type ScanRow, type Settings, type SymbolDetail, type ViewModel } from '../engine/types';
+import { REG_OPEN, etParts, expectedVolumeFraction, formatEtTime } from '../engine/time';
 import { fmtMoney } from './lib/format';
 import { ADVISOR_SYSTEM, dayPrompt, entryPrompt, exitPrompt, instructionPrompt, parseDecision, parseInstructionRule, parseSummary, pickPrompt, type AccountBrief, type BookBrief } from '../trading/advisor';
 import { roundPx } from '../trading/depth';
 import { applyInstructions, avoidedSyms, instructionLabel, instructionsToPrompt, levelFor, parseInstruction, setupFilter, watchedSyms, type Instruction } from '../trading/instructions';
 import { DEFAULT_RULES, entryLabel, findAdd, findEntry, findLevelEntry, inEntryWindow, manage, newMemory, notionalCap, PROFILE_LABEL, PROFILES, profileOf, rankCandidates, sizeFor, type AiProfile, type Candidate, type EntryKind, type EntryPlan, type ExitAdvice, type PlaybookRules, type PositionMemory } from '../trading/playbook';
 import { JOURNAL_LOG_MAX, newJournal, type AiClaudeNote, type AiJournal, type AiTradeContext } from './aijournal';
+import { atrOf, DEFAULT_GAP_RULES, GAP_PROFILES, gapExit, gapProfileOf, gapSetup, gapShares, gapSummary, gapTriggered, type GapProfile, type GapRules, type GapSetup, type OpenStats } from '../trading/gap';
 import { aiAvailable, type Asker } from './lib/ai';
 import { load, save } from './lib/storage';
 import type { DataSource } from './source/types';
@@ -20,9 +21,15 @@ import type { Order, Position, Trade } from '../trading/types';
 import { useEffect, useState } from 'react';
 
 export type AiMode = 'off' | 'suggest' | 'auto';
+/** Qué estrategia opera: Pulso (momentum al estilo Ross Cameron) o Pulso: Gap (reversión del gap con volumen). */
+export type Strategy = 'pulso' | 'gap';
+export const STRATEGY_LABEL: Record<Strategy, string> = { pulso: 'Pulso', gap: 'Pulso: Gap' };
 
 export interface AiSettings {
   mode: AiMode;
+  strategy: Strategy;
+  gapProfile: GapProfile;
+  gapRules: GapRules;
   /** Consultar a Claude antes de cada entrada (y para elegir entre las candidatas). */
   consult: boolean;
   /** Mostrar en el gráfico la acción que mira la IA. */
@@ -53,6 +60,8 @@ export interface Suggestion {
   exit?: ExitAdvice;
   /** La entrada agrega a una posición ganadora (no abre una nueva). */
   add?: boolean;
+  /** Pulso: Gap: la venta en corto que propone. */
+  gap?: GapSetup;
 }
 
 export type AiPhase = 'off' | 'scanning' | 'watching' | 'entering' | 'inPosition' | 'paused';
@@ -153,6 +162,8 @@ export interface AiState {
   asking?: 'pick' | 'entry' | 'exit' | 'now' | 'summary' | 'instruction';
   /** La entrada que está esperando o a punto de mandar (para mostrarla en el panel y en el gráfico). */
   plan: { sym: string; kind: string; entry: number; stop: number; target: number; shares: number; note: string } | null;
+  /** Pulso: Gap: qué dice la estrategia de cada gap de hoy. */
+  gap: GapSetup[];
   /** Las posiciones que maneja, con su R en vivo. */
   positions: AiPosition[];
   /** Resumen corto del día para el panel: trades, R neto y qué evita. */
@@ -161,7 +172,7 @@ export interface AiState {
   daySummary: string | null;
 }
 
-const DEFAULT_AI: AiSettings = { mode: 'off', consult: true, follow: true, rules: DEFAULT_RULES, profile: 'equilibrado', maxCalls: 120 };
+const DEFAULT_AI: AiSettings = { mode: 'off', consult: true, follow: true, rules: DEFAULT_RULES, profile: 'equilibrado', maxCalls: 120, strategy: 'pulso', gapProfile: 'seguro', gapRules: DEFAULT_GAP_RULES };
 const px = (v: number) => (v >= 1 ? v.toFixed(2) : v.toFixed(4));
 const ASK_TIMEOUT = 25_000;
 /** Una compra que no se ejecutó en este tiempo se cancela (si se ejecutó en parte, se cancela el resto). */
@@ -204,7 +215,7 @@ interface Pending {
 
 export class AiTrader {
   settings: AiSettings;
-  state: AiState = { phase: 'off', focus: null, since: 0, candidates: [], suggestion: null, advice: null, log: [], calls: 0, pausedReason: '', waiting: '', ai: '?', thinking: false, plan: null, positions: [], day: { trades: 0, wins: 0, netR: 0, avoid: [] }, daySummary: null };
+  state: AiState = { phase: 'off', focus: null, since: 0, candidates: [], suggestion: null, advice: null, log: [], calls: 0, pausedReason: '', waiting: '', ai: '?', thinking: false, plan: null, gap: [], positions: [], day: { trades: 0, wins: 0, netR: 0, avoid: [] }, daySummary: null };
   private listeners = new Set<() => void>();
   private source: DataSource | null = null;
   private view: ViewModel | null = null;
@@ -267,8 +278,9 @@ export class AiTrader {
     opts: { instructions?: boolean } = {},
   ) {
     const saved = load<Partial<AiSettings>>('ai-settings', {});
-    this.settings = { ...DEFAULT_AI, ...saved, rules: { ...DEFAULT_RULES, ...(saved.rules ?? {}) } };
+    this.settings = { ...DEFAULT_AI, ...saved, rules: { ...DEFAULT_RULES, ...(saved.rules ?? {}) }, gapRules: { ...DEFAULT_GAP_RULES, ...(saved.gapRules ?? {}) } };
     this.settings.profile = profileOf(this.settings.rules);
+    this.settings.gapProfile = gapProfileOf(this.settings.gapRules);
     this.state.phase = this.settings.mode === 'off' ? 'off' : 'scanning';
     this.persistInstr = opts.instructions !== false;
     if (this.persistInstr) {
@@ -318,6 +330,11 @@ export class AiTrader {
     this.dilutionCounted.clear();
     this.claudeNotes.clear();
     this.missedKeys.clear();
+    this.gapStats.clear();
+    this.gapOpen.clear();
+    this.gapDone.clear();
+    this.gapKey = '';
+    this.state.gap = [];
     this.focusedDetail = undefined;
     this.state.candidates = [];
     this.state.suggestion = null;
@@ -486,10 +503,26 @@ export class AiTrader {
   update(patch: Partial<AiSettings>): void {
     // Elegir un perfil carga sus reglas; tocar una regla a mano deja el perfil en "personalizado".
     if (patch.profile && patch.profile !== 'personalizado') patch = { ...patch, rules: { ...PROFILES[patch.profile] } };
-    this.settings = { ...this.settings, ...patch, rules: { ...this.settings.rules, ...(patch.rules ?? {}) } };
+    if (patch.gapProfile && patch.gapProfile !== 'personalizado') patch = { ...patch, gapRules: { ...GAP_PROFILES[patch.gapProfile] } };
+    this.settings = { ...this.settings, ...patch, rules: { ...this.settings.rules, ...(patch.rules ?? {}) }, gapRules: { ...this.settings.gapRules, ...(patch.gapRules ?? {}) } };
     this.settings.profile = profileOf(this.settings.rules);
+    this.settings.gapProfile = gapProfileOf(this.settings.gapRules);
     save('ai-settings', this.settings);
     if (patch.profile && patch.profile !== 'personalizado') this.log(`Perfil ${PROFILE_LABEL[patch.profile].toLowerCase()}: ${this.profileSummary()}`, 'info');
+    if (patch.gapProfile || patch.gapRules) this.log(`Pulso: Gap: ${gapSummary(this.settings.gapRules)}`, 'info');
+    if (patch.strategy) {
+      this.log(patch.strategy === 'gap' ? `Estrategia Pulso: Gap (reversión del gap con volumen, en corto). ${gapSummary(this.settings.gapRules)}` : 'Estrategia Pulso: momentum al estilo Ross Cameron.', 'info');
+      // La estrategia vende en corto: si las ventas en corto estaban apagadas en la cuenta de práctica, se prenden.
+      if (patch.strategy === 'gap' && !this.c.state.settings.allowShort) {
+        this.c.updateSettings({ allowShort: true });
+        this.log('Ventas en corto activadas en la cuenta de práctica (Pulso: Gap las necesita).', 'info');
+      }
+      this.focusOn(null);
+      this.state.plan = null;
+      this.state.suggestion = null;
+      this.state.gap = [];
+      this.gapKey = '';
+    }
     if (patch.mode !== undefined) {
       if (patch.mode === 'off') {
         this.setPhase('off');
@@ -681,6 +714,7 @@ export class AiTrader {
     if (!s) return;
     this.state.suggestion = null;
     if (s.kind === 'pick') this.onSelect(s.sym);
+    else if (s.kind === 'entry' && s.gap) this.gapExecute(s.gap, 'tu decisión');
     else if (s.kind === 'entry' && s.plan && s.shares) this.execute(s.sym, s.plan, s.shares, 'tu decisión', { add: s.add });
     else if (s.kind === 'exit' && s.exit) this.applyExit(s.sym, s.exit, 'tu decisión');
     this.emit();
@@ -841,6 +875,7 @@ export class AiTrader {
       this.startJournal(a.id, a.dayKey);
     }
     if (this.journalDirty && now - this.journalSavedAt > 5000) this.saveJournal();
+    if (this.settings.strategy === 'gap') return this.gapStep();
     // 1. Posiciones abiertas (tuyas o de la IA): cada una se maneja.
     const held = this.positions();
     for (const sym of held) this.managePosition(sym);
@@ -876,6 +911,214 @@ export class AiTrader {
     this.rotateFocus(held);
   }
 
+  // ------------------------------------------------------------------ Pulso: Gap
+
+  /** Estadísticas de apertura por acción (null = pedidas, todavía no llegaron). */
+  private gapStats = new Map<string, OpenStats | null>();
+  /** Cortos abiertos por la estrategia, con su setup. */
+  private gapOpen = new Map<string, { enteredAt: number; setup: GapSetup }>();
+  /** Acciones ya operadas (o descartadas al intentar) hoy: una sola vez cada una. */
+  private gapDone = new Set<string>();
+  private gapKey = '';
+
+  /** Un día de Pulso: Gap, paso a paso: cubrir lo que toca, mirar los gaps, vender al romper el mínimo de la primera vela. */
+  private gapStep(): void {
+    const now = this.now;
+    const r = this.settings.gapRules;
+    const nowMin = etParts(now).minutes;
+    // 1. Cortos abiertos: el stop y el objetivo son órdenes del bróker; acá se cubre a la hora de quedar plano (o si el bróker no tenía las órdenes).
+    const held = this.gapHeld();
+    for (const sym of held) {
+      const pos = this.c.broker?.position(sym);
+      const q = this.source?.quote(sym);
+      if (!pos || !q) continue;
+      const ex = gapExit(pos, q.last, nowMin, r, this.gapOpen.get(sym)?.setup.target);
+      if (ex.action !== 'cover') continue;
+      const last = this.lastExit.get(sym);
+      if (last && this.now - last.at < 20_000) continue;
+      this.lastExit.set(sym, { action: 'cover', at: this.now });
+      if (this.settings.mode === 'auto') {
+        this.c.cancelAll(sym);
+        const res = this.c.sell(sym, 1, 'bid', -0.05, undefined, ex.role);
+        this.step_(sym, 'cubre', ex.reason, 'reglas');
+        this.log(`${sym}: cubre el corto (reglas). ${ex.reason}.`, res.ok ? 'ok' : 'error');
+      } else this.suggest({ kind: 'exit', sym, title: `Cubrí ${sym}`, text: `${ex.reason}.`, exit: { action: 'sellAll', reason: ex.reason, role: ex.role === 'eod' ? undefined : ex.role } });
+    }
+    // 2. Cortos que cerraron (stop, objetivo, cobertura).
+    for (const sym of [...this.gapOpen.keys()]) if (!held.includes(sym)) this.afterGapTrade(sym);
+    this.snapshot(held);
+    // 3. Los gaps de hoy y qué dice la estrategia de cada uno.
+    const rows = this.gapRows();
+    const missing = rows.filter((x) => !this.gapStats.has(x.sym)).slice(0, 8).map((x) => x.sym);
+    if (missing.length) {
+      for (const sym of missing) this.gapStats.set(sym, null);
+      void this.fetchGapStats(missing);
+    }
+    const setups = rows.map((row) => gapSetup(row, this.gapStats.get(row.sym) ?? null, nowMin, r));
+    const order: Record<GapSetup['status'], number> = { armado: 0, esperando: 1, vencido: 2, descartado: 3 };
+    setups.sort((a, b) => order[a.status] - order[b.status] || b.rvol - a.rvol || b.gapPct - a.gapPct);
+    const key = setups.map((x) => `${x.sym}:${x.status}:${x.rvol.toFixed(1)}:${x.trigger}`).join('|');
+    if (key !== this.gapKey) {
+      this.gapKey = key;
+      this.state.gap = setups;
+      this.emit();
+    }
+    // 4. Límites del día.
+    const pause = this.gapLimits(held, nowMin);
+    if (pause) {
+      this.setPhase(held.length ? 'inPosition' : 'paused', held.length ? '' : pause);
+      this.wait(pause);
+      this.setPlan(null);
+      if (pause.startsWith('Cerró el mercado') && this.c.active?.trades.length) void this.summarizeDay(this.c.active.id, this.c.active.trades);
+      return;
+    }
+    if (held.length >= r.maxPositions) {
+      this.setPhase('inPosition');
+      this.setPlan(null);
+      return this.wait(`Ya maneja ${held.length} corto${held.length > 1 ? 's' : ''}: el tope de la estrategia.`);
+    }
+    // 5. La ruptura: al primer precio por debajo del mínimo de la primera vela se vende.
+    const armed = setups.filter((x) => x.status === 'armado' && !held.includes(x.sym) && !this.gapDone.has(x.sym));
+    const first = armed[0] ?? null;
+    this.focusOn(first?.sym ?? null, first ? 'gap armado' : undefined);
+    this.setPlan(first ? { sym: first.sym, kind: 'Reversión del gap (corto)', entry: first.trigger, stop: first.stop, target: first.target, shares: this.gapSize(first), note: first.why } : null);
+    for (const s of armed) {
+      const q = this.source?.quote(s.sym);
+      if (!q || !gapTriggered(s, q.last, q.bid)) continue;
+      if (this.settings.mode === 'auto') this.gapExecute(s, 'reglas');
+      else if (!this.state.suggestion || this.state.suggestion.sym !== s.sym) {
+        const shares = this.gapSize(s);
+        this.suggest({ kind: 'entry', sym: s.sym, title: `Vendé en corto ${shares} ${s.sym}`, text: `Rompió el mínimo de la primera vela ($${px(s.trigger)}): stop $${px(s.stop)}, objetivo $${px(s.target)}. ${s.why}.`, gap: s, shares });
+      }
+      break;
+    }
+    this.setPhase(held.length ? 'inPosition' : armed.length ? 'watching' : 'scanning');
+    const waiting = setups.filter((x) => x.status === 'esperando').length;
+    this.wait(armed.length ? `${armed.length} gap${armed.length > 1 ? 's' : ''} armado${armed.length > 1 ? 's' : ''}: se vende al romper el mínimo de la primera vela.` : waiting ? `${waiting} gap${waiting > 1 ? 's' : ''} esperando la primera vela de 5 minutos.` : rows.length ? 'Ningún gap de hoy cumple las reglas.' : `Sin gaps de ${r.minGapPct} % o más hoy.`);
+    this.rotateFocus(held);
+  }
+
+  /** Los cortos abiertos en la cuenta (los de la estrategia y los tuyos). */
+  private gapHeld(): string[] {
+    return this.c.broker?.session.positions.filter((p) => p.side === 'short').map((p) => p.sym) ?? [];
+  }
+
+  /** Todos los gaps de hoy que ve el motor (escáneres, seguidas y con posición), una vez cada uno. */
+  private gapRows(): ScanRow[] {
+    const v = this.view;
+    if (!v) return [];
+    const r = this.settings.gapRules;
+    const seen = new Map<string, ScanRow>();
+    for (const row of [...Object.values(v.scanners).flat(), ...v.watch, ...v.tracked]) if (!seen.has(row.sym) && row.gapPct >= r.minGapPct && row.price >= r.minPrice) seen.set(row.sym, row);
+    return [...seen.values()];
+  }
+
+  /** ATR y volumen normal de apertura: del servidor si hay; si no, estimados con la historia diaria y el volumen promedio. */
+  private async fetchGapStats(syms: string[]): Promise<void> {
+    let fromServer: Record<string, { atr: number; avgOpen5: number }> = {};
+    if (this.source?.kind === 'remote') {
+      try {
+        const res = await fetch(`/api/gap/stats?syms=${encodeURIComponent(syms.join(','))}`);
+        if (res.ok) fromServer = (await res.json()) as typeof fromServer;
+      } catch {
+        fromServer = {};
+      }
+    }
+    for (const sym of syms) {
+      const s = fromServer[sym];
+      const stats = s && s.atr > 0 && s.avgOpen5 > 0 ? { atr: s.atr, avgOpen5: s.avgOpen5, source: 'servidor' as const } : await this.estimateGapStats(sym);
+      this.gapStats.set(sym, stats);
+    }
+    this.gapKey = '';
+    this.emit();
+  }
+
+  private async estimateGapStats(sym: string): Promise<OpenStats | null> {
+    const row = this.source?.row(sym);
+    const avg = row?.avgVolume ?? 0;
+    if (!(avg > 0) || !row) return null;
+    let daily: Bar[] = [];
+    try {
+      daily = (await this.source?.history?.(sym, 'day')) ?? [];
+    } catch {
+      daily = [];
+    }
+    const atr = atrOf(daily) || row.price * 0.05;
+    const dayKey = etParts(this.now || Date.now()).dateKey;
+    const frac = Math.max(0.005, expectedVolumeFraction(REG_OPEN + 5, dayKey) - expectedVolumeFraction(REG_OPEN, dayKey));
+    return { atr, avgOpen5: avg * frac, source: 'estimado' };
+  }
+
+  private gapLimits(held: string[], nowMin: number): string {
+    const r = this.settings.gapRules;
+    const trades = this.c.active?.trades.length ?? 0;
+    if (trades >= r.maxTrades) return `Ya hubo ${trades} trades hoy: por hoy no se abren más.`;
+    const sum = this.c.summary();
+    if (sum.pdt && sum.dayTrades >= 3) return 'Regla PDT: ya hay 3 day trades en 5 días con menos de US$ 25.000 en cuenta margen.';
+    if (nowMin >= MARKET_CLOSE) return 'Cerró el mercado (16:00 NY): por hoy no se abren más trades.';
+    if (nowMin >= r.flatAt && !held.length) return 'Hora de quedar plano: por hoy no se abren más trades.';
+    if (nowMin > r.entryUntil && !held.length) return 'Pasó la hora límite de entrada: por hoy no se abren más trades.';
+    return '';
+  }
+
+  private gapRisk(): number {
+    return Math.max(1, (this.c.summary().equity * this.settings.gapRules.riskPct) / 100);
+  }
+
+  private gapSize(s: GapSetup): number {
+    return lots(gapShares(this.gapRisk(), s.trigger, s.stop, this.c.summary().buyingPower));
+  }
+
+  /** Vende en corto al bid (menos 5 centavos) con el stop y el objetivo como órdenes OCO. */
+  private gapExecute(s: GapSetup, by: string): void {
+    const sym = s.sym;
+    if (this.gapDone.has(sym) || this.c.broker?.position(sym)) return;
+    const block = this.c.shortBlock(sym);
+    if (block) {
+      this.gapDone.add(sym);
+      this.log(`${sym}: no se puede vender en corto (${block}).`, 'error');
+      this.missed(sym, { kind: 'level', entry: s.trigger, stop: s.stop, target: s.target, reason: s.why }, block);
+      return;
+    }
+    const shares = this.gapSize(s);
+    if (!shares) {
+      this.gapDone.add(sym);
+      this.log(`${sym}: ${this.noBuyingPower()}`, 'error');
+      return;
+    }
+    const res = this.c.short(sym, shares, { stop: s.stop, target: s.target, setup: 'IA · Reversión del gap' });
+    this.gapDone.add(sym);
+    if (!res.ok) {
+      this.log(`${sym}: no se pudo vender en corto (${res.message}).`, 'error');
+      return;
+    }
+    const price = res.order?.price ?? this.source?.quote(sym)?.bid ?? s.trigger;
+    this.gapOpen.set(sym, { enteredAt: this.now, setup: s });
+    this.setPhase('inPosition');
+    this.setPlan(null);
+    this.journal.trades.push({ id: ++this.seq, sym, kind: 'Reversión del gap (corto)', by, at: this.now, entry: price, stop: s.stop, target: s.target, shares, reason: s.why, secondChance: false, ctx: this.contextOf(sym, price, shares), steps: [] });
+    this.journalDirty = true;
+    this.log(`Vende en corto ${shares} ${sym} a $${px(price)} (${by}): rompió el mínimo de la primera vela, stop $${px(s.stop)}, objetivo $${px(s.target)}.`, 'ok');
+    if (this.settings.follow) this.onSelect(sym);
+  }
+
+  private afterGapTrade(sym: string): void {
+    const open = this.gapOpen.get(sym);
+    const t = (this.c.active?.trades ?? []).filter((x) => x.sym === sym).at(-1);
+    if (open && t && t.closedAt >= open.enteredAt) {
+      this.log(`${sym} cerrado: ${t.net >= 0 ? '+' : '−'}$${Math.abs(t.net).toFixed(2)}${t.r !== undefined ? ` (${t.r.toFixed(1)}R)` : ''}.`, t.net >= 0 ? 'ok' : 'error');
+      const rec = this.journal.trades.filter((x) => x.sym === sym && !x.exit).at(-1);
+      if (rec) {
+        rec.exit = { at: t.closedAt, avgExit: t.avgExit, net: t.net, r: t.r, reason: t.exitReason, mfePct: t.mfePct, maePct: t.maePct, minutes: (t.closedAt - t.openedAt) / 60_000 };
+        this.journalDirty = true;
+      }
+      this.remember(sym, t);
+    }
+    this.gapOpen.delete(sym);
+    this.lastExit.delete(sym);
+    if (!this.gapHeld().length) this.setPhase('scanning');
+  }
+
   /** Lo que ve el panel: las posiciones con su R en vivo y el resumen del día. */
   private snapshot(held: string[]): void {
     const positions: AiPosition[] = [];
@@ -884,9 +1127,10 @@ export class AiTrader {
       if (!pos) continue;
       const mem = this.mem.get(sym);
       const last = this.source?.quote(sym)?.last || pos.avgCost;
-      const risk = pos.initialStop ? pos.avgCost - pos.initialStop : pos.avgCost * 0.03;
-      const stop = this.currentStop(pos, mem);
-      positions.push({ sym, shares: pos.shares, avgCost: pos.avgCost, stop: stop > 0 ? stop : null, target: pos.target ?? pos.planTarget ?? null, r: risk > 0 ? (last - pos.avgCost) / risk : 0, halfTaken: !!mem?.halfTaken, kind: mem?.kind ? entryLabel(mem.kind) : (pos.setup ?? ''), secondChance: !!mem?.secondChance, added: !!mem?.addedOnce });
+      const short = pos.side === 'short';
+      const risk = pos.initialStop ? Math.abs(pos.avgCost - pos.initialStop) : pos.avgCost * 0.03;
+      const stop = short ? (pos.stop ?? pos.planStop ?? pos.initialStop ?? 0) : this.currentStop(pos, mem);
+      positions.push({ sym, shares: pos.shares, avgCost: pos.avgCost, stop: stop > 0 ? stop : null, target: pos.target ?? pos.planTarget ?? null, r: risk > 0 ? (short ? pos.avgCost - last : last - pos.avgCost) / risk : 0, halfTaken: !!mem?.halfTaken, kind: mem?.kind ? entryLabel(mem.kind) : (pos.setup ?? ''), secondChance: !!mem?.secondChance, added: !!mem?.addedOnce });
     }
     const avoid = [...Object.keys(this.day.syms).filter((s) => penalized(this.day, s)), ...[...avoidedSetups(this.day)].map((k) => entryLabel(k).toLowerCase())];
     const prev = this.state;
@@ -1434,8 +1678,16 @@ export class AiTrader {
 
   private applyExit(sym: string, advice: ExitAdvice, by: string): void {
     const pos = this.c.broker?.position(sym);
-    // Solo sobre una posición comprada: `sell` nunca abre un corto, pero tampoco hay que cubrir uno ajeno.
-    if (!pos || pos.side === 'short') return;
+    if (!pos) return;
+    // Un corto solo se toca en Pulso: Gap, y solo para cubrirlo entero (`sell` sobre un corto cubre).
+    if (pos.side === 'short') {
+      if (this.settings.strategy !== 'gap' || advice.action !== 'sellAll') return;
+      this.c.cancelAll(sym);
+      const res = this.c.sell(sym, 1, 'bid', -0.05, undefined, advice.role);
+      this.step_(sym, 'cubre', advice.reason, by);
+      this.log(`${sym}: cubre el corto (${by}). ${advice.reason}.`, res.ok ? 'ok' : 'error');
+      return;
+    }
     const mem = this.mem.get(sym) ?? newMemory(pos.openedAt, pos.avgCost);
     this.mem.set(sym, mem);
     if (advice.action === 'sellHalf') {
