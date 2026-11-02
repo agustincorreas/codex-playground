@@ -67,3 +67,41 @@ La app hermana no debería construirse sobre el ORB publicado. Las opciones, en 
    la extensión del gap cuando falla la primera vela). Cada una se mide en un par de horas.
 2. Si ninguna mide, el 50 % se busca como lo hace Pulso con el perfil Ross: objetivo corto, salida rápida, y el
    número real sale de la semana en automático.
+
+## Segunda ronda: retroceso a VWAP y reversión del gap (2 de noviembre)
+
+Mismos datos y costos. Tablas completas en `results-vwap-gap.md` (acciones en juego), `results-gapup.md` (grilla del
+gap al alza vendido sobre las 20 en juego) y `results-gapup-universo.md` (todos los gaps ≥ 5 % del universo elegible,
+22 por día, con volumen relativo calculado para cada uno). Relevamiento de la evidencia publicada en
+`estrategias-comprobables.md`.
+
+- **Retroceso a VWAP** (la acción viene por arriba del VWAP, lo toca y cierra por arriba; entrada al superar la vela
+  del toque, stop bajo su mínimo): pierde en las 14 variantes. 48 % de aciertos con objetivo 1 R y −0,17 R por trade;
+  negativo los seis años. Ni acotar el riesgo, ni la primera hora, ni el stop a la entrada lo dan vuelta.
+- **Reversión del gap al alza** (gap ≥ 5 %, primera vela de 5 min roja, venta al romper su mínimo, stop en su máximo,
+  objetivo en R): es lo único con señal, y la señal está en el volumen relativo de la primera vela:
+
+| Selección | Trades | /día | Aciertos | R por trade | Factor | Años con R ≥ 0 |
+|---|---|---|---|---|---|---|
+| 20 más en juego · obj 1 R | 1.019 | 0,7 | 54 % | +0,07 | 1,17 | 6 de 6 |
+| Todos los gaps ≥ 5 % · obj 1 R | 5.890 | 4,0 | 52 % | +0,01 | 1,03 | 4 de 6 |
+| Todos · rvol ≥ 3× · obj 1 R | 1.674 | 1,1 | 53 % | +0,04 | 1,10 | 6 de 6 |
+| Todos · rvol ≥ 5× · obj 1 R | 810 | 0,6 | 54 % | +0,07 | 1,19 | 6 de 6 |
+| Todos · rvol ≥ 5× · obj 1,5 R | 810 | 0,6 | 50 % | +0,12 | 1,29 | 6 de 6 |
+| Todos · rvol ≥ 10× · obj 1,5 R | 259 | 0,2 | 48 % | +0,11 | 1,26 | 4 de 6 |
+
+  Sin filtro de volumen la ventaja se diluye a cero; con volumen relativo de 5× o más vuelve y es monótona (más
+  volumen, más R por trade). Es una ventaja chica y consistente: 50 a 54 % de aciertos, +0,07 a +0,12 R por trade,
+  más o menos un trade cada dos días, y con 0,5 % de riesgo por trade da entre +4 y +9 % por año en el backtest, con
+  drawdown de 5 a 6 %. Requiere vender en corto (disponibilidad para prestar y costo del préstamo no modelados).
+
+## Conclusión general
+
+1. No existe, ni en la literatura con réplicas ni en nuestros datos, una estrategia intradía mecánica que combine más
+   del 50 % de aciertos con una esperanza neta claramente positiva y estable. Las de ruptura (ORB, área de ruido)
+   aciertan 12 a 43 % y su ventaja se apagó entre 2023 y 2025; las de reversión aciertan más pero rinden poco.
+2. Lo mejor que midió, con reglas simples y seis años positivos, es vender el gap al alza con volumen cuando falla la
+   primera vela: 54 % y +0,07 R (objetivo 1 R) o 50 % y +0,12 R (objetivo 1,5 R), un trade cada dos días.
+3. El porcentaje de aciertos es una elección de salida (objetivo corto, stop lejos) y no una medida de ventaja; con
+   objetivo 1 R casi cualquier entrada da 50 %. La única métrica que separa estrategias es la R por trade después de
+   costos, medida por año.
