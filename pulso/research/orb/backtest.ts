@@ -50,7 +50,7 @@ export interface Trade {
 }
 
 /** Costo por lado: un centavo por acción (medio spread de una acción líquida) más 0,01 % del precio (deslizamiento). */
-const costOf = (price: number, cost: Variant['cost'] = 'real') => (cost === 'paper' ? 0.0035 : 0.01 + 0.0001 * price);
+export const costOf = (price: number, cost: Variant['cost'] = 'real') => (cost === 'paper' ? 0.0035 : 0.01 + 0.0001 * price);
 
 const load = <T>(file: string): T => JSON.parse(readFileSync(file, 'utf8')) as T;
 const dailyCache = new Map<string, Bar[]>();
