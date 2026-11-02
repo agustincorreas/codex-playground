@@ -50,6 +50,8 @@ interface GapVariant extends Common {
   targetMode: 'gapfill' | 'R';
   /** Variante de entrada: 'primera vela en contra' o 'ruptura fallida' (rompe a favor del gap y vuelve a entrar al rango). */
   entryMode: 'contra' | 'fallida';
+  /** Volumen relativo mínimo de la primera vela (0 = sin filtro). */
+  minRvol?: number;
 }
 type Variant = VwapVariant | GapVariant;
 
@@ -248,19 +250,25 @@ function main() {
             variants.push({ kind: 'gap', name: `GAP ↑ ≥ ${pct(minGap)} · 1.ª vela roja · corto · obj ${targetR}R · riesgo ≤ ${maxRiskAtr} ATR · hasta ${entryUntil === 360 ? '15:30' : entryUntil === 90 ? '11:00' : '10:00'}`, ...base, maxRiskAtr, entryUntil, side: 'short', targetR, minGap, targetMode: 'R', entryMode: 'contra' });
     for (const minGap of [0.05, 0.08])
       variants.push({ kind: 'gap', name: `GAP ↑ ≥ ${pct(minGap)} · 1.ª vela roja · corto · cubrir el gap (tope 2R) · riesgo ≤ 1 ATR · hasta 15:30`, ...base, entryUntil: 360, side: 'short', targetR: 2, minGap, targetMode: 'gapfill', entryMode: 'contra' });
+    // ¿Es el volumen relativo lo que separa el gap que revierte? (solo tiene sentido con la selección 'gappers').
+    for (const minRvol of [2, 3, 5, 10])
+      for (const minGap of [0.05, 0.08])
+        for (const targetR of [1, 1.5])
+          variants.push({ kind: 'gap', name: `GAP ↑ ≥ ${pct(minGap)} · rvol ≥ ${minRvol}× · 1.ª vela roja · corto · obj ${targetR}R · riesgo ≤ 1 ATR · hasta 15:30`, ...base, entryUntil: 360, side: 'short', targetR, minGap, targetMode: 'R', entryMode: 'contra', minRvol });
   }
   const results = variants.map((v) => ({ v, trades: [] as Trade[] }));
   for (const day of days) {
-    const top = load<Array<{ sym: string }>>(join(ROOT, INPLAY, `${day}.json`));
+    const top = load<Array<{ sym: string; rvol?: number }>>(join(ROOT, INPLAY, `${day}.json`));
     const open = load<Record<string, Bar>>(join(ROOT, 'open5', `${day}.json`));
     const mins = load<Record<string, Bar[]>>(join(ROOT, 'min', `${day}.json`));
-    for (const { sym } of top) {
+    for (const { sym, rvol } of top) {
       const o = open[sym];
       const m = mins[sym];
       if (!o || !m?.length) continue;
       for (const r of results) {
         if (r.v.kind === 'vwap') r.trades.push(...simulateVwap(day, sym, m, r.v));
         else {
+          if (r.v.minRvol && (rvol ?? 0) < r.v.minRvol) continue;
           const t = simulateGap(day, sym, o, m, r.v);
           if (t) r.trades.push(t);
         }
