@@ -44,7 +44,7 @@
       hud.orq.querySelector('.tonalidad').textContent = `${C.NOTAS[res.raiz]} ${modo.nombre.toLowerCase()}`;
       hud.orq.querySelector('.modo').textContent = modo.animo;
       hud.orq.querySelector('.tempo').textContent = `${Math.round(res.bpm)} bpm`;
-      if (res.acorde) hud.orq.querySelector('.acorde').textContent = res.acorde.nombre;
+      if (res.acorde) hud.orq.querySelector('.acorde').textContent = res.acorde.romano && compositor.estilo === 'progresion' ? `${res.acorde.romano} · ${res.acorde.nombre}` : res.acorde.nombre;
     }
     const s = E.solista; const es = E.est[s];
     if (s && es) {
@@ -229,9 +229,63 @@
     }
     visual.actualizar(estadoVisual());
     visual.frame();
+    pintarPiano();
     // paneles: se esconden solos tras un rato sin mover el mouse
     E.ocioso += 1 / 60;
     if (E.ocioso > 6 && !E.hudOculto && E.reproduciendo && !$('#panel-vivo').classList.contains('visible')) ocultarHud(true, true);
+  }
+
+  /* ----------------------------------------------------------- modo progresión: partitura y piano */
+  const partitura = { acorde: null, teclas: [] };
+  const piano = $('#piano'), pianoCtx = piano.getContext('2d');
+  const PIANO_DESDE = 48, PIANO_HASTA = 72; // C3 … C5
+  const esNegra = (midi) => [1, 3, 6, 8, 10].includes(C.mod(midi, 12));
+  function setEstilo(e) {
+    compositor.estilo = e; E.estilo = e;
+    document.body.classList.toggle('estilo-progresion', e === 'progresion');
+    for (const b of $('#estilo').children) b.classList.toggle('activo', b.dataset.e === e);
+    try { localStorage.setItem('campana.estilo', e); } catch (err) { /* sin storage */ }
+  }
+  visual.onAcorde = (e) => {
+    partitura.acorde = e;
+    if (!e.progresion) return;
+    const pal = C.PALETAS[e.modo] || C.PALETAS.jonico;
+    const panel = $('#progresion'); panel.style.setProperty('--acento-modo', pal.acento);
+    panel.querySelector('.tono').textContent = `${C.NOTAS[compositor.raiz]} ${C.MODOS[e.modo].nombre.toLowerCase()} · ${C.MODOS[e.modo].animo}`;
+    panel.querySelectorAll('.card').forEach((card, i) => {
+      const a = e.progresion[i];
+      card.classList.toggle('activo', i === e.pos);
+      card.querySelector('.rom').textContent = a ? a.romano : '—';
+      card.querySelector('.nom').textContent = a ? a.nombre : '';
+    });
+  };
+  visual.onNota = (e) => { partitura.teclas.push({ midi: e.midi, color: e.color, hasta: motor.ahora() + Math.max(.25, Math.min(e.dur, 1.2)) }); };
+  function pintarPiano() {
+    if (compositor.estilo !== 'progresion' || E.hudOculto) return;
+    const W = piano.width, H = piano.height, ctx = pianoCtx;
+    const blancas = []; for (let m = PIANO_DESDE; m <= PIANO_HASTA; m++) if (!esNegra(m)) blancas.push(m);
+    const anchoB = W / blancas.length;
+    const ahora = motor.ahora();
+    partitura.teclas = partitura.teclas.filter((t) => t.hasta > ahora);
+    const acorde = partitura.acorde && partitura.acorde.midis ? new Set(partitura.acorde.midis.map((m) => { let x = m; while (x > PIANO_HASTA) x -= 12; while (x < PIANO_DESDE) x += 12; return x; })) : new Set();
+    const pal = C.PALETAS[(partitura.acorde && partitura.acorde.modo) || compositor.modo] || C.PALETAS.jonico;
+    const solista = new Map(); for (const t of partitura.teclas) { let x = t.midi; while (x > PIANO_HASTA) x -= 12; while (x < PIANO_DESDE) x += 12; solista.set(x, t.color); }
+    ctx.clearRect(0, 0, W, H);
+    const xDe = (midi) => { let i = 0; for (let m = PIANO_DESDE; m < midi; m++) if (!esNegra(m)) i++; return esNegra(midi) ? i * anchoB - anchoB * .3 : i * anchoB; };
+    blancas.forEach((m) => {
+      const x = xDe(m); const enAcorde = acorde.has(m), enSol = solista.get(m);
+      ctx.fillStyle = enSol ? enSol : enAcorde ? pal.nebulosa[0] : 'rgba(255,255,255,.88)';
+      ctx.fillRect(x + 1, 0, anchoB - 2, H);
+      if (enAcorde || enSol) { ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.fillRect(x + 1, H * .75, anchoB - 2, H * .25); }
+      if (C.mod(m, 12) === 0) { ctx.fillStyle = 'rgba(0,0,0,.45)'; ctx.font = '600 10px Inter, sans-serif'; ctx.textAlign = 'center'; ctx.fillText(C.nombreNota(m), x + anchoB / 2, H - 6); }
+    });
+    for (let m = PIANO_DESDE; m <= PIANO_HASTA; m++) {
+      if (!esNegra(m)) continue;
+      const x = xDe(m); const enAcorde = acorde.has(m), enSol = solista.get(m);
+      ctx.fillStyle = enSol ? enSol : enAcorde ? pal.nebulosa[0] : '#15172a';
+      ctx.fillRect(x, 0, anchoB * .6, H * .62);
+      if (enAcorde || enSol) { ctx.fillStyle = 'rgba(255,255,255,.3)'; ctx.fillRect(x, H * .5, anchoB * .6, H * .12); }
+    }
   }
 
   let pistaTimer = null;
@@ -313,6 +367,8 @@
     $('#btn-play').addEventListener('click', alternar);
     $('#btn-mas').addEventListener('click', () => { const v = $('#mas').classList.toggle('visible'); $('#btn-mas').classList.toggle('activo', v); });
     $('#velocidad').addEventListener('click', (ev) => { const b = ev.target.closest('button'); if (b) setVelocidad(+b.dataset.v); });
+    $('#estilo').addEventListener('click', (ev) => { const b = ev.target.closest('button'); if (!b) return; setEstilo(b.dataset.e); avisar(b.dataset.e === 'progresion' ? 'Progresión de acordes: un loop de cuatro acordes elegido por el ánimo del mercado.' : 'Estilo libre: armonía generativa minuto a minuto.'); });
+    try { const e = localStorage.getItem('campana.estilo'); if (e === 'progresion') setEstilo(e); } catch (err) { /* sin storage */ }
     $('#director').addEventListener('click', (ev) => { const b = ev.target.closest('button'); if (!b) return; E.director = b.dataset.d; pintarDirector(); avisar(E.director === 'auto' ? 'Director automático: enfoca la acción más activa.' : 'Director manual: elegís el solista con las estrellas o ← →.'); });
     $('#volumen').addEventListener('input', (ev) => motor.setNivel('master', +ev.target.value));
     $('#btn-ocultar').addEventListener('click', () => ocultarHud(!E.hudOculto, false));
@@ -345,6 +401,7 @@
         case 'ArrowLeft': solistaRelativo(-1); break;
         case 'a': case 'A': E.director = E.director === 'auto' ? 'manual' : 'auto'; pintarDirector(); avisar(`Director ${E.director === 'auto' ? 'automático' : 'manual'}`); break;
         case 'h': case 'H': ocultarHud(!E.hudOculto, false); break;
+        case 'p': case 'P': setEstilo(compositor.estilo === 'progresion' ? 'libre' : 'progresion'); avisar(compositor.estilo === 'progresion' ? 'Progresión de acordes' : 'Estilo libre'); break;
         case 'f': case 'F': pantallaCompleta(); break;
         case '1': setVelocidad(.5); break; case '2': setVelocidad(1); break; case '3': setVelocidad(2); break; case '4': setVelocidad(3); break;
         case 'n': case 'N': if (E.clave === 'sintetico') { E.semillaSintetica = Math.floor(Math.random() * 9999); cargarDia('sintetico'); reproducir(); } break;

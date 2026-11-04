@@ -48,6 +48,27 @@ según la volatilidad; con la velocidad 2× o 3× se escucha en menos.
 | Fuerza relativa frente al SPY | **Modo propio**: si le va mucho mejor que al mercado, toca en un modo más luminoso que la orquesta; si le va peor, en uno más oscuro. Así una acción que se desploma en un día alcista suena frigia sobre un fondo lidio. |
 | Máximo / mínimo nuevo del día | Un remolino ascendente o descendente de cuatro notas. |
 
+### Modo progresión de acordes
+
+En el menú ⋯ (o con la tecla `P`) el estilo pasa de *libre* a **progresión de acordes**. En vez
+de la armonía generativa, la orquesta toca un **loop de cuatro acordes** y cada minuto avanza un
+acorde. La progresión se elige según el ánimo del mercado (el modo): en jónico suenan las de
+siempre (I–V–vi–IV, I–vi–IV–V, vi–IV–I–V…), en lidio las flotantes (I–II–I–II, I–V–II–IV), en
+mixolidio las de rock (I–♭VII–IV–I), en dórico las modales (i–IV–i–IV), en eólico las menores
+(i–VI–III–VII, i–VI–iv–v), en frigio las oscuras (i–♭II–i–♭II) y en locrio las inestables. Cambia
+cuando cambia el modo o cada cuatro vueltas, y con mucho volumen entran las variantes más movidas.
+
+- El **volumen relativo** decide cómo se toca el acorde: en calma, en bloque (piano eléctrico o
+  cuerdas); con actividad media, arpegiado en corcheas (arpa o piano eléctrico); en frenesí, rasgueado
+  con el patrón pop (1 · 2y · 3 · 4 · 4y) y hi-hats.
+- Las velas fuertes agregan la séptima; la posición del precio en el rango del día invierte el acorde.
+- El **solista** apoya en el acorde: las notas que caen en tiempo fuerte se ajustan a la nota del
+  acorde más cercana, y las débiles pasan por la escala.
+- En pantalla aparece la **partitura**: los cuatro acordes con su cifrado romano (mayúsculas mayor,
+  minúsculas menor, ° disminuido, ♭/♯ frente a la escala mayor) y su nombre, el acorde actual
+  encendido con el color del modo, y un **teclado de piano** de dos octavas con las notas del acorde
+  iluminadas y la nota del solista en el color de su sector.
+
 ### El visual
 
 Abajo, el SPY es un **horizonte de luz** sobre un mar que respira con los graves. En el cielo, la
@@ -63,6 +84,7 @@ azul en jónico, verde agua en dórico, índigo en eólico, carmesí en frigio.
 - **Selector de día**: los días grabados, "Un día inventado" (la tecla `N` genera otro) y "El
   mercado ahora, en vivo".
 - **Velocidad** ½× · 1× · 2× · 3× (teclas `1`–`4`). **Director** automático o manual (`A`).
+- **Estilo** libre o progresión de acordes (`P`).
 - **Solista**: clic en una estrella, o `←` `→` para recorrer la constelación.
 - **Línea de tiempo** abajo: clic para saltar a otra hora del día.
 - `espacio` play/pausa · `H` esconde los paneles (también se esconden solos) · `F` pantalla completa.

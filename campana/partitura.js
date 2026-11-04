@@ -14,14 +14,37 @@
   const TRANS_BAJA = { 0: [5, 1, 5, 3], 1: [5, 4, 3], 2: [5, 1], 3: [1, 5, 0], 4: [5, 3, 1], 5: [3, 1, 5, 0], 6: [5, 1] };
   const LEGATO = { arpegio: .7, swing: .62, tresillo: .68, rubato: 1.5, sostenido: 2.4, glitch: .33, motor: .5, ola: 1.1 };
 
+  // Modo progresión: loops de cuatro acordes (grados 0..6) por cada ánimo del mercado.
+  const PROGRESIONES = {
+    lidio:     [[0, 1, 0, 1], [0, 4, 1, 3], [0, 1, 5, 4], [0, 6, 1, 0]],
+    jonico:    [[0, 4, 5, 3], [0, 5, 3, 4], [5, 3, 0, 4], [0, 3, 5, 4], [0, 2, 3, 4]],
+    mixolidio: [[0, 6, 3, 0], [0, 3, 6, 3], [0, 6, 0, 4], [0, 4, 6, 3]],
+    dorico:    [[0, 3, 0, 3], [0, 3, 6, 0], [0, 1, 3, 0], [0, 6, 3, 0]],
+    eolico:    [[0, 5, 2, 6], [0, 5, 3, 4], [0, 3, 4, 0], [0, 6, 5, 6], [0, 2, 6, 5]],
+    frigio:    [[0, 1, 0, 1], [0, 1, 6, 1], [0, 6, 1, 0], [0, 5, 1, 0]],
+    locrio:    [[0, 1, 0, 5], [0, 5, 1, 0]],
+  };
+  const MAYOR = [0, 2, 4, 5, 7, 9, 11];
+  const ROMANOS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
+  /** Cifrado romano del grado `gdo` en el modo: minúscula si es menor, ° disminuido, + aumentado, ♭/♯ frente a la escala mayor. */
+  function romano(modo, gdo, semis) {
+    const iv = C.MODOS[modo].iv[gdo], ref = MAYOR[gdo];
+    const acc = iv < ref ? '♭' : iv > ref ? '♯' : '';
+    const rel = semis.map((s) => C.mod(s - semis[0], 12));
+    const menor = rel.includes(3), dim = menor && rel.includes(6), aug = rel.includes(4) && rel.includes(8);
+    return acc + (menor ? ROMANOS[gdo].toLowerCase() : ROMANOS[gdo]) + (dim ? '°' : aug ? '+' : '');
+  }
+
   class Compositor {
     constructor(motor, visual) {
       this.motor = motor; this.visual = visual; this.velocidad = 1; this.tProximo = 0;
+      this.estilo = 'libre'; // 'libre' (ambient generativo) · 'progresion' (loop de cuatro acordes)
       this.reset();
     }
     reset() {
       this.modo = 'jonico'; this.modoCand = null; this.modoCont = 0; this.cambioModo = false;
       this.grado = 0; this.compasesAcorde = 99; this.acorde = null; this.raiz = 0; this.compasIdx = 0; this.ultimoSolista = null;
+      this.prog = null; this.progPos = 0; this.progVueltas = 0;
     }
     nuevoDia(semilla) {
       this.reset();
@@ -72,6 +95,7 @@
         if (this.acorde) M.nota({ preset: 'pad', midi: this.acorde.midis[0], t: t0, dur, vel: .3, bus: 'orquesta', brillo: .2, ataque: 1.5 });
         return this.acorde;
       }
+      if (this.estilo === 'progresion') return this.orquestaProgresion(c, t0, dur, r);
       const [, o, , , cl] = bar;
       const relVol = est.relVol, pctVela = cl / o - 1, sube = cl >= o;
       this.compasesAcorde++;
@@ -125,7 +149,13 @@
         if (relVol > 2) { M.percusion('shaker', tb + beat / 4, .14, .5); M.percusion('shaker', tb + 3 * beat / 4, .14, -.5); }
       }
 
-      // acontecimientos
+      this.acontecimientos(c, t0, dur, A, bajo);
+      return A;
+    }
+
+    /** Campana de apertura y cierre, brillo en el máximo del día, bronces en el mínimo. */
+    acontecimientos(c, t0, dur, A, bajo) {
+      const est = c.spy.est, M = this.motor, V = this.visual, n = A.midis.length;
       if (c.primero) {
         [0, 7, 12, 16].forEach((s, i) => M.nota({ preset: 'campana', midi: 72 + this.raiz + s, t: t0 + i * .18, dur: 3, vel: .55, bus: 'coro', pan: (i - 1.5) / 2 }));
         V.evento({ tipo: 'apertura', t: t0 });
@@ -143,6 +173,82 @@
         M.nota({ preset: 'bronce', midi: bajo + 12, t: t0, dur: dur * 1.2, vel: .3, bus: 'orquesta', pan: -.3, brillo: .25, ataque: 6 });
         V.evento({ tipo: 'minimo', t: t0, sym: 'SPY' });
       }
+    }
+
+    /** Voicing cerrado de un grado del modo: semitonos, midis (invertidos según la posición del precio) y nombres. */
+    voicing(gdo, voces, posicion) {
+      const semis = C.acorde(this.modo, gdo, voces);
+      const inv = Math.floor(clamp(posicion, 0, .999) * 3);
+      const notas = semis.slice();
+      for (let i = 0; i < inv; i++) notas.push(notas.shift() + 12);
+      let midis = notas.map((s) => 48 + this.raiz + s);
+      while (Math.min(...midis) < 50) midis = midis.map((x) => x + 12);
+      while (Math.min(...midis) > 61) midis = midis.map((x) => x - 12);
+      return { grado: gdo, semis, midis, nombre: C.nombreAcorde(this.raiz, semis), romano: romano(this.modo, gdo, semis) };
+    }
+
+    /** Modo progresión: un loop de cuatro acordes; cada minuto avanza un acorde y el volumen decide cómo se toca. */
+    orquestaProgresion(c, t0, dur, r) {
+      const bar = c.spy.bar, est = c.spy.est, beat = dur / 4, M = this.motor, V = this.visual;
+      const [, o, , , cl] = bar;
+      const relVol = est.relVol, pctVela = cl / o - 1, sube = cl >= o;
+      const lista = PROGRESIONES[this.modo] || PROGRESIONES.jonico;
+      let nueva = false;
+      if (!this.prog || this.prog.modo !== this.modo || (this.progPos === 0 && this.progVueltas >= 4) || c.primero) {
+        // la progresión cambia con el modo o cada cuatro vueltas; con mucho volumen se eligen las más movidas
+        const idx = relVol > 1.6 ? Math.min(lista.length - 1, 1 + Math.floor(r() * (lista.length - 1))) : Math.floor(r() * lista.length);
+        this.prog = { modo: this.modo, grados: lista[idx] }; this.progPos = 0; this.progVueltas = 0; nueva = true;
+      }
+      if (c.ultimo) this.progPos = 0;
+      const gdo = this.prog.grados[this.progPos];
+      const voces = 3 + (relVol > 1.3 || Math.abs(pctVela) > .0012 ? 1 : 0);
+      const A = this.voicing(gdo, voces, est.posicion);
+      A.modo = this.modo; A.nuevo = true; A.t = t0; A.pos = this.progPos;
+      A.progresion = this.prog.grados.map((g) => this.voicing(g, 3, .5));
+      this.acorde = A; this.grado = gdo; this.cambioModo = false;
+      const n = A.midis.length, brillo = clamp(.3 + relVol * .22, .25, 1);
+      const pan = (i) => (i / (n - 1 || 1) - .5) * .8;
+
+      // colchón suave siempre
+      A.midis.forEach((mi, i) => M.nota({ preset: 'pad', midi: mi, t: t0 + i * .02, dur: dur * 1.05, vel: .3, bus: 'orquesta', pan: pan(i), brillo: brillo * .7, ataque: .8 }));
+      const claro = C.MODOS[this.modo].brillo >= 4;
+      if (relVol < .9) {
+        // calma: acorde en bloque
+        A.midis.forEach((mi, i) => M.nota({ preset: claro ? 'epiano' : 'cuerdas', midi: mi, t: t0 + i * .025, dur: dur * .95, vel: .5, bus: 'orquesta', pan: pan(i), brillo }));
+      } else if (relVol < 1.8) {
+        // actividad media: arpegio en corcheas, subiendo y bajando
+        const sec = [...A.midis, A.midis[0] + 12, ...A.midis.slice().reverse()].slice(0, 8);
+        sec.forEach((mi, i) => M.nota({ preset: claro ? 'arpa' : 'epiano', midi: mi, t: t0 + i * beat / 2, dur: beat * .9, vel: i === 0 ? .6 : .42 + .06 * (i % 2), bus: 'orquesta', pan: pan(i % n), brillo }));
+      } else {
+        // frenesí: rasgueo con el patrón pop (1 · 2y · 3 · 4 · 4y)
+        [0, 1.5, 2, 3, 3.5].forEach((b, k) => A.midis.forEach((mi, i) => M.nota({ preset: 'arpa', midi: mi, t: t0 + b * beat + i * .018, dur: beat * .8, vel: (k === 0 || k === 2 ? .62 : .46) * (sube ? 1 : .9), bus: 'orquesta', pan: pan(i), brillo })));
+        if (relVol > 2.6) M.nota({ preset: 'cuerdas', midi: A.midis[n - 1] + 12, t: t0, dur: dur, vel: .3, bus: 'orquesta', pan: .2, brillo: .6, ataque: 1.2 });
+      }
+
+      // bajo
+      let bajo = 36 + this.raiz + C.grado(this.modo, gdo);
+      while (bajo < 33) bajo += 12; while (bajo > 46) bajo -= 12;
+      const quinta = C.grado(this.modo, gdo + 4) - C.grado(this.modo, gdo);
+      const velB = .55 + .25 * Math.min(relVol, 2) / 2;
+      M.nota({ preset: 'bajo', midi: bajo, t: t0, dur: beat * 1.8, vel: velB, bus: 'orquesta' });
+      M.nota({ preset: 'bajo', midi: bajo, t: t0 + 2 * beat, dur: beat * 1.3, vel: velB * .8, bus: 'orquesta' });
+      if (relVol > 1.2) M.nota({ preset: 'bajo', midi: bajo + quinta, t: t0 + 2.5 * beat, dur: beat * .4, vel: velB * .6, bus: 'orquesta' });
+      if (relVol > 1.2) M.nota({ preset: 'bajo', midi: sube ? bajo + 12 : bajo + quinta, t: t0 + 3.5 * beat, dur: beat * .4, vel: velB * .6, bus: 'orquesta' });
+
+      // pulso
+      const fuerza = clamp(relVol / 3, .15, 1);
+      for (let b = 0; b < 4; b++) {
+        const tb = t0 + b * beat;
+        if (b % 2 === 0) M.percusion('latido', tb, .45 + .4 * fuerza); else if (relVol > 1) M.percusion('bombo', tb, .3 * fuerza);
+        V.evento({ tipo: 'pulso', t: tb, fuerza: b % 2 === 0 ? .6 + .4 * fuerza : .3 * fuerza });
+        if (relVol > 1.3) M.percusion('hat', tb + beat / 2, .18 + .2 * fuerza, (b % 2 ? .4 : -.4));
+        if (relVol > 2.2) { M.percusion('shaker', tb + beat / 4, .14, .5); M.percusion('shaker', tb + 3 * beat / 4, .14, -.5); }
+      }
+
+      V.evento({ tipo: 'acorde', t: t0, nombre: A.nombre, romano: A.romano, modo: this.modo, midis: A.midis, grado: gdo, progresion: A.progresion, pos: this.progPos, nueva });
+      this.acontecimientos(c, t0, dur, A, bajo);
+      this.progPos = (this.progPos + 1) % this.prog.grados.length;
+      if (this.progPos === 0) this.progVueltas++;
       return A;
     }
 
@@ -200,10 +306,23 @@
       const densidad = clamp(.35 + .55 * relVol, .35, 2.2) * (sector.ritmo === 'sostenido' ? .5 : 1) * (ficha.tramo.peso < .5 ? 1.15 : 1);
       const N = Math.max(1, Math.round(densidad * 4));
       const posiciones = this.ritmo(sector.ritmo, N, r);
+      const A = this.acorde;
       const notas = posiciones.map((pos, i) => {
         const frac = (k + (i + .5) / posiciones.length) / tf;
         const p = this.puntoCamino(camino, frac);
-        return { pos, p, midi: clamp(baseRaiz + C.grado(modo, aIdx(p)), 38, 98) };
+        let midi = clamp(baseRaiz + C.grado(modo, aIdx(p)), 38, 98);
+        // en modo progresión, las notas que caen en tiempo fuerte se apoyan en el acorde
+        if (this.estilo === 'progresion' && A && Math.abs(pos - Math.round(pos)) < .06) {
+          let mejor = midi, dist = 99;
+          for (const s of A.semis) {
+            const pc = C.mod(this.raiz + s, 12);
+            for (const cand of [midi - C.mod(midi - pc, 12), midi + C.mod(pc - midi, 12)]) {
+              const d = Math.abs(cand - midi); if (d < dist) { dist = d; mejor = cand; }
+            }
+          }
+          midi = mejor;
+        }
+        return { pos, p, midi };
       });
       const legato = LEGATO[sector.ritmo] || .7;
       const vel = clamp(.42 + .22 * Math.min(rango, 2.5), .3, .95);
@@ -252,4 +371,6 @@
   }
 
   g.Campana.Compositor = Compositor;
+  g.Campana.PROGRESIONES = PROGRESIONES;
+  g.Campana.romano = romano;
 })(window);

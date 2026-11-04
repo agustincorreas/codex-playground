@@ -50,7 +50,7 @@ button, select, input { font: inherit; color: inherit; }
 #mas { display: none; flex-direction: column; gap: 10px; }
 #mas.visible { display: flex; }
 #controles .fila { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-#controles select { flex: 1; background: rgba(255, 255, 255, .06); border: 1px solid var(--borde); border-radius: 10px; padding: 8px 10px; outline: none; }
+#controles select { flex: 1; min-width: 0; max-width: 100%; background: rgba(255, 255, 255, .06); border: 1px solid var(--borde); border-radius: 10px; padding: 8px 10px; outline: none; }
 #controles select option { background: #141530; color: #fff; }
 .boton { background: rgba(255, 255, 255, .08); border: 1px solid var(--borde); border-radius: 10px; padding: 8px 12px; cursor: pointer; transition: background .2s, transform .1s; }
 .boton:hover { background: rgba(255, 255, 255, .16); }
@@ -67,6 +67,21 @@ input[type=range] { accent-color: var(--acento); flex: 1; }
 #panel-vivo small { color: var(--tinta-tenue); font-size: 11px; line-height: 1.4; }
 #controles .atajos { font-size: 11px; color: var(--tinta-tenue); line-height: 1.5; }
 #controles kbd { font-family: var(--mono); background: rgba(255, 255, 255, .1); border-radius: 4px; padding: 0 5px; }
+
+/* modo progresión: la partitura de cuatro acordes con el piano, al centro; el solista pasa a la derecha */
+#progresion { display: none; left: 50%; bottom: 54px; transform: translateX(-50%); width: 560px; padding: 12px 18px 14px; }
+body.estilo-progresion #progresion { display: block; }
+body.estilo-progresion #solista { left: auto; right: 22px; transform: none; min-width: 240px; }
+body.estilo-progresion #solista .pista { display: none; }
+#progresion .cabecera { display: flex; justify-content: space-between; align-items: baseline; }
+#progresion .tono { font-size: 12px; color: var(--tinta-suave); }
+#progresion .acordes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 8px 0 10px; }
+#progresion .card { border: 1px solid var(--borde); border-radius: 12px; padding: 8px 6px; text-align: center; background: rgba(255, 255, 255, .04); transition: background .25s, border-color .25s, box-shadow .25s, transform .25s; }
+#progresion .card .rom { font-size: 28px; font-weight: 800; letter-spacing: .02em; line-height: 1.05; }
+#progresion .card .nom { font-family: var(--mono); font-size: 12px; color: var(--tinta-suave); margin-top: 3px; }
+#progresion .card.activo { background: rgba(255, 255, 255, .14); border-color: var(--acento-modo, var(--acento)); box-shadow: 0 0 28px var(--acento-modo, var(--acento)); transform: translateY(-2px); }
+#progresion .card.activo .rom { color: var(--acento-modo, var(--acento)); text-shadow: 0 0 18px var(--acento-modo, var(--acento)); }
+#piano { display: block; width: 100%; height: auto; border-radius: 8px; }
 
 #linea { position: absolute; left: 22px; right: 22px; bottom: 18px; height: 22px; cursor: pointer; }
 #linea .riel { position: absolute; left: 0; right: 0; top: 10px; height: 2px; background: rgba(255, 255, 255, .14); border-radius: 2px; }
@@ -117,8 +132,17 @@ input[type=range] { accent-color: var(--acento); flex: 1; }
   #orquesta .precio { font-size: 18px; }
   #orquesta .acorde { font-size: 16px; margin-top: 2px; }
   #orquesta .musica { grid-template-columns: auto auto auto auto; gap: 2px 10px; font-size: 11px; }
-  #controles { right: 10px; top: 10px; min-width: 0; max-width: 56vw; }
+  #controles { right: 10px; top: 10px; min-width: 0; max-width: 58vw; }
+  #controles .fila:first-child { flex-wrap: nowrap; }
   #controles .atajos { display: none; }
   #linea { left: 10px; right: 10px; }
   #aviso { bottom: auto; top: 84px; }
+  #progresion { width: calc(100% - 20px); left: 10px; transform: none; bottom: 48px; padding: 8px 10px 10px; }
+  #progresion .card .rom { font-size: 20px; }
+  #progresion .card .nom { font-size: 10px; }
+  body.estilo-progresion #solista { right: auto; left: 10px; bottom: 262px; width: calc(100% - 20px); padding: 8px 12px; }
+  body.estilo-progresion #solista .sym { font-size: 24px; }
+  body.estilo-progresion #solista .detalle { display: none; }
+  body.estilo-progresion #orquesta { bottom: 382px; }
+  body.estilo-progresion #orquesta .musica { display: none; }
 }

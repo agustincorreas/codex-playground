@@ -56,6 +56,12 @@
         </div>
       </div>
       <div class="fila">
+        <span class="etiqueta" style="width:64px">Estilo</span>
+        <div class="segmentos" id="estilo">
+          <button data-e="libre" class="activo">libre</button><button data-e="progresion">progresión de acordes</button>
+        </div>
+      </div>
+      <div class="fila">
         <span class="etiqueta" style="width:64px">Director</span>
         <div class="segmentos" id="director">
           <button data-d="auto" class="activo">automático</button><button data-d="manual">manual</button>
@@ -74,8 +80,19 @@
         <button id="btn-ocultar" class="boton" title="Ocultar los paneles (H)">Ocultar paneles</button>
         <button id="btn-pantalla" class="boton" title="Pantalla completa (F)">Pantalla completa</button>
       </div>
-      <div class="atajos"><kbd>espacio</kbd> play · <kbd>←</kbd><kbd>→</kbd> solista · <kbd>A</kbd> director · <kbd>H</kbd> paneles · <kbd>F</kbd> pantalla completa · <kbd>1-4</kbd> velocidad · <kbd>N</kbd> otro día inventado</div>
+      <div class="atajos"><kbd>espacio</kbd> play · <kbd>←</kbd><kbd>→</kbd> solista · <kbd>A</kbd> director · <kbd>H</kbd> paneles · <kbd>F</kbd> pantalla completa · <kbd>1-4</kbd> velocidad · <kbd>P</kbd> estilo · <kbd>N</kbd> otro día inventado</div>
       </div>
+    </section>
+
+    <section id="progresion" class="bloque">
+      <div class="cabecera"><span class="etiqueta">Progresión</span><span class="tono">—</span></div>
+      <div class="acordes">
+        <div class="card"><div class="rom">—</div><div class="nom">—</div></div>
+        <div class="card"><div class="rom">—</div><div class="nom">—</div></div>
+        <div class="card"><div class="rom">—</div><div class="nom">—</div></div>
+        <div class="card"><div class="rom">—</div><div class="nom">—</div></div>
+      </div>
+      <canvas id="piano" width="520" height="92"></canvas>
     </section>
 
     <div id="linea" title="Saltar a otro momento del día">

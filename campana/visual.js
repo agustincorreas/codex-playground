@@ -107,6 +107,8 @@
       this.cola = restantes;
     }
     disparar(e) {
+      if (e.tipo === 'acorde' && this.onAcorde) this.onAcorde(e);
+      if (e.tipo === 'nota' && this.onNota) this.onNota(e);
       switch (e.tipo) {
         case 'nota': {
           const p = this.puntoSolista();
