@@ -303,37 +303,66 @@
   }
 
   /* ----------------------------------------------------------- en vivo */
+  function proveedor() { return E.proveedor || 'alpaca'; }
+  function pintarProveedor() {
+    const p = proveedor();
+    for (const b of $('#proveedor').children) b.classList.toggle('activo', b.dataset.p === p);
+    $('#vivo-key').placeholder = p === 'alpaca' ? 'API key ID de Alpaca' : 'API key de Massive (massive.com)';
+    $('#vivo-secret').style.display = p === 'alpaca' ? '' : 'none';
+    $('#vivo-feed').style.display = p === 'alpaca' ? '' : 'none';
+    $('#vivo-nota').textContent = p === 'alpaca'
+      ? 'Las claves quedan sólo en este navegador. Con Alpaca se reconstruye el día entero al conectar; después, dos consultas cada 20 s.'
+      : 'La clave queda sólo en este navegador. Con Massive se arranca desde el minuto actual; una consulta cada 20 s.';
+    try { $('#vivo-key').value = localStorage.getItem(`campana.${p}.key`) || ''; $('#vivo-secret').value = localStorage.getItem('campana.alpaca.secret') || ''; } catch (e) { /* sin storage */ }
+  }
   async function conectarVivo() {
-    const key = $('#vivo-key').value.trim();
+    const p = proveedor();
+    const key = $('#vivo-key').value.trim(), secret = $('#vivo-secret').value.trim(), feed = $('#vivo-feed').value;
     const tickers = $('#vivo-tickers').value.split(/[\s,]+/).map((t) => t.trim().toUpperCase()).filter(Boolean).slice(0, 12);
-    if (!key) { avisar('Falta la API key de Massive.'); return; }
-    try { localStorage.setItem('campana.massive', key); localStorage.setItem('campana.tickers', tickers.join(',')); } catch (e) { /* sin storage */ }
-    avisar('Conectando con Massive…');
-    const fuente = new C.FuenteViva({ apiKey: key, simbolos: tickers, onEstado: estadoVivo });
+    if (!key) { avisar(p === 'alpaca' ? 'Falta la API key ID de Alpaca.' : 'Falta la API key de Massive.'); return; }
+    if (p === 'alpaca' && !secret) { avisar('Falta el API secret de Alpaca.'); return; }
+    try {
+      localStorage.setItem(`campana.${p}.key`, key); if (p === 'alpaca') localStorage.setItem('campana.alpaca.secret', secret);
+      localStorage.setItem('campana.tickers', tickers.join(',')); localStorage.setItem('campana.proveedor', p); localStorage.setItem('campana.feed', feed);
+    } catch (e) { /* sin storage */ }
+    const nombre = p === 'alpaca' ? 'Alpaca' : 'Massive';
+    avisar(`Conectando con ${nombre}…`);
+    if (E.fuente && E.fuente.detener) E.fuente.detener();
+    const fuente = p === 'alpaca'
+      ? new C.FuenteAlpaca({ keyId: key, secret, feed, simbolos: tickers, onEstado: estadoVivo })
+      : new C.FuenteViva({ apiKey: key, simbolos: tickers, onEstado: estadoVivo });
     E.fuente = fuente; E.clave = 'vivo'; E.m = -1; E.fin = false; E.est = {};
     prepararSimbolos(['SPY', ...fuente.simbolos]);
     compositor.nuevoDia(C.hash('vivo', C.horaNY().fecha));
     compositor.velocidad = E.velocidad;
     E.solista = fuente.simbolos[0]; E.solistaDesde = -99;
-    hud.dia.querySelector('.titulo').textContent = 'El mercado ahora';
+    hud.dia.querySelector('.titulo').textContent = `El mercado ahora · ${nombre}`;
     try {
       await fuente.preparar();
       await fuente.sondear();
     } catch (e) { avisar(`No pude conectar: ${e.message}. Si el navegador bloquea la consulta (CORS), probá desde otra red o usá los días grabados.`, 8000); return; }
-    // arrancar desde el minuto actual: sembrar el contexto del día en las estadísticas
     const ahora = fuente.minutoActual();
     for (const s of fuente.todos) {
       const cx = fuente.contexto[s]; if (!cx) continue;
       E.est[s].sembrar({ apertura: cx.apertura, max: cx.max, min: cx.min, vwap: cx.vwap, volMedia: cx.volDia && ahora > 0 ? cx.volDia / 1000 / Math.max(1, ahora) : 0, previo: cx.previo });
     }
-    E.m = Math.max(-1, Math.min(ahora, fuente.total) - 1);
+    // lo que ya pasó del día entra a las estadísticas sin sonar; la música arranca en el minuto actual
+    const hasta = Math.max(0, Math.min(ahora, fuente.total));
+    let ingresadas = 0;
+    for (let i = 0; i < hasta; i++) { const velas = fuente.velasEn(i); for (const s in velas) if (E.est[s]) { E.est[s].agregar(velas[s]); ingresadas++; } if (velas.SPY) compositor.actualizarModo(E.est.SPY); }
+    E.m = hasta - 1; E.solistaDesde = E.m - 99;
+    if (E.director === 'auto' && E.m >= 0) elegirSolista(E.m + 8 - ((E.m + 8) % 4));
+    visual.reset();
     fuente.arrancar(20000);
-    avisar(`Conectado. ${fuente.simbolos.length} acciones + SPY. ${ahora < 0 || ahora >= 390 ? 'El mercado está cerrado: suenan las últimas velas disponibles.' : 'Escuchando la sesión de hoy.'}`, 6000);
+    const cerrado = ahora < 0 || ahora >= 390;
+    avisar(`Conectado a ${nombre}. ${fuente.simbolos.length} acciones + SPY${ingresadas ? `, ${Math.floor(ingresadas / fuente.todos.length)} minutos reconstruidos` : ''}. ${cerrado ? 'El mercado está cerrado: suenan las últimas velas disponibles.' : 'Escuchando la sesión de hoy.'}`, 7000);
     reproducir();
   }
   function estadoVivo(s) {
-    if (s.error) { avisar(`Massive: ${s.error}`, 5000); return; }
-    if (s.hora) hud.dia.querySelector('.estado').textContent = `${s.abierto ? 'Mercado abierto' : 'Mercado cerrado'} · ${String(s.hora.h).padStart(2, '0')}:${String(s.hora.mi).padStart(2, '0')} Nueva York`;
+    if (s.error) { avisar(`${proveedor() === 'alpaca' ? 'Alpaca' : 'Massive'}: ${s.error}`, 5000); return; }
+    if (s.stream === true) avisar('Stream de Alpaca conectado: las velas llegan en tiempo real.', 4000);
+    if (s.stream === false) avisar('Se cortó el stream de Alpaca; sigo por sondeo cada 20 s y reintento en 15 s.', 5000);
+    if (s.hora) hud.dia.querySelector('.estado').textContent = `${s.abierto ? 'Mercado abierto' : 'Mercado cerrado'} · ${String(s.hora.h).padStart(2, '0')}:${String(s.hora.mi).padStart(2, '0')} Nueva York${E.fuente && E.fuente.tiempoReal ? ' · tiempo real' : ''}`;
   }
 
   /* ----------------------------------------------------------- UI */
@@ -374,7 +403,13 @@
     $('#btn-ocultar').addEventListener('click', () => ocultarHud(!E.hudOculto, false));
     $('#btn-pantalla').addEventListener('click', pantallaCompleta);
     $('#vivo-conectar').addEventListener('click', conectarVivo);
-    try { $('#vivo-key').value = localStorage.getItem('campana.massive') || ''; const t = localStorage.getItem('campana.tickers'); if (t) $('#vivo-tickers').value = t.split(',').join(', '); } catch (e) { /* sin storage */ }
+    $('#proveedor').addEventListener('click', (ev) => { const b = ev.target.closest('button'); if (!b) return; E.proveedor = b.dataset.p; pintarProveedor(); });
+    try {
+      E.proveedor = localStorage.getItem('campana.proveedor') || 'alpaca';
+      const t = localStorage.getItem('campana.tickers'); if (t) $('#vivo-tickers').value = t.split(',').join(', ');
+      const f = localStorage.getItem('campana.feed'); if (f) $('#vivo-feed').value = f;
+    } catch (e) { /* sin storage */ }
+    pintarProveedor();
 
     $('#linea').addEventListener('click', (ev) => {
       const r = $('#linea').getBoundingClientRect(); const frac = clamp((ev.clientX - r.left) / r.width, 0, 1);

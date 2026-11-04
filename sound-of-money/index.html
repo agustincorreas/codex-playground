@@ -72,9 +72,17 @@
         <input id="volumen" type="range" min="0" max="1" step="0.01" value="0.85">
       </div>
       <div id="panel-vivo">
-        <input id="vivo-key" type="password" placeholder="API key de Massive (massive.com)" autocomplete="off">
+        <div class="fila">
+          <span class="etiqueta" style="width:64px">Datos</span>
+          <div class="segmentos" id="proveedor">
+            <button data-p="alpaca" class="activo">Alpaca</button><button data-p="massive">Massive</button>
+          </div>
+          <select id="vivo-feed" title="Feed de Alpaca: IEX es gratis, SIP necesita el plan pago" style="flex:0 0 auto"><option value="iex">IEX (gratis)</option><option value="sip">SIP (pago)</option></select>
+        </div>
+        <input id="vivo-key" type="password" placeholder="API key" autocomplete="off">
+        <input id="vivo-secret" type="password" placeholder="API secret (Alpaca)" autocomplete="off">
         <input id="vivo-tickers" type="text" placeholder="Acciones: NVDA, AAPL, TSLA, JPM, XOM, MRNA, COIN, PLTR" value="NVDA, AAPL, TSLA, JPM, XOM, MRNA, COIN, PLTR">
-        <div class="fila"><button id="vivo-conectar" class="boton">Conectar</button><small>La clave queda sólo en este navegador. Una consulta cada 20 s.</small></div>
+        <div class="fila"><button id="vivo-conectar" class="boton">Conectar</button><small id="vivo-nota">Las claves quedan sólo en este navegador. Con Alpaca se reconstruye el día entero al conectar; después, dos consultas cada 20 s.</small></div>
       </div>
       <div class="fila">
         <button id="btn-ocultar" class="boton" title="Ocultar los paneles (H)">Ocultar paneles</button>

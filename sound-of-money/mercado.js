@@ -225,7 +225,110 @@
     detener() { if (this.timer) clearInterval(this.timer); this.timer = null; }
   }
 
+  /* ----------------------------------------------------------- En vivo (Alpaca) */
+  /** Inicio de la sesión de hoy (9:30 Nueva York) en milisegundos UTC, calculado con la hora local de NY. */
+  function inicioSesionUTC() {
+    const ny = horaNY(); const ahora = Date.now();
+    const local = Date.UTC(ny.y, ny.mo - 1, ny.d, ny.h, ny.mi, ny.s);
+    const offset = Math.round((local - ahora) / 60000) * 60000; // NY = UTC + offset (negativo)
+    return Date.UTC(ny.y, ny.mo - 1, ny.d, 9, 30, 0) - offset;
+  }
+
+  class FuenteAlpaca {
+    constructor({ keyId, secret, feed, simbolos, onEstado }) {
+      this.tipo = 'vivo'; this.keyId = keyId; this.secret = secret; this.feed = feed || 'iex';
+      this.simbolos = simbolos.filter((s) => s !== 'SPY'); this.todos = ['SPY', ...this.simbolos];
+      this.onEstado = onEstado || (() => {}); this.porMinuto = {}; this.contexto = {}; this.total = 390; this.timer = null;
+      for (const s of this.todos) this.porMinuto[s] = new Map();
+      this.inicio = inicioSesionUTC(); this.ultimoCompleto = -1;
+    }
+    tf() { return 1; }
+    velasEn(m) { const out = {}; for (const s of this.todos) { const b = this.porMinuto[s].get(m); if (b) out[s] = b; } return out; }
+    listo(m) { return this.porMinuto.SPY.has(m); }
+    minutoActual() { return horaNY().minutoSesion; }
+    get cabeceras() { return { 'APCA-API-KEY-ID': this.keyId, 'APCA-API-SECRET-KEY': this.secret }; }
+    async _get(base, path, params = {}) {
+      const u = new URL(base + path);
+      for (const k in params) if (params[k] != null) u.searchParams.set(k, params[k]);
+      const res = await fetch(u.toString(), { headers: this.cabeceras });
+      if (!res.ok) throw new Error(`Alpaca respondió ${res.status}${res.status === 403 ? ' (¿clave, secreto o feed sin permiso?)' : ''}`);
+      return res.json();
+    }
+    _minuto(t) { return Math.floor((Date.parse(t) - this.inicio) / 60000); }
+    _guardar(s, b) {
+      const m = this._minuto(b.t);
+      if (m < 0 || m >= this.total) return;
+      this.porMinuto[s].set(m, [m, b.o, b.h, b.l, b.c, (b.v || 0) / 1000]);
+    }
+    async preparar() {
+      // nombre de las empresas que no están en las fichas (el sector queda en "otros")
+      for (const s of this.simbolos) {
+        if (C.FICHAS[s]) continue;
+        let nombre = s;
+        for (const base of ['https://api.alpaca.markets', 'https://paper-api.alpaca.markets']) {
+          try { const a = await this._get(base, `/v2/assets/${s}`); nombre = a.name || s; break; } catch (e) { /* probar la otra */ }
+        }
+        C.registrarFicha(s, { nombre, sector: 'otros' });
+      }
+    }
+    async sondear() {
+      const ny = horaNY();
+      // velas completas desde la última conocida (todos los símbolos en una consulta, paginada)
+      const desde = new Date(this.inicio + Math.max(0, this.ultimoCompleto + 1) * 60000).toISOString();
+      let token = null, maxM = this.ultimoCompleto;
+      do {
+        const j = await this._get('https://data.alpaca.markets', '/v2/stocks/bars', { symbols: this.todos.join(','), timeframe: '1Min', start: desde, limit: 10000, feed: this.feed, page_token: token, sort: 'asc' });
+        for (const s in j.bars || {}) for (const b of j.bars[s]) { this._guardar(s, b); maxM = Math.max(maxM, this._minuto(b.t)); }
+        token = j.next_page_token || null;
+      } while (token);
+      // la vela en curso y el contexto del día, del snapshot
+      const snap = await this._get('https://data.alpaca.markets', '/v2/stocks/snapshots', { symbols: this.todos.join(','), feed: this.feed });
+      for (const s of this.todos) {
+        const t = snap[s]; if (!t) continue;
+        const d = t.dailyBar || {};
+        this.contexto[s] = { apertura: d.o, max: d.h, min: d.l, vwap: d.vw, volDia: d.v, previo: (t.prevDailyBar || {}).c };
+        const mb = t.minuteBar;
+        if (mb && mb.t) { const m = this._minuto(mb.t); if (m > maxM && m >= 0 && m < this.total) this._guardar(s, mb); }
+      }
+      // sólo damos por completos los minutos anteriores al último que llegó por /bars
+      this.ultimoCompleto = Math.max(this.ultimoCompleto, maxM - 1);
+      this.onEstado({ hora: ny, abierto: ny.minutoSesion >= 0 && ny.minutoSesion < this.total && !['Sat', 'Sun'].includes(ny.dia) });
+    }
+    /** Tiempo real: el stream de Alpaca empuja cada vela de 1 minuto apenas cierra. Si falla, queda el sondeo. */
+    conectarStream() {
+      if (this.ws || typeof WebSocket === 'undefined') return;
+      let ws;
+      try { ws = new WebSocket(`wss://stream.data.alpaca.markets/v2/${this.feed}`); } catch (e) { return; }
+      this.ws = ws; this.tiempoReal = false;
+      ws.onopen = () => ws.send(JSON.stringify({ action: 'auth', key: this.keyId, secret: this.secret }));
+      ws.onmessage = (ev) => {
+        let msgs; try { msgs = JSON.parse(ev.data); } catch (e) { return; }
+        for (const m of Array.isArray(msgs) ? msgs : [msgs]) {
+          if (m.T === 'success' && m.msg === 'authenticated') ws.send(JSON.stringify({ action: 'subscribe', bars: this.todos }));
+          else if (m.T === 'subscription') { this.tiempoReal = true; this.onEstado({ stream: true }); }
+          else if (m.T === 'error') { this.onEstado({ error: `stream: ${m.msg || m.code}` }); }
+          else if (m.T === 'b' && m.S && this.porMinuto[m.S]) { this._guardar(m.S, m); this.ultimoCompleto = Math.max(this.ultimoCompleto, this._minuto(m.t)); }
+        }
+      };
+      ws.onerror = () => { this.tiempoReal = false; };
+      ws.onclose = () => { this.ws = null; if (this.tiempoReal) this.onEstado({ stream: false }); this.tiempoReal = false; if (this.timer) this.reintento = setTimeout(() => this.conectarStream(), 15000); };
+    }
+    arrancar(cadaMs = 20000) {
+      this.detener();
+      const tick = () => this.sondear().catch((e) => this.onEstado({ error: e.message }));
+      tick(); this.timer = setInterval(tick, cadaMs);
+      this.conectarStream();
+    }
+    detener() {
+      if (this.timer) clearInterval(this.timer); this.timer = null;
+      clearTimeout(this.reintento);
+      if (this.ws) { try { this.ws.onclose = null; this.ws.close(); } catch (e) { /* nada */ } this.ws = null; }
+      this.tiempoReal = false;
+    }
+  }
+
   g.Campana.Estadisticas = Estadisticas;
+  g.Campana.FuenteAlpaca = FuenteAlpaca;
   g.Campana.FuenteReplay = FuenteReplay;
   g.Campana.FuenteViva = FuenteViva;
   g.Campana.diaSintetico = diaSintetico;

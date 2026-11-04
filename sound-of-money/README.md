@@ -91,12 +91,21 @@ azul en jónico, verde agua en dórico, índigo en eólico, carmesí en frigio.
 
 ## Modo en vivo
 
-En el selector elegí "El mercado ahora, en vivo", pegá tu API key de Massive, escribí hasta 12
-acciones y tocá *Conectar*. La app consulta el snapshot del mercado cada 20 segundos (una sola
-llamada para todos los símbolos, dentro del plan gratis), arma las velas de 1 minuto y las toca a
-medida que llegan; mientras espera la vela siguiente, varía la última. Fuera del horario de mercado
-suenan las últimas velas disponibles. La clave se guarda sólo en tu navegador. Si tu navegador
-bloquea la consulta por CORS, usá los días grabados o un proxy propio.
+En el selector elegí "El mercado ahora, en vivo", elegí el proveedor, pegá tus claves, escribí
+hasta 12 acciones y tocá *Conectar*. Las claves se guardan sólo en tu navegador. Fuera del
+horario de mercado suenan las últimas velas disponibles; mientras se espera la vela siguiente, la
+música varía la última. Si tu navegador bloquea las consultas por CORS, usá los días grabados o
+un proxy propio.
+
+- **Alpaca** (recomendado): API key ID y secret de [alpaca.markets](https://alpaca.markets); el
+  feed IEX es gratis y SIP necesita el plan pago. Al conectar, una sola consulta de velas de 1
+  minuto trae **todo el día para todos los símbolos**, así la música arranca con el contexto
+  entero; después se abre el **stream por WebSocket** y cada vela llega empujada apenas cierra
+  (tiempo real), con un sondeo cada 20 segundos como respaldo. Alpaca admite una sola conexión de
+  stream por cuenta: si otra app (Pulso, por ejemplo) ya la tiene, queda el sondeo.
+- **Massive**: API key de [massive.com](https://massive.com). Consulta el snapshot del mercado cada
+  20 segundos (una llamada para todos los símbolos, dentro del plan gratis) y arranca desde el
+  minuto actual, sin reconstruir la mañana.
 
 ## Los días grabados
 
