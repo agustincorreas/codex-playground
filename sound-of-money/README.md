@@ -1,8 +1,8 @@
-# Campana — el mercado hecho música
+# The Sound of Money — el mercado hecho música
 
 Una pieza generativa, visual y sonora, que convierte la sesión de la bolsa de Nueva York en música.
 Corre 100 % en el navegador con Web Audio y canvas, sin dependencias ni build: abrí `index.html`
-desde un servidor local o entrá a https://agustincorreas.github.io/codex-playground/campana/.
+desde un servidor local o entrá a https://agustincorreas.github.io/codex-playground/sound-of-money/.
 
 - **El SPY es la orquesta.** El ETF del S&P 500 resume el mercado entero y decide la tonalidad, el
   modo, el tempo, los acordes, el bajo y el pulso de cada minuto.
@@ -34,7 +34,7 @@ según la volatilidad; con la velocidad 2× o 3× se escucha en menos.
 | Volumen relativo | Más voces en el acorde (7ª, 9ª), cuerdas por arriba, más capas de percusión, filtro más abierto. |
 | Posición del precio en el rango del día | Inversión del acorde: más alto en el rango, voicing más agudo. |
 | Máximo / mínimo nuevo del día | Un brillo agudo o un soplo grave de bronces. |
-| Apertura y cierre | La campana. |
+| Apertura y cierre | La campana de Wall Street. |
 
 ### El solista (la acción enfocada)
 

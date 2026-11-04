@@ -1,5 +1,5 @@
 /* ==========================================================================
-   CAMPANA · el compositor
+   THE SOUND OF MONEY · el compositor
    Cada minuto de mercado es un compás. El SPY es la orquesta (tonalidad, modo, acordes, bajo,
    pulso); la acción enfocada es el solista (instrumento por sector, registro por precio, densidad
    por volumen, modo por fuerza relativa); las demás son un coro lejano.

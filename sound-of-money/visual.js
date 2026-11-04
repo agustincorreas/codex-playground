@@ -1,5 +1,5 @@
 /* ==========================================================================
-   CAMPANA · visual onírico (canvas 2D)
+   THE SOUND OF MONEY · visual onírico (canvas 2D)
    Abajo, el SPY es un horizonte de luz sobre un mar; en el cielo, la acción enfocada es una
    aurora que se dibuja con su precio; arriba, las demás acciones son una constelación.
    Cada nota florece en una partícula, cada acorde en un anillo, cada latido respira.

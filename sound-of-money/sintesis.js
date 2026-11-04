@@ -1,5 +1,5 @@
 /* ==========================================================================
-   CAMPANA · motor de sonido (Web Audio, sin dependencias)
+   THE SOUND OF MONEY · motor de sonido (Web Audio, sin dependencias)
    Buses: orquesta (SPY) · solista (la acción enfocada) · coro (las demás) · percusión
    FX: reverb larga generada, delay con filtro, compresor suave, analizador para el visual.
    ========================================================================== */

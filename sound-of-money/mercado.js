@@ -1,5 +1,5 @@
 /* ==========================================================================
-   CAMPANA · mercado: estadísticas por símbolo y fuentes de velas
+   THE SOUND OF MONEY · mercado: estadísticas por símbolo y fuentes de velas
    Fuentes: Replay (días grabados) · Sintética (día inventado, determinista) · Viva (Massive REST)
    Vela = [minuto desde la apertura, apertura, máximo, mínimo, cierre, volumen en miles]
    ========================================================================== */

@@ -2,13 +2,13 @@
 #   - armonia/  →  https://agustincorreas.github.io/codex-playground/
 #   - ensayo/   →  https://agustincorreas.github.io/codex-playground/ensayo/
 #   - pulso/    →  https://agustincorreas.github.io/codex-playground/pulso/ (demo con mercado simulado)
-#   - campana/  →  https://agustincorreas.github.io/codex-playground/campana/
+#   - sound-of-money/  →  https://agustincorreas.github.io/codex-playground/sound-of-money/
 name: Publicar apps web en GitHub Pages
 
 on:
   push:
     branches: [main]
-    paths: ['armonia/**', 'ensayo/**', 'pulso/**', 'campana/**', '.github/workflows/pages.yml']
+    paths: ['armonia/**', 'ensayo/**', 'pulso/**', 'sound-of-money/**', '.github/workflows/pages.yml']
   workflow_dispatch:
 
 permissions:
@@ -38,13 +38,13 @@ jobs:
         run: |
           npm ci
           npm run build:demo
-      - name: Armar el sitio (Armonía en la raíz, Ensayo en /ensayo/, Pulso en /pulso/, Campana en /campana/)
+      - name: Armar el sitio (Armonía en la raíz, Ensayo en /ensayo/, Pulso en /pulso/, The Sound of Money en /sound-of-money/)
         run: |
-          mkdir -p _site/ensayo _site/pulso _site/campana
+          mkdir -p _site/ensayo _site/pulso _site/sound-of-money
           cp -r armonia/. _site/
           cp -r ensayo/. _site/ensayo/
-          cp -r campana/. _site/campana/
-          rm -rf _site/campana/data/raw _site/campana/data/build.py
+          cp -r sound-of-money/. _site/sound-of-money/
+          rm -rf _site/sound-of-money/data/raw _site/sound-of-money/data/build.py
           cp pulso/dist-demo/index.html _site/pulso/index.html
       - uses: actions/configure-pages@v5
         with:

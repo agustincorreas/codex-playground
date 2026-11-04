@@ -1,5 +1,5 @@
 /* ==========================================================================
-   CAMPANA · teoría musical: modos, escalas, acordes y nombres
+   THE SOUND OF MONEY · teoría musical: modos, escalas, acordes y nombres
    ========================================================================== */
 (function (g) {
   'use strict';

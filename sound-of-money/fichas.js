@@ -1,5 +1,5 @@
 /* ==========================================================================
-   CAMPANA · fichas de las acciones y paleta de sectores
+   THE SOUND OF MONEY · fichas de las acciones y paleta de sectores
    Cada sector define su instrumento, su forma de frasear y su color.
    ========================================================================== */
 (function (g) {
