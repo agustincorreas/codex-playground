@@ -2,12 +2,13 @@
 #   - armonia/  →  https://agustincorreas.github.io/codex-playground/
 #   - ensayo/   →  https://agustincorreas.github.io/codex-playground/ensayo/
 #   - pulso/    →  https://agustincorreas.github.io/codex-playground/pulso/ (demo con mercado simulado)
+#   - campana/  →  https://agustincorreas.github.io/codex-playground/campana/
 name: Publicar apps web en GitHub Pages
 
 on:
   push:
     branches: [main]
-    paths: ['armonia/**', 'ensayo/**', 'pulso/**', '.github/workflows/pages.yml']
+    paths: ['armonia/**', 'ensayo/**', 'pulso/**', 'campana/**', '.github/workflows/pages.yml']
   workflow_dispatch:
 
 permissions:
@@ -37,11 +38,13 @@ jobs:
         run: |
           npm ci
           npm run build:demo
-      - name: Armar el sitio (Armonía en la raíz, Ensayo en /ensayo/, Pulso en /pulso/)
+      - name: Armar el sitio (Armonía en la raíz, Ensayo en /ensayo/, Pulso en /pulso/, Campana en /campana/)
         run: |
-          mkdir -p _site/ensayo _site/pulso
+          mkdir -p _site/ensayo _site/pulso _site/campana
           cp -r armonia/. _site/
           cp -r ensayo/. _site/ensayo/
+          cp -r campana/. _site/campana/
+          rm -rf _site/campana/data/raw _site/campana/data/build.py
           cp pulso/dist-demo/index.html _site/pulso/index.html
       - uses: actions/configure-pages@v5
         with:

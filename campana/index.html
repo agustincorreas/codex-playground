@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#080b1c">
+  <meta name="description" content="Campana: el mercado hecho música. El S&P 500 es la orquesta y cada acción, un solista con su propio instrumento.">
+  <title>Campana — el mercado hecho música</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23080b1c'/%3E%3Ccircle cx='32' cy='30' r='14' fill='none' stroke='%23ffd27a' stroke-width='5'/%3E%3Ccircle cx='32' cy='30' r='4' fill='%23ff8fd8'/%3E%3Cpath d='M12 46q10 8 20 0t20 0' fill='none' stroke='%237cf0e3' stroke-width='3'/%3E%3C/svg%3E">
+</head>
+<body>
+  <canvas id="lienzo"></canvas>
+
+  <div id="hud" class="hud">
+    <section id="dia" class="bloque">
+      <div class="etiqueta">Sesión</div>
+      <div class="titulo">—</div>
+      <div class="linea-hora"><span class="hora">09:30</span><span class="estado">Nueva York · hora del mercado</span></div>
+    </section>
+
+    <section id="solista" class="bloque">
+      <div class="etiqueta">Solista</div>
+      <div class="sym">—</div>
+      <div class="nombre">—</div>
+      <div class="detalle">—</div>
+      <div class="cifras"><span class="precio">—</span><span class="cambio">—</span><span class="volumen">—</span></div>
+      <div class="pista">tocá una estrella para cambiar de solista · ← → recorren la constelación</div>
+    </section>
+
+    <section id="orquesta" class="bloque">
+      <div class="etiqueta">Orquesta · SPY</div>
+      <div class="precio"><span class="valor">—</span><span class="cambio">—</span></div>
+      <div class="acorde">—</div>
+      <div class="musica">
+        <span>Tonalidad</span><b class="tonalidad">—</b>
+        <span>Modo</span><b class="modo">—</b>
+        <span>Tempo</span><b class="tempo">—</b>
+        <span>Volumen relativo</span><b class="relvol">—</b>
+      </div>
+    </section>
+
+    <section id="controles" class="bloque">
+      <div class="fila">
+        <button id="btn-play" class="boton redondo" title="Reproducir / pausar (espacio)">▶</button>
+        <select id="selector-dia" title="Qué día escuchar"></select>
+        <button id="btn-mas" class="boton redondo" title="Más opciones">⋯</button>
+      </div>
+      <div id="mas">
+      <div class="fila">
+        <span class="etiqueta" style="width:64px">Velocidad</span>
+        <div class="segmentos" id="velocidad">
+          <button data-v="0.5">½×</button><button data-v="1" class="activo">1×</button><button data-v="2">2×</button><button data-v="3">3×</button>
+        </div>
+      </div>
+      <div class="fila">
+        <span class="etiqueta" style="width:64px">Director</span>
+        <div class="segmentos" id="director">
+          <button data-d="auto" class="activo">automático</button><button data-d="manual">manual</button>
+        </div>
+      </div>
+      <div class="fila">
+        <span class="etiqueta" style="width:64px">Volumen</span>
+        <input id="volumen" type="range" min="0" max="1" step="0.01" value="0.85">
+      </div>
+      <div id="panel-vivo">
+        <input id="vivo-key" type="password" placeholder="API key de Massive (massive.com)" autocomplete="off">
+        <input id="vivo-tickers" type="text" placeholder="Acciones: NVDA, AAPL, TSLA, JPM, XOM, MRNA, COIN, PLTR" value="NVDA, AAPL, TSLA, JPM, XOM, MRNA, COIN, PLTR">
+        <div class="fila"><button id="vivo-conectar" class="boton">Conectar</button><small>La clave queda sólo en este navegador. Una consulta cada 20 s.</small></div>
+      </div>
+      <div class="fila">
+        <button id="btn-ocultar" class="boton" title="Ocultar los paneles (H)">Ocultar paneles</button>
+        <button id="btn-pantalla" class="boton" title="Pantalla completa (F)">Pantalla completa</button>
+      </div>
+      <div class="atajos"><kbd>espacio</kbd> play · <kbd>←</kbd><kbd>→</kbd> solista · <kbd>A</kbd> director · <kbd>H</kbd> paneles · <kbd>F</kbd> pantalla completa · <kbd>1-4</kbd> velocidad · <kbd>N</kbd> otro día inventado</div>
+      </div>
+    </section>
+
+    <div id="linea" title="Saltar a otro momento del día">
+      <div class="horas"><span>09:30</span><span>10:30</span><span>11:30</span><span>12:30</span><span>13:30</span><span>14:30</span><span>15:30</span><span>16:00</span></div>
+      <div class="riel"></div><div class="progreso"></div><div class="marca"></div>
+    </div>
+  </div>
+  <div id="pista-ocultar">H muestra los paneles</div>
+  <div id="aviso"></div>
+
+  <div id="portada">
+    <div class="caja">
+      <h1>Campana</h1>
+      <p class="lema">El mercado hecho música. El S&amp;P 500 es la orquesta: elige la tonalidad, el modo, el tempo y los acordes de cada minuto. Cada acción es un solista con su propio instrumento según su sector, su registro según su precio y su frenesí según su volumen.</p>
+      <div class="dias" id="portada-dias"></div>
+      <button class="escuchar" id="btn-escuchar">Escuchar</button>
+      <p class="nota">Datos reales de la bolsa de Nueva York (velas intradía de <a href="https://massive.com" target="_blank" rel="noopener">Massive</a>). Usá auriculares. Nada de esto es una recomendación de inversión: es música.</p>
+    </div>
+  </div>
+
+  <script src="data/dias.js"></script>
+  <script src="fichas.js"></script>
+  <script src="teoria.js"></script>
+  <script src="sintesis.js"></script>
+  <script src="mercado.js"></script>
+  <script src="partitura.js"></script>
+  <script src="visual.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

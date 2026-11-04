@@ -45,6 +45,16 @@ Son útiles para jugar, mejorar código y experimentar.
   (US$ 99/mes) o Massive (US$ 199/mes); el README explica costos y cómo contratarlos. Demo en
   https://agustincorreas.github.io/codex-playground/pulso/.
 
+## Proyecto: Campana — el mercado hecho música
+
+- [`campana/`](campana/README.md): pieza generativa, visual y sonora, que convierte la sesión de la bolsa de
+  Nueva York en música. El SPY es la orquesta (tonalidad, modo, tempo, acordes, bajo y pulso de cada
+  minuto) y cada acción es un solista con su instrumento según el sector, su registro según el precio, su
+  densidad según el volumen y su modo según cómo le va frente al mercado; las demás son una constelación
+  que suena de lejos. Visual onírico (horizonte de luz, aurora, nebulosa, partículas por nota). Trae dos
+  días reales (velas de Massive), un generador de días inventados y un modo en vivo con tu API key. Sin
+  dependencias ni build: https://agustincorreas.github.io/codex-playground/campana/.
+
 ## Proyecto: Sillage — Recomendador de perfumes
 
 - [`sillage/`](sillage/README.md): app React Native (Expo) con tier gratuito y membresía PRO.
