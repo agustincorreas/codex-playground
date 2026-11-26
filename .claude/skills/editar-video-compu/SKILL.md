@@ -31,5 +31,10 @@ dueño que lo haga: resolverlo solo.
   - `limpio.mp4`: cortes + color + sonido, sin gráficos (`render.py … --no-overlay`);
   - `subtitulos.srt`: `work/export_capcut.py <proyecto> subtitulos.srt` (CapCut los importa como subtítulos);
   - `editado.mov`: la versión completa, por si solo quiere cambiar un detalle encima.
+- **Luz y color en CapCut**: CapCut tiene «Ajuste automático» (brillo/luz) y corrección de color (Ajustar → Auto,
+  y los controles de brillo, contraste, saturación y temperatura). Tenerlo presente cuando el crudo necesite más
+  calidad de imagen, color o luz: primero corregir en el pipeline (regla «luz y color» de `editar-video`); si el
+  dueño prefiere el resultado de CapCut, renderizar `limpio.mp4` con `--set grade=null` (sin corrección propia, para
+  no corregir dos veces) e indicarle que aplique ahí el ajuste automático.
 - Si pide explícitamente que se haga dentro de CapCut, explicarle este criterio y preguntar qué retoque puntual
   quiere; no reconstruir toda la edición a mano en la interfaz.

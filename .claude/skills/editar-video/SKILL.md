@@ -68,6 +68,12 @@ dueño que lo haga: resolverlo solo.
    - una etiqueta con la pregunta del gancho desde el cuadro 0; nada cruza un corte; zooms suaves (1,07–1,13) en
      palabras clave, con vuelta solo en los cortes;
    - cierre: sin placa ni frase; termina en la última palabra con un respiro corto.
+   - **luz y color**: mirar siempre un par de fotogramas del crudo antes de renderizar. Si la imagen está oscura,
+     plana, lavada o con dominante de color, corregirla (exposición, contraste, balance de blancos, un poco de
+     saturación) con `--set grade="<filtros ffmpeg>"` en `build_project.py`; es el equivalente del «ajuste
+     automático» y la corrección de color de CapCut. Objetivo: que se vea con más calidad y luz, con la piel natural
+     y el frasco con su color real; nunca un filtro notorio. Si el crudo ya está bien, dejar la corrección suave por
+     defecto. Comparar antes/después en un fotograma y decirle al dueño qué se corrigió.
 6. **Paleta según el video** (variables de `work/theme_default.css`; crear `theme_<nombre>.css` y pasar `--theme`):
    tomar el acento del frasco o de la marca y mantener blanco + vidrio oscuro para lo demás.
    - oscuro/dorado (ámbar, oud, nocturnos): acento dorado `#efab1e`;
