@@ -17,15 +17,15 @@ modelos ni las imágenes de terceros (Fragrantica, stock): eso vive en la carpet
 | Nivel / silencios | `work/vad.py` | `analysis/src_vad.json`: nivel cada 5 ms |
 | Lista de cortes | `work/edl.py` + `build/edl/cfg_*.json` | `build/edl/edl_*.json`: segmentos, cortes y palabras en tiempo de edición |
 | Silueta del orador | `work/silhouette.py` | `analysis/silhouette_*.json`: dónde hay lugar libre para tarjetas |
-| Plan de la edición | `work/build_project.py` + `work/plan_graphics.py` | `project.json` + `overlay/index.html` (subtítulos, gráficos, zooms, sonidos) |
+| Plan de la edición | `work/build_project.py` + `work/blocks.py` + `videos/<video>/plan.py` | `project.json` + `overlay/index.html` (subtítulos, gráficos, zooms, sonidos) |
 | Sonido | `work/sfx.py`, `work/audio_build.py` | voz procesada a −14 LUFS, pausas atenuadas, efectos sintetizados |
 | Gráficos | `work/overlay_render.js` + `build/overlay/runtime.js` | PNG transparentes cuadro a cuadro (Chromium / Playwright) |
 | Composición | `work/render.py` | video final H.264 + AAC (espejado corregido, color, zoom, tarjetas detrás del orador con matte) |
 | Todo junto | `work/make.sh <carpeta-proyecto> [crf] [preset]` | `out.mp4` |
 
 Herramientas de control: `work/joinspec.py` (espectrogramas de cada empalme), `work/cand_check.py`
-(silencio disponible a cada lado de un recorte candidato), `work/mixcheck.py` (ganancia constante en cada
-palabra y margen de cada efecto respecto de la voz), `work/preview.py` (fotogramas de prueba),
+(silencio disponible a cada lado de un recorte candidato), `work/qa_auto.py` (control automático completo después del render: palabras enteras,
+ganancia por palabra, margen de efectos, cortes, subtítulos, tarjetas tapadas, sonoridad y contenedor), `work/preview.py` (fotogramas de prueba),
 `work/specplot.py`, `work/probe.py`.
 
 ## Carpeta de trabajo
@@ -45,13 +45,12 @@ audio/       wav del crudo a 16 k y 48 k     — no versionado
 ## Reproducir la edición
 
 ```bash
+./setup.sh /ruta/a/la/carpeta                          # dependencias, modelos, tipografías, efectos
 export VIDEO_EDIT_ROOT=/ruta/a/la/carpeta
-python3 -I work/sfx.py build/sfx                       # efectos de sonido
-python3 -I work/fetch_fonts.py build/fonts             # tipografías (Google Fonts)
 python3 -I work/edl.py build/edl/cfg_v7.json build/edl/edl_v7.json
-python3 -I work/build_project.py build/edl/edl_v7.json build/v5 --set silhouette=silhouette_v5.json
+python3 -I work/build_project.py build/edl/edl_v7.json build/v5 --video videos/1million-black --set silhouette=silhouette_v5.json
 work/make.sh build/v5 20 slow                          # audio + gráficos + render
-python3 -I work/mixcheck.py build/v5                   # control de la mezcla
+python3 -I work/qa_auto.py build/v5 build/edl/edl_v7.json --asr   # control automático
 ```
 
 Requiere `ffmpeg`, Python 3 con `numpy`, `scipy`, `opencv-python`, `soundfile`, `onnxruntime`,
@@ -71,3 +70,15 @@ suena en ese momento, y las tarjetas se ubican dentro del recorte 4:5 del feed d
 Los efectos de sonido son originales (sintetizados por `work/sfx.py`). Las imágenes de botellas y notas
 provienen de Fragrantica y las fotos de stock de Mixkit y Wikimedia Commons; su origen y licencia están
 en `assets/*/manifest.json`.
+
+## Un video nuevo
+
+Lo propio de cada video vive en `videos/<nombre>/plan.py`; el estilo no se toca:
+
+- `CAPTIONS`: solo las frases que necesitan acentos (`*palabra*`) o texto oculto bajo un título (`[...]`); el resto se
+  agrupa solo (1 a 3 palabras, sin palabras función sueltas).
+- `plan()`: la secuencia de bloques de `work/blocks.py` — `hook_tag`, `big_title`, `lockup`, `bottle_card`,
+  `rating_card`, `medal`, `pros_cons`, `photo_tiles`, `scoreboard`, `cta_card`, `end_plate` — y los zooms (`gesture`).
+- `AUDIO` y `END_WORD`: ajustes puntuales de sonido y la última palabra (donde se congela la imagen).
+
+`videos/1million-black/plan.py` sirve de ejemplo completo.

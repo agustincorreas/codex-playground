@@ -1,11 +1,12 @@
 """Single source of truth for the edit: captions, graphics, zooms, sound cues.
-usage: build_project.py <edl.json> <outdir> [--theme NAME] [--set key=value ...]
+usage: build_project.py <edl.json> <outdir> --video <dir with plan.py> [--theme NAME] [--set key=value ...]
+The video folder holds everything specific to one video (plan.py: CAPTIONS, AUDIO, END_WORD, plan()); the look lives in blocks.py + the theme.
 Writes <outdir>/overlay/index.html and <outdir>/project.json
 """
 import sys, json, os, re, shutil, html as _html, unicodedata, argparse, bisect
 
 S = os.environ.get("VIDEO_EDIT_ROOT") or os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # working folder (holds work/, build/, analysis/, assets/, dl/, models/)
-ap = argparse.ArgumentParser(); ap.add_argument("edl"); ap.add_argument("outdir"); ap.add_argument("--theme", default="default")
+ap = argparse.ArgumentParser(); ap.add_argument("edl"); ap.add_argument("outdir"); ap.add_argument("--theme", default="default"); ap.add_argument("--video", required=True)
 ap.add_argument("--set", action="append", default=[], help="override a plan option, key=value")
 A = ap.parse_args()
 OPT = {"captions": "on"}
@@ -42,34 +43,36 @@ def sent_span(sent):
 def next_cut(t):
     k = bisect.bisect_right(CUTS, t + 1e-6); return CUTS[k] if k < len(CUTS) else 1e9
 
-# the picture holds on a clean frame under the end card (he is about to put the bottle away after the last word)
-FREEZE_AT = min(te(19, "perfumazo") + 0.05, SPEECH_END - 0.04)
+# ---------------------------------------------------------------- the video's own plan (captions script, audio extras, graphics)
+VIDEO = os.path.abspath(A.video); CAPTIONS = {}; AUDIO = {}; END_WORD = None
+exec(open(f"{VIDEO}/plan.py").read())
+# the picture holds on a clean frame under the end card, just after the last word has finished
+_last_e = te(*END_WORD) if END_WORD else WORDS[-1]["e"]
+FREEZE_AT = min(_last_e + 0.05, SPEECH_END - 0.04)
 DUR = FREEZE_AT + float(OPT.get("end_hold", 1.25))
 
-# ---------------------------------------------------------------- caption script
-# One line per sentence. "|" separates cards. *words* = accent (may span words). [words] = spoken but not captioned (a title shows them).
-# "word~" = the NEXT word is revealed together with this one (fast function-word clusters, numbers);  "~word" = this word waits for the next one.
-CAPTIONS = {
- 0: "la marca | promete | que~ este perfume | dura | [48 horas] | y al final | del video | te~ voy~ a~ decir | si~ eso | es *verdad* | o no",
- 1: "esto~ es | [One Million Black de Rabanne el último lanzamiento] | ~de ~la mítica | y famosísima | línea | One~ Million | de perfumes",
- 2: "si~ no usaste | One~ Million | alguna~ vez | en tu vida | es porque | nunca~ fuiste | a~ un *boliche*",
- 3: "lo cierto | es~ que | según | Fragrantica | [a 8 de cada 10 personas] | les *encanta* | este perfume",
- 4: "me parece | uno~ de~ los | *mejores* | lanzamientos | del año | creo~ que | es el *mejor* | One~ Million | de todos",
- 5: "esto~ es | un perfume | *dulce* | *tropical* | y que | se hace | notar | *muchísimo*",
- 6: "lo~ que~ sí | te tengo~ que | decir | ~es ~que ~de *Black* | no tiene | mucho | porque es~ un | perfume | que sale | ~con ~un *ananá* | jugoso | y~ a~ la media hora | se transforma | en~ una *vainilla* | más cremosa | con la mezcla | de *coco* | y un fondo | de *madera* | tostada | que lo hacen | *espectacular*",
- 7: "muy dulce | eso sí | pero | yo~ no~ soy | fan~ de~ los | perfumes *dulces* | y~ eso lo saben | ustedes | los~ que~ me miran | siempre | pero este | me *conquistó* | de verdad",
- 8: "los~ que~ aman | este perfume | dicen~ que | es *adictivo* | y~ que trae | *cumplidos*",
- 9: "y~ los~ que~ no | le critican | que~ por~ ahí | puede~ ser | demasiado | *dulce* | *juvenil* | ~y *más de~ lo mismo*",
- 10: "lo~ que~ sí | te digo | que~ es | un perfume | 100% | *nocturno* | más tirando | a *frío*",
- 11: "con calor | yo lo usaría | solamente | de *noche* | si de día | solamente | si te animás",
- 12: "las~ 48 | horas | en la piel | la mayoría | de~ las opiniones | incluida | la mía | habla de~ que | ~entre *8~ y~ 10* | horas",
- 14: "las~ 48 | horas | se cumplen | pero solamente | [en la ropa]",
- 15: "[sí señores]",
- 16: "si~ te~ lo | aplicás | en ropa | te~ va~ a | quedar | *dos días* | impregnado | esta *bestia*",
- 17: "me gustaría | que ustedes | me~ dejen~ en~ los | *comentarios* | qué opinan | de este | si lo aman | les gusta | lo dulce | o lo sienten | un~ poco | *empalagoso*",
- 18: "personalmente | considero | que está | [aprobadísimo]",
- 19: "te tiene~ que | gustar | el ananá | dulce | jugosa | y cremosa | como dije | pero | [un perfumazo]",
-}
+# sentences without a hand-written script are grouped automatically: 1-3 words, <= 16 characters, new card after a pause or punctuation,
+# and a function word never closes a card (it waits for the word it belongs to)
+FUNC = set("a al con de del e el en la las lo los me mi ni no o por que se su te tu un una y es si muy más".split())
+_PROPER = {_n(w["w"]) for k, w in enumerate(WORDS) if w["w"][:1].isupper() and k > 0 and WORDS[k - 1]["w"][-1] not in ".?!" and WORDS[k - 1]["sent"] == w["sent"]}
+def auto_script(ws):
+    cards = []; cur = []
+    for k, w in enumerate(ws):
+        txt = re.sub(r"[.,;:!?¿¡]", "", w["w"])
+        if _n(txt) not in _PROPER: txt = txt.lower()
+        paused = k > 0 and (w["s"] - ws[k - 1]["e"] > 0.28 or ws[k - 1]["w"][-1] in ".,;:!?")
+        if cur and (paused or len(cur) >= 3 or len(" ".join(cur + [txt])) > 16):
+            carry = []
+            while not paused and len(cur) > 1 and _n(cur[-1]) in FUNC and len(carry) < 2: carry.insert(0, cur.pop())   # a function word never closes a card
+            cards.append(cur); cur = carry
+        cur.append(txt)
+    if cur: cards.append(cur)
+    out = []
+    for c in cards:
+        lead = 0
+        while lead < len(c) - 1 and _n(c[lead]) in FUNC: lead += 1
+        out.append(" ".join((x + "~" if j < lead else x) for j, x in enumerate(c)))        # leading function words appear with their word
+    return " | ".join(out)
 LEAD = 0.045      # captions land ~1.5 frames before the word's acoustic onset
 HOLD = 0.34       # how long a card may linger after its last word when nothing follows
 DISPLAY = {"one": "1"}   # on-screen spelling follows the bottle and the graphics: "1 Million"
@@ -77,9 +80,8 @@ DISPLAY = {"one": "1"}   # on-screen spelling follows the bottle and the graphic
 def build_captions():
     cards = []; lint = []
     for s in sorted({w["sent"] for w in WORDS}):
-        script = CAPTIONS.get(s)
-        if script is None: raise SystemExit(f"no caption script for sentence {s}: " + " ".join(w["w"] for w in WORDS if w["sent"] == s))
         ws = [w for w in WORDS if w["sent"] == s]; k = 0
+        script = CAPTIONS.get(s) or auto_script(ws)
         for raw in [c.strip() for c in script.split("|")]:
             hidden = raw.startswith("[") and raw.endswith("]")
             card = []; em = False
@@ -144,7 +146,9 @@ if OPT["captions"] == "on":
         spans = "".join(f'<span class="w{" em" if w["em"] else ""}" {d(in_=max(0.0, w["t"]), anim="none" if w.get("instant") else "word", dur=0.10)}>{esc(w["text"])}</span>' for w in c["words"])
         item(c["t0"], c["t1"], f'<div class="cap">{spans}</div>', cls="capitem")
 
-exec(open(f"{S}/work/plan_graphics.py").read())   # defines the graphic items / zoom / sfx using the helpers above
+exec(open(f"{S}/work/blocks.py").read())          # reusable blocks (titles, cards, zoom gestures, sounds)
+plan()                                            # the video's own sequence of blocks
+print("slot layout (name, in, out, width):"); [print("   ", l) for l in LAYOUT]
 
 # ---------------------------------------------------------------- sanity: no element may start leaving before it has finished entering
 for it in ITEMS:
@@ -166,11 +170,7 @@ proj = {"src": f"{S}/dl/src/raw.mov", "fps": FPS, "w": 1080, "h": 1920, "segment
         "matte_cache": f"{S}/build/matte_cache",
         "overlay_dir": f"{OUT}/ov_front", "overlay_back_dir": f"{OUT}/ov_back", "audio": f"{OUT}/audio/mix.wav",
         "audio_cfg": {"voice_chain": OPT.get("voice_chain", VOICE), "target_lufs": -14.0, "true_peak": -1.0, "sfx_dir": f"{S}/build/sfx", "end_fade_ms": 130, "pause_duck_soft_db": 4.0,
-                      # the trailing hum between "como dije," and "pero un perfumazo" (source seconds, dB, ramp s)
-                      "duck_extra": [[137.79, 138.06, -10.0, 0.05]],
-                      "pause_duck_db": float(OPT.get("pause_duck_db", 9.0)), "fade_out_ms": 70, "fade_in_ms": 12,
-                      # three soft-spoken punchlines stayed ~2 LU under the programme after levelling: ride them up (source seconds)
-                      "post_gain": [[17.55, 19.62, 2.0], [115.4, 120.15, 1.7], [136.4, 139.25, 2.0]]},
+                      "pause_duck_db": float(OPT.get("pause_duck_db", 9.0)), "fade_out_ms": 70, "fade_in_ms": 12, **AUDIO},
         "words": [{"w": w["w"], "s": w["s"], "e": w["e"]} for w in WORDS],
         "sfx": sorted(SFX, key=lambda e: e["t"]), "captions": CAPS}
 json.dump(proj, open(f"{OUT}/project.json", "w"), ensure_ascii=False, indent=1)

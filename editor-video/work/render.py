@@ -122,6 +122,7 @@ def matte_src(frame, k):
     cv2.imwrite(fn, m)
     return m
 
+OCC = {}     # output frame -> share of the back-layer card pixels hidden by the speaker (for the automatic QA)
 def compose(frame, k):
     s, cx, cy = zoom_at(k / FPS)
     zoomed = abs(s - 1.0) > 1e-4 or abs(cx - W / 2) > 0.01 or abs(cy - H / 2) > 0.01
@@ -140,6 +141,8 @@ def compose(frame, k):
             if zoomed: m = cv2.warpAffine(m, affine(s, cx, cy), (W, H), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REPLICATE)
             y0, y1, x0, x1, rgb, al = ob
             vis = (al[:, :, 0].astype(np.float32) / 255.0) * (1.0 - m[y0:y1, x0:x1])
+            solid = al[:, :, 0] > 128
+            if solid.sum() > 400: OCC[k] = round(float(m[y0:y1, x0:x1][solid].mean()), 3)
             reg = frame[y0:y1, x0:x1].astype(np.float32)
             frame = frame.copy()
             frame[y0:y1, x0:x1] = np.clip(reg * (1 - vis[:, :, None]) + rgb.astype(np.float32) * vis[:, :, None] + 0.5, 0, 255).astype(np.uint8)
@@ -233,4 +236,5 @@ for k in range(k0, k1):
 pd.kill()
 if enc:
     enc.stdin.close(); enc.wait()
+if enc and OCC: json.dump({str(k): v for k, v in sorted(OCC.items())}, open(os.path.splitext(a.out)[0] + ".occlusion.json", "w"))
 print("done", a.out, "frames", k1 - k0, "duration", (k1 - k0) / FPS)

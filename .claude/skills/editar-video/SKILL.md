@@ -8,8 +8,9 @@ description: Edita un video crudo vertical de Agus (reseña, top, novedad, event
 Entrada: un link a una carpeta de Google Drive con el crudo (un `.mov` vertical 1080×1920), o un archivo adjunto.
 Salida: `editado.mov` (H.264 + AAC, mismo nombre que usa Meli, su editora) y un resumen breve de lo que se cortó.
 
-Trabajar con el pipeline de `editor-video/` (leer su `README.md` primero). Poner `VIDEO_EDIT_ROOT` en una carpeta de
-trabajo fuera del repositorio (scratchpad) y copiar ahí `editor-video/work` y `editor-video/build/overlay`.
+Trabajar con el pipeline de `editor-video/` (leer su `README.md` primero). Correr `editor-video/setup.sh <carpeta>` con una
+carpeta de trabajo fuera del repositorio (scratchpad) y exportar `VIDEO_EDIT_ROOT`: deja dependencias, modelos,
+tipografías y efectos listos.
 
 ## Reglas del dueño (no negociables)
 - Cortar silencios **sin cortar palabras**. Sacar muletillas, repeticiones y frases redundantes o prescindibles.
@@ -24,8 +25,7 @@ trabajo fuera del repositorio (scratchpad) y copiar ahí `editor-video/work` y `
 1. **Bajar el crudo** (`https://drive.usercontent.google.com/download?id=ID&export=download&confirm=t`) a `dl/src/raw.mov`.
    Si la red lo bloquea, usar el entorno `codex-playground-video` o pedir los hosts de Drive, fimgs.net, Mixkit,
    Wikimedia y Hugging Face.
-2. **Preparar**: modelos (faster-whisper large-v3, MMS aligner, RVM), `work/sfx.py`, `work/fetch_fonts.py`,
-   wav a 16 k y 48 k. Revisar si el crudo está espejado (texto de la botella al revés) → `hflip`.
+2. **Preparar**: wav a 16 k y 48 k (`audio/src_16k.wav`, `audio/src_48k.wav`). Revisar si el crudo está espejado (texto de la botella al revés) → `hflip`.
 3. **Transcribir y alinear**: `transcribe.py` → corregir a mano una transcripción literal en `work/src_transcript.txt`
    (formato `mostrado|pronunciado`) → `falign.py` → `vad.py`.
 4. **Decidir cortes** (`build/edl/cfg_*.json` + `edl.py`):
@@ -33,8 +33,10 @@ trabajo fuera del repositorio (scratchpad) y copiar ahí `editor-video/work` y `
    - contenido: solo por unidades con silencio real a ambos lados (`cand_check.py`); nunca terminar en una frase de
      entonación ascendente; revisar cada empalme con `joinspec.py`;
    - apuntar a ≤ 90 s; listar para el dueño cada frase quitada.
-5. **Plan de la edición**: reescribir para este video el guion de subtítulos (`CAPTIONS` en `build_project.py`) y
-   `plan_graphics.py`. Convenciones:
+5. **Plan de la edición**: crear `videos/<nombre>/plan.py` copiando `videos/1million-black/plan.py`. Usar los bloques de
+   `work/blocks.py` (no escribir HTML nuevo salvo que falte un bloque) y dejar que los subtítulos se agrupen solos;
+   escribir a mano solo las frases con acentos o con texto oculto bajo un título. Mandarle al dueño el guion
+   recortado en texto antes de renderizar si el recorte de contenido es grande. Convenciones:
    - subtítulos blancos pesados de 1 a 3 palabras, centro abajo (línea base ~y 1290), palabras clave en el color de
      acento; se ocultan mientras hay un título; ninguna tarjeta de menos de 0,3 s ni palabras función sueltas;
    - títulos serif grandes para el número o la idea del gancho y para el remate; nombre del producto en grande
@@ -53,11 +55,13 @@ trabajo fuera del repositorio (scratchpad) y copiar ahí `editor-video/work` y `
    - verdes/aromáticos: verde salvia;
    - eventos, entrevistas, tops: neutro (blanco + un solo acento de la marca), menos tarjetas y más títulos.
    Comprobar siempre el contraste del acento sobre la ropa que tenga puesta.
-7. **Render**: `build_project.py` → `preview.py` (mirar los fotogramas) → `make.sh <proyecto> 20 slow`.
-8. **Verificar antes de entregar**:
-   - `falign.py` sobre la voz final + segunda transcripción: todas las palabras conservadas, sin caídas de confianza;
-   - `mixcheck.py`: ganancia constante en cada palabra, efectos ≥ 8 dB bajo la voz, −14 LUFS / −1 dBTP;
-   - cuadro siguiente a cada corte sin zoom ni subtítulo colgado; sin cuadros duplicados; tarjetas no tapadas;
+7. **Render**: `build_project.py --video videos/<nombre>` → `preview.py` (mirar los fotogramas y corregir ahí, que
+   tarda segundos) → un solo `make.sh <proyecto> 20 slow`. Si después solo cambia el sonido, rehacer
+   `audio_build.py` y remuxar, sin renderizar el video otra vez.
+8. **Verificar antes de entregar**: `qa_auto.py <proyecto> <edl> --asr` debe terminar sin fallas (palabras enteras,
+   ganancia por palabra, efectos bajo la voz, cortes limpios, subtítulos, tarjetas tapadas, sonoridad, contenedor).
+   No usar revisores automáticos (subagentes) salvo un único repaso visual final si algo queda en duda. Además:
+   - mirar una hoja de contactos de todo el video (un cuadro por segundo);
    - ortografía rioplatense (aplicás, animás, ananá) y datos en pantalla correctos.
 9. **Entregar**: remux a `editado.mov`; enviarlo por el chat (el conector de Drive solo sube hasta 10 MB, así que
    la copia a la carpeta la hace el dueño). Sugerir un cuadro de portada con mirada a cámara y el título visible.
