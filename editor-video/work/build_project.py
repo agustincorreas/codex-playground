@@ -46,13 +46,14 @@ def next_cut(t):
 # ---------------------------------------------------------------- the video's own plan (captions script, audio extras, graphics)
 VIDEO = os.path.abspath(A.video); CAPTIONS = {}; AUDIO = {}; END_WORD = None
 HFLIP = True      # the source is a mirrored selfie (set HFLIP = False in plan.py when the product text already reads correctly)
+END_HOLD, END_DIM = 0.45, 0.0     # no closing plate by default: the video ends on his last word (set 1.25 / 0.20 only if a plate is wanted)
 EMPH = set()      # words shown in the accent colour when captions are grouped automatically
 HIDE = {}         # {sentence: "phrase"}: spoken words covered by a title (no caption)
 exec(open(f"{VIDEO}/plan.py").read())
 # the picture holds on a clean frame under the end card, just after the last word has finished
 _last_e = te(*END_WORD) if END_WORD else WORDS[-1]["e"]
 FREEZE_AT = min(_last_e + 0.05, SPEECH_END - 0.04)
-DUR = FREEZE_AT + float(OPT.get("end_hold", 1.25))
+DUR = FREEZE_AT + float(OPT.get("end_hold", END_HOLD))
 
 # sentences without a hand-written script are grouped automatically: 1-3 words, <= 16 characters, new card after a pause or punctuation,
 # and a function word never closes a card (it waits for the word it belongs to)
@@ -186,7 +187,7 @@ page = f"""<!doctype html><html><head><meta charset="utf-8">
 open(f"{OUT}/overlay/index.html", "w").write(page)
 ZOOM.sort(key=lambda z: z["t"])
 proj = {"src": f"{S}/dl/src/raw.mov", "fps": FPS, "w": 1080, "h": 1920, "segments": E["segments"], "duration": round(DUR, 4), "hflip": HFLIP,
-        "freeze": {"at": round(FREEZE_AT, 4), "dim": float(OPT.get("end_dim", 0.20))},
+        "freeze": {"at": round(FREEZE_AT, 4), "dim": float(OPT.get("end_dim", END_DIM))},
         "zoom": ZOOM, "grade": OPT.get("grade", GRADE), "sharpen": float(OPT.get("sharpen", 0.25)), "chroma_defect_period": 120,
         "matte_cache": f"{S}/build/matte_cache",
         "overlay_dir": f"{OUT}/ov_front", "overlay_back_dir": f"{OUT}/ov_back", "audio": f"{OUT}/audio/mix.wav",

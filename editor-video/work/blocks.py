@@ -86,7 +86,7 @@ def icon(name, s=44): return ICON[name].replace("{s}", str(s))
 # sound: K-weighted 100 ms loudness targets against a -14 LUFS voice whose peaks reach about -9 LUFS. Tent-pole cues sit ~9 dB under those peaks,
 # card/note cues ~12 dB under (the reference mixes its effects at voice level; we stay discreet but audible on a phone speaker).
 def snd(t, name, k100=-21.0, **kw): SFX.append({"t": round(max(0.0, t), 3), "name": name, "k100": k100, **kw})
-CARD_SND, POP_SND = -24.0, -23.0       # at least ~8 dB under the simultaneous voice
+CARD_SND, POP_SND, TICK_SND = -24.0, -23.0, -25.0       # at least ~8 dB under the simultaneous voice
 def title_out(sent, phrase, gap=0.22):
     """Titles leave just before the next caption card appears."""
     return ts(sent, phrase) - gap
@@ -163,6 +163,7 @@ def pros_cons(t, t_out, t_cons, pros, cons, head_pro="A favor", head_con="En con
    <div class="sec"><div class="kslot"><div class="kicker kick-dim" {d(in_=t + 0.18, anim="fade", dur=0.3, out=t_cons, outanim="fade", outdur=0.12)}>{head_con}</div><div class="kicker" {d(in_=t_cons, anim="fade", dur=0.2)}>{head_con}</div></div>
    {c}</div>""", 520, name="pros/cons")
     snd(t, "whoosh_short", CARD_SND, pre=0.16)
+    for _, ti in pros + cons: snd(ti - 0.04, "tick", TICK_SND, pan=-0.3)
 
 def photo_tiles(t, t_out, tiles):
     """Stacked photo tiles: list of (image, big word, small line, time)."""
@@ -206,4 +207,21 @@ def end_plate(t, t_word_end, word, pill_html, cx=400, top=1098):
 def check_list(t, t_out, title, items):
     """One glass card with a title and ticked lines that light up as he says them. items = [(text, time)]."""
     card(t, t_out, f'<div class="kicker gold pk">{title}</div>' + "".join(_li("check", x, ti, t) for x, ti in items), 120 + 62 * len(items), name="list")
+    snd(t, "whoosh_short", CARD_SND, pre=0.16)
+    for _, ti in items: snd(ti - 0.04, "tick", TICK_SND, pan=-0.3)
+
+def flyby(img, t, y=330, h=520, dur=0.85, rtl=False, opacity=0.92):
+    """A bottle cut-out (no background) that crosses the frame quickly BEHIND the speaker when he names another perfume.
+    Brief on purpose: it is a visual reference, not a product placement."""
+    src = asset(img)
+    if not src: return
+    x0 = W_ + 40 if rtl else -h; v = (-(W_ + h + 80) if rtl else (W_ + h + 80)) / dur
+    item(t - 0.02, t + dur + 0.05, f"""<img class="abs" src="{src}" style="left:{x0}px;top:{y}px;height:{h}px;width:auto;opacity:{opacity};filter:drop-shadow(0 14px 22px rgba(0,0,0,.35))" {d(in_=t, anim="none", drift=f"{v:.0f},0,0", out=t + dur, outanim="cut")}>""", layer="back")
+    snd(t, "whoosh_short", CARD_SND - 1.0, pre=0.10, pan=0.3 if rtl else -0.3)
+
+def brand_badge(t, t_out, name, logo=None, kicker="Marca"):
+    """The brand on screen when he names it: its logo if we have the file, otherwise the name set as a wordmark."""
+    src = asset(logo) if logo else None
+    inner = f'<img src="{src}" style="display:block;width:100%;height:auto;opacity:1 !important">' if src else f'<div class="brand-word">{name}</div>'
+    card(t, t_out, f'<div class="kicker gold pk">{kicker}</div>{inner}', 150, w_max=240, name="brand")
     snd(t, "whoosh_short", CARD_SND, pre=0.16)

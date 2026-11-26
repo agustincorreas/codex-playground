@@ -20,6 +20,15 @@ tipografías y efectos listos.
 - Imágenes: Fragrantica (botellas, notas, puntaje) y stock con licencia libre. No saltear bloqueos anti-bots.
 - Entender de qué perfume o tema se habla antes de editar; verificar cada dato que aparezca en pantalla.
 - Resolver solo; preguntar únicamente si es imprescindible. Avisar al terminar.
+- **Notas**: cada ingrediente que nombra aparece como medallón (`medal`), no solo algunos. Las imágenes de notas
+  salen de `https://fimgs.net/mdimg/sastojci/o.<id>.jpg` (lavanda = 1, vainilla = 74, coco = 138, ananá = 170…).
+- **Marca**: cuando dice la marca, mostrar su logo (`brand_badge` con `logo=`). Si no hay archivo del logo, va el
+  nombre como placa y se le pide el PNG al dueño.
+- **Sin frase de cierre**: nada de placas tipo "Perfumazo." al final; queda publicitario. El video termina en su
+  última palabra (no usar `end_plate`).
+- **Otros perfumes que nombra**: el frasco recortado sin fondo pasa rápido por detrás de él (`flyby`, menos de 1 s),
+  nunca fijo en pantalla ni con su nombre, para no dar protagonismo a otras marcas.
+- **Listas con checks**: un clic por cada ítem que se enciende (ya lo hacen `check_list` y `pros_cons`).
 
 ## Pasos
 1. **Bajar el crudo** (`https://drive.usercontent.google.com/download?id=ID&export=download&confirm=t`) a `dl/src/raw.mov`.
@@ -45,8 +54,7 @@ tipografías y efectos listos.
      el recorte 4:5 del feed; texto sobre fondo oscuro, nunca directo sobre la pared;
    - una etiqueta con la pregunta del gancho desde el cuadro 0; nada cruza un corte; zooms suaves (1,07–1,13) en
      palabras clave, con vuelta solo en los cortes;
-   - cierre: placa con el veredicto sobre un cuadro congelado de ~1,25 s; el sonido de cierre va después de la última
-     palabra.
+   - cierre: sin placa ni frase; termina en la última palabra con un respiro corto.
 6. **Paleta según el video** (variables de `work/theme_default.css`; crear `theme_<nombre>.css` y pasar `--theme`):
    tomar el acento del frasco o de la marca y mantener blanco + vidrio oscuro para lo demás.
    - oscuro/dorado (ámbar, oud, nocturnos): acento dorado `#efab1e`;
