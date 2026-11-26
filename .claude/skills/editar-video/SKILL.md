@@ -47,7 +47,12 @@ dueño que lo haga: resolverlo solo.
 1. **Bajar el crudo** (`https://drive.usercontent.google.com/download?id=ID&export=download&confirm=t`) a `dl/src/raw.mov`.
    Si la red lo bloquea, usar el entorno `codex-playground-video` o pedir los hosts de Drive, fimgs.net, Mixkit,
    Wikimedia y Hugging Face.
-2. **Preparar**: wav a 16 k y 48 k (`audio/src_16k.wav`, `audio/src_48k.wav`). Revisar si el crudo está espejado (texto de la botella al revés) → `hflip`.
+2. **Preparar**: wav a 16 k y 48 k (`audio/src_16k.wav`, `audio/src_48k.wav`).
+   **Espejo (obligatorio, en cada video)**: algunos crudos vienen espejados y otros no. Mirar fotogramas donde se
+   lea texto real (nombre en el frasco o la caja, etiquetas, carteles) en varios momentos del video. Si se lee al
+   revés → `HFLIP = True` en `plan.py`; si se lee bien → `HFLIP = False`. El resultado final SIEMPRE tiene que dejar
+   los nombres de los perfumes legibles al derecho. Volver a comprobarlo en un fotograma del render final y decirle
+   al dueño si se dio vuelta o no. Si no hay ningún texto legible en el crudo, preguntarle.
 3. **Transcribir y alinear**: `transcribe.py` → corregir a mano una transcripción literal en `work/src_transcript.txt`
    (formato `mostrado|pronunciado`) → `falign.py` → `vad.py`.
 4. **Decidir cortes** (`build/edl/cfg_*.json` + `edl.py`):
