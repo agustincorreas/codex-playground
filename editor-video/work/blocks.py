@@ -217,11 +217,11 @@ def flyby(img, t, y=330, h=520, dur=0.85, rtl=False, opacity=0.92):
     if not src: return
     x0 = W_ + 40 if rtl else -h; v = (-(W_ + h + 80) if rtl else (W_ + h + 80)) / dur
     item(t - 0.02, t + dur + 0.05, f"""<img class="abs" src="{src}" style="left:{x0}px;top:{y}px;height:{h}px;width:auto;opacity:{opacity};filter:drop-shadow(0 14px 22px rgba(0,0,0,.35))" {d(in_=t, anim="none", drift=f"{v:.0f},0,0", out=t + dur, outanim="cut")}>""", layer="back")
-    snd(t, "whoosh_short", CARD_SND - 1.0, pre=0.10, pan=0.3 if rtl else -0.3)
+    snd(t, "whoosh_short", CARD_SND - 3.0, pre=0.10, pan=0.3 if rtl else -0.3)
 
 def brand_badge(t, t_out, name, logo=None, kicker="Marca"):
     """The brand on screen when he names it: its logo if we have the file, otherwise the name set as a wordmark."""
     src = asset(logo) if logo else None
     inner = f'<img src="{src}" style="display:block;width:100%;height:auto;opacity:1 !important">' if src else f'<div class="brand-word">{name}</div>'
     card(t, t_out, f'<div class="kicker gold pk">{kicker}</div>{inner}', 150, w_max=240, name="brand")
-    snd(t, "whoosh_short", CARD_SND, pre=0.16)
+    snd(t, "whoosh_short", CARD_SND - 2.5, pre=0.16)
