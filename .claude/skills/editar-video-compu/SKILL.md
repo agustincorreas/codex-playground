@@ -9,6 +9,12 @@ Mismas reglas y mismo estilo que `/editar-video` (leer ese skill primero: reglas
 Lo que cambia es **dónde** corre y **cómo se entrega**. ESTADO: sin probar todavía en su máquina; la primera vez,
 anotar acá lo que haya que ajustar.
 
+## Dónde está el pipeline
+Los scripts viven en la carpeta `editor-video/` del repositorio `agustincorreas/codex-playground`. Si la sesión no está
+abierta sobre ese repositorio, usar `~/Documents/codex-playground` (clonarlo de `https://github.com/agustincorreas/codex-playground.git`
+si no existe, y hacer `git pull` si existe) y trabajar con `~/Documents/codex-playground/editor-video`. No pedirle al
+dueño que lo haga: resolverlo solo.
+
 ## Antes de empezar
 1. La sesión necesita su computadora adjunta (Remote Control). Si no hay ninguna en línea, decirlo y ofrecer
    `/editar-video` (nube) en su lugar.

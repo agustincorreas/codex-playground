@@ -12,6 +12,12 @@ Trabajar con el pipeline de `editor-video/` (leer su `README.md` primero). Corre
 carpeta de trabajo fuera del repositorio (scratchpad) y exportar `VIDEO_EDIT_ROOT`: deja dependencias, modelos,
 tipografías y efectos listos.
 
+## Dónde está el pipeline
+Los scripts viven en la carpeta `editor-video/` del repositorio `agustincorreas/codex-playground`. Si la sesión no está
+abierta sobre ese repositorio, usar `~/Documents/codex-playground` (clonarlo de `https://github.com/agustincorreas/codex-playground.git`
+si no existe, y hacer `git pull` si existe) y trabajar con `~/Documents/codex-playground/editor-video`. No pedirle al
+dueño que lo haga: resolverlo solo.
+
 ## Reglas del dueño (no negociables)
 - Cortar silencios **sin cortar palabras**. Sacar muletillas, repeticiones y frases redundantes o prescindibles.
 - Duración: en general **hasta 1:30**; solo si el video lo amerita puede pasar, y **nunca más de 3:00**.
