@@ -119,3 +119,16 @@ save("stamp", stamp(), -8)
 
 # 8) short chime for mid-video reveals (the long one is kept for the very end)
 save("shimmer_short", shimmer(dur=0.75) * 1.0, -10)
+
+# 9) mouse click for list items: press + release, each a tiny plastic "tac" (noise burst through two body resonances) over a soft thump
+def click(dur=0.16):
+    n = int(dur * SR); out = np.zeros(n)
+    for t0, g, f1, f2 in ((0.0, 1.0, 2300, 4100), (0.068, 0.62, 2700, 4700)):
+        m = int(0.045 * SR); t = np.arange(m) / SR
+        burst = rng.standard_normal(m) * np.exp(-t / 0.0016)
+        body = bp(burst, f1 * 0.8, f1 * 1.25, 2) * 1.0 + bp(burst, f2 * 0.85, f2 * 1.2, 2) * 0.7
+        ring = (np.sin(2 * np.pi * f1 * t) * 0.35 + np.sin(2 * np.pi * f2 * t) * 0.2) * np.exp(-t / 0.004)
+        thump = np.sin(2 * np.pi * 210 * t) * np.exp(-t / 0.007) * 0.30
+        a = int(t0 * SR); out[a:a + m] += g * (body * 3.0 + ring + thump)
+    return fade(reverb(out, t60=0.12, wet=0.06, bright=7000), 0.0003, 0.02)
+save("click", click(), -10)

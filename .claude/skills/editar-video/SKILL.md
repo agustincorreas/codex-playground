@@ -26,15 +26,22 @@ dueño que lo haga: resolverlo solo.
 - Imágenes: Fragrantica (botellas, notas, puntaje) y stock con licencia libre. No saltear bloqueos anti-bots.
 - Entender de qué perfume o tema se habla antes de editar; verificar cada dato que aparezca en pantalla.
 - Resolver solo; preguntar únicamente si es imprescindible. Avisar al terminar.
-- **Notas**: cada ingrediente que nombra aparece como medallón (`medal`), no solo algunos. Las imágenes de notas
-  salen de `https://fimgs.net/mdimg/sastojci/o.<id>.jpg` (lavanda = 1, vainilla = 74, coco = 138, ananá = 170…).
-- **Marca**: cuando dice la marca, mostrar su logo (`brand_badge` con `logo=`). Si no hay archivo del logo, va el
-  nombre como placa y se le pide el PNG al dueño.
+- **Notas**: TODOS los ingredientes que nombra aparecen como medallón (`medal`), sin saltear ninguno (repasar la
+  frase palabra por palabra: cítrico, lavanda, ámbar, madera…). Las imágenes salen de
+  `https://fimgs.net/mdimg/sastojci/o.<id>.jpg` (lavanda = 1, ámbar = 54, vainilla = 74, coco = 138, ananá = 170).
+  Para un id desconocido, bajar las miniaturas `t.<id>.jpg` de un rango, armar una hoja y mirarla.
+- **Marca**: cuando dice la marca, mostrar su LOGO OFICIAL, sin fondo y sin tarjeta (`brand_badge(..., logo=)`).
+  Buscarlo en el sitio oficial de la marca (el logo del encabezado; p. ej. Armaf: `armaf.ae`), quitarle el fondo y
+  guardar versión oscura (para pared clara) y clara (para fondo oscuro). No reemplazarlo por texto: solo si de
+  verdad no se consigue, avisar al dueño.
 - **Sin frase de cierre**: nada de placas tipo "Perfumazo." al final; queda publicitario. El video termina en su
   última palabra (no usar `end_plate`).
-- **Otros perfumes que nombra**: el frasco recortado sin fondo pasa rápido por detrás de él (`flyby`, menos de 1 s),
-  nunca fijo en pantalla ni con su nombre, para no dar protagonismo a otras marcas.
-- **Listas con checks**: un clic por cada ítem que se enciende (ya lo hacen `check_list` y `pros_cons`).
+- **Otros perfumes que nombra**: el frasco recortado sin fondo cruza por detrás de él (`flyby`, ~1,3 s: que se
+  alcance a ver, sin quedarse), nunca fijo en pantalla ni con su nombre. Imagen:
+  `https://fimgs.net/mdimg/perfume/375x500.<id>.jpg` (el id es el número final de la URL de Fragrantica del
+  perfume; verificar mirando la imagen).
+- **Listas con checks**: un clic de mouse (sonido `click`, con textura, no un tono) por cada ítem que se enciende;
+  ya lo hacen `check_list` y `pros_cons`.
 
 ## Pasos
 1. **Bajar el crudo** (`https://drive.usercontent.google.com/download?id=ID&export=download&confirm=t`) a `dl/src/raw.mov`.

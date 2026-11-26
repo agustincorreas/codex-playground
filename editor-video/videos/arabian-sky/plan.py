@@ -31,7 +31,9 @@ def plan():
     # a qué huele
     t_ci, t_ma = ts(13, "cítrico"), ts(13, "amaderado")
     medal("fragrantica/note_blood-orange.png", "Salida", "Cítricos", t_ci, t_ma - 0.14, 0)
-    medal("extra/note_lavender.jpg", "Corazón", "Lavanda", ts(13, "lavanda"), t_ma - 0.14, 1, sound="pop_high")
+    t_am = ts(13, "ambarado")
+    medal("extra/note_lavender.jpg", "Corazón", "Lavanda", ts(13, "lavanda"), t_am - 0.14, 1, sound="pop_high")
+    medal("extra/note_amber.jpg", "Fondo", "Ámbar", t_am, sent_span(13)[1] + 0.30, 1)
     medal("fragrantica/note_ebony-wood.png", "Fondo", "Maderas", t_ma, sent_span(13)[1] + 0.30, 0, sound="pop_high")
     # los perfumes que nombra pasan un instante por detrás, sin fondo
     flyby("extra/bottle_invictus.png", ts(14, "Invictus") - 0.05)
@@ -42,4 +44,4 @@ def plan():
     cta_card(ts(20, "dejen") - 0.06, 3.6, "Comenten", "¿Dónde<br>se<br><i>consigue</i>?")
     check_list(ts(27, "dura") - 0.05, sent_span(27)[1] + 0.30, "Por qué sí",
                [("Dura", ts(27, "dura")), ("Rinde", ts(27, "rinde")), ("Proyecta", ts(27, "proyecta")), ("Gusta", ts(27, "le gusta")), ("Cumplidos", ts(27, "cumplidos"))])
-    brand_badge(ts(23, "que tiene Armaf") - 0.05, sent_span(23)[1] + 0.20, "Armaf")
+    brand_badge(ts(23, "que tiene Armaf") - 0.05, sent_span(23)[1] + 0.20, "Armaf", logo="extra/logo_armaf_dark.png")
