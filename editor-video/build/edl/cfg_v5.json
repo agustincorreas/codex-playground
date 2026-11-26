@@ -1,0 +1,44 @@
+{
+ "drop": [
+  [
+   256,
+   256,
+   "muletilla"
+  ],
+  [
+   276,
+   289,
+   "redundante: repite la frase anterior"
+  ]
+ ],
+ "pause": {
+  "sentence": 0.24,
+  "clause": 0.17,
+  "inner": 0.12
+ },
+ "min_removal": 0.24,
+ "tail_share": 0.58,
+ "thr_db": -46.0,
+ "lead_in": 0.08,
+ "lead_out": 0.2,
+ "manual": {
+  "255": {
+   "out": 100.375,
+   "in": 100.765
+  },
+  "252": {
+   "in": 98.655
+  },
+  "23": {
+   "out": 6.53
+  },
+  "60": {
+   "out": 19.628,
+   "in": 21.18
+  },
+  "98": {
+   "out": 37.645,
+   "in": 40.205
+  }
+ }
+}

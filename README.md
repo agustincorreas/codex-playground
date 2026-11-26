@@ -45,6 +45,13 @@ Son útiles para jugar, mejorar código y experimentar.
   (US$ 99/mes) o Massive (US$ 199/mes); el README explica costos y cómo contratarlos. Demo en
   https://agustincorreas.github.io/codex-playground/pulso/.
 
+## Proyecto: Editor de video — reseñas verticales
+
+- [`editor-video/`](editor-video/README.md): pipeline reproducible para editar reseñas a cámara para Reels/TikTok/Shorts.
+  Corta silencios sin cortar palabras (alineación forzada palabra por palabra), saca muletillas y frases redundantes,
+  y agrega subtítulos sincronizados, títulos, tarjetas de datos detrás del orador, zooms suaves y efectos de sonido
+  sintetizados. Guarda solo el código y las decisiones de edición; el video, los modelos y las imágenes no se versionan.
+
 ## Proyecto: Sillage — Recomendador de perfumes
 
 - [`sillage/`](sillage/README.md): app React Native (Expo) con tier gratuito y membresía PRO.

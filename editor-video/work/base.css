@@ -1,0 +1,109 @@
+/* Structural rules shared by every theme. Canvas is 1080x1920, transparent. */
+html, body { margin: 0; padding: 0; background: transparent; }
+body { width: 1080px; height: 1920px; overflow: hidden; -webkit-font-smoothing: antialiased; text-rendering: geometricPrecision; }
+#stage { position: relative; width: 1080px; height: 1920px; overflow: hidden; }
+.item { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; pointer-events: none; }
+[data-in] { will-change: transform, opacity; opacity: 0; }
+.abs { position: absolute; }
+.center { position: absolute; left: 0; width: 1080px; text-align: center; }
+
+/* ---------- captions ---------- */
+.cap { position: absolute; left: var(--cap-left); width: var(--cap-width); top: var(--cap-top); height: var(--cap-box); display: flex; align-items: flex-end; justify-content: center; gap: 0 var(--cap-gap);
+       font: var(--cap-weight) var(--cap-size)/1 var(--sans); letter-spacing: var(--cap-track); color: var(--white); white-space: nowrap; text-shadow: var(--cap-shadow); }
+.cap .w { display: inline-block; transform-origin: 50% 80%; }
+.cap .w.em { color: var(--gold-cap); text-shadow: var(--em-shadow); }
+
+/* ---------- shared atoms ---------- */
+.kicker { font: 700 var(--kicker-size)/1 var(--sans); letter-spacing: 0.14em; text-transform: uppercase; color: var(--white); }
+.kicker.gold { color: var(--gold); }
+.goldtext { background: var(--gold-grad); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 2px 1px rgba(0,0,0,.62)) drop-shadow(0 6px 16px rgba(0,0,0,.52)); }
+.glass { background: var(--glass-bg); border: 1.5px solid var(--glass-border); border-radius: var(--radius); box-shadow: 0 18px 50px rgba(0,0,0,.35), 0 2px 8px rgba(0,0,0,.25); }
+.grow { transform-origin: left center; }
+/* small label on black glass: legible on the white shirt, same family as the cards */
+.pill { display: inline-block; padding: 12px 26px 13px; border-radius: 999px; background: rgba(10,10,12,.78); border: 1.5px solid var(--glass-border); font: 700 27px/1 var(--sans); letter-spacing: 0.16em; text-transform: uppercase; color: var(--white); white-space: nowrap; }
+.pill b { color: var(--gold); font-weight: 700; }
+/* soft dark halo behind gold titles so they hold on the white shirt without a box */
+.glow { position: absolute; left: 50%; top: 50%; width: 760px; height: 460px; margin: -230px 0 0 -380px; background: radial-gradient(closest-side, rgba(0,0,0,.27), rgba(0,0,0,.12) 55%, rgba(0,0,0,0)); filter: blur(6px); }
+.titlebox { position: relative; display: inline-block; }
+
+/* ---------- keyword titles (replace the caption line, same anchor) ---------- */
+.kw-num { position: relative; font: 400 330px/0.82 var(--serif); letter-spacing: -0.02em; display: inline-block; padding: 0 0.06em; }
+.kw-lab { position: relative; margin-top: 18px; }
+.kw810 { position: relative; display: flex; align-items: center; justify-content: center; gap: 20px; }
+.kw810 .kw-n { font: 400 250px/0.86 var(--serif); letter-spacing: -0.02em; display: inline-block; padding: 0 0.04em; }
+.kw810 .kw-mid { font: 800 46px/1.1 var(--sans); letter-spacing: 0.12em; text-align: left; text-transform: uppercase; display: inline-block; padding: 0 0.04em; }
+
+/* ---------- product lockup ---------- */
+.lockup { display: flex; flex-direction: column; align-items: center; }
+.lk-main { position: relative; font: 900 128px/0.95 var(--sans); letter-spacing: -0.035em; color: var(--white); text-shadow: 0 3px 3px rgba(0,0,0,.55), 0 8px 26px rgba(0,0,0,.5); }
+.lk-script { position: relative; font: italic 400 170px/0.86 var(--serif); margin: -34px 0 0 230px; padding: 0 0.08em 0.1em; }
+.lk-kick { position: relative; margin-top: 18px; }
+
+/* ---------- side cards: one slim column top-left over the shelves, behind the speaker ---------- */
+.pad { padding: 22px 22px 22px 22px; box-sizing: border-box; }
+.pk { margin-bottom: 14px; font-size: 23px; letter-spacing: 0.07em; white-space: nowrap; }
+.src { margin-top: 16px; font: 600 24px/1.1 var(--sans); color: rgba(255,255,255,.72); }
+.tag-q { margin-top: 2px; font: italic 400 62px/1 var(--serif); color: var(--white); white-space: nowrap; }
+.saga1 { text-align: center; }
+.saga1 img { height: 320px; width: auto; filter: drop-shadow(0 8px 14px rgba(0,0,0,.5)); opacity: 1 !important; }
+.saga-name { margin-top: 12px; font: italic 400 42px/1 var(--serif); color: var(--white); white-space: nowrap; }
+.saga-yr { margin-top: 9px; font: 700 25px/1 var(--sans); letter-spacing: 0.12em; text-transform: uppercase; color: var(--gold); }
+.photo { border-radius: var(--radius); overflow: hidden; border: 1.5px solid var(--glass-border); box-shadow: 0 18px 50px rgba(0,0,0,.4); }
+.photo img { display: block; opacity: 1 !important; }
+.rate { display: flex; align-items: baseline; gap: 8px; margin: 0 0 10px; }
+.rate-num { font: 400 128px/0.84 var(--serif); letter-spacing: -0.01em; display: inline-block; }
+.rate-of { font: 600 32px/1 var(--sans); color: rgba(255,255,255,.82); }
+.rate-votes { margin-top: 12px; font: 600 28px/1 var(--sans); color: rgba(255,255,255,.92); white-space: nowrap; }
+.acc-row { margin-top: 12px; }
+.acc-name { font: 700 30px/1 var(--sans); color: var(--white); margin-bottom: 8px; }
+.bar-track { position: relative; height: 11px; border-radius: 6px; background: rgba(255,255,255,.16); overflow: hidden; }
+.bar-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 6px; background: rgba(255,255,255,.66); }
+.bar-fill.gold, .bar-hl { background: linear-gradient(90deg, #d39a1e, #ffe08a); }
+.bar-hl { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 6px; }
+.estela { position: relative; margin-top: 18px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,.18); height: 84px; }
+.estela .dim, .estela .on { position: absolute; left: 0; top: 14px; }
+.estela span { display: block; font: 700 24px/1 var(--sans); letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255,255,255,.80); }
+.estela b { display: block; margin-top: 6px; font: italic 400 48px/1 var(--serif); color: var(--gold); }
+.estela .dim span { color: rgba(255,255,255,.32); } .estela .dim b { color: rgba(255,255,255,.26); }
+.medal { width: var(--medal); height: var(--medal); border-radius: 50%; overflow: hidden; border: 2px solid var(--glass-border); background: #15130f; box-shadow: 0 16px 40px rgba(0,0,0,.42); transform-origin: center; }
+.medal img { width: 100%; height: 100%; object-fit: cover; display: block; opacity: 1 !important; }
+.note-lab { text-align: center; }
+.note-lab .kicker { font-size: 25px; letter-spacing: 0.14em; text-shadow: 0 2px 3px rgba(0,0,0,.8), 0 3px 14px rgba(0,0,0,.7); }
+.note-name { font: italic 400 60px/1.0 var(--serif); color: var(--white); margin-top: 6px; text-shadow: 0 2px 3px rgba(0,0,0,.8), 0 4px 22px rgba(0,0,0,.72), 0 0 40px rgba(0,0,0,.55); white-space: nowrap; }
+.sec { margin-top: 18px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,.18); }
+.li { position: relative; margin-top: 12px; }
+.li-dim, .li-on { display: flex; align-items: flex-start; gap: 8px; }
+.li svg { flex: none; margin-top: 2px; }
+.li span { font: 700 28px/1.1 var(--sans); color: var(--white); letter-spacing: -0.01em; }
+.li-dim span { color: rgba(255,255,255,.30) !important; }
+.li-dim svg { opacity: .32; }
+.li-on { position: absolute; left: 0; top: 0; right: 0; }
+.kick-dim { color: rgba(255,255,255,.34) !important; }
+.kslot { position: relative; height: 24px; margin-bottom: 2px; }
+.kslot .kicker { position: absolute; left: 0; top: 0; font-size: 23px; letter-spacing: 0.07em; white-space: nowrap; }
+.tiles { display: flex; flex-direction: column; gap: 14px; }
+.tile { position: relative; height: 168px; border-radius: var(--radius); overflow: hidden; border: 1.5px solid var(--glass-border); box-shadow: 0 16px 40px rgba(0,0,0,.4); background: #0c0c0e; }
+.tile img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 1 !important; }
+.tile .shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,.05) 20%, rgba(0,0,0,.72) 100%); }
+.tile .txt { position: absolute; left: 20px; bottom: 16px; right: 12px; }
+.tile b { display: block; font: italic 400 58px/0.95 var(--serif); color: var(--white); text-shadow: 0 2px 10px rgba(0,0,0,.6); }
+.tile span { display: block; margin-top: 5px; font: 700 24px/1 var(--sans); color: var(--gold); white-space: nowrap; }
+.dur-row { margin-top: 14px; }
+.dur-head { display: flex; justify-content: space-between; align-items: baseline; }
+.dur-lab { font: 700 24px/1 var(--sans); letter-spacing: 0.10em; text-transform: uppercase; color: rgba(255,255,255,.88); }
+.dur-extra { font: 700 23px/1 var(--sans); letter-spacing: 0.04em; color: var(--gold); white-space: nowrap; }
+.dur-slot { position: relative; height: 70px; }
+.dur-val { position: absolute; left: 0; top: 0; margin: 5px 0 9px; font: 400 60px/0.92 var(--serif); color: var(--white); display: block; transform-origin: left center; white-space: nowrap; }
+.dur-val.g { color: var(--gold); }
+.dur-val.q { color: rgba(255,255,255,.34); }
+.dur-row .bar-track { height: 12px; }
+.cta-row { display: flex; gap: 12px; align-items: center; }
+.cta-q { margin-top: 12px; font: 400 44px/1.04 var(--serif); color: var(--white); }
+.cta-q i { color: var(--gold); }
+
+/* ---------- verdict seal + closing plate ---------- */
+.seal { position: relative; display: inline-flex; align-items: center; gap: 18px; padding: 20px 44px 22px 34px; border-radius: 999px; background: rgba(10,10,12,.78); border: 2px solid var(--gold); box-shadow: 0 18px 50px rgba(0,0,0,.4), inset 0 0 0 6px rgba(232,201,126,.10); transform-origin: center; }
+.seal-txt { font: italic 400 78px/1 var(--serif); padding: 0 0.04em 0.06em; }
+.plate { position: relative; display: inline-block; padding: 24px 50px 28px; border-radius: 999px; background: rgba(10,10,12,.80); border: 2px solid var(--gold); box-shadow: 0 18px 50px rgba(0,0,0,.42), inset 0 0 0 6px rgba(232,201,126,.10); transform-origin: center; }
+.final { font: italic 400 110px/0.9 var(--serif); display: inline-block; padding: 0 0.05em 0.06em; }
+.endk { margin-top: 18px; }
