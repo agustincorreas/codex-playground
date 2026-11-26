@@ -1,0 +1,79 @@
+{
+ "drop": [
+  [
+   61,
+   76,
+   "recorte: dato de Fragrantica (queda en tarjeta)"
+  ],
+  [
+   77,
+   79,
+   "recorte: 'A mí personalmente'"
+  ],
+  [
+   89,
+   89,
+   "muletilla 'y…'"
+  ],
+  [
+   99,
+   110,
+   "redundante: resumen dulce/tropical"
+  ],
+  [
+   223,
+   237,
+   "redundante: nocturno/frío (lo cubre la frase siguiente)"
+  ],
+  [
+   256,
+   256,
+   "muletilla"
+  ],
+  [
+   276,
+   289,
+   "redundante: repite la frase anterior"
+  ],
+  [
+   302,
+   316,
+   "redundante: repite 48 h en ropa"
+  ],
+  [
+   343,
+   347,
+   "redundante: tercer veredicto"
+  ]
+ ],
+ "pause": {
+  "sentence": 0.24,
+  "clause": 0.17,
+  "inner": 0.12
+ },
+ "min_removal": 0.24,
+ "tail_share": 0.58,
+ "thr_db": -46.0,
+ "lead_in": 0.08,
+ "lead_out": 0.2,
+ "manual": {
+  "255": {
+   "out": 100.375,
+   "in": 100.765
+  },
+  "252": {
+   "in": 98.655
+  },
+  "23": {
+   "out": 6.53
+  },
+  "60": {
+   "out": 19.628,
+   "in": 31.3667
+  },
+  "98": {
+   "out": 37.645,
+   "in": 47.8333
+  }
+ }
+}
