@@ -24,7 +24,8 @@ modelos ni las imágenes de terceros (Fragrantica, stock): eso vive en la carpet
 | Todo junto | `work/make.sh <carpeta-proyecto> [crf] [preset]` | `out.mp4` |
 
 Herramientas de control: `work/joinspec.py` (espectrogramas de cada empalme), `work/cand_check.py`
-(silencio disponible a cada lado de un recorte candidato), `work/preview.py` (fotogramas de prueba),
+(silencio disponible a cada lado de un recorte candidato), `work/mixcheck.py` (ganancia constante en cada
+palabra y margen de cada efecto respecto de la voz), `work/preview.py` (fotogramas de prueba),
 `work/specplot.py`, `work/probe.py`.
 
 ## Carpeta de trabajo
@@ -48,8 +49,9 @@ export VIDEO_EDIT_ROOT=/ruta/a/la/carpeta
 python3 -I work/sfx.py build/sfx                       # efectos de sonido
 python3 -I work/fetch_fonts.py build/fonts             # tipografías (Google Fonts)
 python3 -I work/edl.py build/edl/cfg_v7.json build/edl/edl_v7.json
-python3 -I work/build_project.py build/edl/edl_v7.json build/v3 --set silhouette=silhouette_v5.json
-work/make.sh build/v3 20 slow                          # audio + gráficos + render
+python3 -I work/build_project.py build/edl/edl_v7.json build/v5 --set silhouette=silhouette_v5.json
+work/make.sh build/v5 20 slow                          # audio + gráficos + render
+python3 -I work/mixcheck.py build/v5                   # control de la mezcla
 ```
 
 Requiere `ffmpeg`, Python 3 con `numpy`, `scipy`, `opencv-python`, `soundfile`, `onnxruntime`,
@@ -57,13 +59,14 @@ Requiere `ffmpeg`, Python 3 con `numpy`, `scipy`, `opencv-python`, `soundfile`, 
 
 ## Reseña editada: 1 Million Black (Rabanne)
 
-- `build/edl/cfg_v7.json` / `edl_v7.json`: versión final de 89,6 s (12 cortes).
+- `build/edl/cfg_v7.json` / `edl_v7.json`: versión final de 89,5 s (12 cortes).
 - `build/edl/cfg_v5.json` / `edl_v6.json`: versión larga de 118,5 s (solo silencios, una muletilla y una frase repetida).
 
 Criterio de corte: un corte solo se hace donde hay silencio real a ambos lados; las pausas largas quedan
 en 0,12–0,24 s; el contenido se quita por frases enteras cuando repite algo ya dicho o que ya muestra
 una tarjeta. Después de cada render se verifica con alineación forzada y una segunda transcripción que
-todas las palabras conservadas siguen enteras.
+todas las palabras conservadas siguen enteras. Los efectos quedan al menos 8 dB por debajo de la voz que
+suena en ese momento, y las tarjetas se ubican dentro del recorte 4:5 del feed de Instagram.
 
 Los efectos de sonido son originales (sintetizados por `work/sfx.py`). Las imágenes de botellas y notas
 provienen de Fragrantica y las fotos de stock de Mixkit y Wikimedia Commons; su origen y licencia están

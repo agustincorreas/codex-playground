@@ -2,7 +2,7 @@
 :root {
   --white: #ffffff;
   --gold: #f4c653;            /* on black glass */
-  --gold-cap: #f2b730;        /* deeper gold for accent words that sit directly on the white shirt */
+  --gold-cap: #efab1e;        /* deeper gold for accent words that sit directly on the white shirt */
   --gold-grad: linear-gradient(175deg, #f8d572 0%, #ecb93f 38%, #bf8813 82%, #dfae43 100%);
   --ink: #0b0b0c;
   --sans: 'Inter Tight', 'Inter', sans-serif;
@@ -18,5 +18,5 @@
   --glass-bg: rgba(12, 12, 14, 0.82);
   --glass-border: rgba(244, 198, 83, 0.50);
   --radius: 28px;
-  --medal: 212px;
+  --medal: 190px;
 }

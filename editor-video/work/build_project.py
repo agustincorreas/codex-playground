@@ -19,7 +19,9 @@ for kv in A.set:
     k, _, v = kv.partition("="); OPT[k] = v
 E = json.load(open(A.edl)); WORDS = E["words"]; FPS = 30
 SPEECH_END = E["duration"]                 # end of the spliced footage/audio
-CUTS = [c["out_time"] for c in E["cuts"] if "out_time" in c]
+_acc = 0.0; CUTS = []
+for _s in E["segments"][:-1]:
+    _acc += _s["out"] - _s["in"]; CUTS.append(round(_acc - 0.002, 4))   # a hair before the cut frame, so anything clamped to a cut is gone on that frame
 OUT = os.path.abspath(A.outdir); os.makedirs(f"{OUT}/overlay", exist_ok=True)
 
 # ---------------------------------------------------------------- word lookup helpers
@@ -41,27 +43,27 @@ def next_cut(t):
     k = bisect.bisect_right(CUTS, t + 1e-6); return CUTS[k] if k < len(CUTS) else 1e9
 
 # the picture holds on a clean frame under the end card (he is about to put the bottle away after the last word)
-FREEZE_AT = te(19, "perfumazo") - 0.055
-DUR = FREEZE_AT + float(OPT.get("end_hold", 1.45))
+FREEZE_AT = min(te(19, "perfumazo") + 0.05, SPEECH_END - 0.04)
+DUR = FREEZE_AT + float(OPT.get("end_hold", 1.25))
 
 # ---------------------------------------------------------------- caption script
 # One line per sentence. "|" separates cards. *words* = accent (may span words). [words] = spoken but not captioned (a title shows them).
 # "word~" = the NEXT word is revealed together with this one (fast function-word clusters, numbers);  "~word" = this word waits for the next one.
 CAPTIONS = {
- 0: "la marca | promete | que este | perfume | dura | [48 horas] | y al final | del video | te~ voy~ a~ decir | si~ eso | es *verdad* | o no",
- 1: "esto~ es | [One Million Black de Rabanne el último lanzamiento] | de la | mítica | y famosísima | línea | One~ Million | de perfumes",
- 2: "si~ no | usaste | One~ Million | alguna~ vez | en tu vida | es porque | nunca~ fuiste | a~ un *boliche*",
+ 0: "la marca | promete | que~ este perfume | dura | [48 horas] | y al final | del video | te~ voy~ a~ decir | si~ eso | es *verdad* | o no",
+ 1: "esto~ es | [One Million Black de Rabanne el último lanzamiento] | ~de ~la mítica | y famosísima | línea | One~ Million | de perfumes",
+ 2: "si~ no usaste | One~ Million | alguna~ vez | en tu vida | es porque | nunca~ fuiste | a~ un *boliche*",
  3: "lo cierto | es~ que | según | Fragrantica | [a 8 de cada 10 personas] | les *encanta* | este perfume",
  4: "me parece | uno~ de~ los | *mejores* | lanzamientos | del año | creo~ que | es el *mejor* | One~ Million | de todos",
  5: "esto~ es | un perfume | *dulce* | *tropical* | y que | se hace | notar | *muchísimo*",
- 6: "lo~ que~ sí | te tengo~ que | decir | es~ que | de *Black* | no tiene | mucho | porque | es~ un perfume | que sale | con | un *ananá* | jugoso | y~ a~ la | media hora | se transforma | en~ una | *vainilla* | más cremosa | con la mezcla | de *coco* | y un fondo | de *madera* | tostada | que lo hacen | *espectacular*",
- 7: "muy dulce | eso sí | pero | yo~ no~ soy | fan~ de~ los | perfumes *dulces* | y~ eso | lo saben | ustedes | los~ que~ me miran | siempre | pero este | me *conquistó* | de verdad",
+ 6: "lo~ que~ sí | te tengo~ que | decir | ~es ~que ~de *Black* | no tiene | mucho | porque es~ un | perfume | que sale | ~con ~un *ananá* | jugoso | y~ a~ la media hora | se transforma | en~ una *vainilla* | más cremosa | con la mezcla | de *coco* | y un fondo | de *madera* | tostada | que lo hacen | *espectacular*",
+ 7: "muy dulce | eso sí | pero | yo~ no~ soy | fan~ de~ los | perfumes *dulces* | y~ eso lo saben | ustedes | los~ que~ me miran | siempre | pero este | me *conquistó* | de verdad",
  8: "los~ que~ aman | este perfume | dicen~ que | es *adictivo* | y~ que trae | *cumplidos*",
  9: "y~ los~ que~ no | le critican | que~ por~ ahí | puede~ ser | demasiado | *dulce* | *juvenil* | ~y *más de~ lo mismo*",
  10: "lo~ que~ sí | te digo | que~ es | un perfume | 100% | *nocturno* | más tirando | a *frío*",
  11: "con calor | yo lo usaría | solamente | de *noche* | si de día | solamente | si te animás",
- 12: "las~ 48 | horas | en la piel | la mayoría | de~ las opiniones | incluida | la mía | habla de~ que | entre | *8~ y~ 10* | horas",
- 14: "las~ 48 | horas | se cumplen | pero | solamente | [en la ropa]",
+ 12: "las~ 48 | horas | en la piel | la mayoría | de~ las opiniones | incluida | la mía | habla de~ que | ~entre *8~ y~ 10* | horas",
+ 14: "las~ 48 | horas | se cumplen | pero solamente | [en la ropa]",
  15: "[sí señores]",
  16: "si~ te~ lo | aplicás | en ropa | te~ va~ a | quedar | *dos días* | impregnado | esta *bestia*",
  17: "me gustaría | que ustedes | me~ dejen~ en~ los | *comentarios* | qué opinan | de este | si lo aman | les gusta | lo dulce | o lo sienten | un~ poco | *empalagoso*",
@@ -159,11 +161,13 @@ page = f"""<!doctype html><html><head><meta charset="utf-8">
 open(f"{OUT}/overlay/index.html", "w").write(page)
 ZOOM.sort(key=lambda z: z["t"])
 proj = {"src": f"{S}/dl/src/raw.mov", "fps": FPS, "w": 1080, "h": 1920, "segments": E["segments"], "duration": round(DUR, 4), "hflip": True,
-        "freeze": {"at": round(FREEZE_AT, 4), "dim": float(OPT.get("end_dim", 0.16))},
+        "freeze": {"at": round(FREEZE_AT, 4), "dim": float(OPT.get("end_dim", 0.20))},
         "zoom": ZOOM, "grade": OPT.get("grade", GRADE), "sharpen": float(OPT.get("sharpen", 0.25)), "chroma_defect_period": 120,
         "matte_cache": f"{S}/build/matte_cache",
         "overlay_dir": f"{OUT}/ov_front", "overlay_back_dir": f"{OUT}/ov_back", "audio": f"{OUT}/audio/mix.wav",
-        "audio_cfg": {"voice_chain": OPT.get("voice_chain", VOICE), "target_lufs": -14.0, "true_peak": -1.0, "sfx_dir": f"{S}/build/sfx", "end_fade_ms": 130,
+        "audio_cfg": {"voice_chain": OPT.get("voice_chain", VOICE), "target_lufs": -14.0, "true_peak": -1.0, "sfx_dir": f"{S}/build/sfx", "end_fade_ms": 130, "pause_duck_soft_db": 4.0,
+                      # the trailing hum between "como dije," and "pero un perfumazo" (source seconds, dB, ramp s)
+                      "duck_extra": [[137.79, 138.06, -10.0, 0.05]],
                       "pause_duck_db": float(OPT.get("pause_duck_db", 9.0)), "fade_out_ms": 70, "fade_in_ms": 12,
                       # three soft-spoken punchlines stayed ~2 LU under the programme after levelling: ride them up (source seconds)
                       "post_gain": [[17.55, 19.62, 2.0], [115.4, 120.15, 1.7], [136.4, 139.25, 2.0]]},

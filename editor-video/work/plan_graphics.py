@@ -58,7 +58,7 @@ def person_left(t0, t1, y0, y1, pct=4):
         if best < 99999: vals.append(best)
     if not vals: return 380
     vals.sort(); return vals[min(len(vals) - 1, int(len(vals) * pct / 100))]
-LEFT, TOP = 30, 214
+LEFT, TOP = 34, 292                    # inside Instagram's 4:5 feed crop (y >= 285) as well as the full-screen safe area
 WIDTHS = [212, 240, 270, 300]          # the slot has four widths only, so card edges do not wander
 LAYOUT = []
 def column(t_in, t_out, y0, y1, w_max=300):
@@ -96,14 +96,15 @@ def icon(name, s=44): return ICON[name].replace("{s}", str(s))
 # sound: K-weighted 100 ms loudness targets against a -14 LUFS voice whose peaks reach about -9 LUFS. Tent-pole cues sit ~9 dB under those peaks,
 # card/note cues ~12 dB under (the reference mixes its effects at voice level; we stay discreet but audible on a phone speaker).
 def snd(t, name, k100=-21.0, **kw): SFX.append({"t": round(max(0.0, t), 3), "name": name, "k100": k100, **kw})
-CARD_SND, POP_SND = -21.0, -20.0
+CARD_SND, POP_SND = -24.0, -23.0       # at least ~8 dB under the simultaneous voice
 def title_out(sent, phrase, gap=0.22):
     """Titles leave just before the next caption card appears."""
     return ts(sent, phrase) - gap
 
 # ===================================================================================================================== B0 — HOOK TAG (frame 0 -> first cut)
-# The open question sits in the card slot from the very first frame and comes back later as the scoreboard.
-t_out = CUTS[0] - 0.02
+# The open question sits in the card slot from the very first frame, hands over to the big "48 HORAS" title when he says it
+# (the punch-in would otherwise bring his head over the tag) and comes back later as the scoreboard.
+t_out = ts(0, "48 horas") - 0.24
 card(0.0, t_out, '<div class="kicker gold pk" style="margin-bottom:6px">¿Dura</div><div class="tag-q">48 h?</div>', 150, instant=True, name="hook tag")
 
 # ===================================================================================================================== B1 — HOOK NUMBER
@@ -114,60 +115,51 @@ item(t - 0.05, t_out + 0.25, f'''
    <div class="kw-num goldtext" {d(in_=t - 0.03, anim="scale", dur=0.42, out=t_out, outanim="down", outdur=0.18)}>48</div><br>
    <div class="kw-lab pill" {d(in_=t + 0.10, anim="up", dist=18, dur=0.30, out=t_out, outanim="down", outdur=0.18)}>Horas</div>
  </div></div>''', cls="kw")
-snd(t - 0.03, "sub_hit", -19.0, hp=38, max_peak_db=-9.0); snd(t - 0.01, "shimmer_short", -21.0)
+snd(t - 0.03, "sub_hit", -25.5, hp=38, max_peak_db=-12.0); snd(t - 0.01, "shimmer_short", -27.0)
 
 # ===================================================================================================================== B2 — NAME LOCKUP (held ~3 s like the reference lockups)
 t = ts(1, "One Million Black"); tb = ts(1, "Black"); tr = ts(1, "de Rabanne"); t_out = title_out(1, "de la mítica")
 item(t - 0.05, t_out + 0.25, f'''
  <div class="center lockup" style="left:-130px;top:1056px">
    <div class="glow" style="width:880px;margin-left:-440px" {d(in_=t - 0.03, anim="fade", dur=0.3, out=t_out, outanim="fade", outdur=0.18)}></div>
-   <div class="lk-main" {d(in_=t - 0.03, anim="up", dist=44, dur=0.36, out=t_out, outanim="down", outdur=0.18)}>1 MILLION</div>
+   <div class="lk-main" style="word-spacing:0.16em" {d(in_=t - 0.03, anim="up", dist=44, dur=0.36, out=t_out, outanim="down", outdur=0.18)}>1 MILLION</div>
    <div class="lk-script goldtext" {d(in_=tb - 0.03, anim="up", dist=30, dur=0.36, out=t_out, outanim="down", outdur=0.18)}>Black</div>
    <div class="lk-kick pill" {d(in_=tr - 0.03, anim="up", dist=14, dur=0.30, out=t_out, outanim="fade", outdur=0.16)}>Rabanne&nbsp;·&nbsp;<b>Lanzamiento 2026</b></div>
  </div>''', cls="lk")
-snd(t - 0.05, "whoosh_soft", -19.0, pre=0.22)
+snd(t - 0.05, "whoosh_soft", -24.0, pre=0.22)
 
 # B2b — where it comes from: the original bottle (Fragrantica picture) on "la mítica y famosísima línea One Million"
 t = ts(1, "de la mítica") - 0.05; t_out = sent_span(1)[1] + 0.22
 card(t, t_out, f'''<div class="saga1"><img src="{asset("fragrantica/bottle_1-million.png")}" {d(in_=t + 0.08, anim="none", drift="0,-2,0.010")}>
    <div class="saga-name">1 Million</div><div class="saga-yr">Desde 2008</div></div>''', 470, w_max=240, name="saga")
-snd(t, "whoosh_short", CARD_SND, pre=0.16)
-
-# ===================================================================================================================== B3 — "boliche" (stock picture)
-t = ts(2, "boliche") - 0.06; t_out = out_on_cut(sent_span(2)[1] + 0.60)
-club = asset("stock/final/nightclub.jpg")
-if club:
-    w = column(t, t_out, TOP, TOP + 300, w_max=270)
-    item(t, t_out + 0.3, f'''<div class="abs photo" style="left:{LEFT}px;top:{TOP}px;width:{w}px;height:{int(w * 1.12)}px;transform-origin:40% 40%" {d(in_=t, anim="scale", dur=0.36, out=t_out, outanim="shrink", outdur=0.2)}>
-      <img src="{club}" style="width:118%;height:118%;object-fit:cover;margin:-7% 0 0 -3%" {d(in_=t, anim="none", drift="-6,2,0.016")}></div>''', layer="back")
-    snd(t, "pop_soft", POP_SND, pan=-0.25)
+snd(t, "whoosh_short", CARD_SND - 1.5, pre=0.16)
 
 # ===================================================================================================================== B4 — FRAGRANTICA rating (backs his own verdict)
-t = max(ts(4, "uno de los") - 0.05, sent_span(2)[1] + 0.90); t_out = sent_span(4)[1] + 0.25
+t = ts(4, "me parece") + 0.12; t_out = sent_span(4)[1] + 0.25
 card(t, t_out, f'''
    <div class="kicker gold pk">Fragrantica</div>
    <div class="rate"><span class="rate-num goldtext" {d(in_=t + 0.12, anim="fade", dur=0.34, count="3.6,4.3")}>4,3</span><span class="rate-of">/ 5</span></div>
    {stars(4.3, t + 0.22)}
    <div class="rate-votes" {d(in_=t + 0.45, anim="fade", dur=0.3)}>+1.800 votos</div>''', 300, name="rating")
-snd(t, "whoosh_short", CARD_SND, pre=0.16)
+snd(t, "whoosh_short", CARD_SND - 1.5, pre=0.16)
 
 # ===================================================================================================================== B7 — NOTES (Fragrantica note pictures as medallions: top note, heart pair, base)
 t_an, t_va, t_co, t_ma = ts(6, "ananá"), ts(6, "vainilla"), ts(6, "coco"), ts(6, "madera")
 t_end = sent_span(6)[1] + 0.30
-MED = 212
+MED = 190; TOP_M = 240; PITCH = 306      # medallions start a little higher than the cards (pictures, not text) so two fit above his shoulder
 def medal(img, kick, name, t, t_out, slot, pan=-0.3, sound="pop_soft"):
     src = asset(img)
     if not src: return
-    w = column(t, t_out, TOP + slot * 330, TOP + slot * 330 + 300, w_max=300)
-    x = LEFT + max(0, (min(w, 270) - MED) // 2); y = TOP + slot * 330
+    w = column(t, t_out, TOP_M + slot * PITCH, TOP_M + slot * PITCH + 290, w_max=300)
+    x = LEFT + max(0, (min(w, 270) - MED) // 2); y = TOP_M + slot * PITCH
     item(t - 0.08, t_out + 0.3, f'''<div class="abs medal" style="left:{x}px;top:{y}px" {d(in_=t - 0.05, anim="pop", dur=0.36, out=t_out, outanim="shrink", outdur=0.18)}>
         <img src="{src}" style="transform:scale(1.06)" {d(in_=t - 0.05, anim="none", drift="0,0,0.014")}></div>''', layer="back")
-    item(t - 0.08, t_out + 0.3, f'''<div class="abs note-lab" style="left:{x - 44}px;top:{y + MED + 12}px;width:{MED + 88}px" {d(in_=t + 0.06, anim="up", dist=16, dur=0.3, out=t_out, outanim="fade", outdur=0.14)}>
-        <div class="kicker gold">{kick}</div><div class="note-name">{name}</div></div>''', layer="back")
+    item(t - 0.08, t_out + 0.3, f'''<div class="abs note-lab" style="left:{x - 44}px;top:{y + MED + 10}px;width:{MED + 88}px" {d(in_=t + 0.06, anim="up", dist=16, dur=0.3, out=t_out, outanim="fade", outdur=0.14)}>
+        <div class="note-chip"><div class="kicker gold">{kick}</div><div class="note-name">{name}</div></div></div>''', layer="back")
     snd(t - 0.05, sound, POP_SND, pan=pan)
 medal("fragrantica/note_pineapple.png", "Salida", "Ananá", t_an, t_va - 0.14, 0)
 medal("fragrantica/note_vanilla.png", "Corazón", "Vainilla", t_va, t_ma - 0.14, 0, sound="pop_high")
-medal("fragrantica/note_coconut.png", "Corazón", "Coco", t_co, t_ma - 0.14, 1)
+medal("fragrantica/note_coconut.png", "Corazón", "Coco", t_co, ts(6, "que lo hacen") - 0.05, 1)   # leaves before the punch-in brings his head over that corner
 medal("fragrantica/note_ebony-wood.png", "Fondo", "Madera", t_ma, t_end, 0, sound="pop_high")
 
 # ===================================================================================================================== B9 — FANS vs CRITICS (one card, two halves; every line is previewed dim and lights up on its word)
@@ -185,7 +177,7 @@ t = ts(11, "con calor") + 0.10; t_out = out_on_cut(te(11, "animás") + 0.30)
 w = column(t, t_out, TOP, TOP + 360)
 tile = lambda img, big, small, ti: (f'<div class="tile" {d(in_=ti, anim="up", dist=22, dur=0.32, out=t_out, outanim="down", outdur=0.2)}><img src="{asset(img)}" {d(in_=ti, anim="none", drift="0,0,0.012")}>'
                                     f'<div class="shade"></div><div class="txt"><b>{big}</b><span>{small}</span></div></div>')
-item(t, t_out + 0.3, f'<div class="abs tiles" style="left:{LEFT}px;top:{TOP}px;width:{w}px">{tile("stock/final/night.jpg", "Noche", "100% nocturno", t)}{tile("stock/final/cold.jpg", "Frío", "Otoño–invierno", t + 0.30)}</div>', layer="back")
+item(t, t_out + 0.3, f'<div class="abs tiles" style="left:{LEFT}px;top:{TOP}px;width:{w}px">{tile("stock/final/night.jpg", "Noche", "100% nocturno", t)}{tile("stock/final/cold.jpg", "Frío", "Su mejor clima", t + 0.30)}</div>', layer="back")
 LAYOUT.append(("when", round(t, 2), round(t_out, 2), w))
 snd(t, "whoosh_short", CARD_SND, pre=0.16)
 
@@ -209,12 +201,13 @@ item(t - 0.05, t_out + 0.25, f'''
    <div class="kw-num goldtext" {d(in_=t - 0.03, anim="scale", dur=0.42, out=t_out, outanim="down", outdur=0.18)}>48<span style="font-size:.42em;letter-spacing:0;margin-left:.08em">h</span></div><br>
    <div class="kw-lab pill" {d(in_=t + 0.12, anim="up", dist=18, dur=0.30, out=t_out, outanim="down", outdur=0.18)}><b>✓</b>&nbsp;Solo en ropa</div>
  </div></div>''', cls="kw")
-snd(t - 0.85, "riser", -22.0); snd(t - 0.03, "sub_hit", -20.0, hp=38, max_peak_db=-9.0); snd(t - 0.01, "shimmer_short", -19.0)
+snd(t - 0.85, "riser", -26.0); snd(t - 0.03, "sub_hit", -25.5, hp=38, max_peak_db=-12.0); snd(t - 0.01, "shimmer_short", -24.5)
 
 # ===================================================================================================================== B12 — CALL TO ACTION (short)
 t = ts(17, "en los comentarios") - 0.06; t_out = t + 3.7
-card(t, t_out, f'''<div class="cta-row">{icon("bubble", 44)}<div class="kicker gold pk" style="margin:0">Comenten</div></div>
-   <div class="cta-q">¿Lo aman<br>o los<br><i>empalaga</i>?</div>''', 280, w_max=270, name="cta")
+w_cta = column(t, out_on_cut(t_out), TOP, TOP + 280, w_max=270)
+card(t, t_out, f'''<div class="cta-row">{icon("bubble", 40)}<div class="kicker gold pk" style="margin:0">Comenten</div></div>
+   <div class="cta-q" style="font-size:{44 if w_cta >= 240 else 37}px">¿Lo aman<br>o los<br><i>empalaga</i>?</div>''', 280, w_max=270, name="cta")
 snd(t, "whoosh_short", CARD_SND, pre=0.16)
 
 # ===================================================================================================================== B13 — CLOSE
@@ -224,5 +217,5 @@ item(t - 0.05, DUR, f'''
    <div class="plate" {d(in_=t + 0.08, anim="pop", dur=0.38)}><div class="final goldtext">Perfumazo.</div></div><br>
    <div class="pill endk" {d(in_=t + 0.36, anim="up", dist=14, dur=0.36)}>1 Million Black&nbsp;·&nbsp;Rabanne</div>
  </div>''', cls="kw")
-snd(t + 0.06, "shimmer", -19.0); snd(t + 0.06, "sub_hit", -21.0, hp=38, max_peak_db=-11.0)
+snd(te(19, "perfumazo") + 0.04, "shimmer_low", -21.0)
 print("slot layout (name, in, out, width):"); [print("   ", l) for l in LAYOUT]

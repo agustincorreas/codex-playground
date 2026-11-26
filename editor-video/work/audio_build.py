@@ -28,6 +28,13 @@ for a0, b0, g_db in A.get("post_gain", []):
     k = np.hanning(2 * r + 1); k /= k.sum(); env = np.convolve(env, k, mode="same")
     x = x * env
 
+# 1c) explicit extra attenuation of non-word sounds the aligner cannot see (trailing hums): [[src_start, src_end, dB, ramp_s], ...]
+for a0, b0, g_db, r_s in A.get("duck_extra", []):
+    n0, n1 = int(a0 * SR), int(b0 * SR); r = max(1, int(r_s * SR))
+    env = np.ones(len(x)); env[n0:n1] = 10 ** (g_db / 20)
+    k = np.hanning(2 * r + 1); k /= k.sum(); env = np.convolve(env, k, mode="same")
+    x = x * env
+
 # 2) splice: the outgoing tail gets a long release (word tails / room decay are not chopped), the incoming side a short fade-in
 segs = proj["segments"]
 total = int(round(sum(s["out"] - s["in"] for s in segs) * SR))
@@ -61,16 +68,27 @@ def loud(path):
 W = proj.get("words") or []
 duck_db = A.get("pause_duck_db", 0.0)
 if W and duck_db > 0:
-    PRE, POST, RAMP = 0.07, 0.16, 0.035
+    PRE, POST, RAMP = 0.07, 0.16, 0.040
+    TAIL_THR, SIL_THR = -36.0, -50.0       # dBFS before the loudness gain: "still sounding" / "really silent"
+    soft_db = A.get("pause_duck_soft_db", duck_db)
     keep = np.zeros(total, bool)
     hop = int(0.005 * SR); lev = 20 * np.log10(np.sqrt(np.convolve(y ** 2, np.ones(hop * 4) / (hop * 4), mode="same")) + 1e-9)
     for w in W:
         a = int(max(0, (w["s"] - PRE) * SR)); b = int(min(total, (w["e"] + POST) * SR))
-        # a word tail that is still clearly sounding stays protected (up to 0.35 s more)
-        lim_b = int(min(total, (w["e"] + 0.50) * SR))
-        while b < lim_b and lev[b] > -30.0: b += hop
+        # a word tail that is still clearly sounding (held vowels end later than the aligner says) stays protected
+        lim_b = int(min(total, (w["e"] + 0.60) * SR))
+        while b < lim_b and lev[b] > TAIL_THR: b += hop
         keep[a:b] = True
     g = np.where(keep, 1.0, 10 ** (-duck_db / 20))
+    # a gap that never falls silent (a hum or a held sound running into the next word) only gets a shallow dip: no audible pumping
+    ws = sorted(W, key=lambda w: w["s"]); need = int(0.04 * SR)
+    for w0, w1 in zip(ws, ws[1:]):
+        a, b = int(w0["e"] * SR), int(w1["s"] * SR)
+        if b - a < int(0.03 * SR): continue
+        quiet = lev[a:b] < SIL_THR; run = best = 0
+        for q in quiet[::hop]:
+            run = run + hop if q else 0; best = max(best, run)
+        if best < need: g[a:b] = np.where(keep[a:b], 1.0, 10 ** (-soft_db / 20))
     n = int(RAMP * SR); k = np.hanning(2 * n + 1); k /= k.sum()
     g = np.minimum(np.convolve(g, k, mode="same"), 1.0)
     g[keep] = np.maximum(g[keep], 0.92)
