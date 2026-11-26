@@ -1,0 +1,45 @@
+{
+ "drop": [
+  [
+   0,
+   1,
+   "toma repetida"
+  ],
+  [
+   27,
+   79,
+   "contexto prescindible y repetición"
+  ],
+  [
+   93,
+   121,
+   "digresión"
+  ],
+  [
+   272,
+   303,
+   "repite dónde lo consiguió"
+  ],
+  [
+   341,
+   384,
+   "digresión sobre género"
+  ],
+  [
+   411,
+   440,
+   "prescindible"
+  ]
+ ],
+ "pause": {
+  "sentence": 0.24,
+  "clause": 0.17,
+  "inner": 0.12
+ },
+ "min_removal": 0.24,
+ "tail_share": 0.58,
+ "thr_db": -46.0,
+ "lead_in": 0.08,
+ "lead_out": 0.2,
+ "manual": {}
+}

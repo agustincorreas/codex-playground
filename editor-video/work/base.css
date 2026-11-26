@@ -58,7 +58,7 @@ body { width: 1080px; height: 1920px; overflow: hidden; -webkit-font-smoothing: 
 .acc-name { font: 700 30px/1 var(--sans); color: var(--white); margin-bottom: 8px; }
 .bar-track { position: relative; height: 11px; border-radius: 6px; background: rgba(255,255,255,.16); overflow: hidden; }
 .bar-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 6px; background: rgba(255,255,255,.66); }
-.bar-fill.gold, .bar-hl { background: linear-gradient(90deg, #d39a1e, #ffe08a); }
+.bar-fill.gold, .bar-hl { background: var(--bar-grad, linear-gradient(90deg, #d39a1e, #ffe08a)); }
 .bar-hl { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 6px; }
 .estela { position: relative; margin-top: 18px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,.18); height: 84px; }
 .estela .dim, .estela .on { position: absolute; left: 0; top: 14px; }

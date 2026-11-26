@@ -45,6 +45,9 @@ def next_cut(t):
 
 # ---------------------------------------------------------------- the video's own plan (captions script, audio extras, graphics)
 VIDEO = os.path.abspath(A.video); CAPTIONS = {}; AUDIO = {}; END_WORD = None
+HFLIP = True      # the source is a mirrored selfie (set HFLIP = False in plan.py when the product text already reads correctly)
+EMPH = set()      # words shown in the accent colour when captions are grouped automatically
+HIDE = {}         # {sentence: "phrase"}: spoken words covered by a title (no caption)
 exec(open(f"{VIDEO}/plan.py").read())
 # the picture holds on a clean frame under the end card, just after the last word has finished
 _last_e = te(*END_WORD) if END_WORD else WORDS[-1]["e"]
@@ -56,21 +59,34 @@ DUR = FREEZE_AT + float(OPT.get("end_hold", 1.25))
 FUNC = set("a al con de del e el en la las lo los me mi ni no o por que se su te tu un una y es si muy más".split())
 _PROPER = {_n(w["w"]) for k, w in enumerate(WORDS) if w["w"][:1].isupper() and k > 0 and WORDS[k - 1]["w"][-1] not in ".?!" and WORDS[k - 1]["sent"] == w["sent"]}
 def auto_script(ws):
-    cards = []; cur = []
+    cards = []; cur = []; hid = set()
+    hp = HIDE.get(ws[0]["sent"])
+    if hp:
+        hw = find(ws[0]["sent"], hp); hid = {id(x) for x in hw}
     for k, w in enumerate(ws):
         txt = re.sub(r"[.,;:!?¿¡]", "", w["w"])
         if _n(txt) not in _PROPER: txt = txt.lower()
-        paused = k > 0 and (w["s"] - ws[k - 1]["e"] > 0.28 or ws[k - 1]["w"][-1] in ".,;:!?")
-        if cur and (paused or len(cur) >= 3 or len(" ".join(cur + [txt])) > 16):
+        if _n(txt) in EMPH: txt = "*" + txt + "*"
+        if id(w) in hid: txt = "[" + txt + "]"
+        paused = k > 0 and (w["s"] - ws[k - 1]["e"] > 0.28 or ws[k - 1]["w"][-1] in ".,;:!?" or (id(w) in hid) != (id(ws[k - 1]) in hid))
+        if id(w) in hid and cur and cur[-1].startswith("["): paused = False
+        if cur and (paused or (not txt.startswith("[") and (len(cur) >= 3 or len(" ".join(cur + [txt])) > 16))):
             carry = []
             while not paused and len(cur) > 1 and _n(cur[-1]) in FUNC and len(carry) < 2: carry.insert(0, cur.pop())   # a function word never closes a card
             cards.append(cur); cur = carry
         cur.append(txt)
     if cur: cards.append(cur)
+    isf = lambda x: _n(x.strip("[]*")) in FUNC and "*" not in x
+    for i in range(len(cards) - 1):                      # a card never ends on a function word: it joins the words that follow
+        nxt = cards[i + 1]
+        while cards[i] and isf(cards[i][-1]) and not cards[i][-1].startswith("[") and len(nxt) < 4:
+            x = cards[i].pop(); nxt.insert(0, "[" + x + "]" if nxt[0].startswith("[") else x)
+    cards = [c for c in cards if c]
     out = []
     for c in cards:
+        if c[0].startswith("["): out.append("[" + " ".join(x.strip("[]") for x in c) + "]"); continue
         lead = 0
-        while lead < len(c) - 1 and _n(c[lead]) in FUNC: lead += 1
+        while lead < len(c) - 1 and _n(c[lead]) in FUNC and "*" not in c[lead]: lead += 1
         out.append(" ".join((x + "~" if j < lead else x) for j, x in enumerate(c)))        # leading function words appear with their word
     return " | ".join(out)
 LEAD = 0.045      # captions land ~1.5 frames before the word's acoustic onset
@@ -105,6 +121,11 @@ def build_captions():
             cards.append(c)
         if k != len(ws): raise SystemExit(f"caption script for sentence {s} does not cover all words ({k}/{len(ws)})")
     cards.sort(key=lambda c: c["t0"])
+    for c in cards:                                      # a card whose first word starts right after a hard cut must not show before it
+        for cut in CUTS:
+            if c["t0"] < cut + 0.004 < c["t0"] + 0.12 and c["last_e"] > cut + 0.05:
+                c["t0"] = cut + 0.004
+                for w in c["words"]: w["t"] = max(w["t"], cut + 0.004)
     for a, b in zip(cards, cards[1:]):
         a["t1"] = min(a["t1"], b["t0"])
         if 0 < b["t0"] - a["t1"] < 0.13: a["t1"] = b["t0"]                       # no 1-3 frame blinks between cards
@@ -164,7 +185,7 @@ page = f"""<!doctype html><html><head><meta charset="utf-8">
 <script>{open(f"{S}/build/overlay/runtime.js").read()}</script></body></html>"""
 open(f"{OUT}/overlay/index.html", "w").write(page)
 ZOOM.sort(key=lambda z: z["t"])
-proj = {"src": f"{S}/dl/src/raw.mov", "fps": FPS, "w": 1080, "h": 1920, "segments": E["segments"], "duration": round(DUR, 4), "hflip": True,
+proj = {"src": f"{S}/dl/src/raw.mov", "fps": FPS, "w": 1080, "h": 1920, "segments": E["segments"], "duration": round(DUR, 4), "hflip": HFLIP,
         "freeze": {"at": round(FREEZE_AT, 4), "dim": float(OPT.get("end_dim", 0.20))},
         "zoom": ZOOM, "grade": OPT.get("grade", GRADE), "sharpen": float(OPT.get("sharpen", 0.25)), "chroma_defect_period": 120,
         "matte_cache": f"{S}/build/matte_cache",

@@ -41,10 +41,10 @@ def person_left(t0, t1, y0, y1, pct=4):
     for smp in SIL["samples"]:
         if smp["t"] < t0 - 0.15 or smp["t"] > t1 + 0.15: continue
         s, ax = zoom_sa(smp["t"]); best = 99999
-        for y, xr in zip(rows, smp["right"]):          # silhouette was measured on the mirrored source: screen x = 1080 - source x
+        for y, xr, xl in zip(rows, smp["right"], smp["left"]):   # measured on the source: a mirrored source is flipped on screen
             if xr < 0: continue
-            ys = AY + s * (y - AY)
-            if y0 - 10 <= ys <= y1 + 10: best = min(best, ax + s * ((W_ - xr) - ax))
+            ys = AY + s * (y - AY); xs = (W_ - xr) if HFLIP else xl
+            if y0 - 10 <= ys <= y1 + 10: best = min(best, ax + s * (xs - ax))
         if best < 99999: vals.append(best)
     if not vals: return 380
     vals.sort(); return vals[min(len(vals) - 1, int(len(vals) * pct / 100))]
@@ -202,3 +202,8 @@ def end_plate(t, t_word_end, word, pill_html, cx=400, top=1098):
    <div class="pill endk" {d(in_=t + 0.36, anim="up", dist=14, dur=0.36)}>{pill_html}</div>
  </div>""", cls="kw")
     snd(t_word_end + 0.04, "shimmer_low", -21.0)
+
+def check_list(t, t_out, title, items):
+    """One glass card with a title and ticked lines that light up as he says them. items = [(text, time)]."""
+    card(t, t_out, f'<div class="kicker gold pk">{title}</div>' + "".join(_li("check", x, ti, t) for x, ti in items), 120 + 62 * len(items), name="list")
+    snd(t, "whoosh_short", CARD_SND, pre=0.16)
