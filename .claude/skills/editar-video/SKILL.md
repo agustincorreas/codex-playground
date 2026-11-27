@@ -99,6 +99,29 @@ dueño que lo haga: resolverlo solo.
    la copia a la carpeta la hace el dueño). Sugerir un cuadro de portada con mirada a cámara y el título visible.
    Resumen: duración, frases quitadas (ofreciendo reponerlas), qué escuchar una vez, de dónde salió cada imagen.
 
+## Recursos tomados de las ediciones de Meli (usar con criterio, no todos en cada video)
+Salen de comparar su `editado.mov` de 1 Million Black (105 s) con el nuestro (89 s). Suman dinamismo sin romper
+el estilo sobrio; cada uno se usa solo si el guion lo pide.
+- **Gancho escrito desde el cuadro 0**: la promesa del gancho en 2–3 renglones apilados, con el número o dato en
+  el color de acento y más grande («ESTE PERFUME / DURA / 48 HORAS»). Dura lo que dura la frase.
+- **Recorte de contenido más conservador**: ella saca silencios y repeticiones pero deja los datos concretos y la
+  personalidad. No quitar: cifras o fuentes («según Fragrantica, 8 de cada 10…»), descriptores del perfume
+  («dulce, tropical, se hace notar»), cuándo usarlo («100 % nocturno, tirando a frío»), remates con humor o apodos
+  («esta bestia», «sí, señores») y el veredicto dicho por él («aprobadísimo», «un perfumazo»). Si hay que elegir
+  entre 90 s sin eso y 105 s con eso, van los 105 s. El cierre es su propia última frase, nunca un texto agregado.
+- **Familia o línea del perfume**: cuando nombra la línea («la mítica línea One Million»), mostrar 1,5–2 s una
+  fila de frascos de esa línea, recortados sin fondo, a la altura del pecho. Solo de la misma marca del video.
+- **Notas que se acumulan**: las notas de una misma frase quedan todas a la vista hasta que termina de describir
+  el olor (no reemplazar una por otra salvo que no haya lugar), para que se lea la pirámide completa.
+- **Palabra clave con adjetivo que rota**: cuando enumera cualidades de una nota («ananá dulce, jugosa y
+  cremosa»), dejar fija la nota en grande y cambiar el adjetivo debajo al ritmo de la voz.
+- **Cambio de encuadre en los cortes**: alternar plano más abierto y más cerrado (1,00 ↔ 1,12–1,18) justo en los
+  cortes de contenido; disimula el salto y da ritmo sin efectos. Nunca a mitad de frase.
+- **Destello de énfasis**: un fundido a blanco de ~0,2 s en EL remate del video (una vez por video como máximo, y
+  solo si hay un remate claro). Si se duda, no va.
+- **No copiar**: su audio queda bajo y con picos saturados (−21 LUFS, pico +1,5 dB); mantener −14 LUFS y −1 dBTP.
+  Tampoco pasar a subtítulos de una sola palabra: se mantienen de 1 a 3.
+
 ## Límites conocidos
 - No se puede escuchar el audio: todo control de sonido es por medición; pedir siempre una escucha.
 - Instagram no es navegable desde acá; para contexto de la cuenta usar Metricool y los `editado.mov` de Drive.
