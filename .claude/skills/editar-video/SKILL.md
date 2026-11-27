@@ -39,6 +39,9 @@ dueño que lo haga: resolverlo solo.
 - **Gancho**: si hay un título con potencial, va grande y al frente desde el cuadro 0 (`hook_title`), no en un cuadrito al costado.
 - **Recuadros del costado**: solo cuando aportan (notas, listas, datos); nunca con texto que se salga ni tapados por él.
 - **Encuadre**: en tomas de cuerpo entero, reencuadrar para que se vean lo menos posible los pantalones.
+- **Subtítulos y producto**: los subtítulos nunca tapan lo que muestra en primer plano (frasco, caja). Correr `work/cap_place.py`
+  (con `--hflip` si la toma está espejada) y construir con `--set capfree=capfree_a.json`: cada tanda de tarjetas se acomoda sola.
+- **Rankings**: cuando dice "top 1", en pantalla va "Top 1" (no "#1").
 - **Listas con checks**: un clic por cada ítem que se enciende (ya lo hacen `check_list` y `pros_cons`).
 
 ## Pasos

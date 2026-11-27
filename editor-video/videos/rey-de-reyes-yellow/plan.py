@@ -33,7 +33,7 @@ def seq(sent, kick, items, t_out=None, alt=False):
 
 def rank(sent, phrase, n, name, t_out):
     t = ts(sent, phrase)
-    big_title(t, min(t_out, next_cut(t) - 0.19), f"#{n}", name, cx=540, hit=(-26.5, -28.0))
+    big_title(t, min(t_out, next_cut(t) - 0.19), f'<span style="font-size:.50em;white-space:nowrap">Top {n}</span>', name, cx=540, hit=(-26.5, -28.0))
     gesture(t - 0.05, 1.08, hold=0.4, release=1.4, ax=540)
 
 def plan():

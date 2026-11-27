@@ -166,11 +166,50 @@ CAPS = build_captions()
 if OPT["captions"] == "on":
     for c in CAPS:
         spans = "".join(f'<span class="w{" em" if w["em"] else ""}" {d(in_=max(0.0, w["t"]), anim="none" if w.get("instant") else "word", dur=0.10)}>{esc(w["text"])}</span>' for w in c["words"])
-        item(c["t0"], c["t1"], f'<div class="cap">{spans}</div>', cls="capitem")
+        item(c["t0"], c["t1"], f'<div class="cap" style="transform:translate(__CAPDY{CAPS.index(c)}__)">{spans}</div>', cls="capitem")
 
 exec(open(f"{S}/work/blocks.py").read())          # reusable blocks (titles, cards, zoom gestures, sounds)
 plan()                                            # the video's own sequence of blocks
 print("slot layout (name, in, out, width):"); [print("   ", l) for l in LAYOUT]
+
+# ---------------------------------------------------------------- captions never sit on what he is showing (bottle, box): each run of cards takes the clearest height
+CAP_DY = [(0, 0)] * len(CAPS)
+_cf = f"{S}/analysis/{OPT.get('capfree', '')}"
+if OPT.get("capfree") and os.path.exists(_cf):
+    import numpy as _np
+    _C = json.load(open(_cf)); _map = _np.load(f"{S}/analysis/{_C['npy']}").astype(_np.float32) / _C["scale"]; _px = _C["px"]; _st = _C["step"]; _y0 = _C["y0"]
+    _m = re.search(r"--cap-top:\s*(\d+)px", open(f"{S}/work/theme_{A.theme}.css").read()); _top0 = int(_m.group(1)) if _m else 1172
+    _m = re.search(r"--cap-left:\s*(\d+)px", open(f"{S}/work/theme_{A.theme}.css").read()); _cx = (int(_m.group(1)) if _m else 40) + 450
+    _cands = [(dx, dy) for dy in (0, 150, 300, -160) if 940 <= _top0 + dy and _top0 + dy + 122 <= 1620 for dx in (0, 210, -210)]
+    def _box_cost(cards, dxy):
+        dx, dy = dxy
+        vals = []
+        for c in cards:
+            half = max(110, len(c["text"]) * 23 + 24)                 # the text itself, not the whole caption column
+            for n in range(int(c["t0"] / _st), min(len(_map) - 1, int(c["t1"] / _st)) + 1):
+                s_, ax = zoom_sa(n * _st)                                # screen box of the text -> source cells
+                ya = AY + (_top0 + dy + 22 - AY) / s_; yb = AY + (_top0 + dy + 126 - AY) / s_; xa = ax + (_cx + dx - half - ax) / s_; xb = ax + (_cx + dx + half - ax) / s_
+                box = _map[n, max(0, int(ya / _px) - _y0):max(1, int(yb / _px) + 1 - _y0), max(0, int(xa / _px)):int(xb / _px) + 1]
+                if box.size: vals.append(float(_np.percentile(box, 80)))
+        vals.sort(); return vals[min(len(vals) - 1, int(len(vals) * 0.85))] if vals else 0.0
+    runs = []; cur = []
+    for i, c in enumerate(CAPS):                                # a run = consecutive cards of one sentence, at most ~3 s, never across a hard cut
+        if cur and (c["sent"] != CAPS[cur[-1]]["sent"] or c["t1"] - CAPS[cur[0]]["t0"] > 3.0 or next_cut(CAPS[cur[0]]["t0"]) < c["t1"] - 0.01): runs.append(cur); cur = []
+        cur.append(i)
+    if cur: runs.append(cur)
+    prev = (0, 0); moved = 0
+    for r in runs:
+        cards = [CAPS[i] for i in r]; wide = max(len(c["text"]) for c in cards) * 23 + 24
+        side = min(210, 510 - wide)                                  # long lines can still step aside, as far as the frame allows
+        cl = [(dx * side // 210, dy) for dx, dy in _cands if dx == 0 or side >= 80]
+        cs = {c: _box_cost(cards, c) + (0.25 if c[1] < 0 else 0.0) + (0.15 if c[0] else 0.0) for c in cl}
+        best = min(cs, key=cs.get)
+        keep = prev if prev in cs and cs[prev] <= 1.2 * cs[best] + 0.15 else None        # do not hop around for a marginal gain
+        pos = (0, 0) if cs[(0, 0)] <= 1.2 * cs[best] + 0.15 else (keep if keep is not None else best)
+        for i in r: CAP_DY[i] = pos
+        prev = pos; moved += pos != (0, 0)
+    print(f"captions: {moved}/{len(runs)} runs moved off the default spot to keep the product clear")
+ITEMS[:] = [re.sub(r"__CAPDY(\d+)__", lambda m: "%dpx,%dpx" % CAP_DY[int(m.group(1))], it) for it in ITEMS]
 
 # ---------------------------------------------------------------- sanity: no element may start leaving before it has finished entering
 for it in ITEMS:
