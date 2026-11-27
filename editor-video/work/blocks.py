@@ -63,7 +63,8 @@ def card(t_in, t_out, inner, h_est, y=TOP, cls="glass pad", layer="back", w_max=
     """Slim glass card, top-left, behind the speaker; width follows the free column next to him for the time it is up."""
     t_out = out_on_cut(t_out)
     w = column(t_in, t_out, y, y + h_est, w_max=w_max)
-    body = f'<div class="abs {cls}" style="left:{LEFT}px;top:{y}px;width:{w}px" {d(in_=t_in, anim="none" if instant else "up", dur=0.36, dist=30, out=t_out, outanim="down", outdur=0.20)}>{inner}</div>'
+    if w <= WIDTHS[0]: inner = f'<div style="zoom:.84">{inner}</div>'      # narrowest slot: shrink the content so no line runs past the glass
+    body = f'<div class="abs {cls}" style="left:{LEFT}px;top:{y}px;width:{w}px;overflow:hidden" {d(in_=t_in, anim="none" if instant else "up", dur=0.36, dist=30, out=t_out, outanim="down", outdur=0.20)}>{inner}</div>'
     item(t_in, t_out + 0.3, body, layer=layer)
     LAYOUT.append((name, round(t_in, 2), round(t_out, 2), w))
     return w, t_out
@@ -100,6 +101,17 @@ def _dx(cx): return int(cx - 540)
 def hook_tag(t_out, kicker, question):
     """Small tag with the open question, on screen from frame 0."""
     card(0.0, t_out, f'<div class="kicker gold pk" style="margin-bottom:6px">{kicker}</div><div class="tag-q">{question}</div>', 150, instant=True, name="hook tag")
+
+def hook_title(t_out, lines_html, kicker=None, cx=540, top=880, size=104):
+    """The hook, big and in front from frame 0 (heavy sans, accent words in <i>); used only when the video has a line worth it.
+    Put the first spoken words under it in [brackets] in CAPTIONS, or keep `top` clear of the caption line."""
+    t_out = out_on_cut(t_out)
+    lines_html = lines_html.replace("<i>", '<span style="color:var(--gold-cap);text-shadow:var(--em-shadow)">').replace("</i>", "</span>")
+    k = f'<div class="pill" style="margin-bottom:18px">{kicker}</div><br>' if kicker else ""
+    item(0.0, t_out + 0.25, f"""
+ <div class="center" style="left:{_dx(cx)}px;top:{top}px"><div {d(in_=0.0, anim="none", out=t_out, outanim="down", outdur=0.18)}>{k}
+   <div class="hook-big" style="font:900 {size}px/0.98 var(--sans);letter-spacing:-0.02em;text-transform:uppercase;color:var(--white);text-shadow:var(--cap-shadow)">{lines_html}</div>
+ </div></div>""", cls="kw")
 
 def big_title(t, t_out, big, label, unit="", cx=CX, top=1052, hit=(-25.5, -27.0), riser=None, label_delay=0.10):
     """Big serif keyword (a number, a word) with a pill label under it; replaces the captions while it is up."""

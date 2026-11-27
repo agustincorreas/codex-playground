@@ -41,10 +41,9 @@ def plan():
     gesture(ts(31, "perdón") - 0.05, 1.11, hold=0.8, release=2.0, ax=C)
     zkey(ts(36, "Perfumazo"), 1.0, "cut"); zkey(DUR, 1.05, "inout")
     # gancho: la pregunta abierta desde el cuadro 0
-    hook_tag(ts(4, "Estoy") - 0.30, "Nicho", "¿Por qué<br>perdón?")
+    hook_title(te(1, "perdón,") + 0.25, "Le debemos<br><i>una disculpa</i>", top=880)
     # producto
     lockup(ts(4, "Elysium"), ts(4, "de Roja"), ts(4, "de Roja", 1), title_out(5, "Este"), "ELYSIUM", '<span style="font-size:.74em;white-space:nowrap">Pour Homme</span>', "Roja Parfums&nbsp;·&nbsp;<b>Parfum</b>", cx=C)
-    brand_badge(ts(10, "marca") - 0.05, sent_span(10)[1] + 0.20, "Roja", kicker="Londres · 2011")
     # la crítica de siempre
     big_title(ts(13, "Y"), min(title_out(14, "Porque", 0.20), next_cut(ts(13, "duración")) - 0.19), "¿Dura?", "La crítica de siempre", cx=C, hit=(-26.5, -28.0))
     t = ts(14, "800") - 0.05
@@ -69,6 +68,3 @@ def plan():
     big_title(t, min(title_out(31, "disculpas", 0.20), next_cut(t) - 0.19), "Perdón", "Elysium", cx=C, hit=(-27.0, -26.0), riser=-27.5)
     scoreboard(ts(32, "Es") - 0.05, sent_span(34)[1] + 0.30, "Duración",
                [("Decían", "Poco", ts(32, "por lo menos"), 25, False), ("En mi piel", "+6 h", ts(32, "6") - 0.04, 100, True)])
-    t = ts(35, "Édition") - 0.05
-    card(t, sent_span(35)[1] + 0.20, '<div class="kicker gold pk">Dónde</div><div class="brand-word" style="font-size:30px;line-height:1.15;white-space:normal">Édition<br>Privée</div>', 170, w_max=240, name="tienda")
-    snd(t, "whoosh_short", CARD_SND - 2.5, pre=0.16)

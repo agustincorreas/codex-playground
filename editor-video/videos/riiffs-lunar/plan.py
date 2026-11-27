@@ -44,7 +44,7 @@ def plan():
     gesture(ts(1, "primicia") - 0.05, 1.09, until_cut=True, ax=C)
     gesture(ts(8, "locura") - 0.05, 1.08, until_cut=True, ax=C)
     gesture(ts(26, "Tremendos") - 0.05, 1.07, hold=0.5, release=1.6, ax=C)
-    hook_tag(ts(2, "Miren,") - 0.25, "Primicia", "¿Qué lanzó<br>Riiffs?")
+    hook_title(te(1, "mundial.") + 0.20, "Primicia<br><i>mundial</i>", kicker="Lo nuevo de Riiffs", top=840)
     t = ts(2, "Lunar")
     lockup(t, ts(2, "Blush"), ts(2, "de"), min(ts(2, "son") - 0.20, next_cut(ts(2, "de")) - 0.19), "LUNAR", '<span style="font-size:.74em;white-space:nowrap">Blush &amp; Pulse</span>', "Riiffs&nbsp;·&nbsp;<b>Lanzamiento</b>", cx=C)
     # Lunar Pulse
@@ -61,7 +61,5 @@ def plan():
     big_title(t, min(ts(14, "que") - 0.20, next_cut(ts(14, "Blush,")) - 0.19), '<span style="font-size:.80em">Blush</span>', "2 · Lunar Blush", cx=C, hit=(-26.5, -28.0))
     seq(19, "Salida", [("coffee", "Café", "café")])
     check_list(ts(21, "frutal,") - 0.30, sent_span(21)[1] + 0.30, "Lunar Blush", [("Frutal", ts(21, "frutal,")), ("Floral", ts(21, "floral,")), ("Café", ts(21, "café,"))])
-    note_card(ts(23, "femenino") - 0.05, min(te(23, "intenso") + 0.30, next_cut(te(23, "intenso") - 0.05) - 0.21), "Perfil", "Más <i>femenino</i>,<br>dulce e intenso", h=210, name="perfil")
-    brand_badge(ts(26, "Riiffs.") - 0.25, sent_span(27)[1] + 0.20, "Riiffs")
     CARD_SND = -27.5
     cta_card(ts(31, "comentarios") - 0.06, 3.2, "Comenten", "¿Pulse<br>o <i>Blush</i>?")

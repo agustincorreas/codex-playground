@@ -5,7 +5,7 @@ EMPH = {"fresco", "intenso", "dulce", "frambuesa", "mandarina", "jazmin", "magno
         "almendra", "leche", "ruibarbo", "cedro", "noche", "empalagoso", "sorprendio", "comentarios"}
 HIDE = {}
 CAPTIONS = {
- 0: "si~ sos mujer | y~ querés | oler bien | por menos | [de 30.000 pesos] | mirá | este video | porque~ te~ va~ a | servir",
+ 0: "si~ sos mujer | y~ querés | oler bien | por menos | de~ 30.000 | pesos | mirá | este video | porque~ te~ va~ a | servir",
  1: "estos son | los~ tres | perfumes | [de Oreiro Love la línea de Natalia Oreiro] | se~ llaman | Guapa | Brava | y~ Bombón",
  2: "y~ aunque | los~ tres | van | por~ el~ lado | *dulce* | son bastante | distintos | entre~ sí",
  3: "[Guapa que es este que tengo acá] | es~ el~ más | *fresco* | y~ el~ más | fácil | de~ usar | de~ todos",
@@ -43,9 +43,7 @@ def plan():
         gesture(ts(s, w) - 0.05, 1.08, hold=0.5, release=1.6, ax=C)
     gesture(ts(17, "sorprendió") - 0.05, 1.07, until_cut=True, ax=C)
     # gancho
-    hook_tag(ts(1, "Estos") - 0.25, "Para ellas", "¿Oler bien<br>por poco?")
-    t = ts(0, "30.000")
-    big_title(t, min(title_out(0, "mirá", 0.20), next_cut(t) - 0.19), "$30", "Menos de 30.000 pesos", unit="mil", cx=C, top=TT, hit=(-27.0, -28.5))
+    hook_title(te(0, "pesos,") + 0.30, "Oler bien por<br><i>menos de $30.000</i>", top=800, size=84)
     lockup(ts(1, "Oreiro"), ts(1, "Love,"), ts(1, "Love,") + 0.15, title_out(1, "se"), "OREIRO", "Love", "Natalia Oreiro&nbsp;·&nbsp;<b>3 perfumes</b>", cx=C, top=TT)
     # Guapa
     t = ts(3, "Guapa,")

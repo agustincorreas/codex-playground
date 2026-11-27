@@ -43,11 +43,8 @@ def plan():
     gesture(ts(22, "obra") - 0.05, 1.08, hold=0.6, release=1.8, ax=C)
     gesture(ts(29, "machos") - 0.05, 1.08, until_cut=True, ax=C)
     # gancho + producto
-    hook_tag(ts(1, "Estoy") - 0.25, "Viral", "¿Vale<br>la pena?")
+    hook_title(te(0, "video.") + 0.20, "No lo compres<br><i>sin ver esto</i>", top=880)
     lockup(ts(1, "de"), ts(1, "Phantom"), ts(1, "de", 1), min(sent_span(1)[1] + 0.15, next_cut(ts(1, "Green")) - 0.19), "GREEN", "Phantom", "Bharara&nbsp;·&nbsp;<b>Lanzamiento 2026</b>", cx=C)
-    t = ts(4, "Bharara") - 0.05
-    card(t, sent_span(4)[1] + 0.20, '<div class="kicker gold pk">Marca</div><div class="brand-word" style="font-size:31px">Bharara</div>', 150, w_max=240, name="brand")
-    snd(t, "whoosh_short", CARD_SND - 2.5, pre=0.16)
     # a qué huele
     t = ts(10, "tres")
     big_title(t, min(ts(10, "para", 1) - 0.20, next_cut(t) - 0.19), "3", "Palabras", cx=C, hit=(-26.5, -28.0))
@@ -58,7 +55,6 @@ def plan():
     check_list(ts(16, "a", 0) - 0.05, sent_span(18)[1] + 0.25, "Para quién", [("Hombres", ts(16, "hombres")), ("Mujeres", ts(16, "mujeres")), ("Unisex", ts(18, "unisex,"))])
     # rendimiento
     scoreboard(ts(23, "Duración") - 0.05, sent_span(23)[1] + 0.25, "Duración", [("En mi piel", "7–8 h", ts(23, "8") - 0.04, 90, True)])
-    note_card(ts(24, "proyección") - 0.05, sent_span(24)[1] + 0.25, "Proyección", "Moderada,<br>de <i>cercanía</i>", h=200, name="proy")
     check_list(ts(25, "Yo") - 0.05, sent_span(25)[1] + 0.30, "Ideal para", [("Una cena", ts(25, "cena,")), ("Una cita", ts(25, "cita,"))])
     note_card(ts(27, "tip") - 0.05, sent_span(27)[1] + 0.25, "Tip", "Sutil y<br>de cerca:<br><i>recontra va</i>", h=240, name="tip")
     cta_card(ts(30, "comentarios") - 0.06, 3.2, "Comenten", "¿Ya lo<br><i>probaste</i>?")

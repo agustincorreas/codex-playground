@@ -45,7 +45,7 @@ def plan():
     POP_SND, TICK_SND, CARD_SND = -25.0, -26.0, -25.5
     C = 540
     zkey(0.0, 1.08, ax=C); zkey(0.40, 1.0, "out", ax=C)
-    hook_tag(ts(0, "sino") - 0.25, "Nueva marca", "¿BoVo?")
+    hook_title(ts(0, "pero") - 0.10, "¿Un perfume<br>llamado <i>BoVo</i>?", top=880, size=92)
     lockup(ts(0, "sino"), ts(0, "Bon"), ts(0, "Voyage."), min(sent_span(0)[1] + 0.20, next_cut(ts(0, "Bon")) - 0.19), "BOVO", '<span style="font-size:.74em;white-space:nowrap">Bon Voyage</span>', "Perfumes&nbsp;·&nbsp;<b>Dubái</b>", cx=C)
     t = ts(1, "de", 0)
     big_title(t, min(ts(1, "cada") - 0.20, next_cut(t) - 0.19), "5", "Perfumes · 5 destinos", cx=C)
@@ -62,5 +62,4 @@ def plan():
     flyby("extra/bottle_black-sea.png", ts(24, "Black") - 0.05)
     name_title(31, "Estambul,", 5, "Estambul", size=".70em")
     seq(32, "Notas", [("rose", "Rosa", "rosa,"), ("saffron", "Azafrán", "azafrán,"), ("leather", "Cuero", "cuero,"), ("cedar", "Maderas", "maderas,")], alt=True)
-    note_card(ts(33, "con", 0) - 0.05 if False else ts(33, "unisex.") - 0.60, sent_span(33)[1] + 0.25, "Para quién", "Totalmente<br><i>unisex</i>", h=200, name="unisex")
     cta_card(ts(36, "comentarios") - 0.06, 3.4, "Comenten", "¿Con<br>cuál te<br><i>quedás</i>?")
