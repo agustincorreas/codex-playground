@@ -1,0 +1,22 @@
+/* Theme "tv": black & gold (Tom Ford Tobacco Vanille); captions centred on x=580 because the bottle is held on the left. */
+:root {
+  --white: #ffffff;
+  --gold: #f4c653;            /* on black glass */
+  --gold-cap: #efab1e;        /* deeper gold for accent words that sit directly on the white shirt */
+  --gold-grad: linear-gradient(175deg, #f8d572 0%, #ecb93f 38%, #bf8813 82%, #dfae43 100%);
+  --ink: #0b0b0c;
+  --sans: 'Inter Tight', 'Inter', sans-serif;
+  --serif: 'DM Serif Display', 'Playfair Display', serif;
+
+  /* captions: one line, centred on x=490 (after un-mirroring the footage the speaker and the bottle sit right of centre), sans baseline ~y=1290 */
+  --cap-left: 130px; --cap-width: 900px; --cap-top: 1172px; --cap-box: 122px;
+  --cap-size: 82px; --cap-weight: 800; --cap-track: -0.014em; --cap-gap: 0.25em;
+  --cap-shadow: 0 0 5px rgba(0,0,0,.42), 0 2px 3px rgba(0,0,0,.60), 0 5px 18px rgba(0,0,0,.50), 0 0 44px rgba(0,0,0,.38);
+  --em-shadow: 0 0 2px rgba(0,0,0,.95), 0 0 6px rgba(0,0,0,.70), 0 2px 3px rgba(0,0,0,.72), 0 5px 18px rgba(0,0,0,.55), 0 0 44px rgba(0,0,0,.42);
+
+  --kicker-size: 24px;
+  --glass-bg: rgba(12, 12, 14, 0.82);
+  --glass-border: rgba(244, 198, 83, 0.50);
+  --radius: 28px;
+  --medal: 190px;
+}
