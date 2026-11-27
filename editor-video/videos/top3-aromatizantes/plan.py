@@ -4,6 +4,7 @@ HFLIP = False
 END_WORD = (25, "conseguirlos")
 EMPH = {"monasterio", "budista", "espectacular", "energizante", "limpio", "autodescriptivo", "sabanas", "locura", "bidoncito"}
 HIDE = {0: "Top 3 mejores aromatizantes para el hogar", 1: "Puesto número 3 para Herbal Essence", 4: "Puesto número 2 para el número 4", 13: "en el puesto número 1", 20: "20 litros"}
+AUDIO = {"end_fade_ms": 60}            # el crudo sigue con "Gracias" pegado: el final corta en el silencio previo, con un fundido corto
 CAPTIONS = {
  2: "esto huele | [a] | un~ *monasterio* | *budista* | de~ hierbas | y~ sándalo",
  0: "[top 3 mejores aromatizantes para el hogar] | y~ para | que~ tu~ casa | no~ huela | todo el día | a~ bife | con~ papas | fritas",
@@ -38,7 +39,7 @@ def plan():
     big_title(ts(0, "Top"), title_out(0, "y para"), '<span style="font-size:.62em">Top&nbsp;3</span>', "Aromatizantes para el hogar", cx=C, top=T_TOP)
     # puesto 3
     rank(1, "Puesto", "3", "Wellness&nbsp;·&nbsp;<b>Herbal Silence</b>", title_out(1, "de la línea"))
-    brand_badge(ts(1, "de la línea") - 0.05, sent_span(1)[1] + 0.20, "Nardo &amp;<br>Partners")
+    brand_badge(ts(1, "de la línea") - 0.05, sent_span(1)[1] + 0.20, "Nardo &amp;<br>Partners", logo="web/nardo_logo.png")
     t_h, t_s = ts(2, "hierbas"), ts(2, "sándalo")
     medal("fragrantica/note_rosemary.jpg", "Puesto 3", "Hierbas", t_h, t_s - 0.14, 0)
     medal("fragrantica/note_sandalwood.jpg", "Puesto 3", "Sándalo", t_s, out_on_cut(sent_span(3)[1] + 0.15), 0, sound="pop_high")
@@ -52,5 +53,5 @@ def plan():
     medal("fragrantica/note_lemon.jpg", "Puesto 1", "Limón", ts(16, "limón"), out_on_cut(sent_span(17)[1] + 0.15), 0, sound="pop_high")
     t = ts(20, "20 litros")
     big_title(t, min(title_out(20, "un bidoncito", 0.20), next_cut(t) - 0.19), "20", "Cítrico Chispeante", unit="L", cx=C, top=T_TOP, hit=(-26.5, -28.0), riser=-27.5)
-    # dónde conseguirlos
-    brand_badge(ts(25, "todos") - 0.05, DUR - 0.25, "Nardo &amp;<br>Partners", kicker="Los datos")
+    # dónde conseguirlos: la captura de la tienda, adelante, donde señala con el dedo
+    web_shot(ts(25, "Les") - 0.02, DUR - 0.22, "web/nardo_web.jpg", "nardoandpartners.com", cx=400, w=350, sub="@nardoandpartners")

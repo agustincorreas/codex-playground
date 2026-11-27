@@ -236,3 +236,17 @@ def brand_badge(t, t_out, name, logo=None, kicker="Marca"):
     inner = f'<img src="{src}" style="display:block;width:100%;height:auto;opacity:1 !important">' if src else f'<div class="brand-word" style="font-size:{min(38, int(196 / (0.80 * max(len(l) for l in name.split("<br>")))))}px;line-height:1.25">{name}</div>'
     card(t, t_out, f'<div class="kicker gold pk">{kicker}</div>{inner}', 150, w_max=240, name="brand")
     snd(t, "whoosh_short", CARD_SND - 2.5, pre=0.16)
+
+def web_shot(t, t_out, img, url, cx=CX, top=1190, w=310, sub=None):
+    """A screenshot of the brand's site (or profile) in FRONT, where he points when he says "les dejo los datos": a bar with the address on top (it survives the 4:5 feed crop)
+    and the picture under it; the bar carries the address (and an optional second line, e.g. the Instagram handle). Keep it inside the 4:5 feed crop (bottom <= ~1640)."""
+    src = asset(img)
+    if not src: return
+    t_out = out_on_cut(t_out)
+    line2 = f'<div style="font:600 21px/1.2 var(--sans);color:var(--gold);margin-top:3px">{sub}</div>' if sub else ""
+    item(t - 0.05, t_out + 0.3, f"""
+ <div class="abs glass" style="left:{int(cx - w / 2)}px;top:{top}px;width:{w}px;overflow:hidden" {d(in_=t, anim="up", dur=0.36, dist=30, out=t_out, outanim="down", outdur=0.20)}>
+   <div style="padding:12px 8px 14px;text-align:center"><div style="font:700 {min(25, int((w - 20) / (0.60 * len(url))))}px/1.15 var(--sans);color:var(--white);white-space:nowrap">{url}</div>{line2}</div>
+   <img src="{src}" style="display:block;width:100%;height:auto"></div>""")
+    LAYOUT.append(("web", round(t, 2), round(t_out, 2), w))
+    snd(t, "whoosh_short", CARD_SND, pre=0.16)

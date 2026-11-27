@@ -1,0 +1,4 @@
+[
+ {"file": "nardo_web.jpg", "kind": "web screenshot", "name": "Tienda online de Nardo & Partners (vista móvil)", "source_url": "https://nardoandpartners.com/", "captured": "2026-11-27", "notes": "Captura propia con Chromium (iPhone 13), recortada al encabezado y la imagen principal. Usada en videos/top3-aromatizantes."},
+ {"file": "nardo_logo.png", "kind": "brand logo", "name": "Logo de Nardo & Partners", "source_url": "https://nardoandpartners.com/", "captured": "2026-11-27", "notes": "Recorte del encabezado de la misma captura."}
+]
