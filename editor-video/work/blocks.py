@@ -113,7 +113,7 @@ def big_title(t, t_out, big, label, unit="", cx=CX, top=1052, hit=(-25.5, -27.0)
     if riser is not None: snd(t - 0.85, "riser", riser)
     snd(t - 0.03, "sub_hit", hit[0], hp=38, max_peak_db=-12.0); snd(t - 0.01, "shimmer_short", hit[1])
 
-def lockup(t, t_script, t_pill, t_out, main, script, pill_html, cx=410, top=1056):
+def lockup(t, t_script, t_pill, t_out, main, script, pill_html, cx=410, top=1056, snd_db=-24.0):
     """Product name: heavy sans line + gold italic serif line + pill (brand · launch)."""
     item(t - 0.05, t_out + 0.25, f"""
  <div class="center lockup" style="left:{_dx(cx)}px;top:{top}px">
@@ -122,7 +122,7 @@ def lockup(t, t_script, t_pill, t_out, main, script, pill_html, cx=410, top=1056
    <div class="lk-script goldtext" {d(in_=t_script - 0.03, anim="up", dist=30, dur=0.36, out=t_out, outanim="down", outdur=0.18)}>{script}</div>
    <div class="lk-kick pill" {d(in_=t_pill - 0.03, anim="up", dist=14, dur=0.30, out=t_out, outanim="fade", outdur=0.16)}>{pill_html}</div>
  </div>""", cls="lk")
-    snd(t - 0.05, "whoosh_soft", -24.0, pre=0.22)
+    snd(t - 0.05, "whoosh_soft", snd_db, pre=0.22)
 
 def bottle_card(t, t_out, img, name, sub, snd_db=None):
     """A bottle cut-out with its name (e.g. the original of the line)."""

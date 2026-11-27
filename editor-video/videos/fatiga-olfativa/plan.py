@@ -6,7 +6,7 @@ HIDE = {2: "fatiga olfativa", 17: "Jazmín Sublime", 29: "5 litros"}
 CAPTIONS = {
  0: "este perfume | me duró | *5~ minutos* | ya~ no~ me~ lo | siento | más | es~ una | *falsificación* | está | *adulterado*",
  2: "y~ creo | que~ en~ algunos | casos | no~ están | teniendo | en~ cuenta | un~ factor | importantísimo | [que es la fatiga olfativa]",
- 3: "que~ no~ es | nada~ más | ni~ nada menos | que cuando | nuestro *olfato* | se~ *acostumbra* | a~ ciertos | aromas | que~ percibe | como~ cotidianos | familiares | e~ inofensivos",
+ 3: "que~ no~ es | nada~ más | ni~ nada | menos que | cuando | nuestro *olfato* | se~ *acostumbra* | a~ ciertos | aromas | que~ percibe | como~ cotidianos | familiares | e~ inofensivos",
  4: "para explicarlo | no~ hay~ un | mejor ejemplo | que~ el~ olor | de~ tu~ casa",
  10: "yo por ejemplo | en~ mi~ caso | siempre | tengo la casa | repleta | de~ *difusores* | uso | home sprays | los~ aplico | en~ las~ cortinas | los~ almohadones | del~ sillón",
  20: "si~ les gusta | el~ olor | a~ esta | imagen | que~ les muestro | acá | que~ son | *jazmines* | que~ son | de~ esta época | de~ noviembre | de~ la~ primavera",
@@ -29,7 +29,7 @@ def plan():
     zkey(ts(33, "con qué"), 1.0, "cut"); zkey(DUR, 1.05, "inout")
     # gancho: la queja de siempre, desde el primer cuadro
     hook_tag(ts(2, "fatiga olfativa") - 0.30, "¿Tu perfume", "no dura?")
-    big_title(ts(2, "fatiga olfativa"), title_out(3, "que no es"), '<span style="font-size:.60em">Fatiga</span>', "Olfativa", cx=C, top=1080)
+    big_title(ts(2, "fatiga olfativa"), title_out(3, "que no es"), '<span style="font-size:.60em">Fatiga</span>', "Olfativa", cx=C, top=1080, hit=(-28.0, -29.5))
     check_list(ts(3, "nuestro olfato") - 0.05, sent_span(3)[1] + 0.30, "Ya no sentís",
                [("Cotidianos", ts(3, "cotidianos")), ("Familiares", ts(3, "familiares")), ("Inofensivos", ts(3, "inofensivos"))])
     # cómo perfuma la casa
@@ -37,7 +37,7 @@ def plan():
                [("Difusores", ts(10, "difusores")), ("Home sprays", ts(10, "home sprays")), ("Cortinas", ts(10, "cortinas")), ("Sillón", ts(10, "almohadones"))])
     brand_badge(ts(16, "Aromanza") - 0.05, out_on_cut(sent_span(16)[1] + 0.20), "Aromanza")
     # el producto
-    lockup(ts(17, "Jazmín"), ts(17, "Sublime"), ts(17, "Sublime") + 0.25, min(title_out(20, "Si les"), next_cut(ts(17, "Sublime")) - 0.19), "JAZMÍN", "Sublime", "Aromanza&nbsp;·&nbsp;<b>Home spray</b>", cx=C)
+    lockup(ts(17, "Jazmín"), ts(17, "Sublime"), ts(17, "Sublime") + 0.25, min(title_out(20, "Si les"), next_cut(ts(17, "Sublime")) - 0.19), "JAZMÍN", "Sublime", "Aromanza&nbsp;·&nbsp;<b>Home spray</b>", cx=C, snd_db=-27.0)
     # "esta imagen que les muestro acá"
     medal("fragrantica/note_gardenia.jpg", "Noviembre", "Jazmines", ts(20, "imagen") - 0.05, out_on_cut(sent_span(20)[1] + 0.20), 0)
     check_list(ts(26, "frescos") - 0.05, sent_span(26)[1] + 0.25, "Huele a", [("Fresco", ts(26, "frescos")), ("Verde", ts(26, "verdes")), ("Recién cortado", ts(26, "recién"))])

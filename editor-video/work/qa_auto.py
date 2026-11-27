@@ -83,7 +83,10 @@ for s in E["segments"][:-1]: acc += s["out"] - s["in"]; cuts.append(int(round(ac
 fz = int(P["freeze"]["at"] * FPS) if P.get("freeze") else len(fr)
 dup = [int(i + 1) for i in np.where(d[:fz - 2] < 0.25)[0]]
 res(not dup, "cuadros duplicados", f"{dup[:8] or 'ninguno'} antes del cuadro congelado")
-second = [(c, round(float(d[c]), 1)) for c in cuts if c < len(d) and d[c] > 0.55 * d[c - 1] and d[c] > 16]
+def _second(c):     # the splice lands on frame c or c+1 (source frame times are floored): find it, then look at the frame after it
+    j = c - 1 if d[c - 1] >= d[c] else c
+    return j + 1 < len(d) and d[j + 1] > 0.55 * d[j] and d[j + 1] > 16 and round(float(d[j + 1]), 1)
+second = [(c, _second(c)) for c in cuts if c < len(d) and _second(c)]
 res(not second, "cortes limpios", f"{len(cuts)} cortes en cuadros {cuts}; segundo salto tras el corte: {second or 'ninguno'}")
 
 # ---- captions
