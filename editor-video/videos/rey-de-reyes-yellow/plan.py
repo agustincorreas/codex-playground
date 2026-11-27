@@ -7,13 +7,25 @@ HIDE = {}
 CAPTIONS = {
  7: "[Rey de Reyes]",
  8: "[esta es la línea que sacó Bharara en este 2026] | y~ honestamente | creo | que~ es~ de~ lo | mejor | que~ ha~ sacado | en~ el~ último | tiempo",
+ 0: "*unboxing* | de~ Bharara | Rey | de~ Reyes | *Amarillo* | y~ reseña | comparativa | con~ el~ *verde* | y~ con~ el~ *naranja*",
+ 2: "vamos | a~ abrirlo | y~ les cuento | todo | sobre este | y~ los~ otros | dos",
+ 3: "así | viene | el~ perfume",
+ 12: "este~ es~ un | perfume | *fresco* | *cálido*",
+ 23: "ahí está | la~ salida | fresca | que~ yo~ les | decía",
+ 24: "y~ después | se~ va | a~ lo~ *especiado* | con~ la~ *canela* | el~ *cipriol* | que~ le~ da | el~ punto | más amaderado | oscuro | *davana* | haba *tonka* | *vainilla* | *cuero* | y~ *pachulí*",
+ 25: "ahí~ en~ el | fondo | se~ va | bien pesado | con~ el~ *cuero* | la~ *vainilla* | y~ el~ *pachulí*",
+ 31: "*fresco* | pero dulce | al~ mismo | tiempo",
+ 32: "tiene~ una | *dualidad* | *exquisita* | de~ ese tipo | de~ perfumes | que~ te~ dan | ganas~ de | usarlos | para todo | para~ el~ día | para la noche",
+ 37: "es~ un~ perfume | *fresco* | fougère | clásico | masculino | del~ tipo | de~ perfumes | que~ a~ mí | me~ *encantan*",
+ 39: "y~ el~ *naranja* | que~ es~ un | perfume | que~ se~ va | mucho más | hacia lo oscuro | lo~ pesado | el~ *oud* | el~ *cuero* | por~ el~ estilo | de~ lo~ que~ es | el~ *Oud* | for Glory | ese tipo | de~ ADNs | [lo pongo en el puesto número 3] | porque hoy ya | yo estoy más | con~ los~ ADNs | frescos | y~ no~ tanto | con~ los~ pesados | como este",
  36: "[mi top 1 sigue siendo este] | el~ Rey | de~ Reyes | *Verde*",
- 38: "[puesto número 2] | voy~ a~ tener | que~ poner | este *amarillo* | y~ creo | que~ coincide | con~ el~ top | que~ yo~ había | hecho | en~ su~ momento",
+ 38: "[puesto número 2] | voy~ a~ tener | que~ poner | este *amarillo* | y~ creo | que~ coincide | con~ el~ top | que~ yo~ había | hecho~ en~ su | momento",
 }
 
 def seq(sent, kick, items, t_out=None, alt=False):
     """Notas de una frase; de a una en el mismo lugar (o alternando arriba/abajo con alt=True). Ninguna cruza un corte."""
     ts_ = [ts(sent, w) for _, _, w in items]; step = 2 if alt else 1
+    for k in range(1, len(ts_)): ts_[k] = max(ts_[k], ts_[k - 1] + 0.50)      # dichas muy seguidas: cada una queda al menos medio segundo
     for k, (img, name, _) in enumerate(items):
         end = (ts_[k + step] - 0.14) if k + step < len(items) else (t_out or sent_span(sent)[1] + 0.25)
         end = min(end, next_cut(ts_[k]) - 0.21)
@@ -32,11 +44,11 @@ def plan():
     hook_title(sent_span(0)[1] + 0.15, "¿Cuál es el mejor<br><i>Rey de Reyes</i>?", top=880, size=88)
     lockup(ts(7, "Rey"), ts(7, "de"), ts(8, "Bharara"), min(ts(8, "y") - 0.20, next_cut(ts(8, "Bharara")) - 0.19), "REY", '<span style="font-size:.80em;white-space:nowrap">de Reyes</span>', "Bharara&nbsp;·&nbsp;<b>Línea 2026</b>", cx=C)
     gesture(ts(17, "riquísimo") - 0.05, 1.08, until_cut=True, ax=C)
-    seq(22, "Salida", [("cardamom", "Cardamomo", "cardamomo,"), ("mandarin", "Mandarina", "mandarina,"), ("bergamot", "Bergamota", "bergamota,")], alt=True)
-    seq(24, "Corazón y fondo", [("cinnamon", "Canela", "canela,"), ("tonka", "Haba tonka", "haba"), ("vanilla", "Vainilla", "vainilla,"), ("leather", "Cuero", "cuero"), ("patchouli", "Pachulí", "pachulí.")], alt=True)
+    seq(22, "Salida", [("cardamom", "Cardamomo", "cardamomo,"), ("mandarin", "Mandarina", "mandarina,"), ("bergamot", "Bergamota", "bergamota,")])
+    seq(24, "Fondo", [("cinnamon", "Canela", "canela,"), ("tonka", "Haba tonka", "haba"), ("vanilla", "Vainilla", "vainilla,"), ("leather", "Cuero", "cuero"), ("patchouli", "Pachulí", "pachulí.")])
     check_list(ts(32, "para", 0) - 0.30, sent_span(32)[1] + 0.30, "Para usarlo", [("De día", ts(32, "día,")), ("De noche", ts(32, "noche."))])
     rank(36, "Mi", 1, "Rey de Reyes Verde", ts(36, "el") - 0.20)
     rank(38, "Puesto", 2, "Rey de Reyes Amarillo", ts(38, "voy") - 0.20)
     flyby("extra/bottle_oud-for-glory.png", ts(39, "Oud") - 0.05)
-    rank(39, "lo", 3, "Rey de Reyes Naranja", ts(39, "porque") - 0.20)
+    rank(39, "lo pongo", 3, "Rey de Reyes Naranja", ts(39, "porque") - 0.20)
     cta_card(ts(42, "comentarios") - 0.06, 3.4, "Comenten", "¿Cuál es<br>tu <i>favorito</i>?")
