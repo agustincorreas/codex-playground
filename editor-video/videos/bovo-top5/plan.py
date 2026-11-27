@@ -5,6 +5,7 @@ EMPH = {"tropical", "mango", "durazno", "pina", "vainilla", "unisex", "amaderado
         "marino", "acuatico", "salado", "limpio", "almizclado", "fresco", "intenso", "oriental", "rosa", "azafran", "cuero", "maderas", "nocturno", "comentarios"}
 HIDE = {}
 CAPTIONS = {
+ 32: "porque | esto~ va | por~ el~ lado | de~ lo~ que~ es | la~ *rosa* | el~ *azafrán* | el~ *cuero* | las~ *maderas* | *oriental* | especiado | *intenso*",
  0: "yo~ no~ sé | si~ BOVO | es~ el~ nombre | que~ yo~ hubiese | elegido | para~ una~ marca | de~ perfumes | pero~ les cuento | que~ no~ tiene | que~ ver | con~ andá | pa' allá | bobo | [sino con Bon Voyage]",
  1: "esta~ es~ una | marca | que~ conocí | en~ Dubái | y~ tiene | la~ colección | [de cinco perfumes inspirados] | cada~ una | en~ una~ ciudad | o~ en~ un~ lugar | distinto | a~ donde | realmente | a~ mí~ me | gustaría | irme~ de | vacaciones",
  2: "el~ primero | que~ te~ muestro | se~ llama | [Tahiti] | y~ es | a~ lo~ que | debería | oler | una~ isla | *tropical*",
@@ -47,6 +48,7 @@ def plan():
     zkey(0.0, 1.08, ax=C); zkey(0.40, 1.0, "out", ax=C)
     hook_title(ts(0, "pero") - 0.10, "¿Un perfume<br>llamado <i>BoVo</i>?", top=880, size=92)
     lockup(ts(0, "sino"), ts(0, "Bon"), ts(0, "Voyage."), min(sent_span(0)[1] + 0.20, next_cut(ts(0, "Bon")) - 0.19), "BOVO", '<span style="font-size:.74em;white-space:nowrap">Bon Voyage</span>', "Perfumes&nbsp;·&nbsp;<b>Dubái</b>", cx=C)
+    SFX[-1]["k100"] = -26.0
     t = ts(1, "de", 0)
     big_title(t, min(ts(1, "cada") - 0.20, next_cut(t) - 0.19), "5", "Perfumes · 5 destinos", cx=C)
     name_title(2, "Tahiti", 1, "Tahiti")
