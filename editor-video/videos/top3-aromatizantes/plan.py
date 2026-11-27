@@ -5,14 +5,15 @@ END_WORD = (25, "conseguirlos")
 EMPH = {"monasterio", "budista", "espectacular", "energizante", "limpio", "autodescriptivo", "sabanas", "locura", "bidoncito"}
 HIDE = {0: "Top 3 mejores aromatizantes para el hogar", 1: "Puesto número 3 para Herbal Essence", 4: "Puesto número 2 para el número 4", 13: "en el puesto número 1", 20: "20 litros"}
 CAPTIONS = {
+ 2: "esto huele | [a] | un~ *monasterio* | *budista* | de~ hierbas | y~ sándalo",
  0: "[top 3 mejores aromatizantes para el hogar] | y~ para | que~ tu~ casa | no~ huela | todo el día | a~ bife | con~ papas | fritas",
  1: "[puesto número 3 para Herbal Essence] | de~ la~ línea | Wellness | de~ Nardo | &~ Partners",
  4: "[puesto número 2 para el número 4] | también | de~ Nardo | &~ Partners",
  10: "esto | como lo dice | el~ nombre | huele | a~ flores | y~ frutas | frescas | y~ acuáticas | bastante | *energizante* | y~ *limpio*",
- 13: "[y en el puesto número 1] | y~ tengo | entendido | que~ también | es~ el~ más | vendido | de~ la~ marca | el~ número | 1 | que~ es~ el | Cítrico | Chispeante",
+ 13: "[y en el puesto número 1] | y~ tengo | entendido | que~ también | es~ el~ más | vendido | de~ la~ marca | [el] | número | 1 | que~ es~ el | Cítrico | Chispeante",
  14: "y~ bueno | esto es | muy | *autodescriptivo*",
  15: "literalmente | huele | a~ cítricos | chispeantes | limpios | un~ poquito | de~ ropa | limpia",
- 16: "es~ como | si~ tus | *sábanas* | limpias | les hubieses | puesto | una~ esencia | de~ limón",
+ 16: "es~ como~ si | tus | *sábanas* | limpias | les hubieses | puesto | una~ esencia | de~ limón",
  18: "es~ una~ cosa | que~ quiero | estar | que~ toda | mi~ casa | esté~ oliendo | a~ esto | absolutamente | todo el día",
  20: "necesito | [20 litros] | un~ *bidoncito* | de~ 20 | litros | Sole | por~ favor | de~ Cítrico | Chispeante",
  21: "y~ además | tiene toda | su~ línea | de~ difusores | también | para el hogar",
