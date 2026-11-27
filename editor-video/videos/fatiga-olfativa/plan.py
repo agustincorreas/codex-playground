@@ -35,7 +35,7 @@ def plan():
     # cómo perfuma la casa
     check_list(ts(10, "repleta") - 0.05, sent_span(10)[1] + 0.25, "En mi casa",
                [("Difusores", ts(10, "difusores")), ("Home sprays", ts(10, "home sprays")), ("Cortinas", ts(10, "cortinas")), ("Sillón", ts(10, "almohadones"))])
-    brand_badge(ts(16, "Aromanza") - 0.05, out_on_cut(sent_span(16)[1] + 0.20), "Aromanza")
+    brand_title(ts(11, "Aromanza") - 0.05, sent_span(11)[1] + 0.25, "aromanza", kicker="La marca", cx=C)
     # el producto
     lockup(ts(17, "Jazmín"), ts(17, "Sublime"), ts(17, "Sublime") + 0.25, min(title_out(20, "Si les"), next_cut(ts(17, "Sublime")) - 0.19), "JAZMÍN", "Sublime", "Aromanza&nbsp;·&nbsp;<b>Home spray</b>", cx=C, snd_db=-27.0)
     # "esta imagen que les muestro acá"

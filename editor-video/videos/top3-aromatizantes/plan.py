@@ -39,7 +39,7 @@ def plan():
     big_title(ts(0, "Top"), title_out(0, "y para"), '<span style="font-size:.62em">Top&nbsp;3</span>', "Aromatizantes para el hogar", cx=C, top=T_TOP)
     # puesto 3
     rank(1, "Puesto", "3", "Wellness&nbsp;·&nbsp;<b>Herbal Silence</b>", title_out(1, "de la línea"))
-    brand_badge(ts(1, "de la línea") - 0.05, sent_span(1)[1] + 0.20, "Nardo &amp;<br>Partners", logo="web/nardo_logo.png")
+    brand_title(ts(1, "de la línea") - 0.05, sent_span(1)[1] + 0.30, "Nardo &amp; Partners", logo="web/nardo_logo.png", cx=C, top=1185)
     t_h, t_s = ts(2, "hierbas"), ts(2, "sándalo")
     medal("fragrantica/note_rosemary.jpg", "Puesto 3", "Hierbas", t_h, t_s - 0.14, 0)
     medal("fragrantica/note_sandalwood.jpg", "Puesto 3", "Sándalo", t_s, out_on_cut(sent_span(3)[1] + 0.15), 0, sound="pop_high")

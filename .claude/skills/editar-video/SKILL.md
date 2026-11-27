@@ -28,8 +28,10 @@ dueño que lo haga: resolverlo solo.
 - Resolver solo; preguntar únicamente si es imprescindible. Avisar al terminar.
 - **Notas**: cada ingrediente que nombra aparece como medallón (`medal`), no solo algunos. Las imágenes de notas
   salen de `https://fimgs.net/mdimg/sastojci/o.<id>.jpg` (lavanda = 1, vainilla = 74, coco = 138, ananá = 170…).
-- **Marca**: cuando dice la marca, mostrar su logo (`brand_badge` con `logo=`). Si no hay archivo del logo, va el
-  nombre como placa y se le pide el PNG al dueño.
+- **Marca**: cuando dice la marca, mostrar su logo **grande, centrado y adelante** (`brand_title` con `logo=`), no en un
+  cartelito al costado. El logo se puede recortar de una captura de la web oficial; si no se consigue, va el nombre en grande.
+- **"Les dejo los datos"**: buscar la web o el Instagram de la marca y poner una captura (`web_shot`) adelante, donde señala.
+- **Nada chico ni desprolijo**: ningún texto fuera de su recuadro (`overflow_check.js`); los títulos van al medio y adelante.
 - **Sin frase de cierre**: nada de placas tipo "Perfumazo." al final; queda publicitario. El video termina en su
   última palabra (no usar `end_plate`).
 - **Otros perfumes que nombra**: el frasco recortado sin fondo pasa rápido por detrás de él (`flyby`, menos de 1 s),

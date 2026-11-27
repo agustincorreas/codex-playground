@@ -250,3 +250,17 @@ def web_shot(t, t_out, img, url, cx=CX, top=1190, w=310, sub=None):
    <img src="{src}" style="display:block;width:100%;height:auto"></div>""")
     LAYOUT.append(("web", round(t, 2), round(t_out, 2), w))
     snd(t, "whoosh_short", CARD_SND, pre=0.16)
+
+def brand_title(t, t_out, name, logo=None, kicker=None, cx=CX, top=1400, w=440):
+    """The brand, big, in the middle and in FRONT when he names it (the owner finds the small corner badge says nothing):
+    its logo if we have the file, otherwise the name set large as a wordmark. Sits just under the caption line."""
+    src = asset(logo) if logo else None
+    t_out = out_on_cut(t_out)
+    k = f'<div class="kicker gold pk" style="margin-bottom:10px">{kicker}</div>' if kicker else ""
+    size = min(92, int((w - 70) / (0.56 * max(len(l) for l in name.split("<br>")))))
+    inner = (f'<img src="{src}" style="display:block;width:{w - 44}px;height:auto;border-radius:16px">' if src
+             else f'<div style="font:700 {size}px/1.05 var(--sans);letter-spacing:-0.01em;color:var(--white);white-space:nowrap">{name}</div>')
+    item(t - 0.05, t_out + 0.3, f"""
+ <div class="center" style="left:{_dx(cx)}px;top:{top}px"><div class="glass" style="display:inline-block;padding:{'22px' if src else '22px 36px 26px'};text-align:center" {d(in_=t, anim="up", dur=0.36, dist=30, out=t_out, outanim="down", outdur=0.20)}>{k}{inner}</div></div>""")
+    LAYOUT.append(("brand title", round(t, 2), round(t_out, 2), w))
+    snd(t, "whoosh_short", CARD_SND - 2.5, pre=0.16)
