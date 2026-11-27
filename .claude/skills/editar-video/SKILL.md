@@ -31,6 +31,8 @@ dueño que lo haga: resolverlo solo.
 - **Marca**: cuando dice la marca, mostrar su logo **grande, centrado y adelante** (`brand_title` con `logo=`), no en un
   cartelito al costado. El logo se puede recortar de una captura de la web oficial; si no se consigue, va el nombre en grande.
 - **"Les dejo los datos"**: buscar la web o el Instagram de la marca y poner una captura (`web_shot`) adelante, donde señala.
+- **"Esta imagen que les muestro"**: si señala una imagen, va la foto que él mande (pedírsela si no está en la carpeta), adelante y
+  donde apunta el dedo (`photo_card`), sin tapar la cara ni el producto.
 - **Nada chico ni desprolijo**: ningún texto fuera de su recuadro (`overflow_check.js`); los títulos van al medio y adelante.
 - **Sin frase de cierre**: nada de placas tipo "Perfumazo." al final; queda publicitario. El video termina en su
   última palabra (no usar `end_plate`).

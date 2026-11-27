@@ -39,7 +39,7 @@ def plan():
     # el producto
     lockup(ts(17, "Jazmín"), ts(17, "Sublime"), ts(17, "Sublime") + 0.25, min(title_out(20, "Si les"), next_cut(ts(17, "Sublime")) - 0.19), "JAZMÍN", "Sublime", "Aromanza&nbsp;·&nbsp;<b>Home spray</b>", cx=C, snd_db=-27.0)
     # "esta imagen que les muestro acá"
-    medal("fragrantica/note_gardenia.jpg", "Noviembre", "Jazmines", ts(20, "imagen") - 0.05, out_on_cut(sent_span(20)[1] + 0.20), 0)
+    photo_card(ts(20, "esta") - 0.05, sent_span(20)[1] + 0.20, "own/jazmines.jpg", cx=562, top=850, w=300)   # foto del dueño, adelante, donde apunta el dedo
     check_list(ts(26, "frescos") - 0.05, sent_span(26)[1] + 0.25, "Huele a", [("Fresco", ts(26, "frescos")), ("Verde", ts(26, "verdes")), ("Recién cortado", ts(26, "recién"))])
     t = ts(29, "5 litros")
     big_title(t, min(title_out(29, "de Jazmín", 0.20), next_cut(t) - 0.19), "5", "Jazmín Sublime", unit="L", cx=C, top=1080, hit=(-26.5, -28.0))

@@ -693,16 +693,6 @@
   "notes": "Untouched 1200x1200 Spanish card; shows rating 4.3 (1745 votes), 8 h longevity, strong sillage at download time."
  },
  {
-  "file": "note_gardenia.jpg",
-  "kind": "note",
-  "name": "Gardenia (jazmín del Cabo)",
-  "source_url": "https://fimgs.net/mdimg/sastojci/o.19.jpg",
-  "width": 150,
-  "height": 150,
-  "verified_by_eye": true,
-  "notes": "Imagen de nota de Fragrantica, usada como medallón en videos/fatiga-olfativa."
- },
- {
   "file": "note_rosemary.jpg",
   "kind": "note",
   "name": "Romero (hierbas)",

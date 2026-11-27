@@ -264,3 +264,15 @@ def brand_title(t, t_out, name, logo=None, kicker=None, cx=CX, top=1400, w=440):
  <div class="center" style="left:{_dx(cx)}px;top:{top}px"><div class="glass" style="display:inline-block;padding:{'22px' if src else '22px 36px 26px'};text-align:center" {d(in_=t, anim="up", dur=0.36, dist=30, out=t_out, outanim="down", outdur=0.20)}>{k}{inner}</div></div>""")
     LAYOUT.append(("brand title", round(t, 2), round(t_out, 2), w))
     snd(t, "whoosh_short", CARD_SND - 2.5, pre=0.16)
+
+def photo_card(t, t_out, img, cx=CX, top=780, w=330, caption=None):
+    """A photo in FRONT, framed, placed where he points ("esta imagen que les muestro acá"). Square pictures work best; optional caption bar."""
+    src = asset(img)
+    if not src: return
+    t_out = out_on_cut(t_out)
+    cap = f'<div style="padding:10px 8px 12px;text-align:center;font:italic 400 {min(40, int((w - 20) / (0.46 * len(caption))))}px/1 var(--serif);color:var(--white);white-space:nowrap">{caption}</div>' if caption else ""
+    item(t - 0.05, t_out + 0.3, f"""
+ <div class="abs glass" style="left:{int(cx - w / 2)}px;top:{top}px;width:{w}px;overflow:hidden;border-width:3px" {d(in_=t, anim="pop", dur=0.36, out=t_out, outanim="shrink", outdur=0.18)}>
+   <img src="{src}" style="display:block;width:100%;height:auto" {d(in_=t, anim="none", drift="0,0,0.012")}>{cap}</div>""")
+    LAYOUT.append(("photo", round(t, 2), round(t_out, 2), w))
+    snd(t - 0.03, "pop_soft", POP_SND)
