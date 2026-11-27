@@ -1,0 +1,40 @@
+{
+ "drop": [
+  [
+   133,
+   145,
+   "toma repetida"
+  ],
+  [
+   164,
+   169,
+   "frase redundante"
+  ],
+  [
+   181,
+   182,
+   "arranque en falso"
+  ],
+  [
+   209,
+   230,
+   "comentario sobre las notas declaradas y toma repetida"
+  ],
+  [
+   325,
+   337,
+   "arranques en falso"
+  ]
+ ],
+ "pause": {
+  "sentence": 0.24,
+  "clause": 0.17,
+  "inner": 0.12
+ },
+ "min_removal": 0.24,
+ "tail_share": 0.58,
+ "thr_db": -46.0,
+ "lead_in": 0.08,
+ "lead_out": 0.2,
+ "manual": {}
+}

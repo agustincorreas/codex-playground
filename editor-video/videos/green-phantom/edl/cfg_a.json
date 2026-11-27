@@ -1,0 +1,55 @@
+{
+ "drop": [
+  [
+   31,
+   31,
+   "arranque en falso"
+  ],
+  [
+   66,
+   110,
+   "aclaración sobre el parecido y primera toma repetida"
+  ],
+  [
+   138,
+   138,
+   "muletilla"
+  ],
+  [
+   169,
+   170,
+   "arranque en falso"
+  ],
+  [
+   185,
+   200,
+   "elogio redundante"
+  ],
+  [
+   246,
+   271,
+   "repite la descripción (dos tomas) y muletilla"
+  ],
+  [
+   333,
+   359,
+   "digresión sobre las citas"
+  ]
+ ],
+ "pause": {
+  "sentence": 0.24,
+  "clause": 0.17,
+  "inner": 0.12
+ },
+ "min_removal": 0.24,
+ "tail_share": 0.58,
+ "thr_db": -46.0,
+ "lead_in": 0.08,
+ "lead_out": 0.2,
+ "manual": {
+  "297": {
+   "out": 133.711,
+   "in": 134.512
+  }
+ }
+}

@@ -1,0 +1,60 @@
+{
+ "drop": [
+  [
+   20,
+   31,
+   "repite el pedido de perdón"
+  ],
+  [
+   65,
+   125,
+   "repite el nombre, versiones y primera mención de la tienda"
+  ],
+  [
+   191,
+   200,
+   "precio en dólares, ya dio el precio"
+  ],
+  [
+   225,
+   242,
+   "duda sobre otras versiones"
+  ],
+  [
+   251,
+   262,
+   "rodeo antes de la comparación"
+  ],
+  [
+   297,
+   306,
+   "muletilla y repite el nombre"
+  ],
+  [
+   343,
+   385,
+   "explicación larga de la anosmia (va en tarjeta)"
+  ],
+  [
+   430,
+   464,
+   "repite que los demás sí lo sienten"
+  ]
+ ],
+ "pause": {
+  "sentence": 0.24,
+  "clause": 0.17,
+  "inner": 0.12
+ },
+ "min_removal": 0.24,
+ "tail_share": 0.58,
+ "thr_db": -46.0,
+ "lead_in": 0.08,
+ "lead_out": 0.2,
+ "manual": {
+  "428": {
+   "out": 151.7,
+   "in": 151.967
+  }
+ }
+}

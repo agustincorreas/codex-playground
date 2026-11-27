@@ -1,0 +1,4313 @@
+{
+ "junctions": [
+  {
+   "wi": 4,
+   "after": "gente.",
+   "before": "Yo",
+   "kind": "sentence",
+   "q0": 3.808,
+   "q1": 4.333,
+   "silence": 0.525
+  },
+  {
+   "wi": 9,
+   "after": "perdón,",
+   "before": "la",
+   "kind": "clause",
+   "q0": 5.492,
+   "q1": 5.902,
+   "silence": 0.41
+  },
+  {
+   "wi": 16,
+   "after": "perdón",
+   "before": "a",
+   "kind": "inner",
+   "q0": 8.128,
+   "q1": 8.553,
+   "silence": 0.425
+  },
+  {
+   "wi": 37,
+   "after": "quizás",
+   "before": "por",
+   "kind": "inner",
+   "q0": 16.762,
+   "q1": 16.913,
+   "silence": 0.15
+  },
+  {
+   "wi": 39,
+   "after": "eso",
+   "before": "se",
+   "kind": "inner",
+   "q0": 17.628,
+   "q1": 18.058,
+   "silence": 0.43
+  },
+  {
+   "wi": 43,
+   "after": "tanto",
+   "before": "y,",
+   "kind": "inner",
+   "q0": 19.128,
+   "q1": 19.443,
+   "silence": 0.315
+  },
+  {
+   "wi": 44,
+   "after": "y,",
+   "before": "en",
+   "kind": "clause",
+   "q0": 19.558,
+   "q1": 19.883,
+   "silence": 0.325
+  },
+  {
+   "wi": 47,
+   "after": "opinión,",
+   "before": "injustamente.",
+   "kind": "clause",
+   "q0": 20.718,
+   "q1": 20.903,
+   "silence": 0.185
+  },
+  {
+   "wi": 48,
+   "after": "injustamente.",
+   "before": "Estoy",
+   "kind": "sentence",
+   "q0": 21.658,
+   "q1": 22.283,
+   "silence": 0.625
+  },
+  {
+   "wi": 51,
+   "after": "de",
+   "before": "Elysium",
+   "kind": "inner",
+   "q0": 23.227,
+   "q1": 23.493,
+   "silence": 0.265
+  },
+  {
+   "wi": 52,
+   "after": "Elysium",
+   "before": "de",
+   "kind": "inner",
+   "q0": 24.218,
+   "q1": 24.378,
+   "silence": 0.16
+  },
+  {
+   "wi": 54,
+   "after": "Roja,",
+   "before": "de",
+   "kind": "clause",
+   "q0": 25.088,
+   "q1": 25.198,
+   "silence": 0.11
+  },
+  {
+   "wi": 57,
+   "after": "Parfums.",
+   "before": "Este",
+   "kind": "sentence",
+   "q0": 26.193,
+   "q1": 26.218,
+   "silence": 0.025
+  },
+  {
+   "wi": 60,
+   "after": "el",
+   "before": "Elysium",
+   "kind": "inner",
+   "q0": 26.922,
+   "q1": 27.338,
+   "silence": 0.415
+  },
+  {
+   "wi": 62,
+   "after": "Parfum",
+   "before": "Pour",
+   "kind": "inner",
+   "q0": 28.288,
+   "q1": 28.373,
+   "silence": 0.085
+  },
+  {
+   "wi": 134,
+   "after": "lujosa,",
+   "before": "ya",
+   "kind": "clause",
+   "q0": 54.062,
+   "q1": 54.162,
+   "silence": 0.1
+  },
+  {
+   "wi": 136,
+   "after": "ven",
+   "before": "el",
+   "kind": "inner",
+   "q0": 54.598,
+   "q1": 55.057,
+   "silence": 0.46
+  },
+  {
+   "wi": 137,
+   "after": "el",
+   "before": "frasco,",
+   "kind": "inner",
+   "q0": 55.128,
+   "q1": 55.227,
+   "silence": 0.1
+  },
+  {
+   "wi": 139,
+   "after": "la",
+   "before": "tapa,",
+   "kind": "inner",
+   "q0": 55.873,
+   "q1": 55.967,
+   "silence": 0.095
+  },
+  {
+   "wi": 140,
+   "after": "tapa,",
+   "before": "todo,",
+   "kind": "clause",
+   "q0": 56.558,
+   "q1": 56.652,
+   "silence": 0.095
+  },
+  {
+   "wi": 141,
+   "after": "todo,",
+   "before": "todo",
+   "kind": "clause",
+   "q0": 56.928,
+   "q1": 57.027,
+   "silence": 0.1
+  },
+  {
+   "wi": 143,
+   "after": "lujo.",
+   "before": "Pero,",
+   "kind": "sentence",
+   "q0": 57.663,
+   "q1": 57.947,
+   "silence": 0.285
+  },
+  {
+   "wi": 144,
+   "after": "Pero,",
+   "before": "¿qué",
+   "kind": "clause",
+   "q0": 58.378,
+   "q1": 58.512,
+   "silence": 0.135
+  },
+  {
+   "wi": 157,
+   "after": "incluso",
+   "before": "yo",
+   "kind": "inner",
+   "q0": 61.562,
+   "q1": 61.807,
+   "silence": 0.245
+  },
+  {
+   "wi": 160,
+   "after": "repetí",
+   "before": "sin",
+   "kind": "inner",
+   "q0": 62.933,
+   "q1": 63.292,
+   "silence": 0.36
+  },
+  {
+   "wi": 165,
+   "after": "suficiente.",
+   "before": "Y",
+   "kind": "sentence",
+   "q0": 65.638,
+   "q1": 66.028,
+   "silence": 0.39
+  },
+  {
+   "wi": 177,
+   "after": "que",
+   "before": "está",
+   "kind": "inner",
+   "q0": 68.243,
+   "q1": 68.308,
+   "silence": 0.065
+  },
+  {
+   "wi": 178,
+   "after": "está",
+   "before": "800",
+   "kind": "inner",
+   "q0": 68.588,
+   "q1": 68.978,
+   "silence": 0.39
+  },
+  {
+   "wi": 181,
+   "after": "pesos,",
+   "before": "700",
+   "kind": "clause",
+   "q0": 70.303,
+   "q1": 70.428,
+   "silence": 0.125
+  },
+  {
+   "wi": 218,
+   "after": "uso,",
+   "before": "y",
+   "kind": "clause",
+   "q0": 81.963,
+   "q1": 82.448,
+   "silence": 0.485
+  },
+  {
+   "wi": 244,
+   "after": "perfume",
+   "before": "no",
+   "kind": "inner",
+   "q0": 88.613,
+   "q1": 89.008,
+   "silence": 0.395
+  },
+  {
+   "wi": 263,
+   "after": "a",
+   "before": "todos",
+   "kind": "inner",
+   "q0": 96.898,
+   "q1": 96.993,
+   "silence": 0.095
+  },
+  {
+   "wi": 274,
+   "after": "Aventus,",
+   "before": "esto",
+   "kind": "clause",
+   "q0": 99.328,
+   "q1": 99.438,
+   "silence": 0.11
+  },
+  {
+   "wi": 280,
+   "after": "porque",
+   "before": "es",
+   "kind": "inner",
+   "q0": 100.408,
+   "q1": 100.528,
+   "silence": 0.12
+  },
+  {
+   "wi": 285,
+   "after": "Aventus",
+   "before": "más",
+   "kind": "inner",
+   "q0": 101.683,
+   "q1": 102.073,
+   "silence": 0.39
+  },
+  {
+   "wi": 286,
+   "after": "más",
+   "before": "herbal,",
+   "kind": "inner",
+   "q0": 102.283,
+   "q1": 102.373,
+   "silence": 0.09
+  },
+  {
+   "wi": 287,
+   "after": "herbal,",
+   "before": "más",
+   "kind": "clause",
+   "q0": 102.953,
+   "q1": 103.263,
+   "silence": 0.31
+  },
+  {
+   "wi": 290,
+   "after": "más",
+   "before": "fresco,",
+   "kind": "inner",
+   "q0": 104.233,
+   "q1": 104.388,
+   "silence": 0.155
+  },
+  {
+   "wi": 291,
+   "after": "fresco,",
+   "before": "como",
+   "kind": "clause",
+   "q0": 104.783,
+   "q1": 104.958,
+   "silence": 0.175
+  },
+  {
+   "wi": 293,
+   "after": "más",
+   "before": "chispeante,",
+   "kind": "inner",
+   "q0": 105.463,
+   "q1": 105.568,
+   "silence": 0.105
+  },
+  {
+   "wi": 295,
+   "after": "más",
+   "before": "efervescente.",
+   "kind": "inner",
+   "q0": 106.318,
+   "q1": 106.353,
+   "silence": 0.035
+  },
+  {
+   "wi": 330,
+   "after": "grados.",
+   "before": "Esto,",
+   "kind": "sentence",
+   "q0": 121.573,
+   "q1": 122.263,
+   "silence": 0.69
+  },
+  {
+   "wi": 331,
+   "after": "Esto,",
+   "before": "una",
+   "kind": "clause",
+   "q0": 122.678,
+   "q1": 122.888,
+   "silence": 0.21
+  },
+  {
+   "wi": 333,
+   "after": "locura,",
+   "before": "y",
+   "kind": "clause",
+   "q0": 123.533,
+   "q1": 123.633,
+   "silence": 0.1
+  },
+  {
+   "wi": 338,
+   "after": "siente",
+   "before": "y",
+   "kind": "inner",
+   "q0": 124.878,
+   "q1": 124.973,
+   "silence": 0.095
+  },
+  {
+   "wi": 339,
+   "after": "y",
+   "before": "te",
+   "kind": "inner",
+   "q0": 125.138,
+   "q1": 125.543,
+   "silence": 0.405
+  },
+  {
+   "wi": 406,
+   "after": "tenés",
+   "before": "puesto,",
+   "kind": "inner",
+   "q0": 144.602,
+   "q1": 144.713,
+   "silence": 0.11
+  },
+  {
+   "wi": 408,
+   "after": "¿qué",
+   "before": "es",
+   "kind": "inner",
+   "q0": 145.112,
+   "q1": 145.248,
+   "silence": 0.135
+  },
+  {
+   "wi": 410,
+   "after": "eso?",
+   "before": "Se",
+   "kind": "sentence",
+   "q0": 145.998,
+   "q1": 146.058,
+   "silence": 0.06
+  },
+  {
+   "wi": 413,
+   "after": "masculino,",
+   "before": "fresco",
+   "kind": "clause",
+   "q0": 147.142,
+   "q1": 147.602,
+   "silence": 0.46
+  },
+  {
+   "wi": 418,
+   "after": "mismo",
+   "before": "tiempo",
+   "kind": "inner",
+   "q0": 148.907,
+   "q1": 149.042,
+   "silence": 0.135
+  },
+  {
+   "wi": 466,
+   "after": "que",
+   "before": "perdón,",
+   "kind": "inner",
+   "q0": 163.627,
+   "q1": 163.917,
+   "silence": 0.29
+  },
+  {
+   "wi": 467,
+   "after": "perdón,",
+   "before": "Elysium,",
+   "kind": "clause",
+   "q0": 164.528,
+   "q1": 164.838,
+   "silence": 0.31
+  },
+  {
+   "wi": 468,
+   "after": "Elysium,",
+   "before": "disculpas",
+   "kind": "clause",
+   "q0": 165.933,
+   "q1": 166.952,
+   "silence": 1.02
+  },
+  {
+   "wi": 469,
+   "after": "disculpas",
+   "before": "por",
+   "kind": "inner",
+   "q0": 167.572,
+   "q1": 167.897,
+   "silence": 0.325
+  },
+  {
+   "wi": 470,
+   "after": "por",
+   "before": "tirarte",
+   "kind": "inner",
+   "q0": 168.093,
+   "q1": 168.757,
+   "silence": 0.665
+  },
+  {
+   "wi": 471,
+   "after": "tirarte",
+   "before": "tan",
+   "kind": "inner",
+   "q0": 169.213,
+   "q1": 169.327,
+   "silence": 0.115
+  },
+  {
+   "wi": 473,
+   "after": "abajo",
+   "before": "con",
+   "kind": "inner",
+   "q0": 170.072,
+   "q1": 170.317,
+   "silence": 0.245
+  },
+  {
+   "wi": 482,
+   "after": "que",
+   "before": "por",
+   "kind": "inner",
+   "q0": 172.438,
+   "q1": 172.862,
+   "silence": 0.425
+  },
+  {
+   "wi": 487,
+   "after": "horas",
+   "before": "a",
+   "kind": "inner",
+   "q0": 174.157,
+   "q1": 174.332,
+   "silence": 0.175
+  },
+  {
+   "wi": 496,
+   "after": "es",
+   "before": "nada,",
+   "kind": "inner",
+   "q0": 175.817,
+   "q1": 176.512,
+   "silence": 0.695
+  },
+  {
+   "wi": 509,
+   "after": "dure",
+   "before": "6",
+   "kind": "inner",
+   "q0": 179.438,
+   "q1": 179.532,
+   "silence": 0.095
+  },
+  {
+   "wi": 511,
+   "after": "horas,",
+   "before": "espectacular.",
+   "kind": "clause",
+   "q0": 179.982,
+   "q1": 180.403,
+   "silence": 0.42
+  },
+  {
+   "wi": 512,
+   "after": "espectacular.",
+   "before": "Los",
+   "kind": "sentence",
+   "q0": 180.958,
+   "q1": 182.657,
+   "silence": 1.7
+  },
+  {
+   "wi": 518,
+   "after": "por",
+   "before": "precio",
+   "kind": "inner",
+   "q0": 183.797,
+   "q1": 183.897,
+   "silence": 0.1
+  },
+  {
+   "wi": 519,
+   "after": "precio",
+   "before": "de",
+   "kind": "inner",
+   "q0": 184.512,
+   "q1": 184.938,
+   "silence": 0.425
+  },
+  {
+   "wi": 525,
+   "after": "costoso,",
+   "before": "dense",
+   "kind": "clause",
+   "q0": 186.642,
+   "q1": 186.887,
+   "silence": 0.245
+  },
+  {
+   "wi": 538,
+   "after": "comprar.",
+   "before": "Perfumazo",
+   "kind": "sentence",
+   "q0": 189.963,
+   "q1": 190.308,
+   "silence": 0.345
+  },
+  {
+   "wi": 539,
+   "after": "Perfumazo",
+   "before": "espectacular.",
+   "kind": "inner",
+   "q0": 190.797,
+   "q1": 190.867,
+   "silence": 0.07
+  }
+ ],
+ "segments": [
+  {
+   "in": 2.3667,
+   "out": 3.9333
+  },
+  {
+   "in": 4.2333,
+   "out": 5.6
+  },
+  {
+   "in": 5.8333,
+   "out": 8.2
+  },
+  {
+   "in": 8.5,
+   "out": 9.6667
+  },
+  {
+   "in": 14.6333,
+   "out": 17.7
+  },
+  {
+   "in": 18.0,
+   "out": 21.8
+  },
+  {
+   "in": 22.1667,
+   "out": 27.0
+  },
+  {
+   "in": 27.3,
+   "out": 28.9333
+  },
+  {
+   "in": 50.6333,
+   "out": 54.6667
+  },
+  {
+   "in": 55.0,
+   "out": 68.6667
+  },
+  {
+   "in": 68.9333,
+   "out": 73.0667
+  },
+  {
+   "in": 77.1667,
+   "out": 82.0667
+  },
+  {
+   "in": 82.3667,
+   "out": 84.1333
+  },
+  {
+   "in": 87.7,
+   "out": 88.6667
+  },
+  {
+   "in": 88.9667,
+   "out": 91.6333
+  },
+  {
+   "in": 96.7,
+   "out": 101.7667
+  },
+  {
+   "in": 102.0333,
+   "out": 107.4
+  },
+  {
+   "in": 114.5333,
+   "out": 121.7
+  },
+  {
+   "in": 122.1667,
+   "out": 125.2
+  },
+  {
+   "in": 125.5,
+   "out": 126.7667
+  },
+  {
+   "in": 140.6333,
+   "out": 147.2333
+  },
+  {
+   "in": 147.5333,
+   "out": 151.7
+  },
+  {
+   "in": 151.9667,
+   "out": 152.7667
+  },
+  {
+   "in": 162.9667,
+   "out": 166.0333
+  },
+  {
+   "in": 166.8667,
+   "out": 168.1667
+  },
+  {
+   "in": 168.7,
+   "out": 172.5
+  },
+  {
+   "in": 172.8,
+   "out": 175.9
+  },
+  {
+   "in": 176.4667,
+   "out": 180.0667
+  },
+  {
+   "in": 180.3333,
+   "out": 181.1
+  },
+  {
+   "in": 182.5667,
+   "out": 184.5667
+  },
+  {
+   "in": 184.9,
+   "out": 191.5667
+  }
+ ],
+ "duration": 109.7,
+ "cuts": [
+  {
+   "type": "pause",
+   "kind": "sentence",
+   "silence": 0.525,
+   "kept": 0.24,
+   "after": "gente.",
+   "before": "Yo",
+   "wi": 4,
+   "wj": 5,
+   "cut_out": 3.933,
+   "cut_in": 4.233,
+   "removed": 0.3,
+   "out_time": 1.567
+  },
+  {
+   "type": "pause",
+   "kind": "clause",
+   "silence": 0.41,
+   "kept": 0.17,
+   "after": "perdón,",
+   "before": "la",
+   "wi": 9,
+   "wj": 10,
+   "cut_out": 5.6,
+   "cut_in": 5.833,
+   "removed": 0.233,
+   "out_time": 2.933
+  },
+  {
+   "type": "pause",
+   "kind": "inner",
+   "silence": 0.425,
+   "kept": 0.12,
+   "after": "perdón",
+   "before": "a",
+   "wi": 16,
+   "wj": 17,
+   "cut_out": 8.2,
+   "cut_in": 8.5,
+   "removed": 0.3,
+   "out_time": 5.3
+  },
+  {
+   "type": "content",
+   "kind": "clause",
+   "kept": 0.17,
+   "sil_a": 0.215,
+   "sil_b": 0.55,
+   "after": "perfume,",
+   "before": "Es",
+   "dropped": "hay que reivindicarlo, hay que pedirle disculpas y hay que saber valorarlo.",
+   "wi": 19,
+   "wj": 32,
+   "cut_out": 9.667,
+   "cut_in": 14.633,
+   "removed": 4.967,
+   "out_time": 6.467
+  },
+  {
+   "type": "pause",
+   "kind": "inner",
+   "silence": 0.43,
+   "kept": 0.12,
+   "after": "eso",
+   "before": "se",
+   "wi": 39,
+   "wj": 40,
+   "cut_out": 17.7,
+   "cut_in": 18.0,
+   "removed": 0.3,
+   "out_time": 9.533
+  },
+  {
+   "type": "pause",
+   "kind": "sentence",
+   "silence": 0.625,
+   "kept": 0.24,
+   "after": "injustamente.",
+   "before": "Estoy",
+   "wi": 48,
+   "wj": 49,
+   "cut_out": 21.8,
+   "cut_in": 22.167,
+   "removed": 0.367,
+   "out_time": 13.333
+  },
+  {
+   "type": "pause",
+   "kind": "inner",
+   "silence": 0.415,
+   "kept": 0.12,
+   "after": "el",
+   "before": "Elysium",
+   "wi": 60,
+   "wj": 61,
+   "cut_out": 27.0,
+   "cut_in": 27.3,
+   "removed": 0.3,
+   "out_time": 18.167
+  },
+  {
+   "type": "content",
+   "kind": "sentence",
+   "kept": 0.24,
+   "sil_a": 0.175,
+   "sil_b": 0.345,
+   "after": "Homme.",
+   "before": "Bueno,",
+   "dropped": "Parfum Pour Homme. Hay varias versiones de Elysium, no puedo hablar por las otras porque no las tengo, yo tengo esta que está acá. Es un perfume que conocí y me llevé de Édition Privée, que es una perfumería que está en Argentina, que vende perfumería de ultra lujo, de nicho, de lo que se dice perfumería de autor, perfumería artística.",
+   "wi": 64,
+   "wj": 126,
+   "cut_out": 28.933,
+   "cut_in": 50.633,
+   "removed": 21.7,
+   "out_time": 19.8
+  },
+  {
+   "type": "pause",
+   "kind": "inner",
+   "silence": 0.46,
+   "kept": 0.12,
+   "after": "ven",
+   "before": "el",
+   "wi": 136,
+   "wj": 137,
+   "cut_out": 54.667,
+   "cut_in": 55.0,
+   "removed": 0.333,
+   "out_time": 23.833
+  },
+  {
+   "type": "pause",
+   "kind": "inner",
+   "silence": 0.39,
+   "kept": 0.12,
+   "after": "está",
+   "before": "800",
+   "wi": 178,
+   "wj": 179,
+   "cut_out": 68.667,
+   "cut_in": 68.933,
+   "removed": 0.267,
+   "out_time": 37.5
+  },
+  {
+   "type": "content",
+   "kind": "sentence",
+   "kept": 0.24,
+   "sil_a": 0.405,
+   "sil_b": 1.02,
+   "after": "consigas.",
+   "before": "Y",
+   "dropped": "Es caro, son cerca de, no sé, 500, 600 dólares.",
+   "wi": 190,
+   "wj": 201,
+   "cut_out": 73.067,
+   "cut_in": 77.167,
+   "removed": 4.1,
+   "out_time": 41.633
+  },
+  {
+   "type": "pause",
+   "kind": "clause",
+   "silence": 0.485,
+   "kept": 0.17,
+   "after": "uso,",
+   "before": "y",
+   "wi": 218,
+   "wj": 219,
+   "cut_out": 82.067,
+   "cut_in": 82.367,
+   "removed": 0.3,
+   "out_time": 46.533
+  },
+  {
+   "type": "content",
+   "kind": "sentence",
+   "kept": 0.237,
+   "sil_a": 0.17,
+   "sil_b": 0.35,
+   "after": "eso.",
+   "before": "este",
+   "dropped": "No sé si a esta versión o a las otras, capaz que son las que duran menos, pero",
+   "wi": 224,
+   "wj": 243,
+   "cut_out": 84.133,
+   "cut_in": 87.7,
+   "removed": 3.567,
+   "out_time": 48.3
+  },
+  {
+   "type": "pause",
+   "kind": "inner",
+   "silence": 0.395,
+   "kept": 0.12,
+   "after": "perfume",
+   "before": "no",
+   "wi": 244,
+   "wj": 245,
+   "cut_out": 88.667,
+   "cut_in": 88.967,
+   "removed": 0.3,
+   "out_time": 49.267
+  },
+  {
+   "type": "content",
+   "kind": "sentence",
+   "kept": 0.24,
+   "sil_a": 0.605,
+   "sil_b": 0.69,
+   "after": "riquísimo.",
+   "before": "a",
+   "dropped": "Si te gusta el ADN Aventus, obviamente que no es igual, pero",
+   "wi": 250,
+   "wj": 263,
+   "cut_out": 91.633,
+   "cut_in": 96.7,
+   "removed": 5.067,
+   "out_time": 51.933
+  },
+  {
+   "type": "pause",
+   "kind": "inner",
+   "silence": 0.39,
+   "kept": 0.12,
+   "after": "Aventus",
+   "before": "más",
+   "wi": 285,
+   "wj": 286,
+   "cut_out": 101.767,
+   "cut_in": 102.033,
+   "removed": 0.267,
+   "out_time": 57.0
+  },
+  {
+   "type": "content",
+   "kind": "sentence",
+   "kept": 0.24,
+   "sil_a": 0.455,
+   "sil_b": 0.69,
+   "after": "efervescente.",
+   "before": "es",
+   "dropped": "Es una cosa tremenda. Y este Elysium Parfum Pour Homme",
+   "wi": 296,
+   "wj": 307,
+   "cut_out": 107.4,
+   "cut_in": 114.533,
+   "removed": 7.133,
+   "out_time": 62.367
+  },
+  {
+   "type": "pause",
+   "kind": "sentence",
+   "silence": 0.69,
+   "kept": 0.24,
+   "after": "grados.",
+   "before": "Esto,",
+   "wi": 330,
+   "wj": 331,
+   "cut_out": 121.7,
+   "cut_in": 122.167,
+   "removed": 0.467,
+   "out_time": 69.534
+  },
+  {
+   "type": "pause",
+   "kind": "inner",
+   "silence": 0.405,
+   "kept": 0.12,
+   "after": "y",
+   "before": "te",
+   "wi": 339,
+   "wj": 340,
+   "cut_out": 125.2,
+   "cut_in": 125.5,
+   "removed": 0.3,
+   "out_time": 72.567
+  },
+  {
+   "type": "content",
+   "kind": "clause",
+   "kept": 0.17,
+   "sil_a": 0.27,
+   "sil_b": 0.41,
+   "after": "anosmia,",
+   "before": "Pero",
+   "dropped": "que es cuando vos dejás de detectar el aroma que está alrededor tuyo porque tu olfato se acostumbró y lo neutralizó, porque detectó que no se transforma, detectó que no se trata de una amenaza para tu supervivencia, entonces lo deja de oler.",
+   "wi": 342,
+   "wj": 386,
+   "cut_out": 126.767,
+   "cut_in": 140.633,
+   "removed": 13.867,
+   "out_time": 73.833
+  },
+  {
+   "type": "pause",
+   "kind": "clause",
+   "silence": 0.46,
+   "kept": 0.17,
+   "after": "masculino,",
+   "before": "fresco",
+   "wi": 413,
+   "wj": 414,
+   "cut_out": 147.233,
+   "cut_in": 147.533,
+   "removed": 0.3,
+   "out_time": 80.434
+  },
+  {
+   "type": "pause",
+   "kind": "inner",
+   "silence": 0.39,
+   "kept": 0.12,
+   "manual": true,
+   "after": "cosa",
+   "before": "tremenda,",
+   "wi": 428,
+   "wj": 429,
+   "cut_out": 151.7,
+   "cut_in": 151.967,
+   "removed": 0.267,
+   "out_time": 84.6
+  },
+  {
+   "type": "content",
+   "kind": "clause",
+   "kept": 0.17,
+   "sil_a": 0.675,
+   "sil_b": 0.415,
+   "after": "tremenda,",
+   "before": "Así",
+   "dropped": "y uno piensa que no dura, que no se siente, y cuando te acercás a los demás te revelan que en realidad sí se siente, y eras vos el que creías que no se sentía.",
+   "wi": 429,
+   "wj": 465,
+   "cut_out": 152.767,
+   "cut_in": 162.967,
+   "removed": 10.2,
+   "out_time": 85.4
+  },
+  {
+   "type": "pause",
+   "kind": "clause",
+   "silence": 1.02,
+   "kept": 0.17,
+   "after": "Elysium,",
+   "before": "disculpas",
+   "wi": 468,
+   "wj": 469,
+   "cut_out": 166.033,
+   "cut_in": 166.867,
+   "removed": 0.833,
+   "out_time": 88.467
+  },
+  {
+   "type": "pause",
+   "kind": "inner",
+   "silence": 0.665,
+   "kept": 0.12,
+   "after": "por",
+   "before": "tirarte",
+   "wi": 470,
+   "wj": 471,
+   "cut_out": 168.167,
+   "cut_in": 168.7,
+   "removed": 0.533,
+   "out_time": 89.767
+  },
+  {
+   "type": "pause",
+   "kind": "inner",
+   "silence": 0.425,
+   "kept": 0.12,
+   "after": "que",
+   "before": "por",
+   "wi": 482,
+   "wj": 483,
+   "cut_out": 172.5,
+   "cut_in": 172.8,
+   "removed": 0.3,
+   "out_time": 93.567
+  },
+  {
+   "type": "pause",
+   "kind": "inner",
+   "silence": 0.695,
+   "kept": 0.12,
+   "after": "es",
+   "before": "nada,",
+   "wi": 496,
+   "wj": 497,
+   "cut_out": 175.9,
+   "cut_in": 176.467,
+   "removed": 0.567,
+   "out_time": 96.667
+  },
+  {
+   "type": "pause",
+   "kind": "clause",
+   "silence": 0.42,
+   "kept": 0.17,
+   "after": "horas,",
+   "before": "espectacular.",
+   "wi": 511,
+   "wj": 512,
+   "cut_out": 180.067,
+   "cut_in": 180.333,
+   "removed": 0.267,
+   "out_time": 100.267
+  },
+  {
+   "type": "pause",
+   "kind": "sentence",
+   "silence": 1.7,
+   "kept": 0.24,
+   "after": "espectacular.",
+   "before": "Los",
+   "wi": 512,
+   "wj": 513,
+   "cut_out": 181.1,
+   "cut_in": 182.567,
+   "removed": 1.467,
+   "out_time": 101.034
+  },
+  {
+   "type": "pause",
+   "kind": "inner",
+   "silence": 0.425,
+   "kept": 0.12,
+   "after": "precio",
+   "before": "de",
+   "wi": 519,
+   "wj": 520,
+   "cut_out": 184.567,
+   "cut_in": 184.9,
+   "removed": 0.333,
+   "out_time": 103.033
+  }
+ ],
+ "words": [
+  {
+   "i": 0,
+   "w": "Tenemos",
+   "sent": 0,
+   "src_s": 2.442,
+   "src_e": 2.702,
+   "s": 0.075,
+   "e": 0.335
+  },
+  {
+   "i": 1,
+   "w": "que",
+   "sent": 0,
+   "src_s": 2.722,
+   "src_e": 2.782,
+   "s": 0.355,
+   "e": 0.415
+  },
+  {
+   "i": 2,
+   "w": "pedir",
+   "sent": 0,
+   "src_s": 2.842,
+   "src_e": 3.022,
+   "s": 0.475,
+   "e": 0.655
+  },
+  {
+   "i": 3,
+   "w": "perdón,",
+   "sent": 0,
+   "src_s": 3.082,
+   "src_e": 3.382,
+   "s": 0.715,
+   "e": 1.015
+  },
+  {
+   "i": 4,
+   "w": "gente.",
+   "sent": 0,
+   "src_s": 3.462,
+   "src_e": 3.762,
+   "s": 1.095,
+   "e": 1.395
+  },
+  {
+   "i": 5,
+   "w": "Yo",
+   "sent": 1,
+   "src_s": 4.323,
+   "src_e": 4.423,
+   "s": 1.656,
+   "e": 1.756
+  },
+  {
+   "i": 6,
+   "w": "tengo",
+   "sent": 1,
+   "src_s": 4.503,
+   "src_e": 4.643,
+   "s": 1.836,
+   "e": 1.976
+  },
+  {
+   "i": 7,
+   "w": "que",
+   "sent": 1,
+   "src_s": 4.663,
+   "src_e": 4.743,
+   "s": 1.996,
+   "e": 2.076
+  },
+  {
+   "i": 8,
+   "w": "pedir",
+   "sent": 1,
+   "src_s": 4.803,
+   "src_e": 4.963,
+   "s": 2.136,
+   "e": 2.296
+  },
+  {
+   "i": 9,
+   "w": "perdón,",
+   "sent": 1,
+   "src_s": 5.023,
+   "src_e": 5.364,
+   "s": 2.356,
+   "e": 2.697
+  },
+  {
+   "i": 10,
+   "w": "la",
+   "sent": 1,
+   "src_s": 5.904,
+   "src_e": 5.984,
+   "s": 3.004,
+   "e": 3.084
+  },
+  {
+   "i": 11,
+   "w": "comunidad",
+   "sent": 1,
+   "src_s": 6.024,
+   "src_e": 6.344,
+   "s": 3.124,
+   "e": 3.444
+  },
+  {
+   "i": 12,
+   "w": "perfumera",
+   "sent": 1,
+   "src_s": 6.384,
+   "src_e": 6.925,
+   "s": 3.484,
+   "e": 4.025
+  },
+  {
+   "i": 13,
+   "w": "tiene",
+   "sent": 1,
+   "src_s": 6.965,
+   "src_e": 7.125,
+   "s": 4.065,
+   "e": 4.225
+  },
+  {
+   "i": 14,
+   "w": "que",
+   "sent": 1,
+   "src_s": 7.165,
+   "src_e": 7.245,
+   "s": 4.265,
+   "e": 4.345
+  },
+  {
+   "i": 15,
+   "w": "pedirle",
+   "sent": 1,
+   "src_s": 7.305,
+   "src_e": 7.605,
+   "s": 4.405,
+   "e": 4.705
+  },
+  {
+   "i": 16,
+   "w": "perdón",
+   "sent": 1,
+   "src_s": 7.665,
+   "src_e": 8.045,
+   "s": 4.765,
+   "e": 5.145
+  },
+  {
+   "i": 17,
+   "w": "a",
+   "sent": 1,
+   "src_s": 8.586,
+   "src_e": 8.606,
+   "s": 5.386,
+   "e": 5.406
+  },
+  {
+   "i": 18,
+   "w": "este",
+   "sent": 1,
+   "src_s": 8.706,
+   "src_e": 8.886,
+   "s": 5.506,
+   "e": 5.686
+  },
+  {
+   "i": 19,
+   "w": "perfume,",
+   "sent": 1,
+   "src_s": 8.926,
+   "src_e": 9.426,
+   "s": 5.726,
+   "e": 6.226
+  },
+  {
+   "i": 32,
+   "w": "Es",
+   "sent": 3,
+   "src_s": 14.73,
+   "src_e": 14.87,
+   "s": 6.563,
+   "e": 6.703
+  },
+  {
+   "i": 33,
+   "w": "un",
+   "sent": 3,
+   "src_s": 14.91,
+   "src_e": 14.99,
+   "s": 6.743,
+   "e": 6.823
+  },
+  {
+   "i": 34,
+   "w": "perfume",
+   "sent": 3,
+   "src_s": 15.05,
+   "src_e": 15.43,
+   "s": 6.883,
+   "e": 7.263
+  },
+  {
+   "i": 35,
+   "w": "carísimo",
+   "sent": 3,
+   "src_s": 15.51,
+   "src_e": 16.191,
+   "s": 7.343,
+   "e": 8.024
+  },
+  {
+   "i": 36,
+   "w": "y",
+   "sent": 3,
+   "src_s": 16.391,
+   "src_e": 16.411,
+   "s": 8.224,
+   "e": 8.244
+  },
+  {
+   "i": 37,
+   "w": "quizás",
+   "sent": 3,
+   "src_s": 16.471,
+   "src_e": 16.771,
+   "s": 8.304,
+   "e": 8.604
+  },
+  {
+   "i": 38,
+   "w": "por",
+   "sent": 3,
+   "src_s": 16.891,
+   "src_e": 17.071,
+   "s": 8.724,
+   "e": 8.904
+  },
+  {
+   "i": 39,
+   "w": "eso",
+   "sent": 3,
+   "src_s": 17.131,
+   "src_e": 17.431,
+   "s": 8.964,
+   "e": 9.264
+  },
+  {
+   "i": 40,
+   "w": "se",
+   "sent": 3,
+   "src_s": 18.052,
+   "src_e": 18.132,
+   "s": 9.585,
+   "e": 9.665
+  },
+  {
+   "i": 41,
+   "w": "le",
+   "sent": 3,
+   "src_s": 18.172,
+   "src_e": 18.232,
+   "s": 9.705,
+   "e": 9.765
+  },
+  {
+   "i": 42,
+   "w": "pegó",
+   "sent": 3,
+   "src_s": 18.272,
+   "src_e": 18.452,
+   "s": 9.805,
+   "e": 9.985
+  },
+  {
+   "i": 43,
+   "w": "tanto",
+   "sent": 3,
+   "src_s": 18.552,
+   "src_e": 19.013,
+   "s": 10.085,
+   "e": 10.546
+  },
+  {
+   "i": 44,
+   "w": "y,",
+   "sent": 3,
+   "src_s": 19.493,
+   "src_e": 19.513,
+   "s": 11.026,
+   "e": 11.046
+  },
+  {
+   "i": 45,
+   "w": "en",
+   "sent": 3,
+   "src_s": 19.913,
+   "src_e": 19.993,
+   "s": 11.446,
+   "e": 11.526
+  },
+  {
+   "i": 46,
+   "w": "mi",
+   "sent": 3,
+   "src_s": 20.073,
+   "src_e": 20.153,
+   "s": 11.606,
+   "e": 11.686
+  },
+  {
+   "i": 47,
+   "w": "opinión,",
+   "sent": 3,
+   "src_s": 20.233,
+   "src_e": 20.634,
+   "s": 11.766,
+   "e": 12.167
+  },
+  {
+   "i": 48,
+   "w": "injustamente.",
+   "sent": 3,
+   "src_s": 20.934,
+   "src_e": 21.674,
+   "s": 12.467,
+   "e": 13.207
+  },
+  {
+   "i": 49,
+   "w": "Estoy",
+   "sent": 4,
+   "src_s": 22.315,
+   "src_e": 22.515,
+   "s": 13.482,
+   "e": 13.682
+  },
+  {
+   "i": 50,
+   "w": "hablando",
+   "sent": 4,
+   "src_s": 22.515,
+   "src_e": 22.875,
+   "s": 13.682,
+   "e": 14.042
+  },
+  {
+   "i": 51,
+   "w": "de",
+   "sent": 4,
+   "src_s": 22.975,
+   "src_e": 23.055,
+   "s": 14.142,
+   "e": 14.222
+  },
+  {
+   "i": 52,
+   "w": "Elysium",
+   "sent": 4,
+   "src_s": 23.535,
+   "src_e": 24.116,
+   "s": 14.702,
+   "e": 15.283
+  },
+  {
+   "i": 53,
+   "w": "de",
+   "sent": 4,
+   "src_s": 24.436,
+   "src_e": 24.516,
+   "s": 15.603,
+   "e": 15.683
+  },
+  {
+   "i": 54,
+   "w": "Roja,",
+   "sent": 4,
+   "src_s": 24.656,
+   "src_e": 24.976,
+   "s": 15.823,
+   "e": 16.143
+  },
+  {
+   "i": 55,
+   "w": "de",
+   "sent": 4,
+   "src_s": 25.197,
+   "src_e": 25.257,
+   "s": 16.364,
+   "e": 16.424
+  },
+  {
+   "i": 56,
+   "w": "Roja",
+   "sent": 4,
+   "src_s": 25.337,
+   "src_e": 25.537,
+   "s": 16.504,
+   "e": 16.704
+  },
+  {
+   "i": 57,
+   "w": "Parfums.",
+   "sent": 4,
+   "src_s": 25.597,
+   "src_e": 26.057,
+   "s": 16.764,
+   "e": 17.224
+  },
+  {
+   "i": 58,
+   "w": "Este",
+   "sent": 5,
+   "src_s": 26.157,
+   "src_e": 26.337,
+   "s": 17.324,
+   "e": 17.504
+  },
+  {
+   "i": 59,
+   "w": "es",
+   "sent": 5,
+   "src_s": 26.457,
+   "src_e": 26.557,
+   "s": 17.624,
+   "e": 17.724
+  },
+  {
+   "i": 60,
+   "w": "el",
+   "sent": 5,
+   "src_s": 26.638,
+   "src_e": 26.778,
+   "s": 17.805,
+   "e": 17.945
+  },
+  {
+   "i": 61,
+   "w": "Elysium",
+   "sent": 5,
+   "src_s": 27.358,
+   "src_e": 27.758,
+   "s": 18.225,
+   "e": 18.625
+  },
+  {
+   "i": 62,
+   "w": "Parfum",
+   "sent": 5,
+   "src_s": 27.818,
+   "src_e": 28.219,
+   "s": 18.685,
+   "e": 19.086
+  },
+  {
+   "i": 63,
+   "w": "Pour",
+   "sent": 5,
+   "src_s": 28.359,
+   "src_e": 28.52,
+   "s": 19.226,
+   "e": 19.387
+  },
+  {
+   "i": 64,
+   "w": "Homme.",
+   "sent": 5,
+   "src_s": 28.54,
+   "src_e": 28.78,
+   "s": 19.407,
+   "e": 19.647
+  },
+  {
+   "i": 126,
+   "w": "Bueno,",
+   "sent": 10,
+   "src_s": 50.713,
+   "src_e": 50.934,
+   "s": 19.88,
+   "e": 20.101
+  },
+  {
+   "i": 127,
+   "w": "esto",
+   "sent": 10,
+   "src_s": 50.954,
+   "src_e": 51.134,
+   "s": 20.121,
+   "e": 20.301
+  },
+  {
+   "i": 128,
+   "w": "es",
+   "sent": 10,
+   "src_s": 51.214,
+   "src_e": 51.294,
+   "s": 20.381,
+   "e": 20.461
+  },
+  {
+   "i": 129,
+   "w": "una",
+   "sent": 10,
+   "src_s": 51.334,
+   "src_e": 51.434,
+   "s": 20.501,
+   "e": 20.601
+  },
+  {
+   "i": 130,
+   "w": "marca",
+   "sent": 10,
+   "src_s": 51.494,
+   "src_e": 51.754,
+   "s": 20.661,
+   "e": 20.921
+  },
+  {
+   "i": 131,
+   "w": "de",
+   "sent": 10,
+   "src_s": 51.814,
+   "src_e": 51.894,
+   "s": 20.981,
+   "e": 21.061
+  },
+  {
+   "i": 132,
+   "w": "Inglaterra,",
+   "sent": 10,
+   "src_s": 52.034,
+   "src_e": 52.855,
+   "s": 21.201,
+   "e": 22.022
+  },
+  {
+   "i": 133,
+   "w": "súper",
+   "sent": 10,
+   "src_s": 53.115,
+   "src_e": 53.395,
+   "s": 22.282,
+   "e": 22.562
+  },
+  {
+   "i": 134,
+   "w": "lujosa,",
+   "sent": 10,
+   "src_s": 53.435,
+   "src_e": 53.976,
+   "s": 22.602,
+   "e": 23.143
+  },
+  {
+   "i": 135,
+   "w": "ya",
+   "sent": 10,
+   "src_s": 54.116,
+   "src_e": 54.216,
+   "s": 23.283,
+   "e": 23.383
+  },
+  {
+   "i": 136,
+   "w": "ven",
+   "sent": 10,
+   "src_s": 54.256,
+   "src_e": 54.516,
+   "s": 23.423,
+   "e": 23.683
+  },
+  {
+   "i": 137,
+   "w": "el",
+   "sent": 10,
+   "src_s": 55.056,
+   "src_e": 55.136,
+   "s": 23.889,
+   "e": 23.969
+  },
+  {
+   "i": 138,
+   "w": "frasco,",
+   "sent": 10,
+   "src_s": 55.196,
+   "src_e": 55.697,
+   "s": 24.029,
+   "e": 24.53
+  },
+  {
+   "i": 139,
+   "w": "la",
+   "sent": 10,
+   "src_s": 55.817,
+   "src_e": 55.877,
+   "s": 24.65,
+   "e": 24.71
+  },
+  {
+   "i": 140,
+   "w": "tapa,",
+   "sent": 10,
+   "src_s": 55.957,
+   "src_e": 56.397,
+   "s": 24.79,
+   "e": 25.23
+  },
+  {
+   "i": 141,
+   "w": "todo,",
+   "sent": 10,
+   "src_s": 56.637,
+   "src_e": 56.917,
+   "s": 25.47,
+   "e": 25.75
+  },
+  {
+   "i": 142,
+   "w": "todo",
+   "sent": 10,
+   "src_s": 57.018,
+   "src_e": 57.198,
+   "s": 25.851,
+   "e": 26.031
+  },
+  {
+   "i": 143,
+   "w": "lujo.",
+   "sent": 10,
+   "src_s": 57.258,
+   "src_e": 57.578,
+   "s": 26.091,
+   "e": 26.411
+  },
+  {
+   "i": 144,
+   "w": "Pero,",
+   "sent": 11,
+   "src_s": 57.958,
+   "src_e": 58.278,
+   "s": 26.791,
+   "e": 27.111
+  },
+  {
+   "i": 145,
+   "w": "¿qué",
+   "sent": 11,
+   "src_s": 58.519,
+   "src_e": 58.639,
+   "s": 27.352,
+   "e": 27.472
+  },
+  {
+   "i": 146,
+   "w": "es",
+   "sent": 11,
+   "src_s": 58.719,
+   "src_e": 58.819,
+   "s": 27.552,
+   "e": 27.652
+  },
+  {
+   "i": 147,
+   "w": "lo",
+   "sent": 11,
+   "src_s": 59.079,
+   "src_e": 59.159,
+   "s": 27.912,
+   "e": 27.992
+  },
+  {
+   "i": 148,
+   "w": "negativo",
+   "sent": 11,
+   "src_s": 59.219,
+   "src_e": 59.719,
+   "s": 28.052,
+   "e": 28.552
+  },
+  {
+   "i": 149,
+   "w": "que",
+   "sent": 11,
+   "src_s": 59.779,
+   "src_e": 59.839,
+   "s": 28.612,
+   "e": 28.672
+  },
+  {
+   "i": 150,
+   "w": "siempre",
+   "sent": 11,
+   "src_s": 59.899,
+   "src_e": 60.16,
+   "s": 28.732,
+   "e": 28.993
+  },
+  {
+   "i": 151,
+   "w": "se",
+   "sent": 11,
+   "src_s": 60.22,
+   "src_e": 60.3,
+   "s": 29.053,
+   "e": 29.133
+  },
+  {
+   "i": 152,
+   "w": "decía",
+   "sent": 11,
+   "src_s": 60.34,
+   "src_e": 60.52,
+   "s": 29.173,
+   "e": 29.353
+  },
+  {
+   "i": 153,
+   "w": "de",
+   "sent": 11,
+   "src_s": 60.52,
+   "src_e": 60.56,
+   "s": 29.353,
+   "e": 29.393
+  },
+  {
+   "i": 154,
+   "w": "este",
+   "sent": 11,
+   "src_s": 60.6,
+   "src_e": 60.7,
+   "s": 29.433,
+   "e": 29.533
+  },
+  {
+   "i": 155,
+   "w": "perfume?",
+   "sent": 11,
+   "src_s": 60.74,
+   "src_e": 61.04,
+   "s": 29.573,
+   "e": 29.873
+  },
+  {
+   "i": 156,
+   "w": "Que",
+   "sent": 12,
+   "src_s": 61.06,
+   "src_e": 61.12,
+   "s": 29.893,
+   "e": 29.953
+  },
+  {
+   "i": 157,
+   "w": "incluso",
+   "sent": 12,
+   "src_s": 61.16,
+   "src_e": 61.46,
+   "s": 29.993,
+   "e": 30.293
+  },
+  {
+   "i": 158,
+   "w": "yo",
+   "sent": 12,
+   "src_s": 61.881,
+   "src_e": 61.981,
+   "s": 30.714,
+   "e": 30.814
+  },
+  {
+   "i": 159,
+   "w": "lo",
+   "sent": 12,
+   "src_s": 62.101,
+   "src_e": 62.181,
+   "s": 30.934,
+   "e": 31.014
+  },
+  {
+   "i": 160,
+   "w": "repetí",
+   "sent": 12,
+   "src_s": 62.281,
+   "src_e": 62.681,
+   "s": 31.114,
+   "e": 31.514
+  },
+  {
+   "i": 161,
+   "w": "sin",
+   "sent": 12,
+   "src_s": 63.422,
+   "src_e": 63.622,
+   "s": 32.255,
+   "e": 32.455
+  },
+  {
+   "i": 162,
+   "w": "haberlo",
+   "sent": 12,
+   "src_s": 63.802,
+   "src_e": 64.162,
+   "s": 32.635,
+   "e": 32.995
+  },
+  {
+   "i": 163,
+   "w": "probado",
+   "sent": 12,
+   "src_s": 64.202,
+   "src_e": 64.522,
+   "s": 33.035,
+   "e": 33.355
+  },
+  {
+   "i": 164,
+   "w": "lo",
+   "sent": 12,
+   "src_s": 64.583,
+   "src_e": 64.643,
+   "s": 33.416,
+   "e": 33.476
+  },
+  {
+   "i": 165,
+   "w": "suficiente.",
+   "sent": 12,
+   "src_s": 64.703,
+   "src_e": 65.543,
+   "s": 33.536,
+   "e": 34.376
+  },
+  {
+   "i": 166,
+   "w": "Y",
+   "sent": 13,
+   "src_s": 66.063,
+   "src_e": 66.084,
+   "s": 34.896,
+   "e": 34.917
+  },
+  {
+   "i": 167,
+   "w": "es",
+   "sent": 13,
+   "src_s": 66.164,
+   "src_e": 66.284,
+   "s": 34.997,
+   "e": 35.117
+  },
+  {
+   "i": 168,
+   "w": "el",
+   "sent": 13,
+   "src_s": 66.384,
+   "src_e": 66.464,
+   "s": 35.217,
+   "e": 35.297
+  },
+  {
+   "i": 169,
+   "w": "tema",
+   "sent": 13,
+   "src_s": 66.504,
+   "src_e": 66.684,
+   "s": 35.337,
+   "e": 35.517
+  },
+  {
+   "i": 170,
+   "w": "de",
+   "sent": 13,
+   "src_s": 66.724,
+   "src_e": 66.784,
+   "s": 35.557,
+   "e": 35.617
+  },
+  {
+   "i": 171,
+   "w": "la",
+   "sent": 13,
+   "src_s": 66.804,
+   "src_e": 66.904,
+   "s": 35.637,
+   "e": 35.737
+  },
+  {
+   "i": 172,
+   "w": "duración.",
+   "sent": 13,
+   "src_s": 66.944,
+   "src_e": 67.484,
+   "s": 35.777,
+   "e": 36.317
+  },
+  {
+   "i": 173,
+   "w": "Porque",
+   "sent": 14,
+   "src_s": 67.484,
+   "src_e": 67.645,
+   "s": 36.317,
+   "e": 36.478
+  },
+  {
+   "i": 174,
+   "w": "es",
+   "sent": 14,
+   "src_s": 67.665,
+   "src_e": 67.725,
+   "s": 36.498,
+   "e": 36.558
+  },
+  {
+   "i": 175,
+   "w": "un",
+   "sent": 14,
+   "src_s": 67.745,
+   "src_e": 67.805,
+   "s": 36.578,
+   "e": 36.638
+  },
+  {
+   "i": 176,
+   "w": "perfume",
+   "sent": 14,
+   "src_s": 67.825,
+   "src_e": 68.125,
+   "s": 36.658,
+   "e": 36.958
+  },
+  {
+   "i": 177,
+   "w": "que",
+   "sent": 14,
+   "src_s": 68.145,
+   "src_e": 68.225,
+   "s": 36.978,
+   "e": 37.058
+  },
+  {
+   "i": 178,
+   "w": "está",
+   "sent": 14,
+   "src_s": 68.245,
+   "src_e": 68.405,
+   "s": 37.078,
+   "e": 37.238
+  },
+  {
+   "i": 179,
+   "w": "800",
+   "sent": 14,
+   "src_s": 68.985,
+   "src_e": 69.506,
+   "s": 37.552,
+   "e": 38.073
+  },
+  {
+   "i": 180,
+   "w": "mil",
+   "sent": 14,
+   "src_s": 69.526,
+   "src_e": 69.666,
+   "s": 38.093,
+   "e": 38.233
+  },
+  {
+   "i": 181,
+   "w": "pesos,",
+   "sent": 14,
+   "src_s": 69.726,
+   "src_e": 70.286,
+   "s": 38.293,
+   "e": 38.853
+  },
+  {
+   "i": 182,
+   "w": "700",
+   "sent": 14,
+   "src_s": 70.446,
+   "src_e": 70.967,
+   "s": 39.013,
+   "e": 39.534
+  },
+  {
+   "i": 183,
+   "w": "mil,",
+   "sent": 14,
+   "src_s": 71.007,
+   "src_e": 71.207,
+   "s": 39.574,
+   "e": 39.774
+  },
+  {
+   "i": 184,
+   "w": "600",
+   "sent": 14,
+   "src_s": 71.287,
+   "src_e": 71.547,
+   "s": 39.854,
+   "e": 40.114
+  },
+  {
+   "i": 185,
+   "w": "mil,",
+   "sent": 14,
+   "src_s": 71.547,
+   "src_e": 71.607,
+   "s": 40.114,
+   "e": 40.174
+  },
+  {
+   "i": 186,
+   "w": "depende",
+   "sent": 14,
+   "src_s": 71.607,
+   "src_e": 71.927,
+   "s": 40.174,
+   "e": 40.494
+  },
+  {
+   "i": 187,
+   "w": "de",
+   "sent": 14,
+   "src_s": 71.947,
+   "src_e": 72.007,
+   "s": 40.514,
+   "e": 40.574
+  },
+  {
+   "i": 188,
+   "w": "dónde",
+   "sent": 14,
+   "src_s": 72.007,
+   "src_e": 72.168,
+   "s": 40.574,
+   "e": 40.735
+  },
+  {
+   "i": 189,
+   "w": "lo",
+   "sent": 14,
+   "src_s": 72.208,
+   "src_e": 72.268,
+   "s": 40.775,
+   "e": 40.835
+  },
+  {
+   "i": 190,
+   "w": "consigas.",
+   "sent": 14,
+   "src_s": 72.288,
+   "src_e": 72.928,
+   "s": 40.855,
+   "e": 41.495
+  },
+  {
+   "i": 201,
+   "w": "Y",
+   "sent": 16,
+   "src_s": 77.311,
+   "src_e": 77.331,
+   "s": 41.778,
+   "e": 41.798
+  },
+  {
+   "i": 202,
+   "w": "vos",
+   "sent": 16,
+   "src_s": 77.511,
+   "src_e": 77.571,
+   "s": 41.978,
+   "e": 42.038
+  },
+  {
+   "i": 203,
+   "w": "decís:",
+   "sent": 16,
+   "src_s": 77.591,
+   "src_e": 77.851,
+   "s": 42.058,
+   "e": 42.318
+  },
+  {
+   "i": 204,
+   "w": "che,",
+   "sent": 16,
+   "src_s": 77.911,
+   "src_e": 78.011,
+   "s": 42.378,
+   "e": 42.478
+  },
+  {
+   "i": 205,
+   "w": "quiero",
+   "sent": 16,
+   "src_s": 78.151,
+   "src_e": 78.332,
+   "s": 42.618,
+   "e": 42.799
+  },
+  {
+   "i": 206,
+   "w": "que",
+   "sent": 16,
+   "src_s": 78.392,
+   "src_e": 78.472,
+   "s": 42.859,
+   "e": 42.939
+  },
+  {
+   "i": 207,
+   "w": "esto",
+   "sent": 16,
+   "src_s": 78.512,
+   "src_e": 78.712,
+   "s": 42.979,
+   "e": 43.179
+  },
+  {
+   "i": 208,
+   "w": "por",
+   "sent": 16,
+   "src_s": 78.772,
+   "src_e": 78.892,
+   "s": 43.239,
+   "e": 43.359
+  },
+  {
+   "i": 209,
+   "w": "lo",
+   "sent": 16,
+   "src_s": 78.932,
+   "src_e": 78.992,
+   "s": 43.399,
+   "e": 43.459
+  },
+  {
+   "i": 210,
+   "w": "menos",
+   "sent": 16,
+   "src_s": 79.052,
+   "src_e": 79.432,
+   "s": 43.519,
+   "e": 43.899
+  },
+  {
+   "i": 211,
+   "w": "me",
+   "sent": 16,
+   "src_s": 79.592,
+   "src_e": 79.672,
+   "s": 44.059,
+   "e": 44.139
+  },
+  {
+   "i": 212,
+   "w": "rinda",
+   "sent": 16,
+   "src_s": 79.813,
+   "src_e": 80.193,
+   "s": 44.28,
+   "e": 44.66
+  },
+  {
+   "i": 213,
+   "w": "durante",
+   "sent": 16,
+   "src_s": 80.253,
+   "src_e": 80.593,
+   "s": 44.72,
+   "e": 45.06
+  },
+  {
+   "i": 214,
+   "w": "el",
+   "sent": 16,
+   "src_s": 80.653,
+   "src_e": 80.713,
+   "s": 45.12,
+   "e": 45.18
+  },
+  {
+   "i": 215,
+   "w": "día",
+   "sent": 16,
+   "src_s": 80.813,
+   "src_e": 81.073,
+   "s": 45.28,
+   "e": 45.54
+  },
+  {
+   "i": 216,
+   "w": "que",
+   "sent": 16,
+   "src_s": 81.133,
+   "src_e": 81.213,
+   "s": 45.6,
+   "e": 45.68
+  },
+  {
+   "i": 217,
+   "w": "lo",
+   "sent": 16,
+   "src_s": 81.253,
+   "src_e": 81.334,
+   "s": 45.72,
+   "e": 45.801
+  },
+  {
+   "i": 218,
+   "w": "uso,",
+   "sent": 16,
+   "src_s": 81.454,
+   "src_e": 81.774,
+   "s": 45.921,
+   "e": 46.241
+  },
+  {
+   "i": 219,
+   "w": "y",
+   "sent": 16,
+   "src_s": 82.474,
+   "src_e": 82.494,
+   "s": 46.641,
+   "e": 46.661
+  },
+  {
+   "i": 220,
+   "w": "mucha",
+   "sent": 16,
+   "src_s": 82.614,
+   "src_e": 82.855,
+   "s": 46.781,
+   "e": 47.022
+  },
+  {
+   "i": 221,
+   "w": "gente",
+   "sent": 16,
+   "src_s": 82.895,
+   "src_e": 83.115,
+   "s": 47.062,
+   "e": 47.282
+  },
+  {
+   "i": 222,
+   "w": "le",
+   "sent": 16,
+   "src_s": 83.155,
+   "src_e": 83.215,
+   "s": 47.322,
+   "e": 47.382
+  },
+  {
+   "i": 223,
+   "w": "criticaba",
+   "sent": 16,
+   "src_s": 83.255,
+   "src_e": 83.735,
+   "s": 47.422,
+   "e": 47.902
+  },
+  {
+   "i": 224,
+   "w": "eso.",
+   "sent": 16,
+   "src_s": 83.815,
+   "src_e": 83.995,
+   "s": 47.982,
+   "e": 48.162
+  },
+  {
+   "i": 243,
+   "w": "este",
+   "sent": 18,
+   "src_s": 87.858,
+   "src_e": 88.058,
+   "s": 48.458,
+   "e": 48.658
+  },
+  {
+   "i": 244,
+   "w": "perfume",
+   "sent": 18,
+   "src_s": 88.098,
+   "src_e": 88.518,
+   "s": 48.698,
+   "e": 49.118
+  },
+  {
+   "i": 245,
+   "w": "no",
+   "sent": 18,
+   "src_s": 89.039,
+   "src_e": 89.119,
+   "s": 49.339,
+   "e": 49.419
+  },
+  {
+   "i": 246,
+   "w": "solo",
+   "sent": 18,
+   "src_s": 89.239,
+   "src_e": 89.459,
+   "s": 49.539,
+   "e": 49.759
+  },
+  {
+   "i": 247,
+   "w": "es",
+   "sent": 18,
+   "src_s": 89.519,
+   "src_e": 89.599,
+   "s": 49.819,
+   "e": 49.899
+  },
+  {
+   "i": 248,
+   "w": "riquísimo,",
+   "sent": 18,
+   "src_s": 89.719,
+   "src_e": 90.339,
+   "s": 50.019,
+   "e": 50.639
+  },
+  {
+   "i": 249,
+   "w": "riquísimo,",
+   "sent": 18,
+   "src_s": 90.46,
+   "src_e": 90.92,
+   "s": 50.76,
+   "e": 51.22
+  },
+  {
+   "i": 250,
+   "w": "riquísimo.",
+   "sent": 18,
+   "src_s": 91.0,
+   "src_e": 91.44,
+   "s": 51.3,
+   "e": 51.74
+  },
+  {
+   "i": 263,
+   "w": "a",
+   "sent": 19,
+   "src_s": 96.844,
+   "src_e": 96.864,
+   "s": 52.077,
+   "e": 52.097
+  },
+  {
+   "i": 264,
+   "w": "todos",
+   "sent": 19,
+   "src_s": 96.964,
+   "src_e": 97.124,
+   "s": 52.197,
+   "e": 52.357
+  },
+  {
+   "i": 265,
+   "w": "los",
+   "sent": 19,
+   "src_s": 97.144,
+   "src_e": 97.264,
+   "s": 52.377,
+   "e": 52.497
+  },
+  {
+   "i": 266,
+   "w": "que",
+   "sent": 19,
+   "src_s": 97.304,
+   "src_e": 97.364,
+   "s": 52.537,
+   "e": 52.597
+  },
+  {
+   "i": 267,
+   "w": "les",
+   "sent": 19,
+   "src_s": 97.404,
+   "src_e": 97.484,
+   "s": 52.637,
+   "e": 52.717
+  },
+  {
+   "i": 268,
+   "w": "guste",
+   "sent": 19,
+   "src_s": 97.504,
+   "src_e": 97.724,
+   "s": 52.737,
+   "e": 52.957
+  },
+  {
+   "i": 269,
+   "w": "el",
+   "sent": 19,
+   "src_s": 97.744,
+   "src_e": 97.784,
+   "s": 52.977,
+   "e": 53.017
+  },
+  {
+   "i": 270,
+   "w": "estilo",
+   "sent": 19,
+   "src_s": 97.844,
+   "src_e": 98.345,
+   "s": 53.077,
+   "e": 53.578
+  },
+  {
+   "i": 271,
+   "w": "de",
+   "sent": 19,
+   "src_s": 98.385,
+   "src_e": 98.445,
+   "s": 53.618,
+   "e": 53.678
+  },
+  {
+   "i": 272,
+   "w": "perfumes",
+   "sent": 19,
+   "src_s": 98.485,
+   "src_e": 98.845,
+   "s": 53.718,
+   "e": 54.078
+  },
+  {
+   "i": 273,
+   "w": "de",
+   "sent": 19,
+   "src_s": 98.845,
+   "src_e": 98.905,
+   "s": 54.078,
+   "e": 54.138
+  },
+  {
+   "i": 274,
+   "w": "Aventus,",
+   "sent": 19,
+   "src_s": 98.945,
+   "src_e": 99.305,
+   "s": 54.178,
+   "e": 54.538
+  },
+  {
+   "i": 275,
+   "w": "esto",
+   "sent": 19,
+   "src_s": 99.465,
+   "src_e": 99.606,
+   "s": 54.698,
+   "e": 54.839
+  },
+  {
+   "i": 276,
+   "w": "les",
+   "sent": 19,
+   "src_s": 99.646,
+   "src_e": 99.726,
+   "s": 54.879,
+   "e": 54.959
+  },
+  {
+   "i": 277,
+   "w": "va",
+   "sent": 19,
+   "src_s": 99.726,
+   "src_e": 99.786,
+   "s": 54.959,
+   "e": 55.019
+  },
+  {
+   "i": 278,
+   "w": "a",
+   "sent": 19,
+   "src_s": 99.806,
+   "src_e": 99.826,
+   "s": 55.039,
+   "e": 55.059
+  },
+  {
+   "i": 279,
+   "w": "gustar",
+   "sent": 19,
+   "src_s": 99.826,
+   "src_e": 100.066,
+   "s": 55.059,
+   "e": 55.299
+  },
+  {
+   "i": 280,
+   "w": "porque",
+   "sent": 20,
+   "src_s": 100.126,
+   "src_e": 100.346,
+   "s": 55.359,
+   "e": 55.579
+  },
+  {
+   "i": 281,
+   "w": "es",
+   "sent": 20,
+   "src_s": 100.546,
+   "src_e": 100.666,
+   "s": 55.779,
+   "e": 55.899
+  },
+  {
+   "i": 282,
+   "w": "una",
+   "sent": 20,
+   "src_s": 100.706,
+   "src_e": 100.806,
+   "s": 55.939,
+   "e": 56.039
+  },
+  {
+   "i": 283,
+   "w": "especie",
+   "sent": 20,
+   "src_s": 100.806,
+   "src_e": 101.147,
+   "s": 56.039,
+   "e": 56.38
+  },
+  {
+   "i": 284,
+   "w": "de",
+   "sent": 20,
+   "src_s": 101.147,
+   "src_e": 101.207,
+   "s": 56.38,
+   "e": 56.44
+  },
+  {
+   "i": 285,
+   "w": "Aventus",
+   "sent": 20,
+   "src_s": 101.247,
+   "src_e": 101.727,
+   "s": 56.48,
+   "e": 56.96
+  },
+  {
+   "i": 286,
+   "w": "más",
+   "sent": 20,
+   "src_s": 102.107,
+   "src_e": 102.347,
+   "s": 57.074,
+   "e": 57.314
+  },
+  {
+   "i": 287,
+   "w": "herbal,",
+   "sent": 20,
+   "src_s": 102.367,
+   "src_e": 102.868,
+   "s": 57.334,
+   "e": 57.835
+  },
+  {
+   "i": 288,
+   "w": "más",
+   "sent": 20,
+   "src_s": 103.328,
+   "src_e": 103.508,
+   "s": 58.295,
+   "e": 58.475
+  },
+  {
+   "i": 289,
+   "w": "cítrico,",
+   "sent": 20,
+   "src_s": 103.628,
+   "src_e": 104.069,
+   "s": 58.595,
+   "e": 59.036
+  },
+  {
+   "i": 290,
+   "w": "más",
+   "sent": 20,
+   "src_s": 104.129,
+   "src_e": 104.249,
+   "s": 59.096,
+   "e": 59.216
+  },
+  {
+   "i": 291,
+   "w": "fresco,",
+   "sent": 20,
+   "src_s": 104.349,
+   "src_e": 104.689,
+   "s": 59.316,
+   "e": 59.656
+  },
+  {
+   "i": 292,
+   "w": "como",
+   "sent": 20,
+   "src_s": 104.949,
+   "src_e": 105.149,
+   "s": 59.916,
+   "e": 60.116
+  },
+  {
+   "i": 293,
+   "w": "más",
+   "sent": 20,
+   "src_s": 105.309,
+   "src_e": 105.469,
+   "s": 60.276,
+   "e": 60.436
+  },
+  {
+   "i": 294,
+   "w": "chispeante,",
+   "sent": 20,
+   "src_s": 105.549,
+   "src_e": 106.05,
+   "s": 60.516,
+   "e": 61.017
+  },
+  {
+   "i": 295,
+   "w": "más",
+   "sent": 20,
+   "src_s": 106.11,
+   "src_e": 106.25,
+   "s": 61.077,
+   "e": 61.217
+  },
+  {
+   "i": 296,
+   "w": "efervescente.",
+   "sent": 20,
+   "src_s": 106.29,
+   "src_e": 107.211,
+   "s": 61.257,
+   "e": 62.178
+  },
+  {
+   "i": 307,
+   "w": "es",
+   "sent": 22,
+   "src_s": 114.635,
+   "src_e": 114.736,
+   "s": 62.469,
+   "e": 62.57
+  },
+  {
+   "i": 308,
+   "w": "un",
+   "sent": 22,
+   "src_s": 114.776,
+   "src_e": 114.856,
+   "s": 62.61,
+   "e": 62.69
+  },
+  {
+   "i": 309,
+   "w": "perfume",
+   "sent": 22,
+   "src_s": 114.876,
+   "src_e": 115.216,
+   "s": 62.71,
+   "e": 63.05
+  },
+  {
+   "i": 310,
+   "w": "muy",
+   "sent": 22,
+   "src_s": 115.336,
+   "src_e": 115.476,
+   "s": 63.17,
+   "e": 63.31
+  },
+  {
+   "i": 311,
+   "w": "fresco,",
+   "sent": 22,
+   "src_s": 115.556,
+   "src_e": 115.856,
+   "s": 63.39,
+   "e": 63.69
+  },
+  {
+   "i": 312,
+   "w": "muy",
+   "sent": 22,
+   "src_s": 115.896,
+   "src_e": 115.996,
+   "s": 63.73,
+   "e": 63.83
+  },
+  {
+   "i": 313,
+   "w": "cítrico,",
+   "sent": 22,
+   "src_s": 116.056,
+   "src_e": 116.377,
+   "s": 63.89,
+   "e": 64.211
+  },
+  {
+   "i": 314,
+   "w": "muy",
+   "sent": 22,
+   "src_s": 116.417,
+   "src_e": 116.517,
+   "s": 64.251,
+   "e": 64.351
+  },
+  {
+   "i": 315,
+   "w": "herbal,",
+   "sent": 22,
+   "src_s": 116.537,
+   "src_e": 116.797,
+   "s": 64.371,
+   "e": 64.631
+  },
+  {
+   "i": 316,
+   "w": "que",
+   "sent": 23,
+   "src_s": 116.837,
+   "src_e": 116.917,
+   "s": 64.671,
+   "e": 64.751
+  },
+  {
+   "i": 317,
+   "w": "lo",
+   "sent": 23,
+   "src_s": 116.937,
+   "src_e": 116.997,
+   "s": 64.771,
+   "e": 64.831
+  },
+  {
+   "i": 318,
+   "w": "recomiendo",
+   "sent": 23,
+   "src_s": 117.077,
+   "src_e": 117.417,
+   "s": 64.911,
+   "e": 65.251
+  },
+  {
+   "i": 319,
+   "w": "mucho",
+   "sent": 23,
+   "src_s": 117.477,
+   "src_e": 117.657,
+   "s": 65.311,
+   "e": 65.491
+  },
+  {
+   "i": 320,
+   "w": "para",
+   "sent": 23,
+   "src_s": 117.697,
+   "src_e": 117.838,
+   "s": 65.531,
+   "e": 65.672
+  },
+  {
+   "i": 321,
+   "w": "primavera,",
+   "sent": 23,
+   "src_s": 117.878,
+   "src_e": 118.298,
+   "s": 65.712,
+   "e": 66.132
+  },
+  {
+   "i": 322,
+   "w": "verano,",
+   "sent": 23,
+   "src_s": 118.338,
+   "src_e": 118.638,
+   "s": 66.172,
+   "e": 66.472
+  },
+  {
+   "i": 323,
+   "w": "incluso",
+   "sent": 23,
+   "src_s": 118.678,
+   "src_e": 119.018,
+   "s": 66.512,
+   "e": 66.852
+  },
+  {
+   "i": 324,
+   "w": "para",
+   "sent": 23,
+   "src_s": 119.058,
+   "src_e": 119.218,
+   "s": 66.892,
+   "e": 67.052
+  },
+  {
+   "i": 325,
+   "w": "verano,",
+   "sent": 23,
+   "src_s": 119.259,
+   "src_e": 119.579,
+   "s": 67.093,
+   "e": 67.413
+  },
+  {
+   "i": 326,
+   "w": "calor",
+   "sent": 23,
+   "src_s": 119.639,
+   "src_e": 119.879,
+   "s": 67.473,
+   "e": 67.713
+  },
+  {
+   "i": 327,
+   "w": "extremo",
+   "sent": 23,
+   "src_s": 119.939,
+   "src_e": 120.359,
+   "s": 67.773,
+   "e": 68.193
+  },
+  {
+   "i": 328,
+   "w": "de",
+   "sent": 23,
+   "src_s": 120.399,
+   "src_e": 120.459,
+   "s": 68.233,
+   "e": 68.293
+  },
+  {
+   "i": 329,
+   "w": "40",
+   "sent": 23,
+   "src_s": 120.539,
+   "src_e": 120.96,
+   "s": 68.373,
+   "e": 68.794
+  },
+  {
+   "i": 330,
+   "w": "grados.",
+   "sent": 23,
+   "src_s": 121.02,
+   "src_e": 121.56,
+   "s": 68.854,
+   "e": 69.394
+  },
+  {
+   "i": 331,
+   "w": "Esto,",
+   "sent": 24,
+   "src_s": 122.301,
+   "src_e": 122.661,
+   "s": 69.668,
+   "e": 70.028
+  },
+  {
+   "i": 332,
+   "w": "una",
+   "sent": 24,
+   "src_s": 122.901,
+   "src_e": 123.001,
+   "s": 70.268,
+   "e": 70.368
+  },
+  {
+   "i": 333,
+   "w": "locura,",
+   "sent": 24,
+   "src_s": 123.061,
+   "src_e": 123.461,
+   "s": 70.428,
+   "e": 70.828
+  },
+  {
+   "i": 334,
+   "w": "y",
+   "sent": 24,
+   "src_s": 123.681,
+   "src_e": 123.701,
+   "s": 71.048,
+   "e": 71.068
+  },
+  {
+   "i": 335,
+   "w": "dura",
+   "sent": 24,
+   "src_s": 123.761,
+   "src_e": 124.062,
+   "s": 71.128,
+   "e": 71.429
+  },
+  {
+   "i": 336,
+   "w": "y",
+   "sent": 24,
+   "src_s": 124.222,
+   "src_e": 124.242,
+   "s": 71.589,
+   "e": 71.609
+  },
+  {
+   "i": 337,
+   "w": "se",
+   "sent": 24,
+   "src_s": 124.322,
+   "src_e": 124.402,
+   "s": 71.689,
+   "e": 71.769
+  },
+  {
+   "i": 338,
+   "w": "siente",
+   "sent": 24,
+   "src_s": 124.502,
+   "src_e": 124.802,
+   "s": 71.869,
+   "e": 72.169
+  },
+  {
+   "i": 339,
+   "w": "y",
+   "sent": 24,
+   "src_s": 125.022,
+   "src_e": 125.042,
+   "s": 72.389,
+   "e": 72.409
+  },
+  {
+   "i": 340,
+   "w": "te",
+   "sent": 24,
+   "src_s": 125.523,
+   "src_e": 125.583,
+   "s": 72.59,
+   "e": 72.65
+  },
+  {
+   "i": 341,
+   "w": "genera",
+   "sent": 24,
+   "src_s": 125.623,
+   "src_e": 125.903,
+   "s": 72.69,
+   "e": 72.97
+  },
+  {
+   "i": 342,
+   "w": "anosmia,",
+   "sent": 24,
+   "src_s": 126.023,
+   "src_e": 126.603,
+   "s": 73.09,
+   "e": 73.67
+  },
+  {
+   "i": 386,
+   "w": "Pero",
+   "sent": 27,
+   "src_s": 140.713,
+   "src_e": 140.873,
+   "s": 73.913,
+   "e": 74.073
+  },
+  {
+   "i": 387,
+   "w": "la",
+   "sent": 27,
+   "src_s": 140.913,
+   "src_e": 140.973,
+   "s": 74.113,
+   "e": 74.173
+  },
+  {
+   "i": 388,
+   "w": "gente",
+   "sent": 27,
+   "src_s": 141.013,
+   "src_e": 141.253,
+   "s": 74.213,
+   "e": 74.453
+  },
+  {
+   "i": 389,
+   "w": "que",
+   "sent": 27,
+   "src_s": 141.273,
+   "src_e": 141.333,
+   "s": 74.473,
+   "e": 74.533
+  },
+  {
+   "i": 390,
+   "w": "está",
+   "sent": 27,
+   "src_s": 141.353,
+   "src_e": 141.453,
+   "s": 74.553,
+   "e": 74.653
+  },
+  {
+   "i": 391,
+   "w": "a",
+   "sent": 27,
+   "src_s": 141.473,
+   "src_e": 141.493,
+   "s": 74.673,
+   "e": 74.693
+  },
+  {
+   "i": 392,
+   "w": "tu",
+   "sent": 27,
+   "src_s": 141.493,
+   "src_e": 141.553,
+   "s": 74.693,
+   "e": 74.753
+  },
+  {
+   "i": 393,
+   "w": "alrededor",
+   "sent": 27,
+   "src_s": 141.573,
+   "src_e": 141.873,
+   "s": 74.773,
+   "e": 75.073
+  },
+  {
+   "i": 394,
+   "w": "lo",
+   "sent": 27,
+   "src_s": 141.933,
+   "src_e": 141.973,
+   "s": 75.133,
+   "e": 75.173
+  },
+  {
+   "i": 395,
+   "w": "sigue",
+   "sent": 27,
+   "src_s": 142.054,
+   "src_e": 142.294,
+   "s": 75.254,
+   "e": 75.494
+  },
+  {
+   "i": 396,
+   "w": "sintiendo",
+   "sent": 27,
+   "src_s": 142.354,
+   "src_e": 142.814,
+   "s": 75.554,
+   "e": 76.014
+  },
+  {
+   "i": 397,
+   "w": "y",
+   "sent": 27,
+   "src_s": 142.854,
+   "src_e": 142.874,
+   "s": 76.054,
+   "e": 76.074
+  },
+  {
+   "i": 398,
+   "w": "te",
+   "sent": 27,
+   "src_s": 142.914,
+   "src_e": 142.994,
+   "s": 76.114,
+   "e": 76.194
+  },
+  {
+   "i": 399,
+   "w": "sigue",
+   "sent": 27,
+   "src_s": 143.054,
+   "src_e": 143.254,
+   "s": 76.254,
+   "e": 76.454
+  },
+  {
+   "i": 400,
+   "w": "diciendo:",
+   "sent": 27,
+   "src_s": 143.254,
+   "src_e": 143.514,
+   "s": 76.454,
+   "e": 76.714
+  },
+  {
+   "i": 401,
+   "w": "che,",
+   "sent": 27,
+   "src_s": 143.555,
+   "src_e": 143.635,
+   "s": 76.755,
+   "e": 76.835
+  },
+  {
+   "i": 402,
+   "w": "qué",
+   "sent": 27,
+   "src_s": 143.675,
+   "src_e": 143.735,
+   "s": 76.875,
+   "e": 76.935
+  },
+  {
+   "i": 403,
+   "w": "rico",
+   "sent": 27,
+   "src_s": 143.795,
+   "src_e": 143.935,
+   "s": 76.995,
+   "e": 77.135
+  },
+  {
+   "i": 404,
+   "w": "perfume",
+   "sent": 27,
+   "src_s": 143.975,
+   "src_e": 144.335,
+   "s": 77.175,
+   "e": 77.535
+  },
+  {
+   "i": 405,
+   "w": "que",
+   "sent": 27,
+   "src_s": 144.355,
+   "src_e": 144.435,
+   "s": 77.555,
+   "e": 77.635
+  },
+  {
+   "i": 406,
+   "w": "tenés",
+   "sent": 27,
+   "src_s": 144.455,
+   "src_e": 144.655,
+   "s": 77.655,
+   "e": 77.855
+  },
+  {
+   "i": 407,
+   "w": "puesto,",
+   "sent": 27,
+   "src_s": 144.675,
+   "src_e": 144.915,
+   "s": 77.875,
+   "e": 78.115
+  },
+  {
+   "i": 408,
+   "w": "¿qué",
+   "sent": 27,
+   "src_s": 144.955,
+   "src_e": 145.176,
+   "s": 78.155,
+   "e": 78.376
+  },
+  {
+   "i": 409,
+   "w": "es",
+   "sent": 27,
+   "src_s": 145.356,
+   "src_e": 145.516,
+   "s": 78.556,
+   "e": 78.716
+  },
+  {
+   "i": 410,
+   "w": "eso?",
+   "sent": 27,
+   "src_s": 145.556,
+   "src_e": 145.796,
+   "s": 78.756,
+   "e": 78.996
+  },
+  {
+   "i": 411,
+   "w": "Se",
+   "sent": 28,
+   "src_s": 145.996,
+   "src_e": 146.156,
+   "s": 79.196,
+   "e": 79.356
+  },
+  {
+   "i": 412,
+   "w": "siente",
+   "sent": 28,
+   "src_s": 146.196,
+   "src_e": 146.416,
+   "s": 79.396,
+   "e": 79.616
+  },
+  {
+   "i": 413,
+   "w": "masculino,",
+   "sent": 28,
+   "src_s": 146.476,
+   "src_e": 147.077,
+   "s": 79.676,
+   "e": 80.277
+  },
+  {
+   "i": 414,
+   "w": "fresco",
+   "sent": 28,
+   "src_s": 147.557,
+   "src_e": 148.037,
+   "s": 80.457,
+   "e": 80.937
+  },
+  {
+   "i": 415,
+   "w": "y",
+   "sent": 28,
+   "src_s": 148.138,
+   "src_e": 148.158,
+   "s": 81.038,
+   "e": 81.058
+  },
+  {
+   "i": 416,
+   "w": "herbal",
+   "sent": 28,
+   "src_s": 148.198,
+   "src_e": 148.478,
+   "s": 81.098,
+   "e": 81.378
+  },
+  {
+   "i": 417,
+   "w": "al",
+   "sent": 28,
+   "src_s": 148.518,
+   "src_e": 148.598,
+   "s": 81.418,
+   "e": 81.498
+  },
+  {
+   "i": 418,
+   "w": "mismo",
+   "sent": 28,
+   "src_s": 148.638,
+   "src_e": 148.858,
+   "s": 81.538,
+   "e": 81.758
+  },
+  {
+   "i": 419,
+   "w": "tiempo",
+   "sent": 28,
+   "src_s": 148.978,
+   "src_e": 149.418,
+   "s": 81.878,
+   "e": 82.318
+  },
+  {
+   "i": 420,
+   "w": "y",
+   "sent": 28,
+   "src_s": 149.458,
+   "src_e": 149.478,
+   "s": 82.358,
+   "e": 82.378
+  },
+  {
+   "i": 421,
+   "w": "con",
+   "sent": 28,
+   "src_s": 149.498,
+   "src_e": 149.618,
+   "s": 82.398,
+   "e": 82.518
+  },
+  {
+   "i": 422,
+   "w": "algún",
+   "sent": 28,
+   "src_s": 149.639,
+   "src_e": 149.819,
+   "s": 82.539,
+   "e": 82.719
+  },
+  {
+   "i": 423,
+   "w": "puntito",
+   "sent": 28,
+   "src_s": 149.859,
+   "src_e": 150.239,
+   "s": 82.759,
+   "e": 83.139
+  },
+  {
+   "i": 424,
+   "w": "dulce,",
+   "sent": 28,
+   "src_s": 150.279,
+   "src_e": 150.579,
+   "s": 83.179,
+   "e": 83.479
+  },
+  {
+   "i": 425,
+   "w": "amaderado.",
+   "sent": 28,
+   "src_s": 150.639,
+   "src_e": 151.119,
+   "s": 83.539,
+   "e": 84.019
+  },
+  {
+   "i": 426,
+   "w": "Es",
+   "sent": 29,
+   "src_s": 151.139,
+   "src_e": 151.18,
+   "s": 84.039,
+   "e": 84.08
+  },
+  {
+   "i": 427,
+   "w": "una",
+   "sent": 29,
+   "src_s": 151.24,
+   "src_e": 151.34,
+   "s": 84.14,
+   "e": 84.24
+  },
+  {
+   "i": 428,
+   "w": "cosa",
+   "sent": 29,
+   "src_s": 151.38,
+   "src_e": 151.62,
+   "s": 84.28,
+   "e": 84.52
+  },
+  {
+   "i": 429,
+   "w": "tremenda,",
+   "sent": 29,
+   "src_s": 152.02,
+   "src_e": 152.56,
+   "s": 84.654,
+   "e": 85.194
+  },
+  {
+   "i": 465,
+   "w": "Así",
+   "sent": 31,
+   "src_s": 163.067,
+   "src_e": 163.227,
+   "s": 85.5,
+   "e": 85.66
+  },
+  {
+   "i": 466,
+   "w": "que",
+   "sent": 31,
+   "src_s": 163.308,
+   "src_e": 163.408,
+   "s": 85.741,
+   "e": 85.841
+  },
+  {
+   "i": 467,
+   "w": "perdón,",
+   "sent": 31,
+   "src_s": 163.908,
+   "src_e": 164.328,
+   "s": 86.341,
+   "e": 86.761
+  },
+  {
+   "i": 468,
+   "w": "Elysium,",
+   "sent": 31,
+   "src_s": 165.269,
+   "src_e": 165.829,
+   "s": 87.702,
+   "e": 88.262
+  },
+  {
+   "i": 469,
+   "w": "disculpas",
+   "sent": 31,
+   "src_s": 166.95,
+   "src_e": 167.57,
+   "s": 88.55,
+   "e": 89.17
+  },
+  {
+   "i": 470,
+   "w": "por",
+   "sent": 31,
+   "src_s": 167.871,
+   "src_e": 168.011,
+   "s": 89.471,
+   "e": 89.611
+  },
+  {
+   "i": 471,
+   "w": "tirarte",
+   "sent": 31,
+   "src_s": 168.731,
+   "src_e": 169.171,
+   "s": 89.798,
+   "e": 90.238
+  },
+  {
+   "i": 472,
+   "w": "tan",
+   "sent": 31,
+   "src_s": 169.311,
+   "src_e": 169.472,
+   "s": 90.378,
+   "e": 90.539
+  },
+  {
+   "i": 473,
+   "w": "abajo",
+   "sent": 31,
+   "src_s": 169.532,
+   "src_e": 169.912,
+   "s": 90.599,
+   "e": 90.979
+  },
+  {
+   "i": 474,
+   "w": "con",
+   "sent": 31,
+   "src_s": 170.292,
+   "src_e": 170.412,
+   "s": 91.359,
+   "e": 91.479
+  },
+  {
+   "i": 475,
+   "w": "el",
+   "sent": 31,
+   "src_s": 170.432,
+   "src_e": 170.492,
+   "s": 91.499,
+   "e": 91.559
+  },
+  {
+   "i": 476,
+   "w": "tema",
+   "sent": 31,
+   "src_s": 170.532,
+   "src_e": 170.672,
+   "s": 91.599,
+   "e": 91.739
+  },
+  {
+   "i": 477,
+   "w": "del",
+   "sent": 31,
+   "src_s": 170.712,
+   "src_e": 170.812,
+   "s": 91.779,
+   "e": 91.879
+  },
+  {
+   "i": 478,
+   "w": "rendimiento.",
+   "sent": 31,
+   "src_s": 170.872,
+   "src_e": 171.493,
+   "s": 91.939,
+   "e": 92.56
+  },
+  {
+   "i": 479,
+   "w": "Es",
+   "sent": 32,
+   "src_s": 171.553,
+   "src_e": 171.633,
+   "s": 92.62,
+   "e": 92.7
+  },
+  {
+   "i": 480,
+   "w": "un",
+   "sent": 32,
+   "src_s": 171.693,
+   "src_e": 171.753,
+   "s": 92.76,
+   "e": 92.82
+  },
+  {
+   "i": 481,
+   "w": "perfume",
+   "sent": 32,
+   "src_s": 171.793,
+   "src_e": 172.133,
+   "s": 92.86,
+   "e": 93.2
+  },
+  {
+   "i": 482,
+   "w": "que",
+   "sent": 32,
+   "src_s": 172.213,
+   "src_e": 172.313,
+   "s": 93.28,
+   "e": 93.38
+  },
+  {
+   "i": 483,
+   "w": "por",
+   "sent": 32,
+   "src_s": 172.854,
+   "src_e": 172.974,
+   "s": 93.621,
+   "e": 93.741
+  },
+  {
+   "i": 484,
+   "w": "lo",
+   "sent": 32,
+   "src_s": 173.034,
+   "src_e": 173.094,
+   "s": 93.801,
+   "e": 93.861
+  },
+  {
+   "i": 485,
+   "w": "menos",
+   "sent": 32,
+   "src_s": 173.134,
+   "src_e": 173.334,
+   "s": 93.901,
+   "e": 94.101
+  },
+  {
+   "i": 486,
+   "w": "6",
+   "sent": 32,
+   "src_s": 173.454,
+   "src_e": 173.714,
+   "s": 94.221,
+   "e": 94.481
+  },
+  {
+   "i": 487,
+   "w": "horas",
+   "sent": 32,
+   "src_s": 173.754,
+   "src_e": 174.155,
+   "s": 94.521,
+   "e": 94.922
+  },
+  {
+   "i": 488,
+   "w": "a",
+   "sent": 32,
+   "src_s": 174.355,
+   "src_e": 174.375,
+   "s": 95.122,
+   "e": 95.142
+  },
+  {
+   "i": 489,
+   "w": "mí",
+   "sent": 32,
+   "src_s": 174.415,
+   "src_e": 174.475,
+   "s": 95.182,
+   "e": 95.242
+  },
+  {
+   "i": 490,
+   "w": "me",
+   "sent": 32,
+   "src_s": 174.535,
+   "src_e": 174.595,
+   "s": 95.302,
+   "e": 95.362
+  },
+  {
+   "i": 491,
+   "w": "ha",
+   "sent": 32,
+   "src_s": 174.595,
+   "src_e": 174.655,
+   "s": 95.362,
+   "e": 95.422
+  },
+  {
+   "i": 492,
+   "w": "durado.",
+   "sent": 32,
+   "src_s": 174.695,
+   "src_e": 175.035,
+   "s": 95.462,
+   "e": 95.802
+  },
+  {
+   "i": 493,
+   "w": "Y",
+   "sent": 33,
+   "src_s": 175.095,
+   "src_e": 175.115,
+   "s": 95.862,
+   "e": 95.882
+  },
+  {
+   "i": 494,
+   "w": "6",
+   "sent": 33,
+   "src_s": 175.195,
+   "src_e": 175.395,
+   "s": 95.962,
+   "e": 96.162
+  },
+  {
+   "i": 495,
+   "w": "horas",
+   "sent": 33,
+   "src_s": 175.435,
+   "src_e": 175.676,
+   "s": 96.202,
+   "e": 96.443
+  },
+  {
+   "i": 496,
+   "w": "es",
+   "sent": 33,
+   "src_s": 175.756,
+   "src_e": 175.876,
+   "s": 96.523,
+   "e": 96.643
+  },
+  {
+   "i": 497,
+   "w": "nada,",
+   "sent": 33,
+   "src_s": 176.536,
+   "src_e": 176.756,
+   "s": 96.736,
+   "e": 96.956
+  },
+  {
+   "i": 498,
+   "w": "no",
+   "sent": 33,
+   "src_s": 176.796,
+   "src_e": 176.856,
+   "s": 96.996,
+   "e": 97.056
+  },
+  {
+   "i": 499,
+   "w": "se",
+   "sent": 33,
+   "src_s": 176.916,
+   "src_e": 176.977,
+   "s": 97.116,
+   "e": 97.177
+  },
+  {
+   "i": 500,
+   "w": "le",
+   "sent": 33,
+   "src_s": 177.017,
+   "src_e": 177.077,
+   "s": 97.217,
+   "e": 97.277
+  },
+  {
+   "i": 501,
+   "w": "puede",
+   "sent": 33,
+   "src_s": 177.117,
+   "src_e": 177.257,
+   "s": 97.317,
+   "e": 97.457
+  },
+  {
+   "i": 502,
+   "w": "pedir",
+   "sent": 33,
+   "src_s": 177.297,
+   "src_e": 177.457,
+   "s": 97.497,
+   "e": 97.657
+  },
+  {
+   "i": 503,
+   "w": "más",
+   "sent": 33,
+   "src_s": 177.497,
+   "src_e": 177.697,
+   "s": 97.697,
+   "e": 97.897
+  },
+  {
+   "i": 504,
+   "w": "un",
+   "sent": 33,
+   "src_s": 177.737,
+   "src_e": 177.817,
+   "s": 97.937,
+   "e": 98.017
+  },
+  {
+   "i": 505,
+   "w": "perfume.",
+   "sent": 33,
+   "src_s": 177.837,
+   "src_e": 178.177,
+   "s": 98.037,
+   "e": 98.377
+  },
+  {
+   "i": 506,
+   "w": "Está",
+   "sent": 34,
+   "src_s": 178.257,
+   "src_e": 178.638,
+   "s": 98.457,
+   "e": 98.838
+  },
+  {
+   "i": 507,
+   "w": "perfecto",
+   "sent": 34,
+   "src_s": 178.698,
+   "src_e": 179.178,
+   "s": 98.898,
+   "e": 99.378
+  },
+  {
+   "i": 508,
+   "w": "que",
+   "sent": 34,
+   "src_s": 179.218,
+   "src_e": 179.278,
+   "s": 99.418,
+   "e": 99.478
+  },
+  {
+   "i": 509,
+   "w": "dure",
+   "sent": 34,
+   "src_s": 179.298,
+   "src_e": 179.438,
+   "s": 99.498,
+   "e": 99.638
+  },
+  {
+   "i": 510,
+   "w": "6",
+   "sent": 34,
+   "src_s": 179.518,
+   "src_e": 179.698,
+   "s": 99.718,
+   "e": 99.898
+  },
+  {
+   "i": 511,
+   "w": "horas,",
+   "sent": 34,
+   "src_s": 179.738,
+   "src_e": 179.978,
+   "s": 99.938,
+   "e": 100.178
+  },
+  {
+   "i": 512,
+   "w": "espectacular.",
+   "sent": 34,
+   "src_s": 180.339,
+   "src_e": 180.979,
+   "s": 100.273,
+   "e": 100.913
+  },
+  {
+   "i": 513,
+   "w": "Los",
+   "sent": 35,
+   "src_s": 182.62,
+   "src_e": 182.72,
+   "s": 101.087,
+   "e": 101.187
+  },
+  {
+   "i": 514,
+   "w": "que",
+   "sent": 35,
+   "src_s": 182.72,
+   "src_e": 182.8,
+   "s": 101.187,
+   "e": 101.267
+  },
+  {
+   "i": 515,
+   "w": "tengan",
+   "sent": 35,
+   "src_s": 182.84,
+   "src_e": 183.02,
+   "s": 101.307,
+   "e": 101.487
+  },
+  {
+   "i": 516,
+   "w": "la",
+   "sent": 35,
+   "src_s": 183.04,
+   "src_e": 183.101,
+   "s": 101.507,
+   "e": 101.568
+  },
+  {
+   "i": 517,
+   "w": "posibilidad",
+   "sent": 35,
+   "src_s": 183.141,
+   "src_e": 183.581,
+   "s": 101.608,
+   "e": 102.048
+  },
+  {
+   "i": 518,
+   "w": "por",
+   "sent": 35,
+   "src_s": 183.621,
+   "src_e": 183.741,
+   "s": 102.088,
+   "e": 102.208
+  },
+  {
+   "i": 519,
+   "w": "precio",
+   "sent": 35,
+   "src_s": 183.881,
+   "src_e": 184.381,
+   "s": 102.348,
+   "e": 102.848
+  },
+  {
+   "i": 520,
+   "w": "de",
+   "sent": 35,
+   "src_s": 184.922,
+   "src_e": 185.002,
+   "s": 103.055,
+   "e": 103.135
+  },
+  {
+   "i": 521,
+   "w": "pagar",
+   "sent": 35,
+   "src_s": 185.062,
+   "src_e": 185.262,
+   "s": 103.195,
+   "e": 103.395
+  },
+  {
+   "i": 522,
+   "w": "un",
+   "sent": 35,
+   "src_s": 185.302,
+   "src_e": 185.342,
+   "s": 103.435,
+   "e": 103.475
+  },
+  {
+   "i": 523,
+   "w": "perfume",
+   "sent": 35,
+   "src_s": 185.382,
+   "src_e": 185.702,
+   "s": 103.515,
+   "e": 103.835
+  },
+  {
+   "i": 524,
+   "w": "tan",
+   "sent": 35,
+   "src_s": 185.782,
+   "src_e": 185.902,
+   "s": 103.915,
+   "e": 104.035
+  },
+  {
+   "i": 525,
+   "w": "costoso,",
+   "sent": 35,
+   "src_s": 185.962,
+   "src_e": 186.483,
+   "s": 104.095,
+   "e": 104.616
+  },
+  {
+   "i": 526,
+   "w": "dense",
+   "sent": 35,
+   "src_s": 186.923,
+   "src_e": 187.143,
+   "s": 105.056,
+   "e": 105.276
+  },
+  {
+   "i": 527,
+   "w": "una",
+   "sent": 35,
+   "src_s": 187.163,
+   "src_e": 187.263,
+   "s": 105.296,
+   "e": 105.396
+  },
+  {
+   "i": 528,
+   "w": "vuelta",
+   "sent": 35,
+   "src_s": 187.303,
+   "src_e": 187.503,
+   "s": 105.436,
+   "e": 105.636
+  },
+  {
+   "i": 529,
+   "w": "por",
+   "sent": 35,
+   "src_s": 187.563,
+   "src_e": 187.644,
+   "s": 105.696,
+   "e": 105.777
+  },
+  {
+   "i": 530,
+   "w": "Édition",
+   "sent": 35,
+   "src_s": 187.664,
+   "src_e": 187.904,
+   "s": 105.797,
+   "e": 106.037
+  },
+  {
+   "i": 531,
+   "w": "Privée,",
+   "sent": 35,
+   "src_s": 187.944,
+   "src_e": 188.184,
+   "s": 106.077,
+   "e": 106.317
+  },
+  {
+   "i": 532,
+   "w": "ahí",
+   "sent": 35,
+   "src_s": 188.364,
+   "src_e": 188.464,
+   "s": 106.497,
+   "e": 106.597
+  },
+  {
+   "i": 533,
+   "w": "lo",
+   "sent": 35,
+   "src_s": 188.504,
+   "src_e": 188.564,
+   "s": 106.637,
+   "e": 106.697
+  },
+  {
+   "i": 534,
+   "w": "pueden",
+   "sent": 35,
+   "src_s": 188.624,
+   "src_e": 188.804,
+   "s": 106.757,
+   "e": 106.937
+  },
+  {
+   "i": 535,
+   "w": "probar,",
+   "sent": 35,
+   "src_s": 188.824,
+   "src_e": 189.125,
+   "s": 106.957,
+   "e": 107.258
+  },
+  {
+   "i": 536,
+   "w": "lo",
+   "sent": 35,
+   "src_s": 189.145,
+   "src_e": 189.225,
+   "s": 107.278,
+   "e": 107.358
+  },
+  {
+   "i": 537,
+   "w": "pueden",
+   "sent": 35,
+   "src_s": 189.265,
+   "src_e": 189.445,
+   "s": 107.398,
+   "e": 107.578
+  },
+  {
+   "i": 538,
+   "w": "comprar.",
+   "sent": 35,
+   "src_s": 189.465,
+   "src_e": 189.885,
+   "s": 107.598,
+   "e": 108.018
+  },
+  {
+   "i": 539,
+   "w": "Perfumazo",
+   "sent": 36,
+   "src_s": 190.265,
+   "src_e": 190.766,
+   "s": 108.398,
+   "e": 108.899
+  },
+  {
+   "i": 540,
+   "w": "espectacular.",
+   "sent": 36,
+   "src_s": 190.806,
+   "src_e": 191.426,
+   "s": 108.939,
+   "e": 109.559
+  }
+ ],
+ "config": {
+  "drop": [
+   [
+    20,
+    31,
+    "repite el pedido de perdón"
+   ],
+   [
+    65,
+    125,
+    "repite el nombre, versiones y primera mención de la tienda"
+   ],
+   [
+    191,
+    200,
+    "precio en dólares, ya dio el precio"
+   ],
+   [
+    225,
+    242,
+    "duda sobre otras versiones"
+   ],
+   [
+    251,
+    262,
+    "rodeo antes de la comparación"
+   ],
+   [
+    297,
+    306,
+    "muletilla y repite el nombre"
+   ],
+   [
+    343,
+    385,
+    "explicación larga de la anosmia (va en tarjeta)"
+   ],
+   [
+    430,
+    464,
+    "repite que los demás sí lo sienten"
+   ]
+  ],
+  "pause": {
+   "sentence": 0.24,
+   "clause": 0.17,
+   "inner": 0.12
+  },
+  "min_removal": 0.24,
+  "tail_share": 0.58,
+  "thr_db": -46.0,
+  "lead_in": 0.08,
+  "lead_out": 0.2,
+  "manual": {
+   "428": {
+    "out": 151.7,
+    "in": 151.967
+   }
+  }
+ }
+}

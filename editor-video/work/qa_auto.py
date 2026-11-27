@@ -28,7 +28,7 @@ res(dv <= 90.5 or None, "duración", f"{dv:.1f} s (regla general: hasta 90 s; to
 # ---- word integrity
 src = json.load(open(f"{S}/analysis/src_words.json"))["words"]
 toks = []
-for line in [l.strip() for l in open(f"{S}/work/src_transcript.txt") if l.strip() and not l.startswith("#")]: toks += line.split()
+for line in [l.strip() for l in open(f"{S}/tr/src_transcript.txt" if os.path.exists(f"{S}/tr/src_transcript.txt") else f"{S}/work/src_transcript.txt") if l.strip() and not l.startswith("#")]: toks += line.split()
 os.makedirs(f"{pd}/qa", exist_ok=True)
 open(f"{pd}/qa/kept.txt", "w").write(" ".join(toks[w["i"]] for w in E["words"]) + "\n")
 subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", f"{pd}/audio/voice_final.wav", "-ac", "1", "-ar", "16000", f"{pd}/qa/voice16k.wav"], check=True)

@@ -16,5 +16,5 @@ if [ ! -d "$M/parakeet/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8" ]; then
   get "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8.tar.bz2" "$M/parakeet/pk.tar.bz2" && tar -xjf "$M/parakeet/pk.tar.bz2" -C "$M/parakeet"
 fi
 [ -s "$ROOT/build/sfx/shimmer.wav" ] || python3 -I "$ROOT/work/sfx.py" "$ROOT/build/sfx"
-[ -s "$ROOT/build/fonts/fonts.css" ] || python3 -I "$ROOT/work/fetch_fonts.py" "$ROOT/build/fonts"
+[ -s "$ROOT/build/fonts/fonts.css" ] || { mkdir -p "$ROOT/build/fonts"; python3 -I "$ROOT/work/fetch_fonts.py" "$ROOT/build/fonts"; }
 echo "listo: export VIDEO_EDIT_ROOT=$ROOT"

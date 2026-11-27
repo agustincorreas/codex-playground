@@ -32,10 +32,12 @@ total = acc[-1]
 FRZ = P.get("freeze")                       # {"at": edit time where the picture holds, "dim": 0..1}
 N = int(round(P.get("duration", total) * FPS)) if FRZ else int(round(total * FPS))
 
+_fin = [int(round(s_["in"] * FPS)) for s_ in segs]            # whole frames: the EDL stores seconds rounded to 4 decimals, so never floor them
+_facc = [0]
+for s_ in segs: _facc.append(_facc[-1] + int(round((s_["out"] - s_["in"]) * FPS)))
 def src_frame_for(k):
-    t = k / FPS
-    i = min(len(segs) - 1, max(0, int(np.searchsorted(acc, t, side="right") - 1)))
-    return int(math.floor((segs[i]["in"] + (t - acc[i])) * FPS + 1e-6))
+    i = min(len(segs) - 1, max(0, int(np.searchsorted(_facc, k, side="right") - 1)))
+    return _fin[i] + (k - _facc[i])
 
 src_idx = [src_frame_for(min(k, int(round(FRZ["at"] * FPS))) if FRZ else k) for k in range(N)]
 

@@ -1,0 +1,50 @@
+{
+ "drop": [
+  [
+   34,
+   52,
+   "la invitación al evento"
+  ],
+  [
+   94,
+   101,
+   "muletilla"
+  ],
+  [
+   157,
+   161,
+   "elogio repetido"
+  ],
+  [
+   182,
+   212,
+   "repite elogio y el lanzamiento en New York"
+  ],
+  [
+   309,
+   321,
+   "anuncia lo que va a decir"
+  ],
+  [
+   355,
+   361,
+   "titubeo"
+  ],
+  [
+   375,
+   426,
+   "repite el café y que no es dupe; aparte fuera de cámara"
+  ]
+ ],
+ "pause": {
+  "sentence": 0.24,
+  "clause": 0.17,
+  "inner": 0.12
+ },
+ "min_removal": 0.24,
+ "tail_share": 0.58,
+ "thr_db": -46.0,
+ "lead_in": 0.08,
+ "lead_out": 0.2,
+ "manual": {}
+}
