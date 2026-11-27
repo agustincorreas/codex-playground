@@ -34,6 +34,11 @@ dueño que lo haga: resolverlo solo.
   última palabra (no usar `end_plate`).
 - **Otros perfumes que nombra**: el frasco recortado sin fondo pasa rápido por detrás de él (`flyby`, menos de 1 s),
   nunca fijo en pantalla ni con su nombre, para no dar protagonismo a otras marcas.
+- **Inserts y primeros planos**: si en la carpeta hay clips cortos del frasco (close-ups, inserts) además del crudo, usar **al menos uno**
+  (no hace falta usarlos todos). Se cortan sobre la imagen con `work/inserts.py` (la voz no se toca), donde nombra ese perfume.
+- **Gancho**: si hay un título con potencial, va grande y al frente desde el cuadro 0 (`hook_title`), no en un cuadrito al costado.
+- **Recuadros del costado**: solo cuando aportan (notas, listas, datos); nunca con texto que se salga ni tapados por él.
+- **Encuadre**: en tomas de cuerpo entero, reencuadrar para que se vean lo menos posible los pantalones.
 - **Listas con checks**: un clic por cada ítem que se enciende (ya lo hacen `check_list` y `pros_cons`).
 
 ## Pasos
