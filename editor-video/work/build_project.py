@@ -99,6 +99,7 @@ def build_captions():
     for s in sorted({w["sent"] for w in WORDS}):
         ws = [w for w in WORDS if w["sent"] == s]; k = 0
         script = CAPTIONS.get(s) or auto_script(ws)
+        if OPT.get("dump"): print(f' {s}: "{script}",')        # --set dump=1: print every sentence's script (copy the ones to retouch into CAPTIONS)
         for raw in [c.strip() for c in script.split("|")]:
             hidden = raw.startswith("[") and raw.endswith("]")
             card = []; em = False

@@ -1,5 +1,5 @@
 import re, subprocess, sys, os, hashlib
-out = sys.argv[1]
+out = sys.argv[1]; os.makedirs(out, exist_ok=True)
 UA = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
 specs = [
  "Montserrat:ital,wght@0,400..900;1,400..900", "Manrope:wght@300..800", "Inter+Tight:ital,wght@0,300..900;1,300..900",

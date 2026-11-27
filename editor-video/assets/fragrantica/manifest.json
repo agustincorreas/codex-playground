@@ -691,5 +691,75 @@
   "height": 1200,
   "verified_by_eye": true,
   "notes": "Untouched 1200x1200 Spanish card; shows rating 4.3 (1745 votes), 8 h longevity, strong sillage at download time."
+ },
+ {
+  "file": "note_gardenia.jpg",
+  "kind": "note",
+  "name": "Gardenia (jazmín del Cabo)",
+  "source_url": "https://fimgs.net/mdimg/sastojci/o.19.jpg",
+  "width": 150,
+  "height": 150,
+  "verified_by_eye": true,
+  "notes": "Imagen de nota de Fragrantica, usada como medallón en videos/fatiga-olfativa."
+ },
+ {
+  "file": "note_rosemary.jpg",
+  "kind": "note",
+  "name": "Romero (hierbas)",
+  "source_url": "https://fimgs.net/mdimg/sastojci/o.49.jpg",
+  "width": 150,
+  "height": 150,
+  "verified_by_eye": true,
+  "notes": "Imagen de nota de Fragrantica, usada como medallón en videos/top3-aromatizantes."
+ },
+ {
+  "file": "note_sandalwood.jpg",
+  "kind": "note",
+  "name": "Sándalo",
+  "source_url": "https://fimgs.net/mdimg/sastojci/o.33.jpg",
+  "width": 150,
+  "height": 150,
+  "verified_by_eye": true,
+  "notes": "Imagen de nota de Fragrantica, usada como medallón en videos/top3-aromatizantes."
+ },
+ {
+  "file": "note_peony.jpg",
+  "kind": "note",
+  "name": "Peonía (flores)",
+  "source_url": "https://fimgs.net/mdimg/sastojci/o.115.jpg",
+  "width": 150,
+  "height": 150,
+  "verified_by_eye": true,
+  "notes": "Imagen de nota de Fragrantica, usada como medallón en videos/top3-aromatizantes."
+ },
+ {
+  "file": "note_peach.jpg",
+  "kind": "note",
+  "name": "Durazno (frutas)",
+  "source_url": "https://fimgs.net/mdimg/sastojci/o.117.jpg",
+  "width": 150,
+  "height": 150,
+  "verified_by_eye": true,
+  "notes": "Imagen de nota de Fragrantica, usada como medallón en videos/top3-aromatizantes."
+ },
+ {
+  "file": "note_orange.jpg",
+  "kind": "note",
+  "name": "Naranja (cítricos)",
+  "source_url": "https://fimgs.net/mdimg/sastojci/o.80.jpg",
+  "width": 150,
+  "height": 150,
+  "verified_by_eye": true,
+  "notes": "Imagen de nota de Fragrantica, usada como medallón en videos/top3-aromatizantes."
+ },
+ {
+  "file": "note_lemon.jpg",
+  "kind": "note",
+  "name": "Limón",
+  "source_url": "https://fimgs.net/mdimg/sastojci/o.77.jpg",
+  "width": 150,
+  "height": 150,
+  "verified_by_eye": true,
+  "notes": "Imagen de nota de Fragrantica, usada como medallón en videos/top3-aromatizantes."
  }
 ]

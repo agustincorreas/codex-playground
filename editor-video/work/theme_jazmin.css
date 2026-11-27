@@ -1,0 +1,26 @@
+/* Theme "jazmin": verde jazmín (florales verdes / hogar) sobre blanco + vidrio oscuro; sombras de subtítulo reforzadas para ropa clara. */
+:root {
+  --white: #ffffff;
+  --gold: #a6f0bd;            /* on black glass */
+  --gold-cap: #8ff0ac;        /* deeper gold for accent words that sit directly on the white shirt */
+  --gold-grad: linear-gradient(175deg, #e9fff0 0%, #a6f0bd 38%, #56c482 82%, #a6f0bd 100%);
+  --ink: #0b0b0c;
+  --bar-grad: linear-gradient(90deg, #56c482, #e9fff0);
+  --sans: 'Inter Tight', 'Inter', sans-serif;
+  --serif: 'DM Serif Display', 'Playfair Display', serif;
+
+  /* captions: one line, centred on x=490 (after un-mirroring the footage the speaker and the bottle sit right of centre), sans baseline ~y=1290 */
+  --cap-left: 90px; --cap-width: 900px; --cap-top: 1172px; --cap-box: 122px;
+  --cap-size: 82px; --cap-weight: 800; --cap-track: -0.014em; --cap-gap: 0.25em;
+
+  --cap-shadow: 0 0 3px rgba(0,0,0,.85), 0 0 8px rgba(0,0,0,.60), 0 2px 4px rgba(0,0,0,.75), 0 5px 18px rgba(0,0,0,.60), 0 0 44px rgba(0,0,0,.50);
+  --em-shadow: 0 0 2px rgba(0,0,0,.98), 0 0 7px rgba(0,0,0,.80), 0 2px 4px rgba(0,0,0,.80), 0 5px 18px rgba(0,0,0,.60), 0 0 44px rgba(0,0,0,.50);
+
+  --kicker-size: 24px;
+  --glass-bg: rgba(12, 12, 14, 0.82);
+  --glass-border: rgba(143, 227, 166, 0.50);
+  --radius: 28px;
+  --medal: 190px;
+}
+/* títulos sobre ropa clara: halo más denso detrás del serif */
+.glow { background: radial-gradient(closest-side, rgba(0,0,0,.52), rgba(0,0,0,.26) 55%, rgba(0,0,0,0)); }

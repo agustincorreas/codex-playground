@@ -222,6 +222,6 @@ def flyby(img, t, y=330, h=520, dur=0.85, rtl=False, opacity=0.92):
 def brand_badge(t, t_out, name, logo=None, kicker="Marca"):
     """The brand on screen when he names it: its logo if we have the file, otherwise the name set as a wordmark."""
     src = asset(logo) if logo else None
-    inner = f'<img src="{src}" style="display:block;width:100%;height:auto;opacity:1 !important">' if src else f'<div class="brand-word">{name}</div>'
+    inner = f'<img src="{src}" style="display:block;width:100%;height:auto;opacity:1 !important">' if src else f'<div class="brand-word" style="font-size:{min(38, int(196 / (0.80 * max(len(l) for l in name.split("<br>")))))}px;line-height:1.25">{name}</div>'
     card(t, t_out, f'<div class="kicker gold pk">{kicker}</div>{inner}', 150, w_max=240, name="brand")
     snd(t, "whoosh_short", CARD_SND - 2.5, pre=0.16)
