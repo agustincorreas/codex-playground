@@ -4,6 +4,7 @@ set -e
 S=${VIDEO_EDIT_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}   # working folder (holds work/, build/, analysis/, assets/, dl/, models/)
 P=$(realpath $1); CRF=${2:-16}; PRESET=${3:-slow}
 N=$(python3 -I -c "import json;p=json.load(open('$P/project.json'));print(int(round(p['duration']*p['fps'])))")
+echo "== recuadros"; (cd $S/work && node overflow_check.js $P/overlay/index.html)     # ningún texto fuera de su caja: si falla, no se renderiza
 echo "== audio"; python3 -I $S/work/audio_build.py $P/project.json $P/audio
 echo "== overlays ($N frames)"; rm -rf $P/ov_front $P/ov_back
 cd $S/work

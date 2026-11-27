@@ -99,7 +99,18 @@ def _dx(cx): return int(cx - 540)
 
 def hook_tag(t_out, kicker, question):
     """Small tag with the open question, on screen from frame 0."""
-    card(0.0, t_out, f'<div class="kicker gold pk" style="margin-bottom:6px">{kicker}</div><div class="tag-q">{question}</div>', 150, instant=True, name="hook tag")
+    w = column(0.0, out_on_cut(t_out), TOP, TOP + 150)
+    size = min(62, int((w - 48) / (0.44 * max(len(question), 1))))      # italic serif: ~0.44 em per character; never wider than the slot
+    card(0.0, t_out, f'<div class="kicker gold pk" style="margin-bottom:6px;font-size:{min(25, int((w - 48) / (0.72 * max(len(kicker), 1))))}px">{kicker}</div><div class="tag-q" style="font-size:{size}px">{question}</div>', 150, instant=True, name="hook tag")
+
+def hook_title(t_out, kicker, question, cx=CX, top=1420):
+    """The hook question in the middle and in front, on screen from frame 0: a glass plate sized to its text (nothing can stick out),
+    just under the caption line so both read together. This is the default way to show the hook; hook_tag is the small corner variant."""
+    t_out = out_on_cut(t_out)
+    item(0.0, t_out + 0.3, f"""
+ <div class="center" style="left:{_dx(cx)}px;top:{top}px"><div class="glass" style="display:inline-block;padding:20px 40px 24px;text-align:center" {d(in_=0.0, anim="none", out=t_out, outanim="down", outdur=0.20)}>
+   <div class="kicker gold pk" style="margin-bottom:8px">{kicker}</div><div class="tag-q" style="font-size:84px">{question}</div></div></div>""")
+    LAYOUT.append(("hook title", 0.0, round(t_out, 2), 0))
 
 def big_title(t, t_out, big, label, unit="", cx=CX, top=1052, hit=(-25.5, -27.0), riser=None, label_delay=0.10):
     """Big serif keyword (a number, a word) with a pill label under it; replaces the captions while it is up."""

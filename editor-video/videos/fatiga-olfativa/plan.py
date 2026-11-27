@@ -28,7 +28,7 @@ def plan():
     gesture(ts(28, "enamorado") - 0.05, 1.09, hold=0.6, release=1.8, ax=C)
     zkey(ts(33, "con qué"), 1.0, "cut"); zkey(DUR, 1.05, "inout")
     # gancho: la queja de siempre, desde el primer cuadro
-    hook_tag(ts(2, "fatiga olfativa") - 0.30, "¿Tu perfume", "no dura?")
+    hook_title(ts(2, "fatiga olfativa") - 0.30, "¿Tu perfume", "no dura?", cx=C)
     big_title(ts(2, "fatiga olfativa"), title_out(3, "que no es"), '<span style="font-size:.60em">Fatiga</span>', "Olfativa", cx=C, top=1080, hit=(-28.0, -29.5))
     check_list(ts(3, "nuestro olfato") - 0.05, sent_span(3)[1] + 0.30, "Ya no sentís",
                [("Cotidianos", ts(3, "cotidianos")), ("Familiares", ts(3, "familiares")), ("Inofensivos", ts(3, "inofensivos"))])

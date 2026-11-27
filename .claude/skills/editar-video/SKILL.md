@@ -58,7 +58,7 @@ dueño que lo haga: resolverlo solo.
      cuando lo dice;
    - tarjetas de datos angostas arriba a la izquierda, **detrás** del orador (matte), con `TOP ≥ 290` para entrar en
      el recorte 4:5 del feed; texto sobre fondo oscuro, nunca directo sobre la pared;
-   - una etiqueta con la pregunta del gancho desde el cuadro 0; nada cruza un corte; zooms suaves (1,07–1,13) en
+   - la pregunta del gancho desde el cuadro 0, **centrada y adelante** (`hook_title`), nunca en una etiqueta chica en un costado; nada cruza un corte; zooms suaves (1,07–1,13) en
      palabras clave, con vuelta solo en los cortes;
    - cierre: sin placa ni frase; termina en la última palabra con un respiro corto.
 6. **Paleta según el video** (variables de `work/theme_default.css`; crear `theme_<nombre>.css` y pasar `--theme`):
@@ -69,7 +69,7 @@ dueño que lo haga: resolverlo solo.
    - verdes/aromáticos: verde salvia;
    - eventos, entrevistas, tops: neutro (blanco + un solo acento de la marca), menos tarjetas y más títulos.
    Comprobar siempre el contraste del acento sobre la ropa que tenga puesta.
-7. **Render**: `build_project.py --video videos/<nombre>` → `preview.py` (mirar los fotogramas y corregir ahí, que
+7. **Render**: `build_project.py --video videos/<nombre>` → `node work/overflow_check.js <proyecto>/overlay/index.html` (ningún texto puede salir de su recuadro; `make.sh` no renderiza si falla) → `preview.py` (mirar los fotogramas y corregir ahí, que
    tarda segundos) → un solo `make.sh <proyecto> 20 slow`. Si después solo cambia el sonido, rehacer
    `audio_build.py` y remuxar, sin renderizar el video otra vez.
 8. **Verificar antes de entregar**: `qa_auto.py <proyecto> <edl> --asr` debe terminar sin fallas (palabras enteras,
