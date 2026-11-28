@@ -81,7 +81,7 @@ dueño que lo haga: resolverlo solo.
    No usar revisores automáticos (subagentes) salvo un único repaso visual final si algo queda en duda. Además:
    - mirar una hoja de contactos de todo el video (un cuadro por segundo);
    - ortografía rioplatense (aplicás, animás, ananá) y datos en pantalla correctos.
-9. **Entregar**: remux a `editado.mov`. **La entrega es siempre una página de descarga** (decisión del dueño): desde el chat
+9. **Entregar**: remux a `editado.mov`. **La entrega es siempre una página de descarga, para todos los videos, pesen lo que pesen** (decisión del dueño): desde el chat
    no puede bajar los archivos, el conector de Drive acepta ~3 MB por subida y GitHub rechaza los videos. Correr
    `work/download_page.py <carpeta> "<título>" editado.mov "<nombre>" …` y publicar esa carpeta con la herramienta Artifact
    (`capabilities: {"downloads": true}`, partes de a 4 por publicación; ver el encabezado del script). Pasarle el link de la

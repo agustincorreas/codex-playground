@@ -25,7 +25,9 @@ dueño que lo haga: resolverlo solo.
 
 ## Diferencias con la versión de nube
 - **Render**: usar el codificador por hardware si está (`h264_videotoolbox` en Mac) para la pasada final.
-- **Entrega**: copiar `editado.mov` a la carpeta del crudo en Drive. Avisar cuando esté.
+- **Entrega**: copiar `editado.mov` a la carpeta del crudo en Drive **y además armar siempre la página de descarga**
+  (decisión del dueño, vale para todos los videos, pesen lo que pesen): `work/download_page.py` + herramienta Artifact, igual
+  que en el paso 9 de `editar-video`. Pasarle el link de la página y avisar cuando esté.
 - **CapCut**: no manejar CapCut con clics (es lento y frágil; el pipeline por scripts es más rápido y repetible).
   Si el dueño quiere retocar a mano, dejarle en la carpeta del proyecto:
   - `limpio.mp4`: cortes + color + sonido, sin gráficos (`render.py … --no-overlay`);
