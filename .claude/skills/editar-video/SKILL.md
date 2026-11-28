@@ -81,8 +81,12 @@ dueño que lo haga: resolverlo solo.
    No usar revisores automáticos (subagentes) salvo un único repaso visual final si algo queda en duda. Además:
    - mirar una hoja de contactos de todo el video (un cuadro por segundo);
    - ortografía rioplatense (aplicás, animás, ananá) y datos en pantalla correctos.
-9. **Entregar**: remux a `editado.mov`; enviarlo por el chat (el conector de Drive solo sube hasta 10 MB, así que
-   la copia a la carpeta la hace el dueño). Sugerir un cuadro de portada con mirada a cámara y el título visible.
+9. **Entregar**: remux a `editado.mov`. **La entrega es siempre una página de descarga** (decisión del dueño): desde el chat
+   no puede bajar los archivos, el conector de Drive acepta ~3 MB por subida y GitHub rechaza los videos. Correr
+   `work/download_page.py <carpeta> "<título>" editado.mov "<nombre>" …` y publicar esa carpeta con la herramienta Artifact
+   (`capabilities: {"downloads": true}`, partes de a 4 por publicación; ver el encabezado del script). Pasarle el link de la
+   página, y además mandar el video por el chat solo para que lo mire. Baja como `.mp4` (la página no puede guardar `.mov`).
+   Sugerir un cuadro de portada con mirada a cámara y el título visible.
    Resumen: duración, frases quitadas (ofreciendo reponerlas), qué escuchar una vez, de dónde salió cada imagen.
 
 ## Límites conocidos
